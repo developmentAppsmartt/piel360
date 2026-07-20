@@ -1,0 +1,28 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+allowBuilds:
+  '@prisma/engines': true # descarga los binarios del motor de consultas de Prisma
+  '@scarf/scarf': false # telemetría de instalación (swagger-ui-dist) — desactivada
+  argon2: true # binding nativo real, requerido para hashear contraseñas
+  esbuild: true # requerido por tsup
+  msgpackr-extract: true # acelerador nativo de msgpackr (usado por ioredis/bullmq)
+  prisma: true # CLI, requiere el postinstall de @prisma/engines
+  sharp: true # optimización nativa de next/image
+  unrs-resolver: true # binding nativo de resolución usado por tooling de eslint
+
+nodeLinker: hoisted
+
+# Fuerza una única versión de eslint en todo el árbol. Sin esto, pnpm resolvía
+# dos "variantes" de @typescript-eslint/utils@8.64.0 con distinto contexto de
+# peer, y auto-install-peers instalaba un eslint@10 anidado que rompía el lint
+# (ajv incompatible: "Cannot find module 'ajv/lib/refs/json-schema-draft-04.json'").
+overrides:
+  eslint: 9.39.5
+  '*>eslint': 9.39.5
+  # React Native/Expo fija una versión exacta de react; apps/web se alinea a
+  # la misma para evitar copias duplicadas dentro del árbol de apps/mobile
+  # (expo-doctor: "Multiple copies of the same version exist for: react").
+  react: 19.2.3
+  react-dom: 19.2.3

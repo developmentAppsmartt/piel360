@@ -1,0 +1,44 @@
+# Laravel actual (repo git propio, producción vigente hasta el cutover)
+/Piel360/
+
+# Dependencias
+node_modules/
+.pnpm-store/
+
+# Builds
+dist/
+build/
+.next/
+.expo/
+.expo-shared/
+out/
+
+# Turborepo
+.turbo/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+
+# Prisma
+apps/api/prisma/*.db
+
+# Expo / EAS
+apps/mobile/.expo/
+apps/mobile/ios/
+apps/mobile/android/
+
+# TypeScript
+*.tsbuildinfo

@@ -1,0 +1,261 @@
+// Piel360 API — schema Prisma
+// Diseño y mapeo completo de tablas: ver MIGRACION.md §7.1 en la raíz del Laravel actual (Piel360/).
+//
+// Prisma 7: el datasource ya NO acepta `url` (ver prisma.config.ts para el CLI/migrate;
+// en runtime, PrismaService construye el cliente con un driver adapter — ver
+// src/prisma/prisma.service.ts).
+//
+// Nota: el diseño original (MIGRACION.md) usaba `@db.LongText`, un tipo nativo de MySQL.
+// Como el motor elegido es PostgreSQL (ver MIGRACION.md §7.4), se usa `@db.Text` en su lugar
+// (en Postgres, TEXT ya no tiene límite de longitud).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                 BigInt    @id @default(autoincrement())
+  name               String
+  email              String    @unique
+  googleId           String?   @map("google_id")
+  diagnosticLanguage String    @default("es") @map("diagnostic_language")
+  emailVerifiedAt    DateTime? @map("email_verified_at")
+  password           String
+  firstName          String    @map("first_name")
+  lastName           String    @map("last_name")
+  birthday           DateTime? @db.Date
+  gender             String?
+  phone              String?
+  address            String?
+  latitude           Decimal?  @db.Decimal(10, 7)
+  longitude          Decimal?  @db.Decimal(10, 7)
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  doctor            Doctor?
+  patient           Patient?
+  analyses          Analysis[]     @relation("ExecutedAnalyses")
+  confirmedAnalyses Analysis[]     @relation("ConfirmedAnalyses")
+  subscriptions     Subscription[]
+  roles             Role[]
+
+  @@map("users")
+}
+
+model Doctor {
+  id                   BigInt    @id @default(autoincrement())
+  userId               BigInt    @unique @map("user_id")
+  firstName            String    @map("first_name")
+  lastName             String    @map("last_name")
+  birthDate            DateTime? @db.Date @map("birth_date")
+  gender               String?
+  phone                String?
+  lat                  Decimal?  @db.Decimal(10, 8)
+  lng                  Decimal?  @db.Decimal(11, 8)
+  address              String?
+  city                 String?
+  country              String?
+  zip                  String?
+  metadataGooglePlaces Json?     @map("metadata_google_places")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  patients Patient[]
+
+  @@map("doctors")
+}
+
+model Patient {
+  id                BigInt    @id @default(autoincrement())
+  doctorId          BigInt?   @map("doctor_id")
+  userId            BigInt?   @unique @map("user_id")
+  firstName         String    @map("first_name")
+  lastName          String    @map("last_name")
+  birthDate         DateTime? @db.Date @map("birth_date")
+  gender            String?
+  email             String?
+  phone             String?
+  areaCode          String?   @map("area_code")
+  docType           String?   @map("doc_type")
+  docNumber         String?   @map("doc_number")
+  address           String?
+  mascotType        String?   @map("mascot_type")
+  skinType          String?   @map("skin_type")
+  fitzpatrickType   String?   @map("fitzpatrick_type")
+  lat               Decimal?  @db.Decimal(10, 8)
+  lng               Decimal?  @db.Decimal(11, 8)
+  regions           Json?
+  surveyCompletedAt DateTime? @map("survey_completed_at")
+  surveyResponses   Json?     @map("survey_responses")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  doctor   Doctor?    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  user     User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analyses Analysis[]
+
+  @@map("patients")
+}
+
+model Analysis {
+  id              BigInt    @id @default(autoincrement())
+  youcamTaskId    String?   @map("youcam_task_id")
+  patientId       BigInt    @map("patient_id")
+  userId          BigInt?   @map("user_id")
+  imagePath       String    @map("image_path")
+  coloredS3Url    String?   @map("colored_s3_url")
+  maskedS3Url     String?   @map("masked_s3_url")
+  bodyRegion      String?   @map("body_region")
+  xCoord          Float?    @map("x_coord")
+  yCoord          Float?    @map("y_coord")
+  zCoord          Float?    @map("z_coord")
+  isValid         Boolean   @default(false) @map("is_valid")
+  validationScore Float?    @map("validation_score")
+  aiDiagnosis     String?   @map("ai_diagnosis")
+  aiProbability   Float?    @map("ai_probability")
+  aiRawResponse   Json?     @map("ai_raw_response")
+  finalDiagnosis  String?   @map("final_diagnosis")
+  isConfirmed     Boolean   @default(false) @map("is_confirmed")
+  isCorrected     Boolean   @default(false) @map("is_corrected")
+  doctorNotes     String?   @db.Text @map("doctor_notes")
+  confirmedById   BigInt?   @map("confirmed_by")
+  confirmedAt     DateTime? @map("confirmed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  patient     Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  user        User?              @relation("ExecutedAnalyses", fields: [userId], references: [id], onDelete: Cascade)
+  confirmedBy User?              @relation("ConfirmedAnalyses", fields: [confirmedById], references: [id])
+  usage       SubscriptionUsage?
+
+  @@index([youcamTaskId])
+  @@map("analyses")
+}
+
+model AnalysisProvider {
+  id        BigInt   @id @default(autoincrement())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  plans Plan[]
+
+  @@map("analysis_providers")
+}
+
+model Plan {
+  id                 BigInt   @id @default(autoincrement())
+  analysisProviderId BigInt   @default(1) @map("analysis_provider_id")
+  name               String
+  analysisLimit      Int      @default(0) @map("analysis_limit")
+  price              Decimal  @default(0) @db.Decimal(10, 2)
+  durationDays       Int      @default(30) @map("duration_days")
+  isActive           Boolean  @default(true) @map("is_active")
+  description        String?  @db.Text
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  provider      AnalysisProvider @relation(fields: [analysisProviderId], references: [id])
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+enum SubscriptionStatus {
+  pending
+  active
+  cancelled
+}
+
+model Subscription {
+  id                 BigInt             @id @default(autoincrement())
+  userId             BigInt             @map("user_id")
+  planId             BigInt             @map("plan_id")
+  wompiTransactionId String?            @map("wompi_transaction_id")
+  status             SubscriptionStatus
+  endsAt             DateTime?          @map("ends_at")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  user   User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan   Plan                @relation(fields: [planId], references: [id], onDelete: Cascade)
+  usages SubscriptionUsage[]
+
+  @@index([wompiTransactionId])
+  @@map("subscriptions")
+}
+
+model SubscriptionUsage {
+  id             BigInt   @id @default(autoincrement())
+  subscriptionId BigInt   @map("subscription_id")
+  analysisId     BigInt   @unique @map("analysis_id")
+  quantity       Int      @default(1)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  analysis     Analysis     @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@map("subscription_usages")
+}
+
+model EncyclopediaEntry {
+  id          BigInt   @id @default(autoincrement())
+  url         String   @unique
+  originalUrl String?  @map("original_url")
+  title       String?
+  content     String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("encyclopedia_entries")
+}
+
+model GatewayConfig {
+  id              BigInt   @id @default(autoincrement())
+  gatewayName     String   @default("wompi") @map("gateway_name")
+  environment     String   @default("sandbox")
+  publicKey       String   @db.Text @map("public_key")
+  privateKey      String?  @db.Text @map("private_key") // cifrado en app (ver EncryptionService)
+  integritySecret String?  @db.Text @map("integrity_secret") // cifrado en app
+  webhookSecret   String?  @db.Text @map("webhook_secret") // cifrado en app
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("gateway_configs")
+}
+
+model PasswordResetToken {
+  id        BigInt   @id @default(autoincrement())
+  email     String
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([email])
+  @@map("password_reset_tokens")
+}
+
+model Role {
+  id          BigInt       @id @default(autoincrement())
+  name        String       @unique
+  permissions Permission[]
+  users       User[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id    BigInt @id @default(autoincrement())
+  name  String @unique
+  roles Role[]
+
+  @@map("permissions")
+}
