@@ -23,6 +23,7 @@ import { AdminModule } from './admin/admin.module';
 import { HealthModule } from './health/health.module';
 import { MailModule } from './mail/mail.module';
 import { CommonModule } from './common/common.module';
+import { MessagesModule } from './messages/messages.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { CommonModule } from './common/common.module';
     UsersModule,
     DoctorsModule,
     PatientsModule,
+    MessagesModule,
     AnalysesModule,
     YoucamModule,
     SkiniverModule,

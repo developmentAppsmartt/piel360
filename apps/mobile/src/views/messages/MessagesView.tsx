@@ -1,18 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Text,
+  View,
+} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useBranding } from '../../context/BrandingContext';
+import { ApiError } from '../../services/api.client';
 import { messagesService } from '../../services/messages.service';
 import type { Conversation, MessageTab } from '../../types/messages';
 import { ConversationCard } from './components/ConversationCard';
 import { MessagesHeader } from './components/MessagesHeader';
 import { MessagesTabs } from './components/MessagesTabs';
+import { NewMessageContactsView } from './components/NewMessageContactsView';
 import { NewMessageFab } from './components/NewMessageFab';
 import { ChatThreadView } from './components/ChatThreadView';
 import { createMessagesStyles } from './styles/messages.styles';
 
 type MessagesViewProps = {
-  /** Avisa al navigator para ocultar el tab bar en el hilo. */
   onThreadOpenChange?: (open: boolean) => void;
 };
 
@@ -24,27 +31,59 @@ export function MessagesView({ onThreadOpenChange }: MessagesViewProps) {
   );
   const [tab, setTab] = useState<MessageTab>('recientes');
   const [items, setItems] = useState<Conversation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [pickingContact, setPickingContact] = useState(false);
 
   const reload = useCallback(async () => {
-    const list = await messagesService.listConversations(tab);
-    setItems(list);
+    setError(null);
+    try {
+      const list = await messagesService.listConversations(tab);
+      setItems(list);
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : 'No se pudieron cargar las conversaciones.',
+      );
+    } finally {
+      setLoading(false);
+    }
   }, [tab]);
 
   useEffect(() => {
+    setLoading(true);
     void reload();
   }, [reload]);
 
   useEffect(() => {
-    onThreadOpenChange?.(Boolean(activeId));
+    const open = Boolean(activeId) || pickingContact;
+    onThreadOpenChange?.(open);
     return () => onThreadOpenChange?.(false);
-  }, [activeId, onThreadOpenChange]);
+  }, [activeId, pickingContact, onThreadOpenChange]);
+
+  if (pickingContact) {
+    return (
+      <NewMessageContactsView
+        onBack={() => setPickingContact(false)}
+        onStarted={(id) => {
+          setPickingContact(false);
+          setActiveId(id);
+        }}
+      />
+    );
+  }
 
   if (activeId) {
     return (
       <ChatThreadView
         conversationId={activeId}
         onBack={() => {
+          setActiveId(null);
+          void reload();
+        }}
+        onDeleted={() => {
           setActiveId(null);
           void reload();
         }}
@@ -58,36 +97,44 @@ export function MessagesView({ onThreadOpenChange }: MessagesViewProps) {
       <MessagesHeader
         styles={styles}
         onSearch={() =>
-          Alert.alert('Buscar', 'La búsqueda de conversaciones llegará con el API.')
+          Alert.alert('Buscar', 'La búsqueda de conversaciones llegará pronto.')
         }
       />
       <MessagesTabs styles={styles} active={tab} onChange={setTab} />
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
-          <ConversationCard
-            styles={styles}
-            conversation={item}
-            onPress={() => setActiveId(item.id)}
-          />
-        )}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>No hay conversaciones en esta carpeta.</Text>
-          </View>
-        }
-      />
-      <NewMessageFab
-        styles={styles}
-        onPress={() =>
-          Alert.alert(
-            'Nuevo mensaje',
-            'Podrás iniciar un chat con tu doctor cuando el módulo esté conectado al API.',
-          )
-        }
-      />
+      {loading ? (
+        <View style={styles.empty}>
+          <ActivityIndicator color={branding.colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={items}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          ListHeaderComponent={
+            error ? (
+              <Text style={{ color: branding.colors.error, marginBottom: 8 }}>
+                {error}
+              </Text>
+            ) : null
+          }
+          renderItem={({ item }) => (
+            <ConversationCard
+              styles={styles}
+              conversation={item}
+              onPress={() => setActiveId(item.id)}
+            />
+          )}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyText}>
+                No hay conversaciones en esta carpeta. Pulsa + para iniciar un
+                chat.
+              </Text>
+            </View>
+          }
+        />
+      )}
+      <NewMessageFab styles={styles} onPress={() => setPickingContact(true)} />
     </View>
   );
 }

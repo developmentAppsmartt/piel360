@@ -38,9 +38,6 @@ export function ChatHeader({
         {name}
       </Text>
       <View style={styles.headerActions}>
-        <Pressable style={styles.headerBtn} accessibilityLabel="Videollamada">
-          <AppIcon icon={Icons.video} size={20} color={onDark} />
-        </Pressable>
         <Pressable
           style={styles.headerBtn}
           onPress={onMore}

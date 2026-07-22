@@ -1,38 +1,109 @@
-import type { Conversation, MessageTab } from '../types/messages';
-import {
-  filterConversations,
-  MOCK_CONVERSATIONS,
-} from '../views/messages/data/mockConversations';
+import type {
+  ChatMessage,
+  Conversation,
+  MessageContact,
+  MessageTab,
+} from '../types/messages';
+import { apiRequest } from './api.client';
 
-/**
- * Hoy: datos mock del diseño.
- * Después: GET /messages, GET /messages/:id, POST /messages/:id, etc.
- */
 export const messagesService = {
+  async listContacts(): Promise<MessageContact[]> {
+    return apiRequest<MessageContact[]>('/messages/contacts', { auth: true });
+  },
+
   async listConversations(tab: MessageTab = 'recientes'): Promise<Conversation[]> {
-    await Promise.resolve();
-    return filterConversations(MOCK_CONVERSATIONS, tab);
+    const list = await apiRequest<Omit<Conversation, 'messages'>[]>(
+      `/messages/conversations?tab=${encodeURIComponent(tab)}`,
+      { auth: true },
+    );
+    return list.map((c) => ({ ...c, messages: [] }));
+  },
+
+  async getOrCreate(peer: {
+    patientId?: string;
+    doctorId?: string;
+  }): Promise<Conversation> {
+    return apiRequest<Conversation>('/messages/conversations', {
+      method: 'POST',
+      auth: true,
+      body: peer,
+    });
   },
 
   async getConversation(id: string): Promise<Conversation | null> {
-    await Promise.resolve();
-    return MOCK_CONVERSATIONS.find((c) => c.id === id) ?? null;
+    try {
+      return await apiRequest<Conversation>(`/messages/conversations/${id}`, {
+        auth: true,
+      });
+    } catch {
+      return null;
+    }
   },
 
-  async sendText(conversationId: string, text: string): Promise<Conversation | null> {
-    await Promise.resolve();
-    const convo = MOCK_CONVERSATIONS.find((c) => c.id === conversationId);
-    if (!convo || !text.trim()) return convo ?? null;
+  async sendText(conversationId: string, text: string): Promise<ChatMessage> {
+    return apiRequest<ChatMessage>(
+      `/messages/conversations/${conversationId}/messages`,
+      {
+        method: 'POST',
+        auth: true,
+        body: { type: 'text', body: text },
+      },
+    );
+  },
 
-    convo.messages.push({
-      id: `local-${Date.now()}`,
-      text: text.trim(),
-      from: 'me',
-      sentAt: 'Ahora',
-      status: 'sent',
+  async sendAttachment(
+    conversationId: string,
+    file: {
+      uri: string;
+      name: string;
+      mimeType: string;
+    },
+  ): Promise<ChatMessage> {
+    const form = new FormData();
+    form.append('file', {
+      uri: file.uri,
+      name: file.name,
+      type: file.mimeType,
+    } as unknown as Blob);
+
+    return apiRequest<ChatMessage>(
+      `/messages/conversations/${conversationId}/attachments`,
+      {
+        method: 'POST',
+        auth: true,
+        body: form,
+        formData: true,
+      },
+    );
+  },
+
+  async markRead(conversationId: string): Promise<void> {
+    await apiRequest(`/messages/conversations/${conversationId}/read`, {
+      method: 'POST',
+      auth: true,
     });
-    convo.preview = text.trim();
-    convo.timeLabel = 'Ahora';
-    return { ...convo, messages: [...convo.messages] };
+  },
+
+  async setArchived(conversationId: string, archived: boolean): Promise<void> {
+    await apiRequest(`/messages/conversations/${conversationId}`, {
+      method: 'PATCH',
+      auth: true,
+      body: { archived },
+    });
+  },
+
+  async deleteConversation(conversationId: string): Promise<void> {
+    await apiRequest(`/messages/conversations/${conversationId}`, {
+      method: 'DELETE',
+      auth: true,
+    });
+  },
+
+  /** Solo doctor: elimina el hilo para ambas partes. */
+  async deleteConversationPermanent(conversationId: string): Promise<void> {
+    await apiRequest(`/messages/conversations/${conversationId}/permanent`, {
+      method: 'DELETE',
+      auth: true,
+    });
   },
 };

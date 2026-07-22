@@ -16,6 +16,8 @@ type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   auth?: boolean;
+  /** Si true, no fuerza Content-Type JSON (útil para FormData). */
+  formData?: boolean;
 };
 
 function messageFromBody(body: unknown, fallback: string): string {
@@ -29,12 +31,12 @@ function messageFromBody(body: unknown, fallback: string): string {
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, auth = false } = options;
+  const { method = 'GET', body, auth = false, formData = false } = options;
   const headers: Record<string, string> = {
     Accept: 'application/json',
   };
 
-  if (body !== undefined) {
+  if (body !== undefined && !formData) {
     headers['Content-Type'] = 'application/json';
   }
 
@@ -52,7 +54,12 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     response = await fetch(url, {
       method,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body:
+        body === undefined
+          ? undefined
+          : formData
+            ? (body as FormData)
+            : JSON.stringify(body),
     });
   } catch {
     throw new ApiError(
