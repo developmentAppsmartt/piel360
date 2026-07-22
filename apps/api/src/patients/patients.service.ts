@@ -57,16 +57,29 @@ export class PatientsService {
       );
     }
 
+    const { birthDate, ...rest } = dto;
     return this.prisma.patient.create({
-      data: { ...dto, doctorId },
+      data: {
+        ...rest,
+        doctorId,
+        ...(birthDate !== undefined
+          ? { birthDate: birthDate ? new Date(birthDate) : null }
+          : {}),
+      },
     });
   }
 
   async update(id: string, dto: UpdatePatientDto, currentUser: JwtPayload) {
     const patient = await this.findOne(id, currentUser);
+    const { birthDate, ...rest } = dto;
     return this.prisma.patient.update({
       where: { id: patient.id },
-      data: dto,
+      data: {
+        ...rest,
+        ...(birthDate !== undefined
+          ? { birthDate: birthDate ? new Date(birthDate) : null }
+          : {}),
+      },
     });
   }
 
