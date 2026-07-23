@@ -13,4 +13,8 @@ export class RegisterPatientDto {
 
   @IsString()
   lastName!: string;
+
+  /** Ticket emitido por `POST /auth/otp/verify` (purpose=register). Obligatorio. */
+  @IsString()
+  emailTicket!: string;
 }

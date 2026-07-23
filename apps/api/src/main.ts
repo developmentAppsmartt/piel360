@@ -18,8 +18,33 @@ async function bootstrap() {
     exclude: ['health', 'webhooks/wompi', 'webhooks/youcam'],
   });
 
+  // Web usa FRONTEND_URL. RN/Expo a menudo no envían Origin; en dev
+  // también permitimos localhost y redes LAN (emulador / dispositivo físico).
+  const frontendUrl = process.env.FRONTEND_URL;
+  const isProd = process.env.NODE_ENV === 'production';
   app.enableCors({
-    origin: process.env.FRONTEND_URL,
+    origin: (origin, callback) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      if (frontendUrl && origin === frontendUrl) {
+        callback(null, true);
+        return;
+      }
+      if (
+        !isProd &&
+        (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin) ||
+          /^https?:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?$/i.test(
+            origin,
+          ) ||
+          origin.startsWith('exp://'))
+      ) {
+        callback(null, true);
+        return;
+      }
+      callback(null, false);
+    },
     credentials: true,
   });
 

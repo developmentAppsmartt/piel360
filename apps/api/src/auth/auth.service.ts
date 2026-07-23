@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   OnModuleDestroy,
@@ -8,7 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Role } from '@piel360/shared';
 import * as argon2 from 'argon2';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { Redis } from 'ioredis';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -17,6 +18,8 @@ import type { LoginDto } from './dto/login.dto';
 import type { RegisterDoctorDto } from './dto/register-doctor.dto';
 import type { RegisterPatientDto } from './dto/register-patient.dto';
 import type { ResetPasswordDto } from './dto/reset-password.dto';
+import type { SendOtpDto } from './dto/send-otp.dto';
+import type { VerifyOtpDto } from './dto/verify-otp.dto';
 import type { GoogleProfile } from './google.strategy';
 import type { JwtPayload } from './types';
 
@@ -26,6 +29,11 @@ const GOOGLE_EXCHANGE_TTL_SECONDS = 60;
 
 /** TTL del token de recuperación de contraseña. */
 const PASSWORD_RESET_TTL_MINUTES = 30;
+
+/** OTP de 5 dígitos (registro / reset). */
+const OTP_TTL_SECONDS = 10 * 60;
+const OTP_TICKET_TTL_SECONDS = 15 * 60;
+const OTP_MAX_ATTEMPTS = 5;
 
 const ROLE_PRIORITY: Role[] = ['admin', 'doctor', 'patient'];
 
@@ -95,22 +103,26 @@ export class AuthService implements OnModuleDestroy {
   }
 
   async registerPatient(dto: RegisterPatientDto): Promise<AuthResult> {
-    await this.assertEmailAvailable(dto.email);
+    const email = dto.email.trim().toLowerCase();
+    await this.consumeRegisterTicket(dto.emailTicket, email);
+
+    await this.assertEmailAvailable(email);
     const password = await argon2.hash(dto.password);
 
     const user = await this.prisma.user.create({
       data: {
-        email: dto.email,
+        email,
         password,
         name: `${dto.firstName} ${dto.lastName}`,
         firstName: dto.firstName,
         lastName: dto.lastName,
+        emailVerifiedAt: new Date(),
         roles: { connect: { name: 'patient' } },
         patient: {
           create: {
             firstName: dto.firstName,
             lastName: dto.lastName,
-            email: dto.email,
+            email,
           },
         },
       },
@@ -272,6 +284,108 @@ export class AuthService implements OnModuleDestroy {
     return { ok: true };
   }
 
+  /**
+   * Envía un OTP de 5 dígitos.
+   * - `register`: el email no debe existir.
+   * - `reset`: si el email no existe, responde OK igual (anti-enumeración).
+   */
+  async sendOtp(dto: SendOtpDto): Promise<{ ok: true }> {
+    const email = dto.email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({ where: { email } });
+
+    if (dto.purpose === 'register' && user) {
+      throw new ConflictException('Ya existe una cuenta con ese email');
+    }
+
+    if (dto.purpose === 'reset' && !user) {
+      return { ok: true };
+    }
+
+    const code = String(randomInt(10000, 100000));
+    const key = this.otpKey(dto.purpose, email);
+    await this.ensureRedis();
+    await this.redis.set(
+      key,
+      JSON.stringify({ code, attempts: 0 }),
+      'EX',
+      OTP_TTL_SECONDS,
+    );
+
+    await this.mail.send({
+      to: email,
+      subject:
+        dto.purpose === 'register'
+          ? 'Código de verificación — Piel360'
+          : 'Código para restablecer contraseña — Piel360',
+      html: `<p>Tu código de 5 dígitos es:</p><p style="font-size:24px;letter-spacing:4px"><strong>${code}</strong></p><p>Expira en 10 minutos.</p>`,
+    });
+
+    if (!this.config.get<string>('RESEND_API_KEY')) {
+      // Local/dev sin Resend: deja el código en logs del API.
+      // eslint-disable-next-line no-console
+      console.warn(`[OTP ${dto.purpose}] ${email} → ${code}`);
+    }
+
+    return { ok: true };
+  }
+
+  /**
+   * Verifica el OTP.
+   * - `register` → `{ ticket }` para `register/patient.emailTicket`
+   * - `reset` → `{ token }` usable en `reset-password`
+   */
+  async verifyOtp(
+    dto: VerifyOtpDto,
+  ): Promise<{ ok: true; ticket?: string; token?: string }> {
+    const email = dto.email.trim().toLowerCase();
+    const key = this.otpKey(dto.purpose, email);
+    await this.ensureRedis();
+    const raw = await this.redis.get(key);
+    if (!raw) {
+      throw new BadRequestException('Código inválido o expirado');
+    }
+
+    const stored = JSON.parse(raw) as { code: string; attempts: number };
+    if (stored.attempts >= OTP_MAX_ATTEMPTS) {
+      await this.redis.del(key);
+      throw new BadRequestException('Demasiados intentos. Solicita un nuevo código.');
+    }
+
+    if (stored.code !== dto.code.trim()) {
+      stored.attempts += 1;
+      const ttl = await this.redis.ttl(key);
+      await this.redis.set(
+        key,
+        JSON.stringify(stored),
+        'EX',
+        ttl > 0 ? ttl : OTP_TTL_SECONDS,
+      );
+      throw new BadRequestException('Código incorrecto');
+    }
+
+    await this.redis.del(key);
+
+    if (dto.purpose === 'register') {
+      const ticket = randomUUID();
+      await this.redis.set(
+        this.registerTicketKey(ticket),
+        email,
+        'EX',
+        OTP_TICKET_TTL_SECONDS,
+      );
+      return { ok: true, ticket };
+    }
+
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(
+      Date.now() + PASSWORD_RESET_TTL_MINUTES * 60_000,
+    );
+    await this.prisma.passwordResetToken.create({
+      data: { email, token, expiresAt },
+    });
+    return { ok: true, token };
+  }
+
   async resetPassword(dto: ResetPasswordDto): Promise<{ ok: true }> {
     const resetToken = await this.prisma.passwordResetToken.findUnique({
       where: { token: dto.token },
@@ -294,6 +408,32 @@ export class AuthService implements OnModuleDestroy {
     ]);
 
     return { ok: true };
+  }
+
+  private otpKey(purpose: string, email: string) {
+    return `otp:${purpose}:${email}`;
+  }
+
+  private registerTicketKey(ticket: string) {
+    return `otp-ticket:register:${ticket}`;
+  }
+
+  private async consumeRegisterTicket(ticket: string, email: string) {
+    await this.ensureRedis();
+    const key = this.registerTicketKey(ticket);
+    const storedEmail = await this.redis.get(key);
+    if (!storedEmail || storedEmail !== email) {
+      throw new BadRequestException(
+        'Debes verificar tu correo con el código OTP antes de registrarte',
+      );
+    }
+    await this.redis.del(key);
+  }
+
+  private async ensureRedis() {
+    if (this.redis.status === 'wait') {
+      await this.redis.connect();
+    }
   }
 
   async me(userId: string) {

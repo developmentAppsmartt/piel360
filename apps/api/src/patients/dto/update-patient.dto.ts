@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString } from 'class-validator';
+import { IsDateString, IsEmail, IsOptional, IsString } from 'class-validator';
 
 export class UpdatePatientDto {
   @IsOptional()
@@ -19,6 +19,10 @@ export class UpdatePatientDto {
 
   @IsOptional()
   @IsString()
+  areaCode?: string;
+
+  @IsOptional()
+  @IsString()
   docType?: string;
 
   @IsOptional()
@@ -28,4 +32,25 @@ export class UpdatePatientDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  /** ISO date `YYYY-MM-DD` o datetime; se guarda como `@db.Date`. */
+  @IsOptional()
+  @IsDateString()
+  birthDate?: string;
+
+  @IsOptional()
+  @IsString()
+  gender?: string;
+
+  @IsOptional()
+  @IsString()
+  mascotType?: string;
+
+  @IsOptional()
+  @IsString()
+  skinType?: string;
+
+  @IsOptional()
+  @IsString()
+  fitzpatrickType?: string;
 }
