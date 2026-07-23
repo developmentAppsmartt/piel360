@@ -165,19 +165,24 @@ export class AnalysesService {
 
   async findAll(currentUser: JwtPayload) {
     if (currentUser.role === 'admin') {
-      return this.prisma.analysis.findMany({ orderBy: { id: 'desc' } });
+      return this.prisma.analysis.findMany({
+        include: { patient: true },
+        orderBy: { id: 'desc' },
+      });
     }
 
     if (currentUser.role === 'doctor') {
       const doctor = await this.doctors.requireDoctorByUserId(currentUser.sub);
       return this.prisma.analysis.findMany({
         where: { patient: { doctorId: doctor.id } },
+        include: { patient: true },
         orderBy: { id: 'desc' },
       });
     }
 
     return this.prisma.analysis.findMany({
       where: { userId: BigInt(currentUser.sub) },
+      include: { patient: true },
       orderBy: { id: 'desc' },
     });
   }

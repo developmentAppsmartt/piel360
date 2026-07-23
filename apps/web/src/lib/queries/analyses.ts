@@ -51,6 +51,27 @@ export interface ConfirmAnalysisInput {
   doctorNotes?: string;
 }
 
+// Shape de GET /analyses (listado) — más liviano que AnalysisDetail: sin
+// imageUrl/coloredUrl/masks firmadas (el backend no llama a withImageUrls acá),
+// pero sí incluye `patient` (analyses.service.ts#findAll) para el listado global.
+export interface AnalysisListItem {
+  id: string;
+  patientId: string;
+  youcamTaskId: string | null;
+  bodyRegion: string | null;
+  isValid: boolean;
+  aiDiagnosis: string | null;
+  finalDiagnosis: string | null;
+  isConfirmed: boolean;
+  isCorrected: boolean;
+  createdAt: string;
+  patient: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
+}
+
 export interface EncyclopediaEntry {
   id: string;
   url: string;
@@ -83,6 +104,13 @@ export function useAnalysis(id: string) {
       const pending = !data.coloredUrl || !data.maskedUrl;
       return pending && attempts < SKINIVER_MAX_ATTEMPTS ? SKINIVER_POLL_MS : false;
     },
+  });
+}
+
+export function useAnalyses() {
+  return useQuery({
+    queryKey: ["analyses"],
+    queryFn: () => apiClientFetch<AnalysisListItem[]>("/analyses"),
   });
 }
 

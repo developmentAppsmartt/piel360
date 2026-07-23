@@ -113,7 +113,11 @@ export default function PacienteDetallePage() {
               </TableHeader>
               <TableBody>
                 {analyses.data.map((a) => (
-                  <TableRow key={a.id}>
+                  <TableRow
+                    key={a.id}
+                    className="cursor-pointer"
+                    onClick={() => router.push(`/doctor/pacientes/${id}/analisis/${a.id}`)}
+                  >
                     <TableCell>
                       <Badge variant="outline">{a.youcamTaskId ? "YouCam" : "Skiniver"}</Badge>
                     </TableCell>

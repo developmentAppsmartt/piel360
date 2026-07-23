@@ -2,17 +2,12 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
-import type { SkiniverDiagnosisCandidate, SkiniverPrediction } from "@piel360/shared";
+import { AnalysisResultsView } from "@/components/analyses/analysis-results-view";
 import { BodySelector } from "@/components/analyses/body-selector";
-import { ConfirmAnalysisForm } from "@/components/analyses/confirm-analysis-form";
-import { DiagnosisDetailDialog } from "@/components/analyses/diagnosis-detail-dialog";
-import { DiagnosisList } from "@/components/analyses/diagnosis-list";
-import { ImageCarousel } from "@/components/analyses/image-carousel";
 import { PhotoCapture } from "@/components/analyses/photo-capture";
-import { RiskGauge } from "@/components/analyses/risk-gauge";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-error";
-import { useAnalysis, useConfirmAnalysis, useCreateAnalysis } from "@/lib/queries/analyses";
+import { useCreateAnalysis } from "@/lib/queries/analyses";
 
 type Step = "captura" | "region" | "enviar" | "resultados";
 
@@ -31,15 +26,8 @@ export default function NuevoAnalisisPage() {
   const [photo, setPhoto] = useState<{ file: File; previewUrl: string } | null>(null);
   const [bodySelection, setBodySelection] = useState<BodySelection | null>(null);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
-  const [selectedDiagnosis, setSelectedDiagnosis] = useState<SkiniverDiagnosisCandidate | null>(null);
 
   const createAnalysis = useCreateAnalysis();
-  const analysis = useAnalysis(analysisId ?? "");
-  const confirmAnalysis = useConfirmAnalysis(analysisId ?? "", patientId);
-
-  // Esta página solo crea análisis Skiniver (useCreateAnalysis) —
-  // aiRawResponse siempre es un SkiniverPrediction acá, nunca YouCamResults.
-  const prediction = analysis.data?.aiRawResponse as SkiniverPrediction | undefined;
 
   async function handleSubmit() {
     if (!photo) return;
@@ -107,46 +95,11 @@ export default function NuevoAnalisisPage() {
       )}
 
       {step === "resultados" && analysisId && (
-        <div className="space-y-6">
-          {analysis.isLoading && <p className="text-muted-foreground">Cargando resultados...</p>}
-
-          {analysis.data && (
-            <>
-              <RiskGauge
-                percent={(prediction?.high_risk_prob ?? analysis.data.aiProbability ?? 0) * 100}
-                riskLabel={prediction?.risk ?? "—"}
-              />
-
-              {prediction?.topn && (
-                <DiagnosisList items={prediction.topn} onSelect={setSelectedDiagnosis} />
-              )}
-
-              <ImageCarousel
-                images={[
-                  { label: "Original", url: analysis.data.imageUrl },
-                  { label: "Coloreada", url: analysis.data.coloredUrl },
-                  { label: "Máscara", url: analysis.data.maskedUrl },
-                ]}
-              />
-
-              {analysis.data.isConfirmed ? (
-                <p className="text-sm text-muted-foreground">
-                  Diagnóstico {analysis.data.isCorrected ? "corregido" : "confirmado"}: {analysis.data.finalDiagnosis}
-                </p>
-              ) : (
-                <ConfirmAnalysisForm
-                  aiDiagnosis={analysis.data.aiDiagnosis}
-                  onSubmit={async (input) => {
-                    await confirmAnalysis.mutateAsync(input);
-                    router.push(`/doctor/pacientes/${patientId}`);
-                  }}
-                />
-              )}
-            </>
-          )}
-
-          <DiagnosisDetailDialog item={selectedDiagnosis} onClose={() => setSelectedDiagnosis(null)} />
-        </div>
+        <AnalysisResultsView
+          analysisId={analysisId}
+          patientId={patientId}
+          onConfirmed={() => router.push(`/doctor/pacientes/${patientId}`)}
+        />
       )}
     </div>
   );
