@@ -1,0 +1,43 @@
+# Sistema Laravel legado (no forma parte del build de apps/api).
+/Piel360/
+
+# Control de versiones
+.git/
+
+# Dependencias (se reinstalan dentro de la imagen)
+node_modules/
+**/node_modules/
+.pnpm-store/
+
+# Builds (se regeneran en el Dockerfile)
+dist/
+**/dist/
+.next/
+**/.next/
+build/
+out/
+
+# Turborepo / Expo
+.turbo/
+apps/mobile/.expo/
+apps/mobile/ios/
+apps/mobile/android/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+
+# Claude / archivos de trabajo
+.claude/
+*.tsbuildinfo
+railway.txt

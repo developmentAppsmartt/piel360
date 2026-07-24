@@ -1,0 +1,361 @@
+2026-07-24T02:37:46.604565512Z [inf]  Starting Container
+2026-07-24T02:37:47.055830209Z [err]  $ prisma migrate deploy
+2026-07-24T02:37:47.055833569Z [err]  Loaded Prisma config from prisma.config.ts.
+2026-07-24T02:37:47.055837159Z [err]  
+2026-07-24T02:37:47.055840399Z [err]  Prisma schema loaded from prisma/schema.prisma.
+2026-07-24T02:37:47.055843338Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
+2026-07-24T02:37:47.102909064Z [inf]  
+2026-07-24T02:37:47.102912504Z [inf]  3 migrations found in prisma/migrations
+2026-07-24T02:37:47.102915024Z [inf]  
+2026-07-24T02:37:47.220936391Z [inf]  Applying migration `20260717020304_initial_schema`
+2026-07-24T02:37:47.444784898Z [inf]  Applying migration `20260717231133_add_password_reset_tokens`
+2026-07-24T02:37:47.479047236Z [inf]  Applying migration `20260722220339_messages_conversations`
+2026-07-24T02:37:47.538050759Z [inf]  
+2026-07-24T02:37:47.540024279Z [err]  ┌─────────────────────────────────────────────────────────┐
+2026-07-24T02:37:47.540029119Z [err]  │  Update available 7.8.0 -> 7.9.0                        │
+2026-07-24T02:37:47.540032219Z [err]  │  Run the following to update                            │
+2026-07-24T02:37:47.540035139Z [err]  │    npm i --save-dev prisma@latest                       │
+2026-07-24T02:37:47.540038399Z [err]  │    npm i @prisma/client@latest                          │
+2026-07-24T02:37:47.540041449Z [err]  └─────────────────────────────────────────────────────────┘
+2026-07-24T02:37:47.540044289Z [inf]  The following migration(s) have been applied:
+2026-07-24T02:37:47.540047269Z [inf]  
+2026-07-24T02:37:47.540050219Z [inf]  migrations/
+2026-07-24T02:37:47.540053469Z [inf]    └─ 20260717020304_initial_schema/
+2026-07-24T02:37:47.540056889Z [inf]      └─ migration.sql
+2026-07-24T02:37:47.540060289Z [inf]    └─ 20260717231133_add_password_reset_tokens/
+2026-07-24T02:37:47.540063189Z [inf]      └─ migration.sql
+2026-07-24T02:37:47.540066059Z [inf]    └─ 20260722220339_messages_conversations/
+2026-07-24T02:37:47.540068959Z [inf]      └─ migration.sql
+2026-07-24T02:37:47.540071849Z [inf]  
+2026-07-24T02:37:47.540074658Z [inf]  All migrations have been successfully applied.
+2026-07-24T02:37:47.840574588Z [err]  $ node dist/main
+2026-07-24T02:37:47.861431134Z [err]  node:internal/modules/cjs/loader:1433
+2026-07-24T02:37:47.861437513Z [err]    throw err;
+2026-07-24T02:37:47.861440843Z [err]    ^
+2026-07-24T02:37:47.861444603Z [err]  
+2026-07-24T02:37:47.861448263Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
+2026-07-24T02:37:47.861452333Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1430:15)
+2026-07-24T02:37:47.861456153Z [err]      at defaultResolveImpl (node:internal/modules/cjs/loader:1040:19)
+2026-07-24T02:37:47.861459513Z [err]      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1045:22)
+2026-07-24T02:37:47.861462803Z [err]      at Function._load (node:internal/modules/cjs/loader:1216:25)
+2026-07-24T02:37:47.861466113Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+2026-07-24T02:37:47.861469163Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+2026-07-24T02:37:47.861472813Z [err]      at node:internal/main/run_main_module:36:49 {
+2026-07-24T02:37:47.861476023Z [err]    code: 'MODULE_NOT_FOUND',
+2026-07-24T02:37:47.861479193Z [err]    requireStack: []
+2026-07-24T02:37:47.861482633Z [err]  }
+2026-07-24T02:37:47.861486073Z [err]  
+2026-07-24T02:37:47.861489063Z [err]  Node.js v22.23.1
+2026-07-24T02:37:47.877579827Z [inf]  /app/apps/api:
+2026-07-24T02:37:47.877582777Z [inf]  [ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @piel360/api@0.0.1 start:prod: `node dist/main`
+2026-07-24T02:37:47.877585677Z [inf]  Exit status 1
+2026-07-24T02:37:49.048600880Z [err]  $ prisma migrate deploy
+2026-07-24T02:37:49.445137948Z [err]  Loaded Prisma config from prisma.config.ts.
+2026-07-24T02:37:49.445141998Z [err]  
+2026-07-24T02:37:49.519016758Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
+2026-07-24T02:37:49.519022298Z [err]  Prisma schema loaded from prisma/schema.prisma.
+2026-07-24T02:37:49.689751410Z [inf]  
+2026-07-24T02:37:49.689756060Z [inf]  3 migrations found in prisma/migrations
+2026-07-24T02:37:49.689759010Z [inf]  
+2026-07-24T02:37:49.795941997Z [inf]  
+2026-07-24T02:37:49.795947897Z [inf]  No pending migrations to apply.
+2026-07-24T02:37:50.131117287Z [err]  $ node dist/main
+2026-07-24T02:37:50.158681913Z [err]  node:internal/modules/cjs/loader:1433
+2026-07-24T02:37:50.158686203Z [err]    throw err;
+2026-07-24T02:37:50.158690793Z [err]    ^
+2026-07-24T02:37:50.158694423Z [err]  
+2026-07-24T02:37:50.158698403Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
+2026-07-24T02:37:50.158702533Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1430:15)
+2026-07-24T02:37:50.158706053Z [err]      at defaultResolveImpl (node:internal/modules/cjs/loader:1040:19)
+2026-07-24T02:37:50.158709543Z [err]      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1045:22)
+2026-07-24T02:37:50.158713383Z [err]      at Function._load (node:internal/modules/cjs/loader:1216:25)
+2026-07-24T02:37:50.158717173Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+2026-07-24T02:37:50.158720973Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+2026-07-24T02:37:50.158724803Z [err]      at node:internal/main/run_main_module:36:49 {
+2026-07-24T02:37:50.158728223Z [err]    code: 'MODULE_NOT_FOUND',
+2026-07-24T02:37:50.158731813Z [err]    requireStack: []
+2026-07-24T02:37:50.158735303Z [err]  }
+2026-07-24T02:37:50.158739822Z [err]  
+2026-07-24T02:37:50.158743492Z [err]  Node.js v22.23.1
+2026-07-24T02:37:50.176106363Z [inf]  /app/apps/api:
+2026-07-24T02:37:50.176109993Z [inf]  [ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @piel360/api@0.0.1 start:prod: `node dist/main`
+2026-07-24T02:37:50.176112883Z [inf]  Exit status 1
+2026-07-24T02:37:51.249447129Z [err]  $ prisma migrate deploy
+2026-07-24T02:37:51.708015715Z [err]  Loaded Prisma config from prisma.config.ts.
+2026-07-24T02:37:51.708019385Z [err]  
+2026-07-24T02:37:51.776411620Z [err]  Prisma schema loaded from prisma/schema.prisma.
+2026-07-24T02:37:51.778500218Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
+2026-07-24T02:37:52.047585036Z [inf]  
+2026-07-24T02:37:52.047591136Z [inf]  3 migrations found in prisma/migrations
+2026-07-24T02:37:52.047591266Z [inf]  No pending migrations to apply.
+2026-07-24T02:37:52.047596456Z [inf]  
+2026-07-24T02:37:52.047601836Z [inf]  
+2026-07-24T02:37:52.357354463Z [err]  $ node dist/main
+2026-07-24T02:37:52.384750921Z [err]  node:internal/modules/cjs/loader:1433
+2026-07-24T02:37:52.384762641Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
+2026-07-24T02:37:52.384770691Z [err]    throw err;
+2026-07-24T02:37:52.384771801Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1430:15)
+2026-07-24T02:37:52.384776451Z [err]  Node.js v22.23.1
+2026-07-24T02:37:52.384780711Z [err]      at defaultResolveImpl (node:internal/modules/cjs/loader:1040:19)
+2026-07-24T02:37:52.384782571Z [err]    ^
+2026-07-24T02:37:52.384782711Z [err]      at Function._load (node:internal/modules/cjs/loader:1216:25)
+2026-07-24T02:37:52.384790961Z [err]      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1045:22)
+2026-07-24T02:37:52.384792061Z [err]    code: 'MODULE_NOT_FOUND',
+2026-07-24T02:37:52.384793321Z [err]  
+2026-07-24T02:37:52.384796991Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+2026-07-24T02:37:52.384804421Z [err]    requireStack: []
+2026-07-24T02:37:52.384806571Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+2026-07-24T02:37:52.384811531Z [err]  }
+2026-07-24T02:37:52.384813951Z [err]      at node:internal/main/run_main_module:36:49 {
+2026-07-24T02:37:52.384817651Z [err]  
+2026-07-24T02:37:52.400867255Z [inf]  /app/apps/api:
+2026-07-24T02:37:52.400871525Z [inf]  [ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @piel360/api@0.0.1 start:prod: `node dist/main`
+2026-07-24T02:37:52.400876555Z [inf]  Exit status 1
+2026-07-24T02:37:53.447498826Z [err]  $ prisma migrate deploy
+2026-07-24T02:37:53.870260627Z [err]  Loaded Prisma config from prisma.config.ts.
+2026-07-24T02:37:53.870268587Z [err]  
+2026-07-24T02:37:54.054334899Z [err]  Prisma schema loaded from prisma/schema.prisma.
+2026-07-24T02:37:54.054339709Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
+2026-07-24T02:37:54.105672929Z [inf]  
+2026-07-24T02:37:54.105677249Z [inf]  3 migrations found in prisma/migrations
+2026-07-24T02:37:54.105680809Z [inf]  
+2026-07-24T02:37:54.201969345Z [inf]  
+2026-07-24T02:37:54.201974245Z [inf]  No pending migrations to apply.
+2026-07-24T02:37:54.533523295Z [err]  $ node dist/main
+2026-07-24T02:37:54.554331290Z [err]  node:internal/modules/cjs/loader:1433
+2026-07-24T02:37:54.554355730Z [err]  
+2026-07-24T02:37:54.554359060Z [err]      at node:internal/main/run_main_module:36:49 {
+2026-07-24T02:37:54.554363420Z [err]  Node.js v22.23.1
+2026-07-24T02:37:54.554371950Z [err]    throw err;
+2026-07-24T02:37:54.554377680Z [err]    ^
+2026-07-24T02:37:54.554382110Z [err]  
+2026-07-24T02:37:54.554384130Z [err]    code: 'MODULE_NOT_FOUND',
+2026-07-24T02:37:54.554386640Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
+2026-07-24T02:37:54.554390570Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1430:15)
+2026-07-24T02:37:54.554394250Z [err]    requireStack: []
+2026-07-24T02:37:54.554397340Z [err]      at defaultResolveImpl (node:internal/modules/cjs/loader:1040:19)
+2026-07-24T02:37:54.554399540Z [err]  }
+2026-07-24T02:37:54.554401530Z [err]      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1045:22)
+2026-07-24T02:37:54.554405330Z [err]      at Function._load (node:internal/modules/cjs/loader:1216:25)
+2026-07-24T02:37:54.554409110Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+2026-07-24T02:37:54.554412960Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+2026-07-24T02:37:54.572979168Z [inf]  /app/apps/api:
+2026-07-24T02:37:54.573027518Z [inf]  [ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @piel360/api@0.0.1 start:prod: `node dist/main`
+2026-07-24T02:37:54.573033178Z [inf]  Exit status 1
+2026-07-24T02:37:55.681281273Z [err]  $ prisma migrate deploy
+2026-07-24T02:37:56.133547805Z [err]  Loaded Prisma config from prisma.config.ts.
+2026-07-24T02:37:56.133552305Z [err]  
+2026-07-24T02:37:56.215478129Z [err]  Prisma schema loaded from prisma/schema.prisma.
+2026-07-24T02:37:56.216923894Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
+2026-07-24T02:37:56.369703627Z [inf]  
+2026-07-24T02:37:56.369707117Z [inf]  3 migrations found in prisma/migrations
+2026-07-24T02:37:56.369709717Z [inf]  
+2026-07-24T02:37:56.465157022Z [inf]  
+2026-07-24T02:37:56.465159662Z [inf]  No pending migrations to apply.
+2026-07-24T02:37:56.781754583Z [err]  $ node dist/main
+2026-07-24T02:37:56.808948232Z [err]  node:internal/modules/cjs/loader:1433
+2026-07-24T02:37:56.808952202Z [err]    throw err;
+2026-07-24T02:37:56.808955112Z [err]    ^
+2026-07-24T02:37:56.808957672Z [err]  
+2026-07-24T02:37:56.808960672Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
+2026-07-24T02:37:56.808963092Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1430:15)
+2026-07-24T02:37:56.808967102Z [err]      at defaultResolveImpl (node:internal/modules/cjs/loader:1040:19)
+2026-07-24T02:37:56.808970262Z [err]      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1045:22)
+2026-07-24T02:37:56.808973722Z [err]      at Function._load (node:internal/modules/cjs/loader:1216:25)
+2026-07-24T02:37:56.808976942Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+2026-07-24T02:37:56.808980652Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+2026-07-24T02:37:56.808983792Z [err]      at node:internal/main/run_main_module:36:49 {
+2026-07-24T02:37:56.808987202Z [err]    code: 'MODULE_NOT_FOUND',
+2026-07-24T02:37:56.808991132Z [err]    requireStack: []
+2026-07-24T02:37:56.808994512Z [err]  }
+2026-07-24T02:37:56.808997842Z [err]  
+2026-07-24T02:37:56.809001162Z [err]  Node.js v22.23.1
+2026-07-24T02:37:56.823470442Z [inf]  /app/apps/api:
+2026-07-24T02:37:56.823476812Z [inf]  [ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @piel360/api@0.0.1 start:prod: `node dist/main`
+2026-07-24T02:37:56.823482332Z [inf]  Exit status 1
+2026-07-24T02:37:58.053646237Z [err]  $ prisma migrate deploy
+2026-07-24T02:37:58.420781773Z [err]  Loaded Prisma config from prisma.config.ts.
+2026-07-24T02:37:58.420789503Z [err]  
+2026-07-24T02:37:58.496324102Z [err]  Prisma schema loaded from prisma/schema.prisma.
+2026-07-24T02:37:58.499126134Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
+2026-07-24T02:37:58.662865742Z [inf]  
+2026-07-24T02:37:58.662871392Z [inf]  3 migrations found in prisma/migrations
+2026-07-24T02:37:58.662875582Z [inf]  
+2026-07-24T02:37:58.768864407Z [inf]  
+2026-07-24T02:37:58.768870267Z [inf]  No pending migrations to apply.
+2026-07-24T02:37:59.162875894Z [err]    code: 'MODULE_NOT_FOUND',
+2026-07-24T02:37:59.162877144Z [err]  Node.js v22.23.1
+2026-07-24T02:37:59.162889194Z [err]    requireStack: []
+2026-07-24T02:37:59.162889834Z [inf]  /app/apps/api:
+2026-07-24T02:37:59.162891364Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+2026-07-24T02:37:59.162902104Z [inf]  [ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @piel360/api@0.0.1 start:prod: `node dist/main`
+2026-07-24T02:37:59.162903744Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
+2026-07-24T02:37:59.162906294Z [err]  }
+2026-07-24T02:37:59.162910634Z [err]  $ node dist/main
+2026-07-24T02:37:59.162916334Z [inf]  Exit status 1
+2026-07-24T02:37:59.162917324Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+2026-07-24T02:37:59.162921004Z [err]  
+2026-07-24T02:37:59.162927584Z [err]      at node:internal/main/run_main_module:36:49 {
+2026-07-24T02:37:59.162927694Z [err]  node:internal/modules/cjs/loader:1433
+2026-07-24T02:37:59.162932464Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1430:15)
+2026-07-24T02:37:59.162936124Z [err]    throw err;
+2026-07-24T02:37:59.162941354Z [err]      at defaultResolveImpl (node:internal/modules/cjs/loader:1040:19)
+2026-07-24T02:37:59.162943354Z [err]    ^
+2026-07-24T02:37:59.162949484Z [err]      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1045:22)
+2026-07-24T02:37:59.162949614Z [err]  
+2026-07-24T02:37:59.162956734Z [err]      at Function._load (node:internal/modules/cjs/loader:1216:25)
+2026-07-24T02:38:00.211448015Z [err]  $ prisma migrate deploy
+2026-07-24T02:38:00.731249709Z [err]  Loaded Prisma config from prisma.config.ts.
+2026-07-24T02:38:00.731256609Z [err]  
+2026-07-24T02:38:00.841828946Z [err]  Prisma schema loaded from prisma/schema.prisma.
+2026-07-24T02:38:00.841842436Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
+2026-07-24T02:38:01.103025764Z [inf]  
+2026-07-24T02:38:01.103029254Z [inf]  3 migrations found in prisma/migrations
+2026-07-24T02:38:01.103032914Z [inf]  
+2026-07-24T02:38:01.103036024Z [inf]  
+2026-07-24T02:38:01.103038884Z [inf]  No pending migrations to apply.
+2026-07-24T02:38:01.462340956Z [err]  $ node dist/main
+2026-07-24T02:38:01.486696204Z [err]  node:internal/modules/cjs/loader:1433
+2026-07-24T02:38:01.486706784Z [err]    throw err;
+2026-07-24T02:38:01.486724484Z [err]    ^
+2026-07-24T02:38:01.486730184Z [err]  
+2026-07-24T02:38:01.486734844Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
+2026-07-24T02:38:01.486739553Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1430:15)
+2026-07-24T02:38:01.486743653Z [err]      at defaultResolveImpl (node:internal/modules/cjs/loader:1040:19)
+2026-07-24T02:38:01.486747923Z [err]      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1045:22)
+2026-07-24T02:38:01.486752223Z [err]      at Function._load (node:internal/modules/cjs/loader:1216:25)
+2026-07-24T02:38:01.486759863Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+2026-07-24T02:38:01.486902582Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+2026-07-24T02:38:01.486906802Z [err]      at node:internal/main/run_main_module:36:49 {
+2026-07-24T02:38:01.486911102Z [err]    code: 'MODULE_NOT_FOUND',
+2026-07-24T02:38:01.486915822Z [err]    requireStack: []
+2026-07-24T02:38:01.486920042Z [err]  }
+2026-07-24T02:38:01.486924882Z [err]  
+2026-07-24T02:38:01.486929211Z [err]  Node.js v22.23.1
+2026-07-24T02:38:01.504895326Z [inf]  /app/apps/api:
+2026-07-24T02:38:01.504899456Z [inf]  [ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @piel360/api@0.0.1 start:prod: `node dist/main`
+2026-07-24T02:38:01.504904446Z [inf]  Exit status 1
+2026-07-24T02:38:02.582080489Z [err]  $ prisma migrate deploy
+2026-07-24T02:38:03.091893582Z [err]  Loaded Prisma config from prisma.config.ts.
+2026-07-24T02:38:03.091898452Z [err]  
+2026-07-24T02:38:03.091903792Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
+2026-07-24T02:38:03.091909052Z [err]  Prisma schema loaded from prisma/schema.prisma.
+2026-07-24T02:38:03.266052139Z [inf]  
+2026-07-24T02:38:03.266058819Z [inf]  3 migrations found in prisma/migrations
+2026-07-24T02:38:03.266064269Z [inf]  
+2026-07-24T02:38:03.367388540Z [inf]  
+2026-07-24T02:38:03.367393810Z [inf]  No pending migrations to apply.
+2026-07-24T02:38:03.711483247Z [err]  $ node dist/main
+2026-07-24T02:38:03.732521959Z [err]  
+2026-07-24T02:38:03.732527909Z [err]  Node.js v22.23.1
+2026-07-24T02:38:03.732532379Z [err]  node:internal/modules/cjs/loader:1433
+2026-07-24T02:38:03.732537209Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+2026-07-24T02:38:03.732540579Z [err]    throw err;
+2026-07-24T02:38:03.732541779Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+2026-07-24T02:38:03.732546759Z [err]      at node:internal/main/run_main_module:36:49 {
+2026-07-24T02:38:03.732547059Z [err]    ^
+2026-07-24T02:38:03.732551909Z [err]    code: 'MODULE_NOT_FOUND',
+2026-07-24T02:38:03.732552099Z [err]  
+2026-07-24T02:38:03.732556899Z [err]    requireStack: []
+2026-07-24T02:38:03.732556929Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
+2026-07-24T02:38:03.732562089Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1430:15)
+2026-07-24T02:38:03.732562109Z [err]  }
+2026-07-24T02:38:03.732569108Z [err]      at defaultResolveImpl (node:internal/modules/cjs/loader:1040:19)
+2026-07-24T02:38:03.732573238Z [err]      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1045:22)
+2026-07-24T02:38:03.732577418Z [err]      at Function._load (node:internal/modules/cjs/loader:1216:25)
+2026-07-24T02:38:03.748190506Z [inf]  /app/apps/api:
+2026-07-24T02:38:03.748194786Z [inf]  [ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @piel360/api@0.0.1 start:prod: `node dist/main`
+2026-07-24T02:38:03.748197766Z [inf]  Exit status 1
+2026-07-24T02:38:05.098065684Z [err]  $ prisma migrate deploy
+2026-07-24T02:38:05.412972420Z [err]  Loaded Prisma config from prisma.config.ts.
+2026-07-24T02:38:05.412979630Z [err]  
+2026-07-24T02:38:05.509139854Z [err]  Prisma schema loaded from prisma/schema.prisma.
+2026-07-24T02:38:05.510322061Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
+2026-07-24T02:38:05.648435790Z [inf]  
+2026-07-24T02:38:05.648441990Z [inf]  3 migrations found in prisma/migrations
+2026-07-24T02:38:05.648447350Z [inf]  
+2026-07-24T02:38:05.755977206Z [inf]  
+2026-07-24T02:38:05.755981666Z [inf]  No pending migrations to apply.
+2026-07-24T02:38:06.107722560Z [err]  $ node dist/main
+2026-07-24T02:38:06.126668964Z [err]    requireStack: []
+2026-07-24T02:38:06.126679224Z [err]      at defaultResolveImpl (node:internal/modules/cjs/loader:1040:19)
+2026-07-24T02:38:06.126679814Z [err]  }
+2026-07-24T02:38:06.126689304Z [err]      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1045:22)
+2026-07-24T02:38:06.126690703Z [err]  
+2026-07-24T02:38:06.126697033Z [err]      at Function._load (node:internal/modules/cjs/loader:1216:25)
+2026-07-24T02:38:06.126699963Z [err]  Node.js v22.23.1
+2026-07-24T02:38:06.126703693Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+2026-07-24T02:38:06.126708753Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+2026-07-24T02:38:06.126714673Z [err]      at node:internal/main/run_main_module:36:49 {
+2026-07-24T02:38:06.126718613Z [err]    code: 'MODULE_NOT_FOUND',
+2026-07-24T02:38:06.126725273Z [err]  node:internal/modules/cjs/loader:1433
+2026-07-24T02:38:06.126731103Z [err]    throw err;
+2026-07-24T02:38:06.126736613Z [err]    ^
+2026-07-24T02:38:06.126743203Z [err]  
+2026-07-24T02:38:06.126748203Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
+2026-07-24T02:38:06.126754803Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1430:15)
+2026-07-24T02:38:06.144647777Z [inf]  /app/apps/api:
+2026-07-24T02:38:06.144656697Z [inf]  [ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @piel360/api@0.0.1 start:prod: `node dist/main`
+2026-07-24T02:38:06.144662387Z [inf]  Exit status 1
+2026-07-24T02:38:07.225744008Z [err]  $ prisma migrate deploy
+2026-07-24T02:38:07.721763053Z [err]  Loaded Prisma config from prisma.config.ts.
+2026-07-24T02:38:07.721770093Z [err]  
+2026-07-24T02:38:07.812374114Z [err]  Prisma schema loaded from prisma/schema.prisma.
+2026-07-24T02:38:07.813976677Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
+2026-07-24T02:38:08.092599267Z [inf]  
+2026-07-24T02:38:08.092603617Z [inf]  3 migrations found in prisma/migrations
+2026-07-24T02:38:08.092607167Z [inf]  
+2026-07-24T02:38:08.092610797Z [inf]  
+2026-07-24T02:38:08.092615507Z [inf]  No pending migrations to apply.
+2026-07-24T02:38:08.372597742Z [err]  $ node dist/main
+2026-07-24T02:38:08.392530445Z [err]      at defaultResolveImpl (node:internal/modules/cjs/loader:1040:19)
+2026-07-24T02:38:08.392539705Z [err]      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1045:22)
+2026-07-24T02:38:08.392545375Z [err]      at Function._load (node:internal/modules/cjs/loader:1216:25)
+2026-07-24T02:38:08.392551495Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+2026-07-24T02:38:08.392556785Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+2026-07-24T02:38:08.392561905Z [err]      at node:internal/main/run_main_module:36:49 {
+2026-07-24T02:38:08.392567355Z [err]    code: 'MODULE_NOT_FOUND',
+2026-07-24T02:38:08.392572405Z [err]    requireStack: []
+2026-07-24T02:38:08.392577205Z [err]  }
+2026-07-24T02:38:08.392582275Z [err]  
+2026-07-24T02:38:08.392586995Z [err]  Node.js v22.23.1
+2026-07-24T02:38:08.393560454Z [err]  node:internal/modules/cjs/loader:1433
+2026-07-24T02:38:08.393752713Z [err]    throw err;
+2026-07-24T02:38:08.393757142Z [err]    ^
+2026-07-24T02:38:08.393761362Z [err]  
+2026-07-24T02:38:08.393765042Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
+2026-07-24T02:38:08.393769072Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1430:15)
+2026-07-24T02:38:08.412171051Z [inf]  /app/apps/api:
+2026-07-24T02:38:08.412176411Z [inf]  [ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @piel360/api@0.0.1 start:prod: `node dist/main`
+2026-07-24T02:38:08.412181541Z [inf]  Exit status 1
+2026-07-24T02:38:09.599607867Z [err]  $ prisma migrate deploy
+2026-07-24T02:38:10.161197797Z [err]  Loaded Prisma config from prisma.config.ts.
+2026-07-24T02:38:10.161202297Z [err]  
+2026-07-24T02:38:10.236748123Z [err]  Prisma schema loaded from prisma/schema.prisma.
+2026-07-24T02:38:10.243303775Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
+2026-07-24T02:38:10.407875006Z [inf]  
+2026-07-24T02:38:10.407880286Z [inf]  3 migrations found in prisma/migrations
+2026-07-24T02:38:10.407883886Z [inf]  
+2026-07-24T02:38:10.508452931Z [inf]  
+2026-07-24T02:38:10.508461411Z [inf]  No pending migrations to apply.
+2026-07-24T02:38:10.836302897Z [err]  $ node dist/main
+2026-07-24T02:38:10.857519547Z [err]  node:internal/modules/cjs/loader:1433
+2026-07-24T02:38:10.857525657Z [err]    throw err;
+2026-07-24T02:38:10.857529986Z [err]    ^
+2026-07-24T02:38:10.857534466Z [err]  
+2026-07-24T02:38:10.857539066Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
+2026-07-24T02:38:10.857543256Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1430:15)
+2026-07-24T02:38:10.857549176Z [err]      at defaultResolveImpl (node:internal/modules/cjs/loader:1040:19)
+2026-07-24T02:38:10.857553446Z [err]      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1045:22)
+2026-07-24T02:38:10.857559756Z [err]      at Function._load (node:internal/modules/cjs/loader:1216:25)
+2026-07-24T02:38:10.857564216Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+2026-07-24T02:38:10.857569016Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+2026-07-24T02:38:10.857573646Z [err]      at node:internal/main/run_main_module:36:49 {
+2026-07-24T02:38:10.857578236Z [err]    code: 'MODULE_NOT_FOUND',
+2026-07-24T02:38:10.857582876Z [err]    requireStack: []
+2026-07-24T02:38:10.857586806Z [err]  }
+2026-07-24T02:38:10.857591076Z [err]  
+2026-07-24T02:38:10.857595426Z [err]  Node.js v22.23.1
+2026-07-24T02:38:10.873044626Z [inf]  /app/apps/api:
+2026-07-24T02:38:10.873049236Z [inf]  [ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @piel360/api@0.0.1 start:prod: `node dist/main`
+2026-07-24T02:38:10.873054955Z [inf]  Exit status 1
