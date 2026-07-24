@@ -4,6 +4,7 @@ import type { Prisma } from '@prisma/client';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateSubscriptionDto } from './dto/create-subscription.dto';
+import type { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 
 type Db = PrismaService | Prisma.TransactionClient;
 
@@ -59,24 +60,67 @@ export class SubscriptionsService {
     });
   }
 
-  /** Creación manual (admin), sin pasar por Wompi — MIGRACION.md §2.4. */
+  /** Creación manual (admin), sin pasar por Wompi — MIGRACION.md §2.4.
+   * `status`/`endsAt` son opcionales (compatibilidad con el único caller
+   * actual, que no los envía): si se omiten, se mantiene el comportamiento
+   * original (`active` + vencimiento calculado desde `plan.durationDays`). */
   async createManual(dto: CreateSubscriptionDto) {
     const plan = await this.prisma.plan.findUnique({
       where: { id: BigInt(dto.planId) },
     });
     if (!plan) throw new BadRequestException('Plan no encontrado');
 
-    const endsAt = new Date();
-    endsAt.setDate(endsAt.getDate() + plan.durationDays);
+    let endsAt: Date | undefined;
+    if (dto.endsAt) {
+      endsAt = new Date(dto.endsAt);
+    } else {
+      endsAt = new Date();
+      endsAt.setDate(endsAt.getDate() + plan.durationDays);
+    }
 
     return this.prisma.subscription.create({
       data: {
         userId: BigInt(dto.userId),
         planId: plan.id,
-        status: 'active',
+        status: dto.status ?? 'active',
         endsAt,
       },
     });
+  }
+
+  /** `GET /admin/subscriptions` — lista completa para el CRUD admin. `select`
+   * explícito en `user` (no `include: true`) para no filtrar el hash de la
+   * contraseña, mismo cuidado que en `doctors.service.ts`. */
+  findAllAdmin() {
+    return this.prisma.subscription.findMany({
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        plan: { include: { provider: true } },
+      },
+      orderBy: { id: 'desc' },
+    });
+  }
+
+  /** Edición manual (admin) — bypass del flujo Wompi, igual que el
+   * `SubscriptionForm` del Laravel viejo permitía fijar cualquier campo
+   * directamente. */
+  update(id: string, dto: UpdateSubscriptionDto) {
+    return this.prisma.subscription.update({
+      where: { id: BigInt(id) },
+      data: {
+        userId: dto.userId ? BigInt(dto.userId) : undefined,
+        planId: dto.planId ? BigInt(dto.planId) : undefined,
+        status: dto.status,
+        endsAt: dto.endsAt ? new Date(dto.endsAt) : undefined,
+      },
+    });
+  }
+
+  /** Borra la suscripción — cascada solo sobre su propio `SubscriptionUsage`
+   * (`onDelete: Cascade` en el schema), no afecta otras suscripciones ni los
+   * `Analysis` en sí. */
+  remove(id: string) {
+    return this.prisma.subscription.delete({ where: { id: BigInt(id) } });
   }
 
   /** Incluye `remainingCredits` por suscripción (página de "consumo") —

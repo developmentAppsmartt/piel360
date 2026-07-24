@@ -41,7 +41,7 @@ interface AuthUser {
   id: bigint;
   email: string;
   name: string;
-  roles: { name: string }[];
+  roles: { name: string; permissions: { name: string }[] }[];
   patient?: { surveyCompletedAt: Date | null } | null;
 }
 
@@ -96,7 +96,7 @@ export class AuthService implements OnModuleDestroy {
           },
         },
       },
-      include: { roles: true },
+      include: { roles: { include: { permissions: true } } },
     });
 
     return this.buildAuthResult(user, 'doctor');
@@ -126,7 +126,7 @@ export class AuthService implements OnModuleDestroy {
           },
         },
       },
-      include: { roles: true, patient: true },
+      include: { roles: { include: { permissions: true } }, patient: true },
     });
 
     return this.buildAuthResult(user, 'patient');
@@ -135,7 +135,7 @@ export class AuthService implements OnModuleDestroy {
   async login(dto: LoginDto): Promise<AuthResult> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
-      include: { roles: true, patient: true },
+      include: { roles: { include: { permissions: true } }, patient: true },
     });
 
     if (!user || !(await argon2.verify(user.password, dto.password))) {
@@ -155,7 +155,7 @@ export class AuthService implements OnModuleDestroy {
   async loginOrRegisterWithGoogle(profile: GoogleProfile): Promise<AuthResult> {
     const existing = await this.prisma.user.findUnique({
       where: { email: profile.email },
-      include: { roles: true, patient: true },
+      include: { roles: { include: { permissions: true } }, patient: true },
     });
 
     if (!existing) {
@@ -191,7 +191,7 @@ export class AuthService implements OnModuleDestroy {
                 },
               }),
         },
-        include: { roles: true, patient: true },
+        include: { roles: { include: { permissions: true } }, patient: true },
       });
 
       return this.buildAuthResult(user, roleIntent);
@@ -228,7 +228,10 @@ export class AuthService implements OnModuleDestroy {
         ? await this.prisma.user.update({
             where: { id: existing.id },
             data: updateData,
-            include: { roles: true, patient: true },
+            include: {
+              roles: { include: { permissions: true } },
+              patient: true,
+            },
           })
         : existing;
 
@@ -322,7 +325,7 @@ export class AuthService implements OnModuleDestroy {
 
     if (!this.config.get<string>('RESEND_API_KEY')) {
       // Local/dev sin Resend: deja el código en logs del API.
-      // eslint-disable-next-line no-console
+
       console.warn(`[OTP ${dto.purpose}] ${email} → ${code}`);
     }
 
@@ -348,7 +351,9 @@ export class AuthService implements OnModuleDestroy {
     const stored = JSON.parse(raw) as { code: string; attempts: number };
     if (stored.attempts >= OTP_MAX_ATTEMPTS) {
       await this.redis.del(key);
-      throw new BadRequestException('Demasiados intentos. Solicita un nuevo código.');
+      throw new BadRequestException(
+        'Demasiados intentos. Solicita un nuevo código.',
+      );
     }
 
     if (stored.code !== dto.code.trim()) {
@@ -457,13 +462,28 @@ export class AuthService implements OnModuleDestroy {
   }
 
   /** Un usuario recién registrado solo tiene un rol; se deja la prioridad
-   * admin > doctor > patient por si en el futuro un usuario acumula varios. */
+   * admin > doctor > patient por si en el futuro un usuario acumula varios.
+   * Si ninguno de sus roles calza con esos 3 nombres pero tiene al menos un
+   * permiso (rol personalizado, ver /admin/roles), igual se le da acceso al
+   * panel admin — es la única forma de que un "admin limitado" pueda entrar,
+   * ya que el frontend rutea por este claim (apps/web/src/proxy.ts). */
   private resolveRole(user: AuthUser): Role {
     const names = user.roles.map((r) => r.name);
     const match = ROLE_PRIORITY.find((role) => names.includes(role));
-    if (!match)
-      throw new UnauthorizedException('El usuario no tiene un rol asignado');
-    return match;
+    if (match) return match;
+    if (this.resolvePermissions(user).length > 0) return 'admin';
+    throw new UnauthorizedException('El usuario no tiene un rol asignado');
+  }
+
+  /** Unión de los permisos de todos los roles del usuario (no solo el de
+   * mayor prioridad) — un usuario puede tener el rol admin más un rol
+   * personalizado adicional. */
+  private resolvePermissions(user: AuthUser): string[] {
+    const names = new Set<string>();
+    for (const role of user.roles) {
+      for (const permission of role.permissions) names.add(permission.name);
+    }
+    return Array.from(names);
   }
 
   private buildAuthResult(user: AuthUser, role: Role): AuthResult {
@@ -471,6 +491,7 @@ export class AuthService implements OnModuleDestroy {
       sub: user.id.toString(),
       email: user.email,
       role,
+      permissions: this.resolvePermissions(user),
       surveyCompletedAt:
         role === 'patient'
           ? (user.patient?.surveyCompletedAt?.toISOString() ?? null)

@@ -42,10 +42,7 @@ export class MessagesController {
   }
 
   @Post('conversations')
-  create(
-    @CurrentUser() user: JwtPayload,
-    @Body() dto: CreateConversationDto,
-  ) {
+  create(@CurrentUser() user: JwtPayload, @Body() dto: CreateConversationDto) {
     return this.messagesService.getOrCreate(user, dto);
   }
 

@@ -23,12 +23,16 @@ export class DoctorsService {
   }
 
   findAll() {
-    return this.prisma.doctor.findMany({ orderBy: { id: 'asc' } });
+    return this.prisma.doctor.findMany({
+      include: { user: { select: { email: true } } },
+      orderBy: { id: 'asc' },
+    });
   }
 
   async findOne(id: string) {
     const doctor = await this.prisma.doctor.findUnique({
       where: { id: BigInt(id) },
+      include: { user: { select: { email: true } } },
     });
     if (!doctor) throw new NotFoundException('Doctor no encontrado');
     return doctor;

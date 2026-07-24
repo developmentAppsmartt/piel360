@@ -14,6 +14,9 @@ export interface Patient {
   docType: string | null;
   docNumber: string | null;
   address: string | null;
+  birthDate: string | null;
+  gender: string | null;
+  fitzpatrickType: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -1,25 +1,8 @@
 "use client";
 
-import {
-  createColumnHelper,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  useReactTable,
-  type SortingState,
-} from "@tanstack/react-table";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { createColumnHelper } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable } from "@/components/ui/data-table";
 import type { AnalysisListItem } from "@/lib/queries/analyses";
 
 const columnHelper = createColumnHelper<AnalysisListItem>();
@@ -55,76 +38,28 @@ const columns = [
   }),
 ];
 
-export function AnalysesTable({ analyses }: { analyses: AnalysisListItem[] }) {
-  const router = useRouter();
-  const [globalFilter, setGlobalFilter] = useState("");
-  const [sorting, setSorting] = useState<SortingState>([{ id: "createdAt", desc: true }]);
+const defaultGetHref = (row: AnalysisListItem) =>
+  `/doctor/pacientes/${row.patientId}/analisis/${row.id}`;
 
-  const table = useReactTable({
-    data: analyses,
-    columns,
-    state: { globalFilter, sorting },
-    onGlobalFilterChange: setGlobalFilter,
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-  });
-
+export function AnalysesTable({
+  analyses,
+  getHref = defaultGetHref,
+}: {
+  analyses: AnalysisListItem[];
+  /** Devuelve la URL de destino al hacer click en una fila, o `null` para
+   * desactivar la navegación en esa fila. Por defecto apunta a la vista de
+   * detalle del panel doctor — se sobreescribe en contextos (ej. dashboard
+   * admin) donde esa ruta no es accesible (`proxy.ts` la restringe a `doctor`). */
+  getHref?: (row: AnalysisListItem) => string | null;
+}) {
   return (
-    <div className="space-y-4">
-      <input
-        value={globalFilter}
-        onChange={(e) => setGlobalFilter(e.target.value)}
-        placeholder="Buscar por paciente o diagnóstico..."
-        className="w-full max-w-xs rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-ring"
-      />
-
-      <div className="rounded-lg border border-border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    onClick={header.column.getToggleSortingHandler()}
-                    className="cursor-pointer select-none"
-                  >
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                    {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="text-center text-muted-foreground">
-                  Sin análisis.
-                </TableCell>
-              </TableRow>
-            ) : (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  className="cursor-pointer"
-                  onClick={() =>
-                    router.push(`/doctor/pacientes/${row.original.patientId}/analisis/${row.original.id}`)
-                  }
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
+    <DataTable
+      columns={columns}
+      data={analyses}
+      searchPlaceholder="Buscar por paciente o diagnóstico..."
+      emptyMessage="Sin análisis."
+      getRowHref={getHref}
+      initialSorting={[{ id: "createdAt", desc: true }]}
+    />
   );
 }
