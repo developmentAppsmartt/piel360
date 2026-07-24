@@ -1,315 +1,99 @@
-2026-07-24T03:25:00.629299091Z [inf]  Starting Container
-2026-07-24T03:25:01.517919164Z [err]  $ prisma migrate deploy
-2026-07-24T03:25:02.568842626Z [err]  Loaded Prisma config from prisma.config.ts.
-2026-07-24T03:25:02.568848445Z [err]  
-2026-07-24T03:25:02.568854105Z [err]  Prisma schema loaded from prisma/schema.prisma.
-2026-07-24T03:25:02.568859371Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
-2026-07-24T03:25:02.569905334Z [inf]  
-2026-07-24T03:25:02.569912895Z [inf]  3 migrations found in prisma/migrations
-2026-07-24T03:25:02.569920488Z [inf]  
-2026-07-24T03:25:02.569927556Z [inf]  
-2026-07-24T03:25:02.569934502Z [err]  ┌─────────────────────────────────────────────────────────┐
-2026-07-24T03:25:02.569941496Z [err]  │  Update available 7.8.0 -> 7.9.0                        │
-2026-07-24T03:25:02.569947331Z [err]  │  Run the following to update                            │
-2026-07-24T03:25:02.569952907Z [err]  │    npm i --save-dev prisma@latest                       │
-2026-07-24T03:25:02.569959085Z [err]  │    npm i @prisma/client@latest                          │
-2026-07-24T03:25:02.569965300Z [err]  └─────────────────────────────────────────────────────────┘
-2026-07-24T03:25:02.569971225Z [inf]  No pending migrations to apply.
-2026-07-24T03:25:03.966290415Z [inf]  [ELIFECYCLE] Command failed with exit code 1.
-2026-07-24T03:25:03.966304871Z [err]    requireStack: []
-2026-07-24T03:25:03.966317691Z [err]  }
-2026-07-24T03:25:03.966328480Z [err]  
-2026-07-24T03:25:03.966339167Z [err]  Node.js v22.13.1
-2026-07-24T03:25:03.966348156Z [err]  $ node dist/main
-2026-07-24T03:25:03.966355619Z [err]  node:internal/modules/cjs/loader:1247
-2026-07-24T03:25:03.966363935Z [err]    throw err;
-2026-07-24T03:25:03.966371644Z [err]    ^
-2026-07-24T03:25:03.966381417Z [err]  
-2026-07-24T03:25:03.966421213Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
-2026-07-24T03:25:03.966429576Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1244:15)
-2026-07-24T03:25:03.966436809Z [err]      at Function._load (node:internal/modules/cjs/loader:1070:27)
-2026-07-24T03:25:03.966466327Z [err]      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
-2026-07-24T03:25:03.966473650Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
-2026-07-24T03:25:03.966481535Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)
-2026-07-24T03:25:03.966489585Z [err]      at node:internal/main/run_main_module:36:49 {
-2026-07-24T03:25:03.966497456Z [err]    code: 'MODULE_NOT_FOUND',
-2026-07-24T03:25:05.822583337Z [err]  $ prisma migrate deploy
-2026-07-24T03:25:06.763873618Z [err]  Loaded Prisma config from prisma.config.ts.
-2026-07-24T03:25:06.763880205Z [err]  
-2026-07-24T03:25:06.763886713Z [err]  Prisma schema loaded from prisma/schema.prisma.
-2026-07-24T03:25:06.763892752Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
-2026-07-24T03:25:06.763897840Z [inf]  
-2026-07-24T03:25:06.763903563Z [inf]  3 migrations found in prisma/migrations
-2026-07-24T03:25:06.763908527Z [inf]  
-2026-07-24T03:25:06.763913876Z [inf]  
-2026-07-24T03:25:06.763920214Z [inf]  No pending migrations to apply.
-2026-07-24T03:25:07.992260994Z [err]  $ node dist/main
-2026-07-24T03:25:07.992267053Z [err]  node:internal/modules/cjs/loader:1247
-2026-07-24T03:25:07.992273460Z [err]    throw err;
-2026-07-24T03:25:07.992280009Z [err]    ^
-2026-07-24T03:25:07.992288666Z [err]  
-2026-07-24T03:25:07.992294766Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
-2026-07-24T03:25:07.992300610Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1244:15)
-2026-07-24T03:25:07.992306907Z [err]      at Function._load (node:internal/modules/cjs/loader:1070:27)
-2026-07-24T03:25:07.992312779Z [err]      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
-2026-07-24T03:25:07.992318522Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
-2026-07-24T03:25:07.992324658Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)
-2026-07-24T03:25:07.992330938Z [err]      at node:internal/main/run_main_module:36:49 {
-2026-07-24T03:25:07.992338608Z [err]    code: 'MODULE_NOT_FOUND',
-2026-07-24T03:25:07.992344034Z [err]    requireStack: []
-2026-07-24T03:25:07.992349967Z [err]  }
-2026-07-24T03:25:07.992355806Z [err]  
-2026-07-24T03:25:07.992361525Z [err]  Node.js v22.13.1
-2026-07-24T03:25:07.992367237Z [inf]  [ELIFECYCLE] Command failed with exit code 1.
-2026-07-24T03:25:09.970275284Z [err]  $ prisma migrate deploy
-2026-07-24T03:25:11.937353457Z [inf]  
-2026-07-24T03:25:11.937362922Z [inf]  No pending migrations to apply.
-2026-07-24T03:25:11.937383089Z [err]  
-2026-07-24T03:25:11.937386195Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
-2026-07-24T03:25:11.937395174Z [err]  Loaded Prisma config from prisma.config.ts.
-2026-07-24T03:25:11.937397136Z [err]  Prisma schema loaded from prisma/schema.prisma.
-2026-07-24T03:25:11.937404921Z [inf]  
-2026-07-24T03:25:11.937414443Z [inf]  3 migrations found in prisma/migrations
-2026-07-24T03:25:11.937423517Z [inf]  
-2026-07-24T03:25:12.829517230Z [err]  $ node dist/main
-2026-07-24T03:25:12.829526095Z [err]  node:internal/modules/cjs/loader:1247
-2026-07-24T03:25:12.829532930Z [err]    throw err;
-2026-07-24T03:25:12.829539373Z [err]    ^
-2026-07-24T03:25:12.829546555Z [err]  
-2026-07-24T03:25:12.829553667Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
-2026-07-24T03:25:12.829561174Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1244:15)
-2026-07-24T03:25:12.829567898Z [err]      at Function._load (node:internal/modules/cjs/loader:1070:27)
-2026-07-24T03:25:12.829577288Z [err]      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
-2026-07-24T03:25:12.829584190Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
-2026-07-24T03:25:12.829589833Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)
-2026-07-24T03:25:12.829602074Z [err]      at node:internal/main/run_main_module:36:49 {
-2026-07-24T03:25:12.829608975Z [err]    code: 'MODULE_NOT_FOUND',
-2026-07-24T03:25:12.829614578Z [err]    requireStack: []
-2026-07-24T03:25:12.829621567Z [err]  }
-2026-07-24T03:25:12.829630063Z [err]  
-2026-07-24T03:25:12.829696388Z [err]  Node.js v22.13.1
-2026-07-24T03:25:12.829703800Z [inf]  [ELIFECYCLE] Command failed with exit code 1.
-2026-07-24T03:25:14.864507859Z [err]  $ prisma migrate deploy
-2026-07-24T03:25:15.972405200Z [err]  Loaded Prisma config from prisma.config.ts.
-2026-07-24T03:25:15.972419214Z [err]  
-2026-07-24T03:25:16.803601516Z [inf]  
-2026-07-24T03:25:16.803612789Z [inf]  No pending migrations to apply.
-2026-07-24T03:25:16.803657607Z [err]  Prisma schema loaded from prisma/schema.prisma.
-2026-07-24T03:25:16.803664496Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
-2026-07-24T03:25:16.803671029Z [inf]  
-2026-07-24T03:25:16.803677704Z [inf]  3 migrations found in prisma/migrations
-2026-07-24T03:25:16.803684167Z [inf]  
-2026-07-24T03:25:16.911023218Z [err]  $ node dist/main
-2026-07-24T03:25:16.947135176Z [err]      at node:internal/main/run_main_module:36:49 {
-2026-07-24T03:25:16.947146116Z [err]    code: 'MODULE_NOT_FOUND',
-2026-07-24T03:25:16.947154080Z [err]    requireStack: []
-2026-07-24T03:25:16.947160645Z [err]  }
-2026-07-24T03:25:16.947167722Z [err]  
-2026-07-24T03:25:16.947174937Z [err]  Node.js v22.13.1
-2026-07-24T03:25:16.947188216Z [err]  node:internal/modules/cjs/loader:1247
-2026-07-24T03:25:16.947195045Z [err]    throw err;
-2026-07-24T03:25:16.947201510Z [err]    ^
-2026-07-24T03:25:16.947208042Z [err]  
-2026-07-24T03:25:16.947214234Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
-2026-07-24T03:25:16.947221216Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1244:15)
-2026-07-24T03:25:16.947228733Z [err]      at Function._load (node:internal/modules/cjs/loader:1070:27)
-2026-07-24T03:25:16.947235016Z [err]      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
-2026-07-24T03:25:16.947241634Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
-2026-07-24T03:25:16.947249095Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)
-2026-07-24T03:25:16.977992501Z [inf]  [ELIFECYCLE] Command failed with exit code 1.
-2026-07-24T03:25:18.980301424Z [err]  $ prisma migrate deploy
-2026-07-24T03:25:20.826067679Z [inf]  
-2026-07-24T03:25:20.826070065Z [inf]  
-2026-07-24T03:25:20.826076139Z [inf]  3 migrations found in prisma/migrations
-2026-07-24T03:25:20.826077873Z [err]  Loaded Prisma config from prisma.config.ts.
-2026-07-24T03:25:20.826087120Z [err]  Prisma schema loaded from prisma/schema.prisma.
-2026-07-24T03:25:20.826088567Z [inf]  
-2026-07-24T03:25:20.826094646Z [err]  
-2026-07-24T03:25:20.826095527Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
-2026-07-24T03:25:20.905720595Z [inf]  No pending migrations to apply.
-2026-07-24T03:25:21.839956408Z [err]  $ node dist/main
-2026-07-24T03:25:21.839960231Z [err]  node:internal/modules/cjs/loader:1247
-2026-07-24T03:25:21.839964731Z [err]    throw err;
-2026-07-24T03:25:21.839970899Z [err]    ^
-2026-07-24T03:25:21.839976621Z [err]  
-2026-07-24T03:25:21.839981261Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
-2026-07-24T03:25:21.839986820Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1244:15)
-2026-07-24T03:25:21.839991458Z [err]      at Function._load (node:internal/modules/cjs/loader:1070:27)
-2026-07-24T03:25:21.839995836Z [err]      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
-2026-07-24T03:25:21.840001300Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
-2026-07-24T03:25:21.840010170Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)
-2026-07-24T03:25:21.840015482Z [err]      at node:internal/main/run_main_module:36:49 {
-2026-07-24T03:25:21.840020576Z [err]    code: 'MODULE_NOT_FOUND',
-2026-07-24T03:25:21.840026869Z [err]    requireStack: []
-2026-07-24T03:25:21.840032106Z [err]  }
-2026-07-24T03:25:21.840036157Z [err]  
-2026-07-24T03:25:21.840040456Z [err]  Node.js v22.13.1
-2026-07-24T03:25:21.840047982Z [inf]  [ELIFECYCLE] Command failed with exit code 1.
-2026-07-24T03:25:23.838079874Z [err]  $ prisma migrate deploy
-2026-07-24T03:25:24.781769539Z [err]  Loaded Prisma config from prisma.config.ts.
-2026-07-24T03:25:24.781775324Z [err]  
-2026-07-24T03:25:24.861484887Z [err]  Prisma schema loaded from prisma/schema.prisma.
-2026-07-24T03:25:24.864392472Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
-2026-07-24T03:25:24.952506149Z [inf]  
-2026-07-24T03:25:24.952514181Z [inf]  3 migrations found in prisma/migrations
-2026-07-24T03:25:24.952519866Z [inf]  
-2026-07-24T03:25:25.014688938Z [inf]  
-2026-07-24T03:25:25.014701260Z [inf]  No pending migrations to apply.
-2026-07-24T03:25:25.842532747Z [err]      at Function._load (node:internal/modules/cjs/loader:1070:27)
-2026-07-24T03:25:25.842549149Z [err]      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
-2026-07-24T03:25:25.842554975Z [err]  $ node dist/main
-2026-07-24T03:25:25.842562150Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
-2026-07-24T03:25:25.842566681Z [err]  node:internal/modules/cjs/loader:1247
-2026-07-24T03:25:25.842570727Z [err]    ^
-2026-07-24T03:25:25.842580439Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)
-2026-07-24T03:25:25.842585270Z [err]    throw err;
-2026-07-24T03:25:25.842585871Z [err]  
-2026-07-24T03:25:25.842591828Z [err]      at node:internal/main/run_main_module:36:49 {
-2026-07-24T03:25:25.842598560Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
-2026-07-24T03:25:25.842603298Z [err]    code: 'MODULE_NOT_FOUND',
-2026-07-24T03:25:25.842607912Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1244:15)
-2026-07-24T03:25:25.842612836Z [err]    requireStack: []
-2026-07-24T03:25:25.842620609Z [err]  }
-2026-07-24T03:25:25.842629433Z [err]  
-2026-07-24T03:25:25.842638127Z [err]  Node.js v22.13.1
-2026-07-24T03:25:25.842647521Z [inf]  [ELIFECYCLE] Command failed with exit code 1.
-2026-07-24T03:25:27.764576272Z [err]  $ prisma migrate deploy
-2026-07-24T03:25:29.104583774Z [err]  Loaded Prisma config from prisma.config.ts.
-2026-07-24T03:25:29.104591260Z [err]  
-2026-07-24T03:25:30.112205936Z [inf]  
-2026-07-24T03:25:30.112215496Z [inf]  3 migrations found in prisma/migrations
-2026-07-24T03:25:30.112222657Z [inf]  
-2026-07-24T03:25:30.112229889Z [inf]  
-2026-07-24T03:25:30.112237871Z [inf]  No pending migrations to apply.
-2026-07-24T03:25:30.112248973Z [err]  
-2026-07-24T03:25:30.112266099Z [err]  Node.js v22.13.1
-2026-07-24T03:25:30.112275912Z [inf]  [ELIFECYCLE] Command failed with exit code 1.
-2026-07-24T03:25:30.112307120Z [err]    code: 'MODULE_NOT_FOUND',
-2026-07-24T03:25:30.112310037Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
-2026-07-24T03:25:30.112319663Z [err]    requireStack: []
-2026-07-24T03:25:30.112327159Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)
-2026-07-24T03:25:30.112336401Z [err]  }
-2026-07-24T03:25:30.112340703Z [err]      at node:internal/main/run_main_module:36:49 {
-2026-07-24T03:25:30.112360966Z [err]  $ node dist/main
-2026-07-24T03:25:30.112372511Z [err]  node:internal/modules/cjs/loader:1247
-2026-07-24T03:25:30.112377911Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
-2026-07-24T03:25:30.112385316Z [err]    throw err;
-2026-07-24T03:25:30.112390581Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1244:15)
-2026-07-24T03:25:30.112398535Z [err]      at Function._load (node:internal/modules/cjs/loader:1070:27)
-2026-07-24T03:25:30.112399191Z [err]  Prisma schema loaded from prisma/schema.prisma.
-2026-07-24T03:25:30.112406407Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
-2026-07-24T03:25:30.112407290Z [err]      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
-2026-07-24T03:25:30.112412403Z [err]    ^
-2026-07-24T03:25:30.112422116Z [err]  
-2026-07-24T03:25:34.026913548Z [err]  $ prisma migrate deploy
-2026-07-24T03:25:34.987022589Z [err]  Loaded Prisma config from prisma.config.ts.
-2026-07-24T03:25:34.987034016Z [err]  
-2026-07-24T03:25:34.987041454Z [err]  Prisma schema loaded from prisma/schema.prisma.
-2026-07-24T03:25:34.999497935Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
-2026-07-24T03:25:35.075363131Z [inf]  
-2026-07-24T03:25:35.075368844Z [inf]  3 migrations found in prisma/migrations
-2026-07-24T03:25:35.075373243Z [inf]  
-2026-07-24T03:25:35.905440310Z [inf]  No pending migrations to apply.
-2026-07-24T03:25:35.905449997Z [inf]  
-2026-07-24T03:25:35.905451068Z [err]  $ node dist/main
-2026-07-24T03:25:35.905453153Z [err]  node:internal/modules/cjs/loader:1247
-2026-07-24T03:25:35.905466347Z [err]    throw err;
-2026-07-24T03:25:35.905474430Z [err]    ^
-2026-07-24T03:25:35.905476137Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1244:15)
-2026-07-24T03:25:35.905484064Z [err]  
-2026-07-24T03:25:35.905490954Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)
-2026-07-24T03:25:35.905493165Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
-2026-07-24T03:25:35.905503809Z [err]      at node:internal/main/run_main_module:36:49 {
-2026-07-24T03:25:35.905505058Z [err]      at Function._load (node:internal/modules/cjs/loader:1070:27)
-2026-07-24T03:25:35.905513677Z [err]    code: 'MODULE_NOT_FOUND',
-2026-07-24T03:25:35.905519842Z [err]      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
-2026-07-24T03:25:35.905528283Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
-2026-07-24T03:25:35.905810355Z [err]    requireStack: []
-2026-07-24T03:25:35.905820288Z [err]  }
-2026-07-24T03:25:35.905827595Z [err]  
-2026-07-24T03:25:35.905834108Z [err]  Node.js v22.13.1
-2026-07-24T03:25:35.905840161Z [inf]  [ELIFECYCLE] Command failed with exit code 1.
-2026-07-24T03:25:38.902229219Z [err]  $ prisma migrate deploy
-2026-07-24T03:25:39.951759522Z [inf]  
-2026-07-24T03:25:39.951769527Z [inf]  No pending migrations to apply.
-2026-07-24T03:25:39.951787955Z [err]  
-2026-07-24T03:25:39.951792972Z [err]  Prisma schema loaded from prisma/schema.prisma.
-2026-07-24T03:25:39.951797652Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
-2026-07-24T03:25:39.951802276Z [inf]  
-2026-07-24T03:25:39.951808043Z [inf]  3 migrations found in prisma/migrations
-2026-07-24T03:25:39.951813434Z [inf]  
-2026-07-24T03:25:39.951817584Z [err]  Loaded Prisma config from prisma.config.ts.
-2026-07-24T03:25:40.967985314Z [err]  $ node dist/main
-2026-07-24T03:25:40.967992230Z [err]  node:internal/modules/cjs/loader:1247
-2026-07-24T03:25:40.967999843Z [err]    throw err;
-2026-07-24T03:25:40.968008204Z [err]    ^
-2026-07-24T03:25:40.968016751Z [err]  
-2026-07-24T03:25:40.968024785Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
-2026-07-24T03:25:40.968033664Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1244:15)
-2026-07-24T03:25:40.968042233Z [err]      at Function._load (node:internal/modules/cjs/loader:1070:27)
-2026-07-24T03:25:40.968050230Z [err]      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
-2026-07-24T03:25:40.968058095Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
-2026-07-24T03:25:40.968066443Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)
-2026-07-24T03:25:40.968074345Z [err]      at node:internal/main/run_main_module:36:49 {
-2026-07-24T03:25:40.968082299Z [err]    code: 'MODULE_NOT_FOUND',
-2026-07-24T03:25:40.968090837Z [err]    requireStack: []
-2026-07-24T03:25:40.968098943Z [err]  }
-2026-07-24T03:25:40.968107230Z [err]  
-2026-07-24T03:25:40.968114870Z [err]  Node.js v22.13.1
-2026-07-24T03:25:40.968122408Z [inf]  [ELIFECYCLE] Command failed with exit code 1.
-2026-07-24T03:25:42.976747463Z [err]  $ prisma migrate deploy
-2026-07-24T03:25:44.031533787Z [err]  Loaded Prisma config from prisma.config.ts.
-2026-07-24T03:25:44.031542347Z [err]  
-2026-07-24T03:25:44.031550448Z [err]  Prisma schema loaded from prisma/schema.prisma.
-2026-07-24T03:25:44.031558347Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
-2026-07-24T03:25:44.031569207Z [inf]  
-2026-07-24T03:25:44.031577332Z [inf]  3 migrations found in prisma/migrations
-2026-07-24T03:25:44.031585814Z [inf]  
-2026-07-24T03:25:44.031593955Z [inf]  
-2026-07-24T03:25:44.031602702Z [inf]  No pending migrations to apply.
-2026-07-24T03:25:44.994077915Z [err]    ^
-2026-07-24T03:25:44.994081735Z [err]  
-2026-07-24T03:25:44.994092689Z [err]  Node.js v22.13.1
-2026-07-24T03:25:44.994100571Z [inf]  [ELIFECYCLE] Command failed with exit code 1.
-2026-07-24T03:25:44.994115087Z [err]  
-2026-07-24T03:25:44.994123150Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
-2026-07-24T03:25:44.994125375Z [err]  $ node dist/main
-2026-07-24T03:25:44.994135822Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1244:15)
-2026-07-24T03:25:44.994138549Z [err]  node:internal/modules/cjs/loader:1247
-2026-07-24T03:25:44.994144465Z [err]      at Function._load (node:internal/modules/cjs/loader:1070:27)
-2026-07-24T03:25:44.994147682Z [err]    throw err;
-2026-07-24T03:25:44.994154084Z [err]      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
-2026-07-24T03:25:44.994158193Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)
-2026-07-24T03:25:44.994164428Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
-2026-07-24T03:25:44.994165160Z [err]    code: 'MODULE_NOT_FOUND',
-2026-07-24T03:25:44.994167720Z [err]      at node:internal/main/run_main_module:36:49 {
-2026-07-24T03:25:44.994173867Z [err]    requireStack: []
-2026-07-24T03:25:44.994178576Z [err]  }
-2026-07-24T03:25:47.871712257Z [err]  $ prisma migrate deploy
-2026-07-24T03:25:48.901861916Z [err]  Loaded Prisma config from prisma.config.ts.
-2026-07-24T03:25:48.901869822Z [err]  
-2026-07-24T03:25:48.901877718Z [err]  Prisma schema loaded from prisma/schema.prisma.
-2026-07-24T03:25:48.901885479Z [inf]  Datasource "db": PostgreSQL database "railway", schema "public" at "postgres.railway.internal:5432"
-2026-07-24T03:25:48.901891901Z [inf]  
-2026-07-24T03:25:48.901897902Z [inf]  3 migrations found in prisma/migrations
-2026-07-24T03:25:48.901903570Z [inf]  
-2026-07-24T03:25:48.901908556Z [inf]  
-2026-07-24T03:25:48.901913702Z [inf]  No pending migrations to apply.
-2026-07-24T03:25:49.854280739Z [err]  $ node dist/main
-2026-07-24T03:25:49.854289037Z [err]  node:internal/modules/cjs/loader:1247
-2026-07-24T03:25:49.854294207Z [err]    throw err;
-2026-07-24T03:25:49.854298078Z [err]    ^
-2026-07-24T03:25:49.854305318Z [err]  
-2026-07-24T03:25:49.854309912Z [err]  Error: Cannot find module '/app/apps/api/dist/main'
-2026-07-24T03:25:49.854313735Z [err]      at Function._resolveFilename (node:internal/modules/cjs/loader:1244:15)
-2026-07-24T03:25:49.854317931Z [err]      at Function._load (node:internal/modules/cjs/loader:1070:27)
-2026-07-24T03:25:49.854321989Z [err]      at TracingChannel.traceSync (node:diagnostics_channel:322:14)
-2026-07-24T03:25:49.854326457Z [err]      at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
-2026-07-24T03:25:49.854330272Z [err]      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)
-2026-07-24T03:25:49.854334483Z [err]      at node:internal/main/run_main_module:36:49 {
-2026-07-24T03:25:49.854339472Z [err]    code: 'MODULE_NOT_FOUND',
-2026-07-24T03:25:49.854344175Z [err]    requireStack: []
-2026-07-24T03:25:49.854347965Z [err]  }
-2026-07-24T03:25:49.854351971Z [err]  
-2026-07-24T03:25:49.854359047Z [err]  Node.js v22.13.1
-2026-07-24T03:25:49.854364405Z [inf]  [ELIFECYCLE] Command failed with exit code 1.
+2026-07-24T03:54:50.914353245Z [inf]  1:M 24 Jul 2026 03:54:48.001 * 1 changes in 60 seconds. Saving...
+2026-07-24T03:54:50.914359085Z [inf]  1:M 24 Jul 2026 03:54:48.002 * Background saving started by pid 38
+2026-07-24T03:54:50.914362255Z [inf]  38:C 24 Jul 2026 03:54:48.011 * DB saved on disk
+2026-07-24T03:54:50.914366265Z [inf]  38:C 24 Jul 2026 03:54:48.011 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T03:54:50.914368995Z [inf]  1:M 24 Jul 2026 03:54:48.102 * Background saving terminated with success
+2026-07-24T03:55:50.977144969Z [inf]  1:M 24 Jul 2026 03:55:49.001 * 1 changes in 60 seconds. Saving...
+2026-07-24T03:55:50.977154329Z [inf]  1:M 24 Jul 2026 03:55:49.001 * Background saving started by pid 39
+2026-07-24T03:55:50.977159119Z [inf]  39:C 24 Jul 2026 03:55:49.006 * DB saved on disk
+2026-07-24T03:55:50.977162459Z [inf]  39:C 24 Jul 2026 03:55:49.007 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T03:55:50.977165659Z [inf]  1:M 24 Jul 2026 03:55:49.102 * Background saving terminated with success
+2026-07-24T03:56:50.952545385Z [inf]  1:M 24 Jul 2026 03:56:50.004 * 1 changes in 60 seconds. Saving...
+2026-07-24T03:56:50.952549565Z [inf]  1:M 24 Jul 2026 03:56:50.005 * Background saving started by pid 40
+2026-07-24T03:56:50.952553425Z [inf]  40:C 24 Jul 2026 03:56:50.010 * DB saved on disk
+2026-07-24T03:56:50.952556345Z [inf]  40:C 24 Jul 2026 03:56:50.011 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T03:56:50.952559975Z [inf]  1:M 24 Jul 2026 03:56:50.105 * Background saving terminated with success
+2026-07-24T03:58:01.033305509Z [inf]  1:M 24 Jul 2026 03:57:51.098 * 1 changes in 60 seconds. Saving...
+2026-07-24T03:58:01.033309558Z [inf]  1:M 24 Jul 2026 03:57:51.098 * Background saving started by pid 41
+2026-07-24T03:58:01.033313698Z [inf]  41:C 24 Jul 2026 03:57:51.105 * DB saved on disk
+2026-07-24T03:58:01.033317048Z [inf]  41:C 24 Jul 2026 03:57:51.105 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T03:58:01.033320778Z [inf]  1:M 24 Jul 2026 03:57:51.198 * Background saving terminated with success
+2026-07-24T03:59:01.316858083Z [inf]  42:C 24 Jul 2026 03:58:52.017 * DB saved on disk
+2026-07-24T03:59:01.316865283Z [inf]  42:C 24 Jul 2026 03:58:52.018 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T03:59:01.316872123Z [inf]  1:M 24 Jul 2026 03:58:52.112 * Background saving terminated with success
+2026-07-24T03:59:01.316904362Z [inf]  1:M 24 Jul 2026 03:58:52.011 * 1 changes in 60 seconds. Saving...
+2026-07-24T03:59:01.316920522Z [inf]  1:M 24 Jul 2026 03:58:52.012 * Background saving started by pid 42
+2026-07-24T04:00:01.487193221Z [inf]  43:C 24 Jul 2026 03:59:53.018 * DB saved on disk
+2026-07-24T04:00:01.487200841Z [inf]  43:C 24 Jul 2026 03:59:53.018 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T04:00:01.487205641Z [inf]  1:M 24 Jul 2026 03:59:53.111 * Background saving terminated with success
+2026-07-24T04:00:01.487224201Z [inf]  1:M 24 Jul 2026 03:59:53.010 * 1 changes in 60 seconds. Saving...
+2026-07-24T04:00:01.487230421Z [inf]  1:M 24 Jul 2026 03:59:53.011 * Background saving started by pid 43
+2026-07-24T04:01:01.541908043Z [inf]  1:M 24 Jul 2026 04:00:54.026 * 1 changes in 60 seconds. Saving...
+2026-07-24T04:01:01.541917323Z [inf]  1:M 24 Jul 2026 04:00:54.027 * Background saving started by pid 44
+2026-07-24T04:01:01.541923513Z [inf]  44:C 24 Jul 2026 04:00:54.036 * DB saved on disk
+2026-07-24T04:01:01.541928283Z [inf]  44:C 24 Jul 2026 04:00:54.037 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T04:01:01.541932383Z [inf]  1:M 24 Jul 2026 04:00:54.127 * Background saving terminated with success
+2026-07-24T04:02:01.703635160Z [inf]  1:M 24 Jul 2026 04:01:55.030 * 1 changes in 60 seconds. Saving...
+2026-07-24T04:02:01.703639770Z [inf]  1:M 24 Jul 2026 04:01:55.030 * Background saving started by pid 45
+2026-07-24T04:02:01.703643670Z [inf]  45:C 24 Jul 2026 04:01:55.038 * DB saved on disk
+2026-07-24T04:02:01.703647720Z [inf]  45:C 24 Jul 2026 04:01:55.038 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T04:02:01.703651070Z [inf]  1:M 24 Jul 2026 04:01:55.131 * Background saving terminated with success
+2026-07-24T04:03:01.717627794Z [inf]  1:M 24 Jul 2026 04:02:56.045 * 1 changes in 60 seconds. Saving...
+2026-07-24T04:03:01.717635854Z [inf]  1:M 24 Jul 2026 04:02:56.045 * Background saving started by pid 46
+2026-07-24T04:03:01.717639794Z [inf]  46:C 24 Jul 2026 04:02:56.050 * DB saved on disk
+2026-07-24T04:03:01.717644175Z [inf]  46:C 24 Jul 2026 04:02:56.051 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T04:03:01.717648425Z [inf]  1:M 24 Jul 2026 04:02:56.146 * Background saving terminated with success
+2026-07-24T04:04:02.557971772Z [inf]  1:M 24 Jul 2026 04:03:57.050 * 1 changes in 60 seconds. Saving...
+2026-07-24T04:04:02.557978072Z [inf]  1:M 24 Jul 2026 04:03:57.050 * Background saving started by pid 47
+2026-07-24T04:04:02.557982052Z [inf]  47:C 24 Jul 2026 04:03:57.056 * DB saved on disk
+2026-07-24T04:04:02.558039551Z [inf]  47:C 24 Jul 2026 04:03:57.057 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T04:04:02.558043131Z [inf]  1:M 24 Jul 2026 04:03:57.151 * Background saving terminated with success
+2026-07-24T04:05:02.550462837Z [inf]  1:M 24 Jul 2026 04:04:58.045 * 1 changes in 60 seconds. Saving...
+2026-07-24T04:05:02.550466827Z [inf]  1:M 24 Jul 2026 04:04:58.046 * Background saving started by pid 48
+2026-07-24T04:05:02.550470407Z [inf]  48:C 24 Jul 2026 04:04:58.050 * DB saved on disk
+2026-07-24T04:05:02.550473627Z [inf]  48:C 24 Jul 2026 04:04:58.051 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T04:05:02.550476557Z [inf]  1:M 24 Jul 2026 04:04:58.146 * Background saving terminated with success
+2026-07-24T04:06:02.797143522Z [inf]  1:M 24 Jul 2026 04:05:59.040 * 1 changes in 60 seconds. Saving...
+2026-07-24T04:06:02.797147212Z [inf]  1:M 24 Jul 2026 04:05:59.041 * Background saving started by pid 49
+2026-07-24T04:06:02.797151702Z [inf]  49:C 24 Jul 2026 04:05:59.048 * DB saved on disk
+2026-07-24T04:06:02.797155472Z [inf]  49:C 24 Jul 2026 04:05:59.048 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T04:06:02.797160072Z [inf]  1:M 24 Jul 2026 04:05:59.141 * Background saving terminated with success
+2026-07-24T04:07:02.852659749Z [inf]  1:M 24 Jul 2026 04:07:00.041 * 1 changes in 60 seconds. Saving...
+2026-07-24T04:07:02.852668809Z [inf]  1:M 24 Jul 2026 04:07:00.041 * Background saving started by pid 50
+2026-07-24T04:07:02.852673679Z [inf]  50:C 24 Jul 2026 04:07:00.046 * DB saved on disk
+2026-07-24T04:07:02.852677409Z [inf]  50:C 24 Jul 2026 04:07:00.047 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T04:07:02.852680609Z [inf]  1:M 24 Jul 2026 04:07:00.142 * Background saving terminated with success
+2026-07-24T04:08:02.924459979Z [inf]  1:M 24 Jul 2026 04:08:01.047 * 1 changes in 60 seconds. Saving...
+2026-07-24T04:08:02.924466029Z [inf]  1:M 24 Jul 2026 04:08:01.047 * Background saving started by pid 51
+2026-07-24T04:08:02.924470199Z [inf]  51:C 24 Jul 2026 04:08:01.054 * DB saved on disk
+2026-07-24T04:08:02.924473689Z [inf]  51:C 24 Jul 2026 04:08:01.054 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T04:08:02.924477719Z [inf]  1:M 24 Jul 2026 04:08:01.148 * Background saving terminated with success
+2026-07-24T04:09:03.067665356Z [inf]  1:M 24 Jul 2026 04:09:02.053 * 1 changes in 60 seconds. Saving...
+2026-07-24T04:09:03.067669176Z [inf]  1:M 24 Jul 2026 04:09:02.054 * Background saving started by pid 52
+2026-07-24T04:09:03.067672996Z [inf]  52:C 24 Jul 2026 04:09:02.060 * DB saved on disk
+2026-07-24T04:09:03.067677446Z [inf]  52:C 24 Jul 2026 04:09:02.060 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T04:09:03.067687116Z [inf]  1:M 24 Jul 2026 04:09:02.154 * Background saving terminated with success
+2026-07-24T04:09:06.950848759Z [err]  [31m[Nest] 58  - [39m07/24/2026, 4:09:01 AM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39mPrismaClientKnownRequestError: 
+2026-07-24T04:09:06.950852839Z [err]  Invalid `this.prisma.user.create()` invocation in
+2026-07-24T04:09:06.950859509Z [err]  /app/apps/api/dist/src/auth/auth.service.js:83:45
+2026-07-24T04:09:06.950863929Z [err]  
+2026-07-24T04:09:06.950867679Z [err]    80 async registerDoctor(dto) {
+2026-07-24T04:09:06.950871418Z [err]    81     await this.assertEmailAvailable(dto.email);
+2026-07-24T04:09:06.950875398Z [err]    82     const password = await argon2.hash(dto.password);
+2026-07-24T04:09:06.950878838Z [err]  → 83     const user = await this.prisma.user.create(
+2026-07-24T04:09:06.950882858Z [err]  An operation failed because it depends on one or more records that were required but not found. Expected 1 records to be connected, found only 0.
+2026-07-24T04:09:06.950888298Z [err]      at zr.handleRequestError (/app/node_modules/[4m@prisma[24m/client/runtime/client.js:65:8286)
+2026-07-24T04:09:06.950891978Z [err]      at zr.handleAndLogRequestError (/app/node_modules/[4m@prisma[24m/client/runtime/client.js:65:7581)
+2026-07-24T04:09:06.950895908Z [err]      at zr.request (/app/node_modules/[4m@prisma[24m/client/runtime/client.js:65:7288)
+2026-07-24T04:09:06.950899348Z [err]  [90m    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+2026-07-24T04:09:06.950903598Z [err]      at async a (/app/node_modules/[4m@prisma[24m/client/runtime/client.js:75:6862)
+2026-07-24T04:09:06.950907988Z [err]      at async AuthService.registerDoctor [90m(/app/apps/api/[39mdist/src/auth/auth.service.js:83:22[90m)[39m
+2026-07-24T04:09:06.950911718Z [err]      at async /app/node_modules/[4m@nestjs[24m/core/router/router-execution-context.js:47:62
+2026-07-24T04:09:06.950915368Z [err]      at async /app/node_modules/[4m@nestjs[24m/core/router/router-proxy.js:9:17 {
+2026-07-24T04:09:06.950958688Z [err]  }
+2026-07-24T04:09:06.950976347Z [err]    code: [32m'P2025'[39m,
+2026-07-24T04:09:06.950976437Z [err]    },
+2026-07-24T04:09:06.950983497Z [err]    meta: {
+2026-07-24T04:09:06.950984817Z [err]    clientVersion: [32m'7.8.0'[39m
+2026-07-24T04:09:06.950988897Z [err]      modelName: [32m'User'[39m,
+2026-07-24T04:09:06.950993137Z [err]      expectedRows: [33m1[39m

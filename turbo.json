@@ -3,7 +3,8 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+      "env": ["BACKEND_ORIGIN", "NEXT_PUBLIC_API_URL", "API_URL", "JWT_SECRET"]
     },
     "dev": {
       "cache": false,
