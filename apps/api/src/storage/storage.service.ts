@@ -22,6 +22,7 @@ export class StorageService {
   constructor(private readonly config: ConfigService) {
     this.bucket = this.config.getOrThrow<string>('S3_BUCKET');
     this.client = new S3Client({
+      region: this.config.getOrThrow<string>('S3_REGION'),
       endpoint: this.config.get<string>('S3_ENDPOINT') || undefined,
       forcePathStyle: true,
       credentials: {

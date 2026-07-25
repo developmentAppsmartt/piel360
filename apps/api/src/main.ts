@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import './common/bigint-json.polyfill';
@@ -8,7 +9,18 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   // rawBody: true — necesario para verificar firmas de los webhooks de Wompi
   // (sha256 sobre el body crudo) y YouCam (HMAC estilo Svix). Ver INTEGRACIONES-IA.md.
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  // bodyParser: false — el parser default de Nest se registra automáticamente
+  // dentro de NestFactory.create() con el límite de 100kb de body-parser, ANTES
+  // de que podamos tocarlo; lo desactivamos acá para registrar el nuestro
+  // (con un límite más alto) explícitamente abajo. El webhook de Wompi para
+  // BANCOLOMBIA_QR incluye el código QR embebido en base64 dentro del JSON y
+  // supera los 100kb, causando un 413 que impedía que el webhook nos llegara.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+    bodyParser: false,
+  });
+  app.useBodyParser('json', { limit: '5mb' });
+  app.useBodyParser('urlencoded', { limit: '5mb', extended: true });
 
   app.use(cookieParser());
   // Los webhooks quedan fuera de /api: deben coincidir exactamente con las
