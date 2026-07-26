@@ -64,18 +64,15 @@ export class YoucamWebhookService {
 
     if (analysis.isValid) return { received: true }; // ya lo procesó el polling
 
-    if (taskStatus === 'error') {
-      await this.prisma.analysis.update({
-        where: { id: analysis.id },
-        data: { isValid: false, aiRawResponse: { error: true } },
-      });
-      return { received: true };
-    }
-
-    if (taskStatus === 'success') {
+    // El payload del webhook solo trae taskId/taskStatus (sin el mensaje de
+    // error) — `checkStatus` es la fuente de verdad única, igual que usa el
+    // job de respaldo, para no duplicar lógica de éxito/error en dos lugares.
+    if (taskStatus === 'success' || taskStatus === 'error') {
       const result = await this.youcam.checkStatus(taskId);
-      if (result !== 'processing') {
-        await this.results.applySuccess(analysis.id, result);
+      if (result.status === 'success') {
+        await this.results.applySuccess(analysis.id, result.results);
+      } else if (result.status === 'error') {
+        await this.results.applyError(analysis.id, result.message);
       }
     }
 

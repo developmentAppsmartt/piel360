@@ -1,6 +1,7 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { Queue } from 'bullmq';
+import { imageSize } from 'image-size';
 import type { JwtPayload } from '../auth/types';
 import { PatientsService } from '../patients/patients.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -12,6 +13,11 @@ import { YouCamService } from './youcam.service';
 const YOUCAM_PROVIDER_SLUG = 'youcam';
 const POLL_ATTEMPTS = 20;
 const POLL_BACKOFF_DELAY_MS = 30_000;
+// Todas nuestras dst_actions son "hd_*" (constants.ts#YOUCAM_DST_ACTIONS) — HD
+// Skincare exige al menos 1080px en el lado corto (docs/youcam_aiskinanalysis.MD
+// "File Specs & Errors"), no los 480px de SD. Subir una foto por debajo de eso
+// solo desperdicia la llamada (YouCam la rechaza con error_below_min_image_size).
+const YOUCAM_HD_MIN_SHORT_SIDE_PX = 1080;
 
 @Injectable()
 export class YoucamAnalysesService {
@@ -56,6 +62,13 @@ export class YoucamAnalysesService {
     }
     // El crédito NO se consume aquí — se consume al completarse (asimetría
     // intencional vs. Skiniver, MIGRACION.md deuda #4).
+
+    const { width, height } = imageSize(image);
+    if (Math.min(width, height) < YOUCAM_HD_MIN_SHORT_SIDE_PX) {
+      throw new BadRequestException(
+        `La foto es de muy baja resolución para el análisis HD (mínimo ${YOUCAM_HD_MIN_SHORT_SIDE_PX}px en el lado corto, esta tiene ${Math.min(width, height)}px). Toma la foto de nuevo con mejor calidad.`,
+      );
+    }
 
     const fileId = await this.youcam.uploadImage(image);
     const taskId = await this.youcam.startAnalysis(fileId);

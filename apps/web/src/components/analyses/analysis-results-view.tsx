@@ -30,13 +30,28 @@ export function AnalysisResultsView({
 
   const isYoucam = !!analysis.data?.youcamTaskId;
   const prediction = !isYoucam ? (analysis.data?.aiRawResponse as SkiniverPrediction | undefined) : undefined;
+  const youcamError =
+    isYoucam &&
+    analysis.data?.aiRawResponse &&
+    typeof analysis.data.aiRawResponse === "object" &&
+    "error" in analysis.data.aiRawResponse &&
+    analysis.data.aiRawResponse.error === true
+      ? analysis.data.aiRawResponse.message
+      : null;
 
   if (analysis.isLoading) return <p className="text-muted-foreground">Cargando resultados...</p>;
   if (!analysis.data) return null;
 
   return (
     <div className="space-y-6">
-      {isYoucam && !analysis.data.isValid && (
+      {isYoucam && !analysis.data.isValid && youcamError && (
+        <p className="text-destructive">
+          El análisis no se pudo procesar: {youcamError}. Intenta nuevamente con una foto de mejor
+          resolución.
+        </p>
+      )}
+
+      {isYoucam && !analysis.data.isValid && !youcamError && (
         <p className="text-muted-foreground">
           Procesando el análisis facial... Esto puede tardar varios minutos — puedes cerrar esta
           pantalla y volver más tarde.
