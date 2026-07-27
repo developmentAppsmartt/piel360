@@ -114,8 +114,42 @@ lado con la información que el proveedor envía hoy.
 2. Mientras tanto, el sistema **no depende del webhook** para funcionar — el job
    de respaldo (ya con el delay reducido) es la vía confiable y el usuario ya no
    espera los 30 segundos fijos de antes.
-3. **Corrección menor pendiente**: el log de diagnóstico agregado en
-   `youcam-webhook.service.ts` intenta capturar el header `svix-id` para
-   correlacionar con los logs de Perfect Corp, pero el nombre real del header
-   (según la librería `svix` que ya usamos) es `webhook-id` — hoy ese campo del
-   log siempre sale `undefined`. Es un ajuste de una línea, pendiente de aplicar.
+
+## Revisión de la documentación oficial de Perfect Corp (`docs/webhook_documentation.MD`, `docs/start_guid.MD`, `docs/V2.1.MD`)
+
+El cliente encontró y agregó la documentación oficial de Perfect Corp sobre
+webhooks y sobre el endpoint `/s2s/v2.1/task/skin-analysis`. Se revisó buscando
+una explicación directa al mismatch del `task_id` — no la hay. De hecho,
+`V2.1.MD` refuerza que el `task_id` del webhook debería servir para consultar el
+resultado ("use the received task_id to query the task result"), lo que confirma
+que el mismatch que observamos es una anomalía real, no un comportamiento
+documentado o esperado por el propio proveedor.
+
+Sí se aplicaron dos correcciones a partir de esta documentación:
+
+1. **Header correcto: `webhook-id`, no `svix-id`.** El log de diagnóstico
+   agregado antes intentaba leer `headers['svix-id']` para tener una clave de
+   correlación con soporte de Perfect Corp, pero ese header no existe — por eso
+   salió `undefined` en la prueba de producción del análisis #11. La doc oficial
+   confirma que el nombre real es `webhook-id` (formato `msg_<id>:<timestamp>`,
+   el ID de entrega del mensaje — no tiene relación con el `task_id` de YouCam,
+   solo sirve como referencia si hace falta escalar con soporte). Ya corregido
+   en el código.
+2. **Preferir `data.error_message` sobre `data.error`.** `V2.1.MD` documenta que
+   `data.error` es solo el código del error (ej. `"error_no_face"`,
+   `"error_pose"`, `"error_face_parsing"`, `"error_nsfw_content_detected"`,
+   `"error_inference"`, entre otros) y `data.error_message` trae la descripción
+   detallada — son campos separados. `checkStatus` ahora prefiere
+   `error_message` cuando YouCam lo manda, para mostrar mensajes de fallo más
+   claros en el frontend.
+
+También se observó (sin cambio de código, solo como referencia): el ejemplo de
+`docs/webhook_documentation.MD` usa `task_id`/`task_status` (snake_case), pero el
+payload real capturado en el análisis #11 trae `taskId`/`taskStatus`
+(camelCase) — nuestro tipo ya asume camelCase por casualidad, así que no hay bug
+de parseo hoy, pero es una pista más para llevar a soporte de Perfect Corp si se
+escala el caso. `V2.1.MD` también advierte no exceder la "ventana de polling
+permitida" (no especifica cuánto dura) porque un chequeo tardío puede devolver
+`InvalidTaskId` aunque el análisis haya terminado, y aun así cobrarse la
+unidad — queda anotado como algo a vigilar si en el futuro se alargan los
+reintentos del job de respaldo.

@@ -22,6 +22,9 @@ interface CheckStatusResponse {
     task_status?: string;
     results?: YouCamResults;
     error?: unknown;
+    // Descripción detallada del error (V2.1.MD) — `error` es solo el código
+    // (ej. "error_no_face"), este campo trae el mensaje legible.
+    error_message?: string;
     [key: string]: unknown;
   };
 }
@@ -148,9 +151,10 @@ export class YouCamService {
     if (status === 'error') {
       const rawError = json.data.error;
       const message =
-        typeof rawError === 'string'
+        json.data.error_message ??
+        (typeof rawError === 'string'
           ? rawError
-          : (JSON.stringify(rawError ?? json.data) ?? 'Error desconocido');
+          : (JSON.stringify(rawError ?? json.data) ?? 'Error desconocido'));
       return { status: 'error', message };
     }
     return { status: 'processing' };
