@@ -125,6 +125,69 @@ webhook que para la respuesta de creación de la tarea (quizás un ID interno vs
 uno externo), y no hay forma de emparejarlos de manera confiable desde nuestro
 lado con la información que el proveedor envía hoy.
 
+## Evidencia cruda: logs de Railway y respuestas reales de YouCam
+
+Para mostrarle al cliente exactamente por qué el sistema sigue dependiendo del
+job de respaldo y no del webhook, esta es la transcripción literal de los logs
+de Railway capturados en el momento de cada prueba (las de los análisis #9 y
+#10 ya rotaron fuera de la ventana de retención de Railway al momento de
+escribir esta sección, se transcriben tal cual se capturaron durante la
+prueba; las de #11 y #12 siguen disponibles y se volvieron a confirmar
+re-consultando `railway logs`).
+
+**Análisis #9** (antes del fix del logging completo — solo se veía el `task_id`):
+```
+[Nest] 58  - 07/27/2026, 5:27:02 PM    WARN [YoucamWebhookService] Webhook YouCam: no se encontró Analysis para taskId=73Mrf0VakspiaJZx8pG9S4udHAz8WJznsdEpqVH1iJVwfbP-eONKiUrze9V1JRSw
+```
+
+**Análisis #10** (mismo webhook llegó duplicado):
+```
+[Nest] 58  - 07/27/2026, 5:29:35 PM    WARN [YoucamWebhookService] Webhook YouCam: no se encontró Analysis para taskId=Mng8Cc21siufLm6uT2nt8NZNpeh5qMTsSRjmExCpgO7ELiQXa0XdWMIFL0sm1Tsf
+[Nest] 58  - 07/27/2026, 5:29:35 PM    WARN [YoucamWebhookService] Webhook YouCam: no se encontró Analysis para taskId=Mng8Cc21siufLm6uT2nt8NZNpeh5qMTsSRjmExCpgO7ELiQXa0XdWMIFL0sm1Tsf
+```
+
+**Análisis #11** (ya con el payload completo en el log):
+```
+[Nest] 58  - 07/27/2026, 6:19:07 PM    WARN [YoucamWebhookService] Webhook YouCam: no se encontró Analysis para taskId=wZg3pnCYjTGAk3cqVNWNkZWcYTY5FnZy0QjyGmiid-l8WJ4SXXln8rLZ7xGWKYq8. Payload completo: {"created_at":1785176347,"data":{"taskId":"wZg3pnCYjTGAk3cqVNWNkZWcYTY5FnZy0QjyGmiid-l8WJ4SXXln8rLZ7xGWKYq8","taskStatus":"success"}}. svix-id=undefined
+```
+
+**Análisis #12** (ya con el header `webhook-id` corregido, después de rotar el secreto):
+```
+[Nest] 58  - 07/27/2026, 8:49:49 PM    WARN [YoucamWebhookService] Webhook YouCam: no se encontró Analysis para taskId=jR-nqIdCpwUiyofm4K3bUamNzXCZFqo_CgiiJh1ZbqkowEg5V0rD_EsBki3Qs5Us. Payload completo: {"created_at":1785185389,"data":{"taskId":"jR-nqIdCpwUiyofm4K3bUamNzXCZFqo_CgiiJh1ZbqkowEg5V0rD_EsBki3Qs5Us","taskStatus":"success"}}. webhook-id=msg_jR-nqIdCpwUiyofm4K3bUamNzXCZFqo_CgiiJh1ZbqkowEg5V0rD_EsBki3Qs5Us:115591779768
+```
+
+En los 4 casos, el sistema hace exactamente lo mismo: recibe el webhook,
+responde `200 OK` (para no generar un retry storm de YouCam), pero no puede
+usarlo porque el `task_id` que trae nunca corresponde a ninguno de nuestros
+análisis. Por eso el resultado real siempre termina llegando por el job de
+respaldo (la vía que sí funciona), nunca por el webhook.
+
+### La respuesta real de YouCam al consultar una tarea
+
+Además de los logs del webhook, esta es la respuesta cruda que devuelve YouCam
+al consultar directamente el estado de una tarea (`GET
+/s2s/v2.1/task/skin-analysis/{task_id}`), capturada para los análisis que
+fallaron por baja calidad de imagen:
+
+```json
+{"task_status":"error","error":"Input image resolution is too small."}
+```
+*(análisis #6 y #7, investigados vía `railway run` contra la API real de YouCam
+con las credenciales de producción — el hallazgo original que motivó el primer
+fix de esta serie).*
+
+```json
+{"error":true,"message":"The face area in the uploaded image is too small"}
+```
+*(análisis #10 en producción, ya procesado y guardado por nuestro sistema).*
+
+```json
+{"error":true,"message":"error_src_face_too_small"}
+```
+*(análisis #75 y #76, mismas pruebas pero corridas en local — en este caso
+YouCam no incluyó `error_message`, así que se ve el código crudo del error en
+vez de la descripción legible).*
+
 ## Qué falta
 
 1. **Escalar a soporte de Perfect Corp/YouCam** con esta evidencia (los dos
