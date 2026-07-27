@@ -11,8 +11,8 @@ que queda pendiente de resolver del lado de YouCam.
 1. **YouCam sí responde rápido** (4-9 segundos en todas las pruebas) — el proveedor
    cumple lo que promete.
 2. **El webhook de YouCam llega a tiempo, pero con un `task_id` que nunca coincide**
-   con el que YouCam nos devolvió al crear la tarea. Confirmado en 3 de 3 pruebas
-   con webhook capturado.
+   con el que YouCam nos devolvió al crear la tarea. Confirmado en 4 de 4 pruebas
+   con webhook capturado — incluso después de rotar el secreto del webhook.
 3. Aplicamos un fix que **no depende del webhook para ser rápido**: el job de
    respaldo ahora hace su primer chequeo a los 8 segundos (antes 30s fijos). Esto
    ya está desplegado y verificado.
@@ -59,6 +59,27 @@ Railway), así que estas 2 pruebas solo validan el camino del job de respaldo.
 | Prueba | Resultado | Tiempo real | Webhook |
 |---|---|---|---|
 | Análisis #11 | Éxito | 23.4s (mismo patrón: 1er chequeo a los 8s "processing", 2do a los ~23s ya listo) | Llegó a los 8.25s, `task_id` seguía sin coincidir |
+
+### Después de rotar `YOUCAM_WEBHOOK_SECRET` (producción, 27 jul 2026 ~20:49 UTC)
+
+El cliente regeneró el secreto del webhook en el CRM de Perfect Corp (por si ese
+fuera el problema) y lo actualizó tanto en local como en Railway. Se probó de
+nuevo para descartarlo:
+
+| Prueba | Resultado | Tiempo real | Webhook |
+|---|---|---|---|
+| Análisis #12 | Éxito | 23.3s (mismo patrón de siempre) | Llegó a los 9.1s, `task_id` seguía sin coincidir |
+
+**El secreto nuevo no cambió nada** — esperable, ya que el secreto solo afecta
+la verificación de firma (que ya funcionaba antes: si hubiera estado mal, el
+webhook habría fallado con 403 en vez de procesarse). El `task_id` sigue sin
+coincidir exactamente igual que en los 3 casos anteriores. Un dato nuevo de esta
+prueba: el header `webhook-id` (ya corregido en el log) llegó como
+`msg_jR-nqIdCpwUiyofm4K3bUamNzXCZFqo_CgiiJh1ZbqkowEg5V0rD_EsBki3Qs5Us:115591779768`
+— está construido como `msg_<el mismo task_id del payload>:<timestamp>`, lo que
+confirma que el `task_id` del webhook es un valor real y consistente del propio
+sistema de Perfect Corp, no basura ni corrupción — simplemente es un
+identificador distinto al que devuelven al crear la tarea.
 
 ## El hallazgo nuevo: el `task_id` del webhook parece ser otro ID por diseño de YouCam, no un bug nuestro
 
