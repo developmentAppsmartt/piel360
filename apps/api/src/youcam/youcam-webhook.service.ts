@@ -56,8 +56,11 @@ export class YoucamWebhookService {
       // incidente en producción cuando esto lanzaba 500 y YouCam reintentaba
       // sin parar. Responder 200 corta el retry storm; el job de polling
       // sigue siendo la vía de respaldo confiable.
+      // Diagnóstico temporal (nota de latencia YouCam, jul/2026): loguear el
+      // payload completo y el svix-id, no solo el taskId, para poder rastrear
+      // por qué no matchea la próxima vez que ocurra — quitar una vez resuelto.
       this.logger.warn(
-        `Webhook YouCam: no se encontró Analysis para taskId=${taskId}`,
+        `Webhook YouCam: no se encontró Analysis para taskId=${taskId}. Payload completo: ${JSON.stringify(payload)}. svix-id=${headers['svix-id']}`,
       );
       return { received: true };
     }

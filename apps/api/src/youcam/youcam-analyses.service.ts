@@ -12,7 +12,12 @@ import { YouCamService } from './youcam.service';
 
 const YOUCAM_PROVIDER_SLUG = 'youcam';
 const POLL_ATTEMPTS = 20;
-const POLL_BACKOFF_DELAY_MS = 30_000;
+// Medido en producción (nota de latencia YouCam, jul/2026): el webhook llega
+// en 4-9s, así que el primer chequeo del job de respaldo no necesita esperar
+// 30s — antes ambos usaban la misma constante, inflando la latencia percibida
+// aun cuando YouCam ya tenía la respuesta lista.
+const POLL_INITIAL_DELAY_MS = 8_000;
+const POLL_BACKOFF_DELAY_MS = 15_000;
 // Todas nuestras dst_actions son "hd_*" (constants.ts#YOUCAM_DST_ACTIONS) — HD
 // Skincare exige al menos 1080px en el lado corto (docs/youcam_aiskinanalysis.MD
 // "File Specs & Errors"), no los 480px de SD. Subir una foto por debajo de eso
@@ -96,7 +101,7 @@ export class YoucamAnalysesService {
       {
         attempts: POLL_ATTEMPTS,
         backoff: { type: 'exponential', delay: POLL_BACKOFF_DELAY_MS },
-        delay: POLL_BACKOFF_DELAY_MS,
+        delay: POLL_INITIAL_DELAY_MS,
       },
     );
 
