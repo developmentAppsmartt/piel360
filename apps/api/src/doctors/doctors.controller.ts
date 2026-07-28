@@ -1,6 +1,8 @@
 import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { RequirePermission } from '../auth/permissions.decorator';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import type { JwtPayload } from '../auth/types';
@@ -26,22 +28,22 @@ export class DoctorsController {
   }
 
   @Get('admin/doctors')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('view_any_doctor')
   findAll() {
     return this.doctorsService.findAll();
   }
 
   @Get('admin/doctors/:id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('view_doctor')
   findOne(@Param('id') id: string) {
     return this.doctorsService.findOne(id);
   }
 
   @Patch('admin/doctors/:id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('update_doctor')
   update(@Param('id') id: string, @Body() dto: UpdateDoctorDto) {
     return this.doctorsService.update(id, dto);
   }

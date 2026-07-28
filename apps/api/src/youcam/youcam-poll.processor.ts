@@ -31,12 +31,19 @@ export class YoucamPollProcessor extends WorkerHost {
     });
     if (analysis.isValid) return; // ya lo procesó el webhook
 
-    const result = await this.youcam.checkStatus(taskId); // lanza si YouCam reporta 'error'
-    if (result === 'processing') {
-      throw new Error('YouCam task aún procesando');
+    const result = await this.youcam.checkStatus(taskId);
+
+    if (result.status === 'processing') {
+      throw new Error('YouCam task aún procesando'); // BullMQ reintenta (attempts/backoff en YoucamAnalysesService)
+    }
+    if (result.status === 'error') {
+      // Condición permanente (ej. resolución de imagen insuficiente) — no
+      // tiene sentido reintentar, se marca el análisis y el job termina bien.
+      await this.results.applyError(analysis.id, result.message);
+      return;
     }
 
-    await this.results.applySuccess(analysis.id, result);
+    await this.results.applySuccess(analysis.id, result.results);
   }
 
   /** Sin este listener, un error de conexión a Redis (ej. Redis caído en

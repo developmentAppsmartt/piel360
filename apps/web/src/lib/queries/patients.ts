@@ -17,7 +17,6 @@ export interface Patient {
   address: string | null;
   birthDate: string | null;
   gender: string | null;
-  skinType: string | null;
   fitzpatrickType: string | null;
   createdAt: string;
   updatedAt: string;

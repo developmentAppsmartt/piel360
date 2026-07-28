@@ -9,8 +9,8 @@ import {
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { Roles } from '../auth/roles.decorator';
-import { RolesGuard } from '../auth/roles.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { RequirePermission } from '../auth/permissions.decorator';
 import type { JwtPayload } from '../auth/types';
 import { CreateCheckoutDto } from './dto/create-checkout.dto';
 import { CreateGatewayConfigDto } from './dto/create-gateway-config.dto';
@@ -22,22 +22,22 @@ export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @Post('admin/gateway-configs')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('create_gateway_config')
   createGatewayConfig(@Body() dto: CreateGatewayConfigDto) {
     return this.paymentsService.createGatewayConfig(dto);
   }
 
   @Get('admin/gateway-configs')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('view_any_gateway_config')
   listGatewayConfigs() {
     return this.paymentsService.listGatewayConfigs();
   }
 
   @Patch('admin/gateway-configs/:id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('update_gateway_config')
   updateGatewayConfig(
     @Param('id') id: string,
     @Body() dto: UpdateGatewayConfigDto,

@@ -53,6 +53,24 @@ export class YoucamResultsService {
     await this.consumeCreditIfNeeded(analysisId);
   }
 
+  /** YouCam rechazó el task de forma permanente (ej. "Input image resolution
+   * is too small.") — se marca el análisis en vez de dejar que el job de
+   * respaldo reintente 20 veces contra una condición que nunca va a cambiar. */
+  async applyError(analysisId: bigint, message: string): Promise<void> {
+    const analysis = await this.prisma.analysis.findUniqueOrThrow({
+      where: { id: analysisId },
+    });
+    if (analysis.isValid) return; // ya lo procesó la otra vía
+
+    await this.prisma.analysis.update({
+      where: { id: analysisId },
+      data: {
+        isValid: false,
+        aiRawResponse: { error: true, message },
+      },
+    });
+  }
+
   private async downloadMask(analysisId: bigint, key: string, url: string) {
     try {
       const buffer = await this.storage.downloadToBuffer(url);

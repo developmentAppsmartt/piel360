@@ -56,26 +56,26 @@ export class YoucamWebhookService {
       // incidente en producción cuando esto lanzaba 500 y YouCam reintentaba
       // sin parar. Responder 200 corta el retry storm; el job de polling
       // sigue siendo la vía de respaldo confiable.
+      // Diagnóstico temporal (nota de latencia YouCam, jul/2026): loguear el
+      // payload completo y el svix-id, no solo el taskId, para poder rastrear
+      // por qué no matchea la próxima vez que ocurra — quitar una vez resuelto.
       this.logger.warn(
-        `Webhook YouCam: no se encontró Analysis para taskId=${taskId}`,
+        `Webhook YouCam: no se encontró Analysis para taskId=${taskId}. Payload completo: ${JSON.stringify(payload)}. webhook-id=${headers['webhook-id']}`,
       );
       return { received: true };
     }
 
     if (analysis.isValid) return { received: true }; // ya lo procesó el polling
 
-    if (taskStatus === 'error') {
-      await this.prisma.analysis.update({
-        where: { id: analysis.id },
-        data: { isValid: false, aiRawResponse: { error: true } },
-      });
-      return { received: true };
-    }
-
-    if (taskStatus === 'success') {
+    // El payload del webhook solo trae taskId/taskStatus (sin el mensaje de
+    // error) — `checkStatus` es la fuente de verdad única, igual que usa el
+    // job de respaldo, para no duplicar lógica de éxito/error en dos lugares.
+    if (taskStatus === 'success' || taskStatus === 'error') {
       const result = await this.youcam.checkStatus(taskId);
-      if (result !== 'processing') {
-        await this.results.applySuccess(analysis.id, result);
+      if (result.status === 'success') {
+        await this.results.applySuccess(analysis.id, result.results);
+      } else if (result.status === 'error') {
+        await this.results.applyError(analysis.id, result.message);
       }
     }
 

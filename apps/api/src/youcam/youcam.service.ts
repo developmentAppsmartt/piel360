@@ -22,9 +22,17 @@ interface CheckStatusResponse {
     task_status?: string;
     results?: YouCamResults;
     error?: unknown;
+    // Descripción detallada del error (V2.1.MD) — `error` es solo el código
+    // (ej. "error_no_face"), este campo trae el mensaje legible.
+    error_message?: string;
     [key: string]: unknown;
   };
 }
+
+export type YouCamCheckStatusResult =
+  | { status: 'success'; results: YouCamResults }
+  | { status: 'processing' }
+  | { status: 'error'; message: string };
 
 /**
  * Cliente HTTP puro de la API server-to-server de YouCam (INTEGRACIONES-IA.md
@@ -116,7 +124,13 @@ export class YouCamService {
     return json.data.task_id;
   }
 
-  async checkStatus(taskId: string): Promise<YouCamResults | 'processing'> {
+  /** No lanza en `task_status: 'error'` — YouCam puede rechazar la tarea de
+   * forma permanente (ej. "Input image resolution is too small.") y no tiene
+   * sentido reintentar; se devuelve como dato para que el caller decida
+   * (`YoucamPollProcessor`/`YoucamWebhookService` marcan el análisis como
+   * fallido en vez de reintentar 20 veces con backoff exponencial contra
+   * una condición que nunca va a cambiar). */
+  async checkStatus(taskId: string): Promise<YouCamCheckStatusResult> {
     const response = await fetch(
       `${this.baseUrl}/s2s/v2.1/task/skin-analysis/${taskId}`,
       { headers: { Authorization: `Bearer ${this.apiKey}` } },
@@ -129,14 +143,21 @@ export class YouCamService {
     const status = json.data.task_status ?? 'processing';
 
     if (status === 'success') {
-      return (json.data.results ?? json.data) as YouCamResults;
+      return {
+        status: 'success',
+        results: (json.data.results ?? json.data) as YouCamResults,
+      };
     }
     if (status === 'error') {
-      throw new InternalServerErrorException(
-        `YouCam analysis task failed: ${JSON.stringify(json.data.error ?? json.data)}`,
-      );
+      const rawError = json.data.error;
+      const message =
+        json.data.error_message ??
+        (typeof rawError === 'string'
+          ? rawError
+          : (JSON.stringify(rawError ?? json.data) ?? 'Error desconocido'));
+      return { status: 'error', message };
     }
-    return 'processing';
+    return { status: 'processing' };
   }
 
   /** Restricciones de cuenta (créditos, cuota, plan) vienen como 4xx con

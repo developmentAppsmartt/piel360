@@ -6,5 +6,6 @@ export interface JwtPayload {
   sub: string;
   email: string;
   role: Role;
+  permissions: string[];
   surveyCompletedAt?: string | null;
 }

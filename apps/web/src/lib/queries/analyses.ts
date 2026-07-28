@@ -4,11 +4,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SkiniverPrediction, YouCamResults } from "@piel360/shared";
 import { apiClientFetch } from "@/lib/api-client";
 
+// Shape que escribe YoucamResultsService#applyError cuando YouCam rechaza el
+// task de forma permanente (ej. "Input image resolution is too small.") — el
+// job de respaldo/webhook dejan de reintentar en ese caso.
+export interface YouCamAnalysisError {
+  error: true;
+  message: string;
+}
+
 // Shape completo de GET/POST /analyses (`id` es string por el polyfill de
 // BigInt del backend). imageUrl/coloredUrl/maskedUrl/masks son URLs firmadas
 // agregadas por AnalysesService.withImageUrls — no existen como columnas.
 // aiRawResponse es SkiniverPrediction si youcamTaskId es null, YouCamResults
-// si no (distinguir por youcamTaskId antes de leer sus campos).
+// o YouCamAnalysisError si no (distinguir por youcamTaskId antes de leer sus
+// campos, y por la propiedad `error` para el caso de fallo).
 export interface AnalysisDetail {
   id: string;
   patientId: string;
@@ -21,7 +30,7 @@ export interface AnalysisDetail {
   validationScore: number | null;
   aiDiagnosis: string | null;
   aiProbability: number | null;
-  aiRawResponse: SkiniverPrediction | YouCamResults | null;
+  aiRawResponse: SkiniverPrediction | YouCamResults | YouCamAnalysisError | null;
   finalDiagnosis: string | null;
   isConfirmed: boolean;
   isCorrected: boolean;
@@ -51,6 +60,27 @@ export interface ConfirmAnalysisInput {
   doctorNotes?: string;
 }
 
+// Shape de GET /analyses (listado) — más liviano que AnalysisDetail: sin
+// imageUrl/coloredUrl/masks firmadas (el backend no llama a withImageUrls acá),
+// pero sí incluye `patient` (analyses.service.ts#findAll) para el listado global.
+export interface AnalysisListItem {
+  id: string;
+  patientId: string;
+  youcamTaskId: string | null;
+  bodyRegion: string | null;
+  isValid: boolean;
+  aiDiagnosis: string | null;
+  finalDiagnosis: string | null;
+  isConfirmed: boolean;
+  isCorrected: boolean;
+  createdAt: string;
+  patient: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
+}
+
 export interface EncyclopediaEntry {
   id: string;
   url: string;
@@ -77,12 +107,27 @@ export function useAnalysis(id: string) {
       const attempts = query.state.dataUpdateCount;
 
       if (data.youcamTaskId) {
-        return !data.isValid && attempts < YOUCAM_MAX_ATTEMPTS ? YOUCAM_POLL_MS : false;
+        // Si ya se marcó como fallo permanente (YoucamResultsService#applyError),
+        // isValid se queda en false para siempre — sin esto el polling seguiría
+        // los 200s completos mostrando "procesando" sobre algo que ya falló.
+        const failed =
+          !!data.aiRawResponse &&
+          typeof data.aiRawResponse === "object" &&
+          "error" in data.aiRawResponse &&
+          data.aiRawResponse.error === true;
+        return !data.isValid && !failed && attempts < YOUCAM_MAX_ATTEMPTS ? YOUCAM_POLL_MS : false;
       }
 
       const pending = !data.coloredUrl || !data.maskedUrl;
       return pending && attempts < SKINIVER_MAX_ATTEMPTS ? SKINIVER_POLL_MS : false;
     },
+  });
+}
+
+export function useAnalyses() {
+  return useQuery({
+    queryKey: ["analyses"],
+    queryFn: () => apiClientFetch<AnalysisListItem[]>("/analyses"),
   });
 }
 

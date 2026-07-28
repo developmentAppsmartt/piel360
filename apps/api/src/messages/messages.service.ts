@@ -75,7 +75,10 @@ export class MessagesService {
     throw new ForbiddenException('Solo doctores y pacientes pueden mensajear');
   }
 
-  async listConversations(user: JwtPayload, tab: ConversationTab = 'recientes') {
+  async listConversations(
+    user: JwtPayload,
+    tab: ConversationTab = 'recientes',
+  ) {
     const ctx = await this.resolveParticipant(user);
     const conversations = await this.prisma.conversation.findMany({
       where:
@@ -122,7 +125,9 @@ export class MessagesService {
         where: { id: patientId, doctorId },
       });
       if (!patient) {
-        throw new ForbiddenException('Este paciente no pertenece a tu consulta');
+        throw new ForbiddenException(
+          'Este paciente no pertenece a tu consulta',
+        );
       }
     } else {
       if (!dto.doctorId && !ctx.doctorId) {
@@ -131,7 +136,9 @@ export class MessagesService {
       patientId = ctx.patientId;
       doctorId = dto.doctorId ? BigInt(dto.doctorId) : ctx.doctorId!;
       if (ctx.doctorId && doctorId !== ctx.doctorId) {
-        throw new ForbiddenException('Solo puedes chatear con tu doctor asignado');
+        throw new ForbiddenException(
+          'Solo puedes chatear con tu doctor asignado',
+        );
       }
     }
 
@@ -219,7 +226,11 @@ export class MessagesService {
     return mapped.reverse();
   }
 
-  async sendMessage(user: JwtPayload, conversationId: string, dto: SendMessageDto) {
+  async sendMessage(
+    user: JwtPayload,
+    conversationId: string,
+    dto: SendMessageDto,
+  ) {
     const ctx = await this.resolveParticipant(user);
     const conversation = await this.loadConversationForParticipant(
       conversationId,
@@ -230,7 +241,9 @@ export class MessagesService {
       throw new BadRequestException('El mensaje de texto no puede estar vacío');
     }
     if (dto.type !== 'text' && !dto.attachmentKey) {
-      throw new BadRequestException('attachmentKey es obligatorio para adjuntos');
+      throw new BadRequestException(
+        'attachmentKey es obligatorio para adjuntos',
+      );
     }
 
     const now = new Date();
@@ -410,7 +423,9 @@ export class MessagesService {
     return patient;
   }
 
-  private async resolveParticipant(user: JwtPayload): Promise<
+  private async resolveParticipant(
+    user: JwtPayload,
+  ): Promise<
     | { role: 'doctor'; doctorId: bigint; patientId?: never }
     | { role: 'patient'; patientId: bigint; doctorId: bigint | null }
   > {
@@ -447,7 +462,8 @@ export class MessagesService {
         },
       },
     });
-    if (!conversation) throw new NotFoundException('Conversación no encontrada');
+    if (!conversation)
+      throw new NotFoundException('Conversación no encontrada');
 
     const allowed =
       ctx.role === 'doctor'
@@ -508,12 +524,13 @@ export class MessagesService {
             id: c.doctorId.toString(),
           };
 
-    const last = c.messages.reduce<
-      (typeof c.messages)[number] | undefined
-    >((acc, m) => {
-      if (!acc) return m;
-      return m.createdAt > acc.createdAt ? m : acc;
-    }, undefined);
+    const last = c.messages.reduce<(typeof c.messages)[number] | undefined>(
+      (acc, m) => {
+        if (!acc) return m;
+        return m.createdAt > acc.createdAt ? m : acc;
+      },
+      undefined,
+    );
     const archived =
       ctx.role === 'doctor'
         ? c.doctorArchivedAt != null
@@ -539,7 +556,7 @@ export class MessagesService {
 
     const preview = last
       ? last.type === 'text'
-        ? last.body ?? ''
+        ? (last.body ?? '')
         : last.attachmentName || `[${last.type}]`
       : 'Sin mensajes';
 
@@ -550,8 +567,14 @@ export class MessagesService {
       peerRole: peer.role,
       peerInitials: this.initials(peer.name),
       preview,
-      timeLabel: this.formatTime(last?.createdAt ?? c.lastMessageAt ?? c.updatedAt),
-      lastMessageAt: (last?.createdAt ?? c.lastMessageAt ?? c.updatedAt).toISOString(),
+      timeLabel: this.formatTime(
+        last?.createdAt ?? c.lastMessageAt ?? c.updatedAt,
+      ),
+      lastMessageAt: (
+        last?.createdAt ??
+        c.lastMessageAt ??
+        c.updatedAt
+      ).toISOString(),
       unreadCount,
       archived,
       deletedForMe,

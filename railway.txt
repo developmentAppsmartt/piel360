@@ -1,0 +1,99 @@
+2026-07-24T03:54:50.914353245Z [inf]  1:M 24 Jul 2026 03:54:48.001 * 1 changes in 60 seconds. Saving...
+2026-07-24T03:54:50.914359085Z [inf]  1:M 24 Jul 2026 03:54:48.002 * Background saving started by pid 38
+2026-07-24T03:54:50.914362255Z [inf]  38:C 24 Jul 2026 03:54:48.011 * DB saved on disk
+2026-07-24T03:54:50.914366265Z [inf]  38:C 24 Jul 2026 03:54:48.011 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T03:54:50.914368995Z [inf]  1:M 24 Jul 2026 03:54:48.102 * Background saving terminated with success
+2026-07-24T03:55:50.977144969Z [inf]  1:M 24 Jul 2026 03:55:49.001 * 1 changes in 60 seconds. Saving...
+2026-07-24T03:55:50.977154329Z [inf]  1:M 24 Jul 2026 03:55:49.001 * Background saving started by pid 39
+2026-07-24T03:55:50.977159119Z [inf]  39:C 24 Jul 2026 03:55:49.006 * DB saved on disk
+2026-07-24T03:55:50.977162459Z [inf]  39:C 24 Jul 2026 03:55:49.007 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T03:55:50.977165659Z [inf]  1:M 24 Jul 2026 03:55:49.102 * Background saving terminated with success
+2026-07-24T03:56:50.952545385Z [inf]  1:M 24 Jul 2026 03:56:50.004 * 1 changes in 60 seconds. Saving...
+2026-07-24T03:56:50.952549565Z [inf]  1:M 24 Jul 2026 03:56:50.005 * Background saving started by pid 40
+2026-07-24T03:56:50.952553425Z [inf]  40:C 24 Jul 2026 03:56:50.010 * DB saved on disk
+2026-07-24T03:56:50.952556345Z [inf]  40:C 24 Jul 2026 03:56:50.011 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T03:56:50.952559975Z [inf]  1:M 24 Jul 2026 03:56:50.105 * Background saving terminated with success
+2026-07-24T03:58:01.033305509Z [inf]  1:M 24 Jul 2026 03:57:51.098 * 1 changes in 60 seconds. Saving...
+2026-07-24T03:58:01.033309558Z [inf]  1:M 24 Jul 2026 03:57:51.098 * Background saving started by pid 41
+2026-07-24T03:58:01.033313698Z [inf]  41:C 24 Jul 2026 03:57:51.105 * DB saved on disk
+2026-07-24T03:58:01.033317048Z [inf]  41:C 24 Jul 2026 03:57:51.105 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T03:58:01.033320778Z [inf]  1:M 24 Jul 2026 03:57:51.198 * Background saving terminated with success
+2026-07-24T03:59:01.316858083Z [inf]  42:C 24 Jul 2026 03:58:52.017 * DB saved on disk
+2026-07-24T03:59:01.316865283Z [inf]  42:C 24 Jul 2026 03:58:52.018 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T03:59:01.316872123Z [inf]  1:M 24 Jul 2026 03:58:52.112 * Background saving terminated with success
+2026-07-24T03:59:01.316904362Z [inf]  1:M 24 Jul 2026 03:58:52.011 * 1 changes in 60 seconds. Saving...
+2026-07-24T03:59:01.316920522Z [inf]  1:M 24 Jul 2026 03:58:52.012 * Background saving started by pid 42
+2026-07-24T04:00:01.487193221Z [inf]  43:C 24 Jul 2026 03:59:53.018 * DB saved on disk
+2026-07-24T04:00:01.487200841Z [inf]  43:C 24 Jul 2026 03:59:53.018 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T04:00:01.487205641Z [inf]  1:M 24 Jul 2026 03:59:53.111 * Background saving terminated with success
+2026-07-24T04:00:01.487224201Z [inf]  1:M 24 Jul 2026 03:59:53.010 * 1 changes in 60 seconds. Saving...
+2026-07-24T04:00:01.487230421Z [inf]  1:M 24 Jul 2026 03:59:53.011 * Background saving started by pid 43
+2026-07-24T04:01:01.541908043Z [inf]  1:M 24 Jul 2026 04:00:54.026 * 1 changes in 60 seconds. Saving...
+2026-07-24T04:01:01.541917323Z [inf]  1:M 24 Jul 2026 04:00:54.027 * Background saving started by pid 44
+2026-07-24T04:01:01.541923513Z [inf]  44:C 24 Jul 2026 04:00:54.036 * DB saved on disk
+2026-07-24T04:01:01.541928283Z [inf]  44:C 24 Jul 2026 04:00:54.037 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T04:01:01.541932383Z [inf]  1:M 24 Jul 2026 04:00:54.127 * Background saving terminated with success
+2026-07-24T04:02:01.703635160Z [inf]  1:M 24 Jul 2026 04:01:55.030 * 1 changes in 60 seconds. Saving...
+2026-07-24T04:02:01.703639770Z [inf]  1:M 24 Jul 2026 04:01:55.030 * Background saving started by pid 45
+2026-07-24T04:02:01.703643670Z [inf]  45:C 24 Jul 2026 04:01:55.038 * DB saved on disk
+2026-07-24T04:02:01.703647720Z [inf]  45:C 24 Jul 2026 04:01:55.038 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T04:02:01.703651070Z [inf]  1:M 24 Jul 2026 04:01:55.131 * Background saving terminated with success
+2026-07-24T04:03:01.717627794Z [inf]  1:M 24 Jul 2026 04:02:56.045 * 1 changes in 60 seconds. Saving...
+2026-07-24T04:03:01.717635854Z [inf]  1:M 24 Jul 2026 04:02:56.045 * Background saving started by pid 46
+2026-07-24T04:03:01.717639794Z [inf]  46:C 24 Jul 2026 04:02:56.050 * DB saved on disk
+2026-07-24T04:03:01.717644175Z [inf]  46:C 24 Jul 2026 04:02:56.051 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T04:03:01.717648425Z [inf]  1:M 24 Jul 2026 04:02:56.146 * Background saving terminated with success
+2026-07-24T04:04:02.557971772Z [inf]  1:M 24 Jul 2026 04:03:57.050 * 1 changes in 60 seconds. Saving...
+2026-07-24T04:04:02.557978072Z [inf]  1:M 24 Jul 2026 04:03:57.050 * Background saving started by pid 47
+2026-07-24T04:04:02.557982052Z [inf]  47:C 24 Jul 2026 04:03:57.056 * DB saved on disk
+2026-07-24T04:04:02.558039551Z [inf]  47:C 24 Jul 2026 04:03:57.057 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T04:04:02.558043131Z [inf]  1:M 24 Jul 2026 04:03:57.151 * Background saving terminated with success
+2026-07-24T04:05:02.550462837Z [inf]  1:M 24 Jul 2026 04:04:58.045 * 1 changes in 60 seconds. Saving...
+2026-07-24T04:05:02.550466827Z [inf]  1:M 24 Jul 2026 04:04:58.046 * Background saving started by pid 48
+2026-07-24T04:05:02.550470407Z [inf]  48:C 24 Jul 2026 04:04:58.050 * DB saved on disk
+2026-07-24T04:05:02.550473627Z [inf]  48:C 24 Jul 2026 04:04:58.051 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T04:05:02.550476557Z [inf]  1:M 24 Jul 2026 04:04:58.146 * Background saving terminated with success
+2026-07-24T04:06:02.797143522Z [inf]  1:M 24 Jul 2026 04:05:59.040 * 1 changes in 60 seconds. Saving...
+2026-07-24T04:06:02.797147212Z [inf]  1:M 24 Jul 2026 04:05:59.041 * Background saving started by pid 49
+2026-07-24T04:06:02.797151702Z [inf]  49:C 24 Jul 2026 04:05:59.048 * DB saved on disk
+2026-07-24T04:06:02.797155472Z [inf]  49:C 24 Jul 2026 04:05:59.048 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T04:06:02.797160072Z [inf]  1:M 24 Jul 2026 04:05:59.141 * Background saving terminated with success
+2026-07-24T04:07:02.852659749Z [inf]  1:M 24 Jul 2026 04:07:00.041 * 1 changes in 60 seconds. Saving...
+2026-07-24T04:07:02.852668809Z [inf]  1:M 24 Jul 2026 04:07:00.041 * Background saving started by pid 50
+2026-07-24T04:07:02.852673679Z [inf]  50:C 24 Jul 2026 04:07:00.046 * DB saved on disk
+2026-07-24T04:07:02.852677409Z [inf]  50:C 24 Jul 2026 04:07:00.047 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T04:07:02.852680609Z [inf]  1:M 24 Jul 2026 04:07:00.142 * Background saving terminated with success
+2026-07-24T04:08:02.924459979Z [inf]  1:M 24 Jul 2026 04:08:01.047 * 1 changes in 60 seconds. Saving...
+2026-07-24T04:08:02.924466029Z [inf]  1:M 24 Jul 2026 04:08:01.047 * Background saving started by pid 51
+2026-07-24T04:08:02.924470199Z [inf]  51:C 24 Jul 2026 04:08:01.054 * DB saved on disk
+2026-07-24T04:08:02.924473689Z [inf]  51:C 24 Jul 2026 04:08:01.054 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T04:08:02.924477719Z [inf]  1:M 24 Jul 2026 04:08:01.148 * Background saving terminated with success
+2026-07-24T04:09:03.067665356Z [inf]  1:M 24 Jul 2026 04:09:02.053 * 1 changes in 60 seconds. Saving...
+2026-07-24T04:09:03.067669176Z [inf]  1:M 24 Jul 2026 04:09:02.054 * Background saving started by pid 52
+2026-07-24T04:09:03.067672996Z [inf]  52:C 24 Jul 2026 04:09:02.060 * DB saved on disk
+2026-07-24T04:09:03.067677446Z [inf]  52:C 24 Jul 2026 04:09:02.060 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-07-24T04:09:03.067687116Z [inf]  1:M 24 Jul 2026 04:09:02.154 * Background saving terminated with success
+2026-07-24T04:09:06.950848759Z [err]  [31m[Nest] 58  - [39m07/24/2026, 4:09:01 AM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39mPrismaClientKnownRequestError: 
+2026-07-24T04:09:06.950852839Z [err]  Invalid `this.prisma.user.create()` invocation in
+2026-07-24T04:09:06.950859509Z [err]  /app/apps/api/dist/src/auth/auth.service.js:83:45
+2026-07-24T04:09:06.950863929Z [err]  
+2026-07-24T04:09:06.950867679Z [err]    80 async registerDoctor(dto) {
+2026-07-24T04:09:06.950871418Z [err]    81     await this.assertEmailAvailable(dto.email);
+2026-07-24T04:09:06.950875398Z [err]    82     const password = await argon2.hash(dto.password);
+2026-07-24T04:09:06.950878838Z [err]  → 83     const user = await this.prisma.user.create(
+2026-07-24T04:09:06.950882858Z [err]  An operation failed because it depends on one or more records that were required but not found. Expected 1 records to be connected, found only 0.
+2026-07-24T04:09:06.950888298Z [err]      at zr.handleRequestError (/app/node_modules/[4m@prisma[24m/client/runtime/client.js:65:8286)
+2026-07-24T04:09:06.950891978Z [err]      at zr.handleAndLogRequestError (/app/node_modules/[4m@prisma[24m/client/runtime/client.js:65:7581)
+2026-07-24T04:09:06.950895908Z [err]      at zr.request (/app/node_modules/[4m@prisma[24m/client/runtime/client.js:65:7288)
+2026-07-24T04:09:06.950899348Z [err]  [90m    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+2026-07-24T04:09:06.950903598Z [err]      at async a (/app/node_modules/[4m@prisma[24m/client/runtime/client.js:75:6862)
+2026-07-24T04:09:06.950907988Z [err]      at async AuthService.registerDoctor [90m(/app/apps/api/[39mdist/src/auth/auth.service.js:83:22[90m)[39m
+2026-07-24T04:09:06.950911718Z [err]      at async /app/node_modules/[4m@nestjs[24m/core/router/router-execution-context.js:47:62
+2026-07-24T04:09:06.950915368Z [err]      at async /app/node_modules/[4m@nestjs[24m/core/router/router-proxy.js:9:17 {
+2026-07-24T04:09:06.950958688Z [err]  }
+2026-07-24T04:09:06.950976347Z [err]    code: [32m'P2025'[39m,
+2026-07-24T04:09:06.950976437Z [err]    },
+2026-07-24T04:09:06.950983497Z [err]    meta: {
+2026-07-24T04:09:06.950984817Z [err]    clientVersion: [32m'7.8.0'[39m
+2026-07-24T04:09:06.950988897Z [err]      modelName: [32m'User'[39m,
+2026-07-24T04:09:06.950993137Z [err]      expectedRows: [33m1[39m

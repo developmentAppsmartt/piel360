@@ -20,6 +20,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { PlansModule } from './plans/plans.module';
 import { StorageModule } from './storage/storage.module';
 import { AdminModule } from './admin/admin.module';
+import { RolesModule } from './roles/roles.module';
 import { HealthModule } from './health/health.module';
 import { MailModule } from './mail/mail.module';
 import { CommonModule } from './common/common.module';
@@ -62,6 +63,7 @@ import { MessagesModule } from './messages/messages.module';
     PlansModule,
     StorageModule,
     AdminModule,
+    RolesModule,
     HealthModule,
   ],
   controllers: [AppController],

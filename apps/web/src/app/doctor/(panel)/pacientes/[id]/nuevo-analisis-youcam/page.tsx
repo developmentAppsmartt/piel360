@@ -2,15 +2,12 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
+import { AnalysisResultsView } from "@/components/analyses/analysis-results-view";
 import { BodySelector } from "@/components/analyses/body-selector";
-import { ConfirmAnalysisForm } from "@/components/analyses/confirm-analysis-form";
-import { ImageCarousel } from "@/components/analyses/image-carousel";
 import { YoucamCapture } from "@/components/analyses/youcam-capture";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-error";
-import { useAnalysis, useConfirmAnalysis } from "@/lib/queries/analyses";
 import { useCreateYoucamAnalysis } from "@/lib/queries/youcam";
-import { youcamMaskLabel } from "@/lib/youcam-metric-labels";
 
 type Step = "consentimiento" | "captura" | "enviar" | "resultados";
 
@@ -32,8 +29,6 @@ export default function NuevoAnalisisYoucamPage() {
   const [analysisId, setAnalysisId] = useState<string | null>(null);
 
   const createAnalysis = useCreateYoucamAnalysis();
-  const analysis = useAnalysis(analysisId ?? "");
-  const confirmAnalysis = useConfirmAnalysis(analysisId ?? "", patientId);
 
   async function handleSubmit() {
     if (!photo) return;
@@ -121,46 +116,11 @@ export default function NuevoAnalisisYoucamPage() {
       )}
 
       {step === "resultados" && analysisId && (
-        <div className="space-y-6">
-          {!analysis.data?.isValid && (
-            <p className="text-muted-foreground">
-              Procesando el análisis facial... Esto puede tardar varios minutos — puedes cerrar
-              esta pantalla y volver más tarde desde la ficha del paciente.
-            </p>
-          )}
-
-          {analysis.data?.isValid && (
-            <>
-              {analysis.data.masks.length > 0 ? (
-                <ImageCarousel
-                  images={analysis.data.masks.map((mask) => ({
-                    label: youcamMaskLabel(mask.type, mask.region),
-                    url: mask.url,
-                  }))}
-                />
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  El análisis se completó, pero no se generaron máscaras visuales.
-                </p>
-              )}
-
-              {analysis.data.isConfirmed ? (
-                <p className="text-sm text-muted-foreground">
-                  Análisis {analysis.data.isCorrected ? "corregido" : "confirmado"}
-                  {analysis.data.finalDiagnosis ? `: ${analysis.data.finalDiagnosis}` : "."}
-                </p>
-              ) : (
-                <ConfirmAnalysisForm
-                  aiDiagnosis={analysis.data.aiDiagnosis}
-                  onSubmit={async (input) => {
-                    await confirmAnalysis.mutateAsync(input);
-                    router.push(`/doctor/pacientes/${patientId}`);
-                  }}
-                />
-              )}
-            </>
-          )}
-        </div>
+        <AnalysisResultsView
+          analysisId={analysisId}
+          patientId={patientId}
+          onConfirmed={() => router.push(`/doctor/pacientes/${patientId}`)}
+        />
       )}
     </div>
   );
