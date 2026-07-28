@@ -66,6 +66,7 @@ export function AnalysisResultsView({
                 label: youcamMaskLabel(mask.type, mask.region),
                 url: mask.url,
               }))}
+              backgroundUrl={analysis.data.hasOriginalPhoto ? analysis.data.imageUrl : null}
             />
           ) : (
             <p className="text-sm text-muted-foreground">

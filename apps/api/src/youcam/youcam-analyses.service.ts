@@ -1,10 +1,11 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import { imageSize } from 'image-size';
 import type { JwtPayload } from '../auth/types';
 import { PatientsService } from '../patients/patients.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import type { CreateYoucamAnalysisDto } from './dto/create-youcam-analysis.dto';
 import { YOUCAM_POLL_QUEUE, type YoucamPollJobData } from './queues';
@@ -26,11 +27,14 @@ const YOUCAM_HD_MIN_SHORT_SIDE_PX = 1080;
 
 @Injectable()
 export class YoucamAnalysesService {
+  private readonly logger = new Logger(YoucamAnalysesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly youcam: YouCamService,
     private readonly subscriptions: SubscriptionsService,
     private readonly patients: PatientsService,
+    private readonly storage: StorageService,
     @InjectQueue(YOUCAM_POLL_QUEUE)
     private readonly pollQueue: Queue<YoucamPollJobData>,
   ) {}
@@ -86,9 +90,11 @@ export class YoucamAnalysesService {
         patientId: BigInt(dto.patientId),
         userId,
         youcamTaskId: taskId,
-        // YouCam no requiere que persistamos la selfie original (a diferencia
-        // de Skiniver): la imagen ya vive en el S3 propio de YouCam durante
-        // el procesamiento y solo nos interesan los resultados/máscaras.
+        // YouCam no requiere que persistamos la selfie original cuando las
+        // máscaras vienen mezcladas con la foto (enableMaskOverlay: true) —
+        // ya vive horneada en cada máscara. Solo la guardamos aparte cuando
+        // enableMaskOverlay es false (ver abajo), para poder dibujar cada
+        // máscara cruda sobre esta foto en el frontend.
         imagePath: 'youcam',
         bodyRegion: dto.bodyRegion,
         xCoord: dto.xCoord,
@@ -97,6 +103,23 @@ export class YoucamAnalysesService {
         isValid: false,
       },
     });
+
+    if (dto.enableMaskOverlay === false) {
+      const originalKey = `analyses/${analysis.id}/original.jpg`;
+      try {
+        await this.storage.upload(originalKey, image, 'image/jpeg');
+        await this.prisma.analysis.update({
+          where: { id: analysis.id },
+          data: { imagePath: originalKey },
+        });
+      } catch (error) {
+        // No bloquear la creación por una falla de storage — mismo criterio
+        // de tolerancia que analyses.service.ts#create con Skiniver.
+        this.logger.warn(
+          `No se pudo subir la foto original del análisis ${analysis.id}: ${String(error)}`,
+        );
+      }
+    }
 
     await this.pollQueue.add(
       'poll',

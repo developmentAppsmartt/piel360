@@ -249,7 +249,19 @@ export class AnalysesService {
       ]);
     const coloredUrl = signedColoredUrl ?? prediction?.colored_s3_url ?? null;
     const maskedUrl = signedMaskedUrl ?? prediction?.masked_s3_url ?? null;
-    return { ...analysis, imageUrl, coloredUrl, maskedUrl, masks };
+    // Para YouCam, `imagePath` solo es una key real cuando se guardó la selfie
+    // aparte (enableMaskOverlay: false, ver youcam-analyses.service.ts) — con
+    // el placeholder 'youcam' de siempre, imageUrl es un link muerto que el
+    // frontend no debe intentar mostrar.
+    const hasOriginalPhoto = analysis.imagePath !== 'youcam';
+    return {
+      ...analysis,
+      imageUrl,
+      coloredUrl,
+      maskedUrl,
+      masks,
+      hasOriginalPhoto,
+    };
   }
 
   private async signYoucamMasks(analysis: {
