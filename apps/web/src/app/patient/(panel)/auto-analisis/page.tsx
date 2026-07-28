@@ -35,6 +35,7 @@ export default function AutoAnalisisPage() {
   const [step, setStep] = useState<Step>("elegir");
   const [photo, setPhoto] = useState<{ blob: Blob; previewUrl: string } | null>(null);
   const [bodySelection, setBodySelection] = useState<BodySelection | null>(null);
+  const [enableMaskOverlay, setEnableMaskOverlay] = useState(true);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [selectedDiagnosis, setSelectedDiagnosis] = useState<SkiniverDiagnosisCandidate | null>(null);
 
@@ -58,6 +59,7 @@ export default function AutoAnalisisPage() {
         const created = await createYoucamAnalysis.mutateAsync({
           patientId: patient.data.id,
           image: photo.blob,
+          enableMaskOverlay,
           ...bodySelection,
         });
         setAnalysisId(created.analysisId);
@@ -178,6 +180,16 @@ export default function AutoAnalisisPage() {
               ? "Se enviará la foto a YouCam para el análisis facial. El resultado puede tardar varios minutos en procesarse."
               : "Se enviará la foto a Skiniver para el análisis. Esto puede tardar unos segundos."}
           </p>
+          {provider === "youcam" && (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={enableMaskOverlay}
+                onChange={(e) => setEnableMaskOverlay(e.target.checked)}
+              />
+              Superponer las máscaras sobre la foto original
+            </label>
+          )}
           {createAnalysis.error && (
             <p className="text-sm text-destructive">
               {createAnalysis.error instanceof ApiError

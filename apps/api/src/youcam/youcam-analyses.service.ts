@@ -76,7 +76,10 @@ export class YoucamAnalysesService {
     }
 
     const fileId = await this.youcam.uploadImage(image);
-    const taskId = await this.youcam.startAnalysis(fileId);
+    const taskId = await this.youcam.startAnalysis(
+      fileId,
+      dto.enableMaskOverlay ?? true,
+    );
 
     const analysis = await this.prisma.analysis.create({
       data: {

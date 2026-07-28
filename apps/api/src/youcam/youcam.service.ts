@@ -98,7 +98,10 @@ export class YouCamService {
     return fileId;
   }
 
-  async startAnalysis(fileId: string): Promise<string> {
+  async startAnalysis(
+    fileId: string,
+    enableMaskOverlay = true,
+  ): Promise<string> {
     const response = await fetch(
       `${this.baseUrl}/s2s/v2.1/task/skin-analysis`,
       {
@@ -110,7 +113,7 @@ export class YouCamService {
         body: JSON.stringify({
           src_file_id: fileId,
           dst_actions: YOUCAM_DST_ACTIONS,
-          miniserver_args: { enable_mask_overlay: true },
+          miniserver_args: { enable_mask_overlay: enableMaskOverlay },
           format: 'json',
           pf_camera_kit: true,
         }),
