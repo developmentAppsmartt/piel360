@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
-    "@hookform/resolvers": "^5.4.0",
+    "@hookform/resolvers": "^5.5.7",
     "@piel360/shared": "workspace:*",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
