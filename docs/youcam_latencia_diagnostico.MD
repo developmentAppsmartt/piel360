@@ -188,6 +188,40 @@ fix de esta serie).*
 YouCam no incluyó `error_message`, así que se ve el código crudo del error en
 vez de la descripción legible).*
 
+## Caso adicional: foto de baja resolución en iPad pese a tener cámara superior
+
+El cliente reportó que un iPad con cámara de resolución claramente por encima
+del mínimo igual disparó la alerta de baja resolución. Investigando el
+componente de captura (`apps/web/src/components/analyses/youcam-capture.tsx`)
+junto con la doc oficial del JS Camera Kit que el cliente agregó
+(`docs/js-camera-kit.MD`), se encontró:
+
+- El SDK separa el tamaño del **contenedor visual del módulo** (`width`/`height`
+  en `YMK.init()`) de la **resolución real de captura** (`videoQuality`, ya
+  configurado en `"1080p"` → 1920×1080 en nuestro código).
+- En iPad/Safari, la negociación de cámara (`getUserMedia`) puede no lograr
+  exactamente la resolución pedida y caer a una menor — comportamiento
+  conocido de iOS.
+- Nuestro código pasa `disableCameraResolutionCheck: true` (decisión ya tomada
+  con el cliente: "degradar con gracia, no bloquear"), lo que permite que la
+  captura siga adelante sin avisar aunque la resolución real termine baja.
+- El SDK sí devuelve el `width`/`height` reales de la foto capturada en el
+  evento `faceDetectionCaptured` — antes se descartaban sin revisar. También
+  existe un evento `unsupportedResolution` documentado que no se escuchaba en
+  absoluto.
+
+**Fix aplicado** en `youcam-capture.tsx`: ahora se valida el `width`/`height`
+reales que devuelve `faceDetectionCaptured` (no solo el stream de video en
+vivo) — si el lado corto queda bajo 1080px, no se sube la foto: se muestra un
+mensaje claro y se deja reintentar, evitando gastar la llamada a YouCam en una
+foto que ya sabemos que va a fallar. También se agregó el listener de
+`unsupportedResolution`.
+
+**Pendiente de confirmar en campo**: no fue posible probar esto en un
+navegador/iPad real durante el desarrollo — falta que el cliente lo pruebe de
+nuevo en el mismo dispositivo para confirmar que ahora aparece el mensaje en
+vez de subir la foto silenciosamente.
+
 ## Qué falta
 
 1. **Escalar a soporte de Perfect Corp/YouCam** con esta evidencia (los dos

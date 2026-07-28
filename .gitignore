@@ -42,3 +42,6 @@ apps/mobile/android/
 
 # TypeScript
 *.tsbuildinfo
+
+# Ticket de soporte a Perfect Corp (no debe subirse — solo uso interno)
+docs/perfectcorp_soporte_ticket.MD

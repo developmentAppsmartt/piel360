@@ -7,7 +7,7 @@ const YMK_SDK_URL = "https://plugins-media.makeupar.com/v2.5-camera-kit/sdk.js";
 const MIN_IDEAL_HEIGHT = 1080;
 
 interface YMKCapturedResult {
-  images: { image: string }[];
+  images: { image: string; width: number; height: number }[];
 }
 
 // SDK externo sin tipos oficiales — declaramos solo lo que usamos.
@@ -47,6 +47,7 @@ export function YoucamCapture({
   const [sdkReady, setSdkReady] = useState(false);
   const [lowResWarning, setLowResWarning] = useState(false);
   const [cameraError, setCameraError] = useState(false);
+  const [captureRejected, setCaptureRejected] = useState(false);
 
   useEffect(() => {
     if (!sdkReady || !window.YMK || !containerRef.current) return;
@@ -68,9 +69,25 @@ export function YoucamCapture({
     });
 
     YMK.addEventListener("faceDetectionCaptured", (result) => {
-      const image = result?.images?.[0]?.image;
-      if (!image) return;
-      dataUrlToBlob(image).then(onCapture);
+      const captured = result?.images?.[0];
+      if (!captured?.image) return;
+
+      // A diferencia del chequeo de `cameraOpened` (que solo inspecciona el
+      // stream de video en vivo, una aproximación), acá el SDK ya nos da el
+      // ancho/alto reales de la foto capturada — un iPad con cámara excelente
+      // puede igual negociar una resolución menor a la pedida (comportamiento
+      // conocido de getUserMedia en Safari/iOS), y `disableCameraResolutionCheck`
+      // deja que el SDK siga adelante sin avisar. Con este dato sí sabemos con
+      // certeza que la foto va a fallar la validación del backend
+      // (youcam-analyses.service.ts, mínimo 1080px de lado corto) — mejor
+      // avisar y dejar reintentar que gastar la llamada a YouCam en una foto
+      // condenada a fallar.
+      if (Math.min(captured.width, captured.height) < MIN_IDEAL_HEIGHT) {
+        setCaptureRejected(true);
+        return;
+      }
+      setCaptureRejected(false);
+      dataUrlToBlob(captured.image).then(onCapture);
     });
 
     YMK.addEventListener("cameraOpened", () => {
@@ -83,6 +100,11 @@ export function YoucamCapture({
     });
 
     YMK.addEventListener("cameraFailed", () => setCameraError(true));
+
+    // Documentado en docs/js-camera-kit.MD: "Fired when the device resolution
+    // does not meet the minimum requirements for the selected mode" — no se
+    // escuchaba en absoluto antes de este fix.
+    YMK.addEventListener("unsupportedResolution", () => setCaptureRejected(true));
 
     YMK.openCameraKit();
 
@@ -101,7 +123,13 @@ export function YoucamCapture({
           No se pudo acceder a la cámara. Verifica los permisos e intenta de nuevo.
         </p>
       )}
-      {lowResWarning && !cameraError && (
+      {captureRejected && !cameraError && (
+        <p className="text-sm text-destructive">
+          La foto capturada quedó en muy baja resolución para el análisis. Verifica la
+          iluminación y la estabilidad de la cámara, y vuelve a intentarlo.
+        </p>
+      )}
+      {lowResWarning && !cameraError && !captureRejected && (
         <p className="text-sm text-muted-foreground">
           Tu cámara no alcanza la resolución ideal (1080p) — el análisis continúa, pero la
           calidad puede verse afectada.
