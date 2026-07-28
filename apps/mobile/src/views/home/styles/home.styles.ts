@@ -1,36 +1,254 @@
 import type { AppBranding } from '../../../config/branding.defaults';
 import { StyleSheet } from 'react-native';
+import { appShadow } from '../../../styles/shadow';
 
 export function createHomeStyles(colors: AppBranding['colors']) {
   return StyleSheet.create({
-    container: {
+    screen: {
       flex: 1,
-      backgroundColor: '#F7F5FF',
-      padding: 24,
+      backgroundColor: '#E8F4FC',
+    },
+    centered: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: '#FFFFFF',
+    },
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingBottom: 12,
+      backgroundColor: colors.primaryDark,
+    },
+    logoDot: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      alignItems: 'center',
       justifyContent: 'center',
     },
-    title: {
-      fontSize: 28,
+    logoText: {
+      color: colors.textOnDark,
+      fontWeight: '800',
+      fontSize: 12,
+    },
+    topActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+    },
+    badge: {
+      position: 'absolute',
+      top: -4,
+      right: -8,
+      minWidth: 18,
+      height: 18,
+      borderRadius: 9,
+      backgroundColor: '#F59E0B',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 4,
+    },
+    badgeText: {
+      color: '#FFFFFF',
+      fontSize: 10,
+      fontWeight: '800',
+    },
+    scroll: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 28,
+      gap: 14,
+    },
+    welcomeCard: {
+      backgroundColor: '#FFFFFF',
+      borderRadius: 20,
+      paddingHorizontal: 18,
+      paddingVertical: 16,
+      ...appShadow({ opacity: 0.06, radius: 10, offsetY: 2, elevation: 2 }),
+    },
+    welcomeTitle: {
+      fontSize: 20,
+      fontWeight: '800',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    welcomeSubtitle: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: colors.muted,
+    },
+    profileRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      backgroundColor: '#FFFFFF',
+      borderRadius: 20,
+      padding: 16,
+      ...appShadow({ opacity: 0.06, radius: 10, offsetY: 2, elevation: 2 }),
+    },
+    avatar: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarText: {
+      color: colors.textOnDark,
+      fontSize: 24,
+      fontWeight: '800',
+    },
+    profileInfo: {
+      flex: 1,
+      gap: 2,
+    },
+    profileName: {
+      fontSize: 18,
       fontWeight: '700',
       color: colors.text,
+    },
+    profileMeta: {
+      fontSize: 13,
+      color: colors.muted,
+    },
+    linkCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: '#FFFFFF',
+      borderRadius: 16,
+      paddingVertical: 14,
+      paddingHorizontal: 14,
+      ...appShadow({ opacity: 0.05, radius: 8, offsetY: 1, elevation: 1 }),
+    },
+    linkIconWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: 'rgba(108, 78, 227, 0.12)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    linkLabel: {
+      flex: 1,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    historyHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 4,
+    },
+    historyTitle: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    assignLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    assignText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    historyList: {
+      backgroundColor: '#FFFFFF',
+      borderRadius: 20,
+      overflow: 'hidden',
+      ...appShadow({ opacity: 0.06, radius: 10, offsetY: 2, elevation: 2 }),
+    },
+    historyRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: '#E5E7EB',
+    },
+    historyRowLast: {
+      borderBottomWidth: 0,
+    },
+    thumb: {
+      width: 48,
+      height: 48,
+      borderRadius: 10,
+    },
+    historyBody: {
+      flex: 1,
+      gap: 2,
+    },
+    historyItemTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    historyItemMeta: {
+      fontSize: 12,
+      color: colors.muted,
+    },
+    // Consent modal
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(15, 23, 42, 0.45)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 24,
+    },
+    modalCard: {
+      width: '100%',
+      maxWidth: 340,
+      backgroundColor: '#FFFFFF',
+      borderRadius: 24,
+      padding: 24,
+      alignItems: 'center',
+      gap: 12,
+    },
+    modalIconWrap: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: 'rgba(108, 78, 227, 0.15)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 4,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    modalBody: {
+      fontSize: 14,
+      lineHeight: 21,
+      color: colors.muted,
+      textAlign: 'center',
       marginBottom: 8,
     },
-    subtitle: {
-      fontSize: 16,
-      color: colors.muted,
-      marginBottom: 28,
-      lineHeight: 22,
-    },
-    button: {
+    modalButton: {
+      alignSelf: 'stretch',
       backgroundColor: colors.primary,
       borderRadius: 14,
       paddingVertical: 14,
       alignItems: 'center',
     },
-    buttonText: {
+    modalButtonText: {
       color: colors.textOnDark,
-      fontWeight: '700',
       fontSize: 16,
+      fontWeight: '700',
     },
   });
 }

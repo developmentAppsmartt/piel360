@@ -11,9 +11,14 @@ export interface Patient {
   lastName: string;
   email: string | null;
   phone: string | null;
+  areaCode: string | null;
   docType: string | null;
   docNumber: string | null;
   address: string | null;
+  birthDate: string | null;
+  gender: string | null;
+  skinType: string | null;
+  fitzpatrickType: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -22,12 +27,15 @@ export interface Analysis {
   id: string;
   youcamTaskId: string | null;
   bodyRegion: string | null;
+  imagePath: string | null;
+  coloredS3Url: string | null;
   isValid: boolean;
   aiDiagnosis: string | null;
   aiProbability: number | null;
   finalDiagnosis: string | null;
   isConfirmed: boolean;
   isCorrected: boolean;
+  doctorNotes: string | null;
   createdAt: string;
 }
 
