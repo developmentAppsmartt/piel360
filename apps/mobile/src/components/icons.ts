@@ -51,6 +51,10 @@ export const Icons = {
   close: 'mdi:close',
   calendarClock: 'mdi:calendar-clock',
   image: 'mdi:image-outline',
+  camera: 'mdi:camera-outline',
+  /** Preferir iconos ya embebidos si Metro no se reinició con -c. */
+  alert: 'mdi:emoticon-sad-outline',
+  alertCircle: 'mdi:alert-circle',
   google: 'mdi:google',
   eye: 'mdi:eye-outline',
   eyeOff: 'mdi:eye-off-outline',

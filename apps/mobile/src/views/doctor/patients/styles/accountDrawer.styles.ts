@@ -55,6 +55,15 @@ export function createAccountDrawerStyles(colors: AppBranding['colors']) {
       color: colors.text,
       fontWeight: '500',
     },
+    itemNested: {
+      paddingLeft: 36,
+      backgroundColor: '#FAFAFA',
+    },
+    chevron: {
+      fontSize: 14,
+      color: colors.muted,
+      fontWeight: '700',
+    },
     footer: {
       marginTop: 'auto',
       borderTopWidth: StyleSheet.hairlineWidth,

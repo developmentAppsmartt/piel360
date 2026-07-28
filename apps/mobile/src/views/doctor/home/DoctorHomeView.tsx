@@ -142,6 +142,11 @@ export function DoctorHomeView({
     if (id === 'salir') void logout();
     else if (id === 'perfil') onOpenProfile?.();
     else if (id === 'suscripcion') setShowingPayments(true);
+    else if (id === 'acerca')
+      Alert.alert(
+        'Acerca de Piel 360',
+        'Piel 360 AI — versión 1.0.0\nApoyo diagnóstico dermatológico con IA.',
+      );
     else
       Alert.alert(
         'Próximamente',
@@ -183,6 +188,7 @@ export function DoctorHomeView({
           visible={menuOpen}
           onClose={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
+          variant="doctor"
         />
       </>
     );
@@ -356,6 +362,7 @@ export function DoctorHomeView({
         visible={menuOpen}
         onClose={() => setMenuOpen(false)}
         onSelect={handleMenuSelect}
+        variant="doctor"
       />
     </View>
   );

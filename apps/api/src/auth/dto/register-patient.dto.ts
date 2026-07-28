@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class RegisterPatientDto {
   @IsEmail()
@@ -14,7 +14,11 @@ export class RegisterPatientDto {
   @IsString()
   lastName!: string;
 
-  /** Ticket emitido por `POST /auth/otp/verify` (purpose=register). Obligatorio. */
+  /**
+   * Ticket de `POST /auth/otp/verify` (purpose=register).
+   * Opcional mientras el OTP no esté integrado; si llega, se valida.
+   */
+  @IsOptional()
   @IsString()
-  emailTicket!: string;
+  emailTicket?: string;
 }

@@ -104,7 +104,10 @@ export class AuthService implements OnModuleDestroy {
 
   async registerPatient(dto: RegisterPatientDto): Promise<AuthResult> {
     const email = dto.email.trim().toLowerCase();
-    await this.consumeRegisterTicket(dto.emailTicket, email);
+    const ticket = dto.emailTicket?.trim();
+    if (ticket) {
+      await this.consumeRegisterTicket(ticket, email);
+    }
 
     await this.assertEmailAvailable(email);
     const password = await argon2.hash(dto.password);
@@ -116,7 +119,8 @@ export class AuthService implements OnModuleDestroy {
         name: `${dto.firstName} ${dto.lastName}`,
         firstName: dto.firstName,
         lastName: dto.lastName,
-        emailVerifiedAt: new Date(),
+        // Solo se marca verificado si hubo ticket OTP.
+        emailVerifiedAt: ticket ? new Date() : null,
         roles: { connect: { name: 'patient' } },
         patient: {
           create: {

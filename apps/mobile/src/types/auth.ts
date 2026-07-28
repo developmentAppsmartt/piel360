@@ -21,13 +21,13 @@ export type LoginPayload = {
   password: string;
 };
 
-/** Registro móvil: solo pacientes (requiere ticket OTP). */
+/** Registro móvil: solo pacientes. `emailTicket` opcional (OTP no integrado). */
 export type RegisterPatientPayload = {
   email: string;
   password: string;
   firstName: string;
   lastName: string;
-  emailTicket: string;
+  emailTicket?: string;
 };
 
 /** @deprecated Preferir RegisterPatientPayload */

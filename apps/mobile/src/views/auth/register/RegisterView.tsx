@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -11,10 +11,20 @@ import { StatusBar } from 'expo-status-bar';
 import type { AuthStackParamList } from '../../../navigation/RootNavigator';
 import { useBranding } from '../../../context/BrandingContext';
 import { AuthBackground } from '../login/components/AuthBackground';
-import { RegisterForm } from './components/RegisterForm';
+import {
+  RegisterForm,
+  type RegisterStep,
+} from './components/RegisterForm';
 import { createRegisterStyles } from './styles/register.styles';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
+
+const CARD_STEPS: RegisterStep[] = [
+  'profile',
+  'contact',
+  'skinIntro',
+  'survey',
+];
 
 export function RegisterView({ navigation }: Props) {
   const branding = useBranding();
@@ -22,6 +32,12 @@ export function RegisterView({ navigation }: Props) {
     () => createRegisterStyles(branding.colors),
     [branding.colors],
   );
+  const [step, setStep] = useState<RegisterStep>('credentials');
+  const isCard = CARD_STEPS.includes(step);
+
+  const onStepChange = useCallback((next: RegisterStep) => {
+    setStep(next);
+  }, []);
 
   return (
     <AuthBackground>
@@ -32,15 +48,24 @@ export function RegisterView({ navigation }: Props) {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <ScrollView
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={
+              isCard ? styles.scrollContentCard : styles.scrollContent
+            }
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <Text style={styles.brand}>{branding.appName}</Text>
-            <Text style={styles.subtitle}>
-              Registro de paciente. Completa los pasos para crear tu cuenta.
-            </Text>
-            <RegisterForm onGoLogin={() => navigation.navigate('Login')} />
+            {!isCard ? (
+              <>
+                <Text style={styles.brand}>{branding.appName}</Text>
+                <Text style={styles.subtitle}>
+                  Registro de paciente. Completa los pasos para crear tu cuenta.
+                </Text>
+              </>
+            ) : null}
+            <RegisterForm
+              onGoLogin={() => navigation.navigate('Login')}
+              onStepChange={onStepChange}
+            />
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>

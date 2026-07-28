@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,26 +11,36 @@ import { AppIcon } from '../../../../components/AppIcon';
 import { Icons } from '../../../../components/icons';
 import { useAuth } from '../../../../context/AuthContext';
 import { useBranding } from '../../../../context/BrandingContext';
+import { PATIENT_FITZ_OPTIONS } from '../../../../data/patientFormOptions';
+import {
+  FITZPATRICK_DESCRIPTIONS,
+  SURVEY_QUESTIONS,
+} from '../../../../data/surveyQuestions';
 import { ApiError } from '../../../../services/api.client';
-import { authService } from '../../../../services/auth.service';
 import { patientsService } from '../../../../services/patients.service';
-import { AuthFeedbackModal } from '../../components/AuthFeedbackModal';
-import { OtpInput } from '../../components/OtpInput';
 import { AuthConsent } from '../../login/components/AuthConsent';
 import { createLoginStyles } from '../../login/styles/login.styles';
 import { createRegisterStyles } from '../styles/register.styles';
+import { SkinIntroStep } from './SkinIntroStep';
+import { SurveyOptionList } from './SurveyOptionList';
+import { SurveyProgressDots } from './SurveyProgressDots';
+
+export type RegisterStep =
+  | 'credentials'
+  | 'profile'
+  | 'contact'
+  | 'skinIntro'
+  | 'survey';
 
 type RegisterFormProps = {
   onGoLogin: () => void;
+  onStepChange?: (step: RegisterStep) => void;
 };
 
-type Step = 'credentials' | 'otp' | 'profile' | 'contact';
-
 const GENDERS = [
-  { value: 'masculine', label: 'Masculino' },
-  { value: 'feminine', label: 'Femenino' },
+  { value: 'male', label: 'Masculino' },
+  { value: 'female', label: 'Femenino' },
   { value: 'other', label: 'Otro' },
-  { value: 'unspecified', label: 'Prefiero no decir' },
 ] as const;
 
 function normalizeBirthDate(raw: string): string | null {
@@ -44,7 +54,7 @@ function normalizeBirthDate(raw: string): string | null {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export function RegisterForm({ onGoLogin }: RegisterFormProps) {
+export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
   const { registerPatient } = useAuth();
   const branding = useBranding();
   const styles = useMemo(
@@ -56,30 +66,40 @@ export function RegisterForm({ onGoLogin }: RegisterFormProps) {
     [branding.colors],
   );
 
-  const [step, setStep] = useState<Step>('credentials');
+  const [step, setStep] = useState<RegisterStep>('credentials');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [captcha, setCaptcha] = useState(false);
   const [terms, setTerms] = useState(false);
-  const [otp, setOtp] = useState('');
-  const [emailTicket, setEmailTicket] = useState<string | null>(null);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [birthDate, setBirthDate] = useState('');
-  const [gender, setGender] = useState<string>('masculine');
+  const [gender, setGender] = useState<string>('male');
   const [areaCode, setAreaCode] = useState('');
   const [phone, setPhone] = useState('');
   const [location, setLocation] = useState('');
+  const [surveyIndex, setSurveyIndex] = useState(0);
+  const [surveyAnswers, setSurveyAnswers] = useState<Record<string, string>>(
+    {},
+  );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [verifyModal, setVerifyModal] = useState(false);
 
   const primary = branding.colors.primary;
   const onDark = branding.colors.textOnDark;
   const text = branding.colors.text;
 
-  async function goCredentialsNext() {
+  useEffect(() => {
+    onStepChange?.(step);
+  }, [step, onStepChange]);
+
+  function goTo(next: RegisterStep) {
+    setError(null);
+    setStep(next);
+  }
+
+  function goCredentialsNext() {
     setError(null);
     if (!email.trim() || !password) {
       setError('Completa email y contraseña.');
@@ -93,46 +113,8 @@ export function RegisterForm({ onGoLogin }: RegisterFormProps) {
       setError('Marca “No soy un robot” y acepta los términos.');
       return;
     }
-    setSubmitting(true);
-    try {
-      await authService.sendOtp(email, 'register');
-      setOtp('');
-      setStep('otp');
-    } catch (err) {
-      const message =
-        err instanceof ApiError
-          ? err.message
-          : 'No se pudo enviar el código. ¿Está el API reiniciado y Redis activo?';
-      setError(message);
-      Alert.alert('Verificación de correo', message);
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function verifyEmailOtp() {
-    setError(null);
-    if (otp.trim().length !== 5) {
-      setError('Introduce el código de 5 dígitos.');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const res = await authService.verifyOtp(email, 'register', otp);
-      if (!res.ticket) {
-        throw new Error('Sin ticket de verificación');
-      }
-      setEmailTicket(res.ticket);
-      setVerifyModal(true);
-    } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : 'Código inválido. Inténtalo de nuevo.',
-      );
-    } finally {
-      setSubmitting(false);
-    }
+    // OTP desactivado hasta integrar correo/Redis; ir directo a perfil.
+    goTo('profile');
   }
 
   function goProfileNext() {
@@ -145,16 +127,21 @@ export function RegisterForm({ onGoLogin }: RegisterFormProps) {
       setError('Fecha inválida. Usa AAAA-MM-DD o mm-dd-aaaa.');
       return;
     }
-    setStep('contact');
+    goTo('contact');
+  }
+
+  function goContactNext() {
+    goTo('skinIntro');
   }
 
   async function onFinish() {
     setError(null);
-    if (!emailTicket) {
-      setError('Debes verificar tu correo antes de continuar.');
-      setStep('otp');
+    const current = SURVEY_QUESTIONS[surveyIndex];
+    if (!surveyAnswers[current.key]) {
+      setError('Selecciona una opción para continuar.');
       return;
     }
+
     setSubmitting(true);
     try {
       await registerPatient({
@@ -162,7 +149,6 @@ export function RegisterForm({ onGoLogin }: RegisterFormProps) {
         password,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        emailTicket,
       });
 
       const patient = await patientsService.getMyPatient();
@@ -176,15 +162,23 @@ export function RegisterForm({ onGoLogin }: RegisterFormProps) {
           areaCode: areaCode.trim() || undefined,
           phone: phone.trim() || undefined,
           address: location.trim() || undefined,
+          skinType: surveyAnswers.skin_type || undefined,
+          fitzpatrickType: surveyAnswers.fitzpatrick_type || undefined,
+          mascotType: surveyAnswers.mascot_type || undefined,
         });
       }
+
+      await patientsService.submitSurvey({
+        skinType: surveyAnswers.skin_type,
+        fitzpatrickType: surveyAnswers.fitzpatrick_type,
+        surveyResponses: surveyAnswers,
+      });
     } catch (err) {
       setError(
         err instanceof ApiError
           ? err.message
           : 'No se pudo crear la cuenta. Inténtalo de nuevo.',
       );
-      setStep('credentials');
     } finally {
       setSubmitting(false);
     }
@@ -212,10 +206,38 @@ export function RegisterForm({ onGoLogin }: RegisterFormProps) {
     );
   }
 
+  function selectSurveyOption(value: string) {
+    const key = SURVEY_QUESTIONS[surveyIndex].key;
+    setSurveyAnswers((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function goSurveyNext() {
+    const current = SURVEY_QUESTIONS[surveyIndex];
+    if (!surveyAnswers[current.key]) {
+      setError('Selecciona una opción para continuar.');
+      return;
+    }
+    setError(null);
+    if (surveyIndex >= SURVEY_QUESTIONS.length - 1) {
+      void onFinish();
+      return;
+    }
+    setSurveyIndex((i) => i + 1);
+  }
+
+  function goSurveyBack() {
+    setError(null);
+    if (surveyIndex === 0) {
+      goTo('skinIntro');
+      return;
+    }
+    setSurveyIndex((i) => i - 1);
+  }
+
   if (step === 'credentials') {
     return (
       <View>
-        <Text style={styles.stepHint}>PASO 1 DE 4 · CUENTA</Text>
+        <Text style={styles.stepHint}>PASO 1 · CUENTA</Text>
 
         <View style={styles.field}>
           <Text style={styles.label}>Tu email</Text>
@@ -293,83 +315,22 @@ export function RegisterForm({ onGoLogin }: RegisterFormProps) {
     );
   }
 
-  if (step === 'otp') {
-    return (
-      <View>
-        <Text style={styles.stepHint}>PASO 2 DE 4 · VERIFICAR EMAIL</Text>
-        <Text style={styles.welcomeSubtitle}>
-          Revisa tu correo para ver el código de 5 dígitos enviado a{' '}
-          {email.trim().toLowerCase()}.
-        </Text>
-
-        <OtpInput value={otp} onChange={setOtp} editable={!submitting} />
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        <Pressable
-          style={[styles.button, submitting && styles.buttonDisabled]}
-          onPress={verifyEmailOtp}
-          disabled={submitting}
-        >
-          {submitting ? (
-            <ActivityIndicator color={onDark} />
-          ) : (
-            <Text style={styles.buttonText}>Verificar dirección</Text>
-          )}
-        </Pressable>
-
-        <View style={styles.buttonRow}>
-          <Pressable
-            style={styles.buttonSecondary}
-            onPress={() => {
-              setError(null);
-              setStep('credentials');
-            }}
-            disabled={submitting}
-          >
-            <Text style={styles.buttonText}>Anterior</Text>
-          </Pressable>
-          <Pressable
-            style={styles.buttonSecondary}
-            onPress={goCredentialsNext}
-            disabled={submitting}
-          >
-            <Text style={styles.buttonText}>Reenviar</Text>
-          </Pressable>
-        </View>
-
-        <AuthFeedbackModal
-          visible={verifyModal}
-          variant="success"
-          title="Verifica tu dirección de correo electrónico"
-          message="Tu correo quedó verificado. Continúa completando tu perfil."
-          buttonLabel="Continuar"
-          colors={branding.colors}
-          onAction={() => {
-            setVerifyModal(false);
-            setStep('profile');
-          }}
-        />
-      </View>
-    );
-  }
-
   if (step === 'profile') {
     return (
-      <View>
-        <View style={styles.welcomeBanner}>
+      <View style={styles.card}>
+        <View style={styles.welcomeBannerCard}>
           <Text style={styles.welcomeTitle}>¡Bienvenido a Piel 360!</Text>
           <Text style={styles.welcomeSubtitle}>
-            Tecnología que te ayuda a conocer mejor tu piel
+            Apoyo Diagnóstico Dermatológico con AI
           </Text>
         </View>
 
-        <Text style={styles.stepHint}>PASO 3 DE 4 · DATOS</Text>
+        <Text style={styles.stepHintDark}>DATOS PERSONALES</Text>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Nombres</Text>
+          <Text style={styles.labelDark}>Nombres</Text>
           <TextInput
-            style={styles.input}
+            style={styles.inputCard}
             value={firstName}
             onChangeText={setFirstName}
             autoComplete="given-name"
@@ -381,9 +342,9 @@ export function RegisterForm({ onGoLogin }: RegisterFormProps) {
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Apellidos</Text>
+          <Text style={styles.labelDark}>Apellidos</Text>
           <TextInput
-            style={styles.input}
+            style={styles.inputCard}
             value={lastName}
             onChangeText={setLastName}
             autoComplete="family-name"
@@ -395,9 +356,9 @@ export function RegisterForm({ onGoLogin }: RegisterFormProps) {
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Fecha cumpleaños</Text>
+          <Text style={styles.labelDark}>Fecha cumpleaños</Text>
           <TextInput
-            style={styles.input}
+            style={styles.inputCard}
             value={birthDate}
             onChangeText={setBirthDate}
             placeholder="mm - dd - aaaa"
@@ -407,19 +368,25 @@ export function RegisterForm({ onGoLogin }: RegisterFormProps) {
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Género</Text>
+          <Text style={styles.labelDark}>Género</Text>
           <View style={styles.chips}>
             {GENDERS.map((opt) => {
               const active = gender === opt.value;
               return (
                 <Pressable
                   key={opt.value}
-                  style={[styles.chip, active && styles.chipActive]}
+                  style={[
+                    styles.chipDark,
+                    active && styles.chipActive,
+                  ]}
                   onPress={() => setGender(opt.value)}
                   disabled={submitting}
                 >
                   <Text
-                    style={[styles.chipText, active && styles.chipTextActive]}
+                    style={[
+                      styles.chipTextDark,
+                      active && styles.chipTextActive,
+                    ]}
                   >
                     {opt.label}
                   </Text>
@@ -430,19 +397,15 @@ export function RegisterForm({ onGoLogin }: RegisterFormProps) {
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Correo electrónico</Text>
-          <TextInput
-            style={styles.input}
-            value={email}
-            editable={false}
-          />
+          <Text style={styles.labelDark}>Correo electrónico</Text>
+          <TextInput style={styles.inputCard} value={email} editable={false} />
         </View>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <Text style={styles.errorDark}>{error}</Text> : null}
 
         <View style={styles.footerRow}>
           <Pressable onPress={onGoLogin}>
-            <Text style={styles.footerLink}>Tengo una cuenta</Text>
+            <Text style={styles.footerLinkDark}>Tengo una cuenta</Text>
           </Pressable>
           <Pressable
             style={[styles.button, { flex: 0, minWidth: 140, marginTop: 0 }]}
@@ -455,95 +418,179 @@ export function RegisterForm({ onGoLogin }: RegisterFormProps) {
     );
   }
 
-  return (
-    <View>
-      <Text style={styles.stepHint}>PASO 4 DE 4 · CONTACTO</Text>
+  if (step === 'contact') {
+    return (
+      <View style={styles.card}>
+        <Text style={styles.stepHintDark}>CONTACTO</Text>
 
-      <View style={styles.row}>
-        <View style={[styles.field, styles.areaCode]}>
-          <Text style={styles.label}>Código área</Text>
-          <TextInput
-            style={styles.input}
-            value={areaCode}
-            onChangeText={setAreaCode}
-            keyboardType="phone-pad"
-            placeholder="+57"
-            placeholderTextColor="#9CA3AF"
-            editable={!submitting}
-          />
-        </View>
-        <View style={[styles.field, styles.phoneFlex]}>
-          <Text style={styles.label}>Teléfono</Text>
-          <View style={styles.inputWithIcon}>
+        <View style={styles.row}>
+          <View style={[styles.field, styles.areaCode]}>
+            <Text style={styles.labelDark}>Código área</Text>
             <TextInput
-              style={styles.inputFlex}
-              value={phone}
-              onChangeText={setPhone}
+              style={styles.inputCard}
+              value={areaCode}
+              onChangeText={setAreaCode}
               keyboardType="phone-pad"
-              autoComplete="tel"
-              textContentType="telephoneNumber"
-              placeholder="3001234567"
+              placeholder="+57"
               placeholderTextColor="#9CA3AF"
               editable={!submitting}
             />
-            {phone.trim().length >= 7 ? (
-              <AppIcon icon={Icons.check} size={20} color="#16A34A" />
-            ) : null}
+          </View>
+          <View style={[styles.field, styles.phoneFlex]}>
+            <Text style={styles.labelDark}>Teléfono</Text>
+            <View style={styles.inputWithIconCard}>
+              <TextInput
+                style={styles.inputFlex}
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                autoComplete="tel"
+                textContentType="telephoneNumber"
+                placeholder="3001234567"
+                placeholderTextColor="#9CA3AF"
+                editable={!submitting}
+              />
+              {phone.trim().length >= 7 ? (
+                <AppIcon icon={Icons.check} size={20} color="#16A34A" />
+              ) : null}
+            </View>
           </View>
         </View>
-      </View>
 
-      <View style={styles.field}>
-        <View style={styles.labelRow}>
-          <Text style={styles.labelInline}>Localización</Text>
-          <Pressable onPress={onAllowLocation}>
-            <Text style={styles.allowLink}>Permitir</Text>
+        <View style={styles.field}>
+          <View style={styles.labelRow}>
+            <Text style={styles.labelInlineDark}>Localización</Text>
+            <Pressable onPress={onAllowLocation}>
+              <Text style={styles.allowLinkDark}>Permitir</Text>
+            </Pressable>
+          </View>
+          <TextInput
+            style={styles.inputCard}
+            value={location}
+            onChangeText={setLocation}
+            placeholder="Ciudad o dirección"
+            placeholderTextColor="#9CA3AF"
+            editable={!submitting}
+          />
+          <Pressable
+            onPress={() =>
+              Alert.alert(
+                '¿Por qué es esto importante?',
+                'La localización ayuda a contextualizar recomendaciones y citas cercanas. Puedes escribirla manualmente.',
+              )
+            }
+          >
+            <Text style={styles.whyLinkDark}>¿Por qué es esto importante?</Text>
           </Pressable>
         </View>
-        <TextInput
-          style={styles.input}
-          value={location}
-          onChangeText={setLocation}
-          placeholder="Ciudad o dirección"
-          placeholderTextColor="#9CA3AF"
-          editable={!submitting}
-        />
-        <Pressable
-          onPress={() =>
-            Alert.alert(
-              '¿Por qué es esto importante?',
-              'La localización ayuda a contextualizar recomendaciones y citas cercanas. Puedes escribirla manualmente.',
-            )
-          }
-        >
-          <Text style={styles.whyLink}>¿Por qué es esto importante?</Text>
-        </Pressable>
-      </View>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <Text style={styles.errorDark}>{error}</Text> : null}
 
-      <View style={styles.buttonRow}>
-        <Pressable
-          style={styles.buttonSecondary}
-          onPress={() => {
-            setError(null);
-            setStep('profile');
-          }}
-          disabled={submitting}
-        >
-          <Text style={styles.buttonText}>Anterior</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.button, submitting && styles.buttonDisabled]}
-          onPress={onFinish}
-          disabled={submitting}
-        >
-          {submitting ? (
-            <ActivityIndicator color={onDark} />
-          ) : (
+        <View style={styles.buttonRow}>
+          <Pressable
+            style={styles.buttonSecondaryCard}
+            onPress={() => goTo('profile')}
+            disabled={submitting}
+          >
+            <Text style={styles.buttonText}>Anterior</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.button, submitting && styles.buttonDisabled]}
+            onPress={goContactNext}
+            disabled={submitting}
+          >
             <Text style={styles.buttonText}>Siguiente</Text>
-          )}
-        </Pressable>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  if (step === 'skinIntro') {
+    return (
+      <SkinIntroStep
+        styles={styles}
+        onStart={() => {
+          setSurveyIndex(0);
+          goTo('survey');
+        }}
+      />
+    );
+  }
+
+  const currentQ = SURVEY_QUESTIONS[surveyIndex];
+  const selected = surveyAnswers[currentQ.key];
+  const isLast = surveyIndex === SURVEY_QUESTIONS.length - 1;
+  const fitzOptions =
+    currentQ.key === 'fitzpatrick_type'
+      ? currentQ.options.map((opt) => {
+          const fitz = PATIENT_FITZ_OPTIONS.find((f) => f.value === opt.value);
+          return {
+            value: opt.value,
+            label: fitz
+              ? `${opt.value}: ${fitz.hint}`
+              : opt.label,
+            color: fitz?.color,
+          };
+        })
+      : currentQ.options;
+
+  return (
+    <View>
+      <SurveyProgressDots
+        total={SURVEY_QUESTIONS.length}
+        current={surveyIndex}
+        styles={styles}
+      />
+      <View style={styles.card}>
+        <Text style={styles.surveyQuestion}>{currentQ.question}</Text>
+        {currentQ.key === 'fitzpatrick_type' ? (
+          <Text style={[styles.stepHintDark, { marginBottom: 8 }]}>
+            Selecciona la opción más cercana
+          </Text>
+        ) : null}
+
+        <SurveyOptionList
+          options={fitzOptions}
+          value={selected}
+          onChange={selectSurveyOption}
+          styles={styles}
+          disabled={submitting}
+        />
+
+        {currentQ.key === 'fitzpatrick_type' && selected ? (
+          <Text style={styles.surveyHint}>
+            {FITZPATRICK_DESCRIPTIONS[selected]}
+          </Text>
+        ) : null}
+
+        {error ? <Text style={styles.errorDark}>{error}</Text> : null}
+
+        <View style={styles.buttonRow}>
+          <Pressable
+            style={styles.buttonSecondaryCard}
+            onPress={goSurveyBack}
+            disabled={submitting}
+          >
+            <Text style={styles.buttonText}>Anterior</Text>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.button,
+              (!selected || submitting) && styles.buttonDisabled,
+            ]}
+            onPress={goSurveyNext}
+            disabled={!selected || submitting}
+          >
+            {submitting && isLast ? (
+              <ActivityIndicator color={onDark} />
+            ) : (
+              <Text style={styles.buttonText}>
+                {isLast ? 'Finalizar' : 'Siguiente'}
+              </Text>
+            )}
+          </Pressable>
+        </View>
       </View>
     </View>
   );

@@ -55,6 +55,8 @@ module.exports = function (api) {
             'mdi:close',
             'mdi:calendar-clock',
             'mdi:image-outline',
+            'mdi:camera-outline',
+            'mdi:alert-circle',
             'mdi:google',
             'mdi:eye-outline',
             'mdi:eye-off-outline',

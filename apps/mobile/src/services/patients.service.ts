@@ -70,4 +70,19 @@ export const patientsService = {
       { auth: true },
     );
   },
+
+  async submitSurvey(input: {
+    skinType?: string;
+    fitzpatrickType?: string;
+    surveyResponses: Record<string, string>;
+  }): Promise<{
+    surveyCompletedAt: string | null;
+    surveyResponses: unknown;
+  }> {
+    return apiRequest('/me/survey', {
+      method: 'POST',
+      auth: true,
+      body: input,
+    });
+  },
 };
