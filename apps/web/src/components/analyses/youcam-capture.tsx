@@ -5,8 +5,6 @@ import { useEffect, useRef, useState } from "react";
 
 const YMK_SDK_URL = "https://plugins-media.makeupar.com/v2.5-camera-kit/sdk.js";
 const MIN_IDEAL_HEIGHT = 1080;
-const CAPTURE_WIDTH = 1080;
-const CAPTURE_HEIGHT = 1440;
 
 interface YMKCapturedResult {
   images: { image: string; width: number; height: number }[];
@@ -50,11 +48,11 @@ export function YoucamCapture({
   const [lowResWarning, setLowResWarning] = useState(false);
   const [cameraError, setCameraError] = useState(false);
   const [captureRejected, setCaptureRejected] = useState(false);
-  const [rejectedResolution, setRejectedResolution] = useState<string | null>(null);
 
   useEffect(() => {
     if (!sdkReady || !window.YMK || !containerRef.current) return;
     const YMK = window.YMK;
+    const { width, height } = containerRef.current.getBoundingClientRect();
 
     YMK.init({
       faceDetectionMode: "skincare",
@@ -63,11 +61,11 @@ export function YoucamCapture({
       // en la documentación pública del SDK Camera Kit: 'esp' es correcto
       // para español (no 'es').
       language: "esp",
-      qualityLevel: "relaxed", // Configurado según docs/js-camera-kit.MD
+      qualityLevel: "relaxed",
       videoQuality: "1080p",
       disableCameraResolutionCheck: true,
-      width: CAPTURE_WIDTH,
-      height: CAPTURE_HEIGHT,
+      width: Math.round(width) || 640,
+      height: Math.round(height) || 480,
     });
 
     YMK.addEventListener("faceDetectionCaptured", (result) => {
@@ -76,16 +74,19 @@ export function YoucamCapture({
 
       // A diferencia del chequeo de `cameraOpened` (que solo inspecciona el
       // stream de video en vivo, una aproximación), acá el SDK ya nos da el
-      // ancho/alto reales de la foto capturada — en iOS Safari, desacoplar el
-      // tamaño del contenedor de `width`/`height` evita que el canvas interno
-      // sea limitado al tamaño del <div>.
+      // ancho/alto reales de la foto capturada — un iPad con cámara excelente
+      // puede igual negociar una resolución menor a la pedida (comportamiento
+      // conocido de getUserMedia en Safari/iOS), y `disableCameraResolutionCheck`
+      // deja que el SDK siga adelante sin avisar. Con este dato sí sabemos con
+      // certeza que la foto va a fallar la validación del backend
+      // (youcam-analyses.service.ts, mínimo 1080px de lado corto) — mejor
+      // avisar y dejar reintentar que gastar la llamada a YouCam en una foto
+      // condenada a fallar.
       if (Math.min(captured.width, captured.height) < MIN_IDEAL_HEIGHT) {
-        setRejectedResolution(`${captured.width}×${captured.height}`);
         setCaptureRejected(true);
         return;
       }
       setCaptureRejected(false);
-      setRejectedResolution(null);
       dataUrlToBlob(captured.image).then(onCapture);
     });
 
@@ -124,8 +125,8 @@ export function YoucamCapture({
       )}
       {captureRejected && !cameraError && (
         <p className="text-sm text-destructive">
-          La foto capturada quedó en muy baja resolución para el análisis
-          {rejectedResolution ? ` (${rejectedResolution})` : ""}. Verifica la iluminación y la estabilidad de la cámara, y vuelve a intentarlo.
+          La foto capturada quedó en muy baja resolución para el análisis. Verifica la
+          iluminación y la estabilidad de la cámara, y vuelve a intentarlo.
         </p>
       )}
       {lowResWarning && !cameraError && !captureRejected && (
