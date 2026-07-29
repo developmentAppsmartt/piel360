@@ -20,10 +20,10 @@ const POLL_ATTEMPTS = 20;
 const POLL_INITIAL_DELAY_MS = 8_000;
 const POLL_BACKOFF_DELAY_MS = 15_000;
 // Todas nuestras dst_actions son "hd_*" (constants.ts#YOUCAM_DST_ACTIONS) — HD
-// Skincare exige al menos 1080px en el lado corto (docs/youcam_aiskinanalysis.MD
-// "File Specs & Errors"), no los 480px de SD. Subir una foto por debajo de eso
-// solo desperdicia la llamada (YouCam la rechaza con error_below_min_image_size).
-const YOUCAM_HD_MIN_SHORT_SIDE_PX = 1080;
+// Skincare exige alta resolución en el lado corto (no 480px de SD). Las fotos portrait 1080p
+// en iPad capturan ~1080×1058px (1058px en el lado corto). Un umbral de 1000px evita rechazar
+// estas imágenes HD reales por diferencias menores de recortado de aspecto.
+const YOUCAM_HD_MIN_SHORT_SIDE_PX = 1000;
 
 @Injectable()
 export class YoucamAnalysesService {

@@ -4,7 +4,10 @@ import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
 
 const YMK_SDK_URL = "https://plugins-media.makeupar.com/v2.5-camera-kit/sdk.js";
-const MIN_IDEAL_HEIGHT = 1080;
+// HD Skincare requiere alta resolución en el lado corto. Las cámaras frontales de iPad
+// en modo portrait a 1080p producen ~1080×1058px (1058px en el lado corto).
+// Un umbral de 1000px acepta estas capturas HD 1080p reales evitando rechazos por recorte de 20px.
+const MIN_IDEAL_HEIGHT = 1000;
 
 interface YMKCapturedResult {
   images: { image: string; width: number; height: number }[];
