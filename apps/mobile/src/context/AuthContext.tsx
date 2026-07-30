@@ -8,16 +8,24 @@ import {
   type ReactNode,
 } from 'react';
 import { authService } from '../services/auth.service';
+import {
+  completeGoogleLoginFromUrl,
+  loginWithGoogle as googleLogin,
+} from '../services/google-auth.service';
 import type {
   AuthUser,
   LoginPayload,
   RegisterPatientPayload,
+  Role,
 } from '../types/auth';
 
 type AuthContextValue = {
   user: AuthUser | null;
   isLoading: boolean;
   login: (payload: LoginPayload) => Promise<void>;
+  loginWithGoogle: (
+    role?: Extract<Role, 'patient' | 'doctor'>,
+  ) => Promise<void>;
   registerPatient: (payload: RegisterPatientPayload) => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -32,6 +40,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
+        // Vuelta de OAuth en Expo Web (?code=...).
+        const fromGoogle = await completeGoogleLoginFromUrl();
+        if (fromGoogle && !cancelled) {
+          setUser(fromGoogle.user);
+          return;
+        }
         const sessionUser = await authService.hydrateSession();
         if (!cancelled) setUser(sessionUser);
       } finally {
@@ -48,6 +62,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(result.user);
   }, []);
 
+  const loginWithGoogle = useCallback(
+    async (role: Extract<Role, 'patient' | 'doctor'> = 'patient') => {
+      const result = await googleLogin(role);
+      setUser(result.user);
+    },
+    [],
+  );
+
   const registerPatient = useCallback(
     async (payload: RegisterPatientPayload) => {
       const result = await authService.registerPatient(payload);
@@ -62,8 +84,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, isLoading, login, registerPatient, logout }),
-    [user, isLoading, login, registerPatient, logout],
+    () => ({
+      user,
+      isLoading,
+      login,
+      loginWithGoogle,
+      registerPatient,
+      logout,
+    }),
+    [user, isLoading, login, loginWithGoogle, registerPatient, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

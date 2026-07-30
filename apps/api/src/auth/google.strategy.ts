@@ -7,6 +7,7 @@ import {
   type Profile,
   type VerifyCallback,
 } from 'passport-google-oauth20';
+import { parseOAuthState } from './oauth-state';
 
 export interface GoogleProfile {
   googleId: string;
@@ -49,13 +50,13 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       return;
     }
 
+    const { role } = parseOAuthState(req.query.state);
     const googleProfile: GoogleProfile = {
       googleId: profile.id,
       email,
       firstName: profile.name?.givenName ?? profile.displayName,
       lastName: profile.name?.familyName ?? '',
-      roleIntent:
-        typeof req.query.state === 'string' ? req.query.state : undefined,
+      roleIntent: role,
     };
 
     done(null, googleProfile);

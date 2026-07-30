@@ -15,7 +15,11 @@ export default async function DoctorPanelLayout({
   if (!session) redirect("/doctor/login");
 
   return (
-    <PanelShell nav={doctorNav} user={{ email: session.email, role: session.role }}>
+    <PanelShell
+      nav={doctorNav}
+      user={{ email: session.email, role: session.role }}
+      sidebarUser={{ name: "Doctor", subtitle: session.email }}
+    >
       {children}
     </PanelShell>
   );
