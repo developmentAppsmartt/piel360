@@ -18,15 +18,22 @@ export function SidebarNav({ items }: { items: ResolvedNavItem[] }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
+    <nav className="flex flex-1 flex-col gap-1.5 overflow-y-auto p-3">
       {items.map((item) => {
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        // Evitar que `/admin` marque activo todo el panel.
+        const isPanelRoot =
+          item.href === "/admin" ||
+          item.href === "/doctor" ||
+          item.href === "/patient/dashboard";
+        const active = isPanelRoot
+          ? pathname === item.href
+          : pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (
           <Link
             key={item.href}
             href={item.href}
             className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+              "flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium transition-colors",
               active
                 ? "bg-sidebar-primary text-sidebar-primary-foreground"
                 : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",

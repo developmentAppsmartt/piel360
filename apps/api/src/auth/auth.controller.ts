@@ -22,6 +22,7 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { GoogleAuthGuard } from './google-auth.guard';
 import type { GoogleProfile } from './google.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { parseOAuthState } from './oauth-state';
 import type { JwtPayload } from './types';
 
 @Controller('auth')
@@ -77,7 +78,10 @@ export class AuthController {
     return this.authService.me(user.sub);
   }
 
-  /** Inicia el flujo — `?role=doctor|patient` viaja como `state` de OAuth. */
+  /**
+   * Inicia el flujo OAuth.
+   * Query: `role=doctor|patient`, `platform=web|mobile` (viaja en `state`).
+   */
   @Get('google')
   @UseGuards(GoogleAuthGuard)
   googleAuth() {}
@@ -90,6 +94,22 @@ export class AuthController {
   ) {
     const result = await this.authService.loginOrRegisterWithGoogle(req.user);
     const code = await this.authService.createGoogleExchangeCode(result);
+    const { platform, redirectUri } = parseOAuthState(req.query.state);
+
+    // redirect_uri explícito (Expo web / deep link) tiene prioridad.
+    if (redirectUri) {
+      const sep = redirectUri.includes('?') ? '&' : '?';
+      res.redirect(`${redirectUri}${sep}code=${encodeURIComponent(code)}`);
+      return;
+    }
+    if (platform === 'mobile') {
+      const deepLink =
+        this.config.get<string>('MOBILE_DEEP_LINK') ||
+        'piel360://auth/google/callback';
+      const sep = deepLink.includes('?') ? '&' : '?';
+      res.redirect(`${deepLink}${sep}code=${encodeURIComponent(code)}`);
+      return;
+    }
     const frontendUrl = this.config.getOrThrow<string>('FRONTEND_URL');
     res.redirect(`${frontendUrl}/auth/google/callback?code=${code}`);
   }
