@@ -37,6 +37,7 @@ export type DailyConsumption = {
   date: string;
   aesthetic: number;
   derm: number;
+  total: number;
   patients: number;
   professional: string;
 };
