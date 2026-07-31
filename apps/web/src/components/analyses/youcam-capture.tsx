@@ -1,13 +1,17 @@
 "use client";
 
+import { YOUCAM_HD_MIN_SHORT_SIDE_PX, YOUCAM_UPSCALE_MIN_SHORT_SIDE_PX } from "@piel360/shared";
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
 
 const YMK_SDK_URL = "https://plugins-media.makeupar.com/v2.5-camera-kit/sdk.js";
-// HD Skincare requiere alta resolución en el lado corto. Las cámaras frontales de iPad
-// en modo portrait a 1080p producen ~1080×1058px (1058px en el lado corto).
-// Un umbral de 1000px acepta estas capturas HD 1080p reales evitando rechazos por recorte de 20px.
-const MIN_IDEAL_HEIGHT = 1000;
+// Piso real de bloqueo — el mismo que usa el backend (youcam-analyses.service.ts):
+// por debajo de esto no se intenta escalar la imagen, es una foto genuinamente
+// de baja calidad. Entre este piso y YOUCAM_HD_MIN_SHORT_SIDE_PX (1080, el
+// mínimo real de YouCam), el backend redimensiona en vez de rechazar — bloquear
+// acá con el mismo umbral que el backend evita rechazar en el navegador algo
+// que el servidor de todos modos aceptaría.
+const MIN_CAPTURE_SHORT_SIDE = YOUCAM_UPSCALE_MIN_SHORT_SIDE_PX;
 
 interface YMKCapturedResult {
   images: { image: string; width: number; height: number }[];
@@ -78,7 +82,7 @@ export function YoucamCapture({
       const captured = result?.images?.[0];
       if (!captured?.image) return;
 
-      if (Math.min(captured.width, captured.height) < MIN_IDEAL_HEIGHT) {
+      if (Math.min(captured.width, captured.height) < MIN_CAPTURE_SHORT_SIDE) {
         setRejectedResolution(`${captured.width}×${captured.height}`);
         setCaptureRejected(true);
         return;
@@ -90,7 +94,7 @@ export function YoucamCapture({
 
     YMK.addEventListener("cameraOpened", () => {
       const video = containerRef.current?.querySelector("video");
-      if (video && video.videoHeight && video.videoHeight < MIN_IDEAL_HEIGHT) {
+      if (video && video.videoHeight && video.videoHeight < YOUCAM_HD_MIN_SHORT_SIDE_PX) {
         setLowResWarning(true);
       }
     });

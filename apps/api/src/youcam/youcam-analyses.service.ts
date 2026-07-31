@@ -1,7 +1,13 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  YOUCAM_HD_MIN_SHORT_SIDE_PX,
+  YOUCAM_UPSCALE_MIN_SHORT_SIDE_PX,
+  YOUCAM_UPSCALE_TARGET_SHORT_SIDE_PX,
+} from '@piel360/shared';
 import type { Queue } from 'bullmq';
 import { imageSize } from 'image-size';
+import sharp from 'sharp';
 import type { JwtPayload } from '../auth/types';
 import { PatientsService } from '../patients/patients.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -19,11 +25,6 @@ const POLL_ATTEMPTS = 20;
 // aun cuando YouCam ya tenía la respuesta lista.
 const POLL_INITIAL_DELAY_MS = 8_000;
 const POLL_BACKOFF_DELAY_MS = 15_000;
-// Todas nuestras dst_actions son "hd_*" (constants.ts#YOUCAM_DST_ACTIONS) — HD
-// Skincare exige alta resolución en el lado corto (no 480px de SD). Las fotos portrait 1080p
-// en iPad capturan ~1080×1058px (1058px en el lado corto). Un umbral de 1000px evita rechazar
-// estas imágenes HD reales por diferencias menores de recortado de aspecto.
-const YOUCAM_HD_MIN_SHORT_SIDE_PX = 1000;
 
 @Injectable()
 export class YoucamAnalysesService {
@@ -73,13 +74,33 @@ export class YoucamAnalysesService {
     // intencional vs. Skiniver, MIGRACION.md deuda #4).
 
     const { width, height } = imageSize(image);
-    if (Math.min(width, height) < YOUCAM_HD_MIN_SHORT_SIDE_PX) {
+    const shortSide = Math.min(width, height);
+    let uploadBuffer = image;
+
+    if (shortSide < YOUCAM_UPSCALE_MIN_SHORT_SIDE_PX) {
       throw new BadRequestException(
-        `La foto es de muy baja resolución para el análisis HD (mínimo ${YOUCAM_HD_MIN_SHORT_SIDE_PX}px en el lado corto, esta tiene ${Math.min(width, height)}px). Toma la foto de nuevo con mejor calidad.`,
+        `La foto es de muy baja resolución para el análisis HD (mínimo ${YOUCAM_UPSCALE_MIN_SHORT_SIDE_PX}px en el lado corto, esta tiene ${shortSide}px). Toma la foto de nuevo con mejor calidad.`,
       );
     }
 
-    const fileId = await this.youcam.uploadImage(image);
+    if (shortSide < YOUCAM_HD_MIN_SHORT_SIDE_PX) {
+      // Recorte marginal (ej. 1080×1058, visto en producción con capturas de
+      // iPad) — a diferencia de una foto genuinamente de baja calidad
+      // (bloqueada arriba), un upscale de unos pocos % no pierde calidad
+      // perceptible y evita perder el análisis por error_below_min_image_size.
+      const scale = YOUCAM_UPSCALE_TARGET_SHORT_SIDE_PX / shortSide;
+      const targetWidth = Math.round(width * scale);
+      const targetHeight = Math.round(height * scale);
+      uploadBuffer = await sharp(image)
+        .resize(targetWidth, targetHeight, { fit: 'fill' })
+        .jpeg({ quality: 92 })
+        .toBuffer();
+      this.logger.log(
+        `Análisis: imagen redimensionada de ${width}x${height} a ${targetWidth}x${targetHeight} (lado corto ${shortSide}px < ${YOUCAM_HD_MIN_SHORT_SIDE_PX}px) para cumplir el mínimo HD de YouCam`,
+      );
+    }
+
+    const fileId = await this.youcam.uploadImage(uploadBuffer);
     const taskId = await this.youcam.startAnalysis(
       fileId,
       dto.enableMaskOverlay ?? true,
@@ -107,7 +128,11 @@ export class YoucamAnalysesService {
     if (dto.enableMaskOverlay === false) {
       const originalKey = `analyses/${analysis.id}/original.jpg`;
       try {
-        await this.storage.upload(originalKey, image, 'image/jpeg');
+        // `uploadBuffer` (no `image`): si se redimensionó arriba, debe
+        // coincidir en dimensiones con las máscaras que YouCam va a generar
+        // a partir de esa misma versión — si no, quedarían desalineadas al
+        // superponerlas en el frontend.
+        await this.storage.upload(originalKey, uploadBuffer, 'image/jpeg');
         await this.prisma.analysis.update({
           where: { id: analysis.id },
           data: { imagePath: originalKey },

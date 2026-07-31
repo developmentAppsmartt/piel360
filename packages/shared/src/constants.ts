@@ -29,3 +29,26 @@ export const YOUCAM_DST_ACTIONS = [
 ] as const;
 
 export type YouCamAction = (typeof YOUCAM_DST_ACTIONS)[number];
+
+/**
+ * Requisito de resolución de YouCam para HD Skincare (docs/AI-Skin-Analysis.MD
+ * "File Specs & Errors"): el lado corto debe ser de al menos 1080px, o YouCam
+ * rechaza la tarea con `error_below_min_image_size`. Compartido entre backend
+ * (validación/upscale antes de subir) y frontend (chequeo en la captura de
+ * YouCam) para que ambos usen el mismo umbral.
+ */
+export const YOUCAM_HD_MIN_SHORT_SIDE_PX = 1080;
+
+/**
+ * Piso por debajo del cual NO se intenta escalar la imagen hacia arriba —
+ * capturas más chicas que esto son una foto genuinamente de baja calidad
+ * (recorte/zoom/cámara pobre), no solo un recorte marginal por redondeo de
+ * aspecto. Entre este piso y `YOUCAM_HD_MIN_SHORT_SIDE_PX`, el backend
+ * redimensiona la imagen en vez de rechazarla (casos vistos en producción:
+ * capturas de 1058px, ~2% por debajo del mínimo).
+ */
+export const YOUCAM_UPSCALE_MIN_SHORT_SIDE_PX = 1000;
+
+/** Margen sobre el mínimo real al redimensionar, para no quedar en el límite
+ * exacto por errores de redondeo al escalar ambos lados. */
+export const YOUCAM_UPSCALE_TARGET_SHORT_SIDE_PX = 1088;
