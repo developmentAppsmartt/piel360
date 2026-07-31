@@ -109,12 +109,18 @@ export class PatientsService {
   }
 
   /** `GET /api/patients/:id/analyses?withCoords=true` — historial 3D
-   * (MIGRACION.md §2.5): coords x/y/z de cada análisis sobre el modelo corporal. */
+   * (MIGRACION.md §2.5): coords x/y/z de cada análisis sobre el modelo corporal.
+   * Paciente solo ve los compartidos; doctor/admin ven todos. */
   async findAnalyses(id: string, currentUser: JwtPayload, withCoords: boolean) {
     const patient = await this.findOne(id, currentUser);
 
     return this.prisma.analysis.findMany({
-      where: { patientId: patient.id },
+      where: {
+        patientId: patient.id,
+        ...(currentUser.role === 'patient'
+          ? { sharedWithPatient: true }
+          : {}),
+      },
       orderBy: { createdAt: 'asc' },
       select: withCoords
         ? {

@@ -7,6 +7,7 @@ import {
   patientsService,
   type CreatePatientInput,
 } from '../../../services/patients.service';
+import { YoucamAnalysisFlow } from '../../analyses/youcam-flow/YoucamAnalysisFlow';
 import { DoctorHeader } from '../patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
 import { ConsentStep } from './components/ConsentStep';
@@ -14,7 +15,7 @@ import { CreatePatientForm } from './components/CreatePatientForm';
 import { CreatePatientSuccess } from './components/CreatePatientSuccess';
 import { createCreatePatientStyles } from './styles/createPatient.styles';
 
-type Step = 'form' | 'consent' | 'success';
+type Step = 'form' | 'consent' | 'success' | 'youcam';
 
 type CreatePatientFlowProps = {
   onClose: () => void;
@@ -62,6 +63,15 @@ export function CreatePatientFlow({
     }
   }
 
+  if (step === 'youcam') {
+    return (
+      <YoucamAnalysisFlow
+        onClose={() => setStep('success')}
+        onOpenMenu={onOpenMenu}
+      />
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <StatusBar style="light" />
@@ -97,12 +107,8 @@ export function CreatePatientFlow({
         <CreatePatientSuccess
           patientId={createdId}
           onDone={onClose}
-          onNewDermatology={() =>
-            Alert.alert('Próximamente', 'El análisis dermatológico se conectará después.')
-          }
-          onNewSkinState={() =>
-            Alert.alert('Próximamente', 'El análisis de estado de piel se conectará después.')
-          }
+          onNewDermatology={() => setStep('youcam')}
+          onNewSkinState={() => setStep('youcam')}
         />
       ) : null}
     </View>

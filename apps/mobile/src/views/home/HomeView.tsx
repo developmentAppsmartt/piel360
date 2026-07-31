@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Modal,
   Pressable,
   ScrollView,
   Text,
@@ -15,28 +14,35 @@ import { Icons } from '../../components/icons';
 import { useAuth } from '../../context/AuthContext';
 import { useBranding } from '../../context/BrandingContext';
 import { ApiError } from '../../services/api.client';
+import { analysesService } from '../../services/analyses.service';
 import {
   patientsService,
   type UpdatePatientInput,
 } from '../../services/patients.service';
+import type { PatientAnalysisSummary, YoucamRawResponse } from '../../types/analysis';
+import {
+  parseYoucamMetrics,
+  youcamOverallScore,
+} from '../../types/analysis';
 import type { PatientProfile } from '../../types/patient';
+import { YoucamAnalysisFlow } from '../analyses/youcam-flow/YoucamAnalysisFlow';
 import { AccountInfoView } from '../account/AccountInfoView';
+import { AnalysisDetailView } from '../doctor/analyses/AnalysisDetailView';
 import {
   AccountDrawer,
   type AccountMenuId,
 } from '../doctor/patients/components/AccountDrawer';
 import { EditProfileView } from '../profile/edit/EditProfileView';
 import {
-  MOCK_ANALYSES,
-  MOCK_PATIENT_HOME,
-  type MockAnalysisTone,
-} from './data/patientHome.mock';
+  formatPatientDocument,
+  patientDisplayName,
+} from '../profile/data/patient';
 import { createHomeStyles } from './styles/home.styles';
 
 type HomeViewProps = {
   onOpenProfile?: () => void;
   onOpenAgenda?: () => void;
-  /** Abre el modal de consentimiento (también desde tab Nuevo Análisis). */
+  /** Abre el flujo YouCam (también desde tab Nuevo Análisis). */
   consentRequestId?: number;
   onConsentContinue?: () => void;
 };
@@ -76,11 +82,95 @@ const OVERLAY_COPY: Record<
   },
 };
 
-const TONE_COLOR: Record<MockAnalysisTone, string> = {
+function ageFromBirth(iso: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age -= 1;
+  return `${age} Años`;
+}
+
+function formatUpdate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${dd}-${mm}-${yyyy}`;
+}
+
+function formatStamp(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+}
+
+function initialsOf(patient: PatientProfile): string {
+  return [patient.firstName, patient.lastName]
+    .map((x) => x?.[0]?.toUpperCase() ?? '')
+    .join('')
+    .slice(0, 2);
+}
+
+function analysisTitle(item: PatientAnalysisSummary): string {
+  const diagnosis =
+    item.finalDiagnosis?.trim() || item.aiDiagnosis?.trim() || '';
+  if (diagnosis) return diagnosis;
+  if (item.youcamTaskId) {
+    const metrics = parseYoucamMetrics(
+      item.aiRawResponse as YoucamRawResponse | null,
+    );
+    const overall = youcamOverallScore(metrics);
+    return overall != null
+      ? `Análisis facial · ${Math.round(overall)} pts`
+      : 'Análisis facial';
+  }
+  return 'Análisis';
+}
+
+function analysisTone(
+  item: PatientAnalysisSummary,
+): 'danger' | 'warning' | 'success' {
+  if (item.youcamTaskId) {
+    const metrics = parseYoucamMetrics(
+      item.aiRawResponse as YoucamRawResponse | null,
+    );
+    const overall = youcamOverallScore(metrics);
+    if (overall != null && overall < 70) return 'danger';
+    if (overall != null && overall < 85) return 'warning';
+    return 'success';
+  }
+  const label = (
+    item.finalDiagnosis ??
+    item.aiDiagnosis ??
+    ''
+  ).toLowerCase();
+  if (
+    label.includes('melanoma') ||
+    label.includes('carcinoma') ||
+    label.includes('bowen') ||
+    label.includes('cáncer') ||
+    label.includes('cancer')
+  ) {
+    return 'danger';
+  }
+  if (label.includes('nevo') || label.includes('nevus')) return 'warning';
+  return 'success';
+}
+
+const TONE_COLOR = {
   danger: '#EF4444',
   warning: '#F59E0B',
   success: '#16A34A',
-};
+} as const;
 
 export function HomeView({
   onOpenProfile,
@@ -95,33 +185,45 @@ export function HomeView({
   const onDark = branding.colors.textOnDark;
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [consentOpen, setConsentOpen] = useState(false);
+  const [youcamFlowOpen, setYoucamFlowOpen] = useState(false);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [patient, setPatient] = useState<PatientProfile | null>(null);
-  const [loadingPatient, setLoadingPatient] = useState(false);
+  const [analyses, setAnalyses] = useState<PatientAnalysisSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
-    if (consentRequestId > 0) setConsentOpen(true);
+    if (consentRequestId > 0) setYoucamFlowOpen(true);
   }, [consentRequestId]);
 
-  const loadPatient = useCallback(async () => {
-    setLoadingPatient(true);
+  const loadHome = useCallback(async () => {
+    setLoading(true);
     try {
       const mine = await patientsService.getMyPatient();
       setPatient(mine);
-      return mine;
+      if (mine) {
+        const list = await analysesService.list();
+        setAnalyses(list);
+      } else {
+        setAnalyses([]);
+      }
     } catch (err) {
       Alert.alert(
-        'Perfil',
+        'Inicio',
         err instanceof ApiError
           ? err.message
-          : 'No se pudo cargar tu perfil.',
+          : 'No se pudo cargar tu información.',
       );
-      return null;
     } finally {
-      setLoadingPatient(false);
+      setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    void loadHome();
+  }, [loadHome]);
 
   async function handleMenuSelect(id: AccountMenuId) {
     setMenuOpen(false);
@@ -134,8 +236,10 @@ export function HomeView({
       return;
     }
     if (id === 'config') {
-      const p = patient ?? (await loadPatient());
-      if (p) setOverlay('config');
+      if (!patient) await loadHome();
+      if (patient || (await patientsService.getMyPatient())) {
+        setOverlay('config');
+      }
       return;
     }
     if (id === 'seguridad') return;
@@ -158,8 +262,43 @@ export function HomeView({
     Alert.alert('Listo', 'Tu perfil se actualizó correctamente.');
   }
 
+  if (youcamFlowOpen) {
+    return (
+      <>
+        <YoucamAnalysisFlow
+          onClose={() => {
+            setYoucamFlowOpen(false);
+            onConsentContinue?.();
+          }}
+          onOpenMenu={() => setMenuOpen(true)}
+        />
+        <AccountDrawer
+          visible={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          onSelect={handleMenuSelect}
+          variant="patient"
+        />
+      </>
+    );
+  }
+
+  if (selectedAnalysisId) {
+    return (
+      <AnalysisDetailView
+        analysisId={selectedAnalysisId}
+        patientName={patient ? patientDisplayName(patient) : undefined}
+        canShare={false}
+        onBack={() => {
+          setSelectedAnalysisId(null);
+          void loadHome();
+        }}
+        onOpenMenu={() => setMenuOpen(true)}
+      />
+    );
+  }
+
   if (overlay === 'config') {
-    if (loadingPatient || !patient) {
+    if (loading || !patient) {
       return (
         <View style={styles.centered}>
           <ActivityIndicator color={branding.colors.primary} />
@@ -186,7 +325,11 @@ export function HomeView({
     );
   }
 
-  const mock = MOCK_PATIENT_HOME;
+  const name = patient ? patientDisplayName(patient) : 'Paciente';
+  const doc = patient
+    ? formatPatientDocument(patient.docType, patient.docNumber)
+    : '';
+  const initials = patient ? initialsOf(patient) : '—';
 
   return (
     <View style={styles.screen}>
@@ -207,15 +350,13 @@ export function HomeView({
             hitSlop={8}
             accessibilityLabel="Notificaciones"
             onPress={() =>
-              Alert.alert('Notificaciones', `${mock.notificationCount} avisos (mock).`)
+              Alert.alert(
+                'Notificaciones',
+                'Las notificaciones se conectarán en una próxima versión.',
+              )
             }
           >
-            <View>
-              <AppIcon icon={Icons.bell} size={22} color={onDark} />
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{mock.notificationCount}</Text>
-              </View>
-            </View>
+            <AppIcon icon={Icons.bell} size={22} color={onDark} />
           </Pressable>
           <Pressable
             hitSlop={8}
@@ -227,120 +368,164 @@ export function HomeView({
         </View>
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.welcomeCard}>
-          <Text style={styles.welcomeTitle}>Bienvenido a Piel 360 AI</Text>
-          <Text style={styles.welcomeSubtitle}>
-            Tu piel tiene mucho que decir. Escúchala aquí
-          </Text>
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator color={branding.colors.primary} />
         </View>
-
-        <View style={styles.profileRow}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{mock.initials}</Text>
-          </View>
-          <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{mock.displayName}</Text>
-            <Text style={styles.profileMeta}>
-              Última actualización: {mock.lastUpdate}
+      ) : (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.welcomeCard}>
+            <Text style={styles.welcomeTitle}>Bienvenido a Piel 360 AI</Text>
+            <Text style={styles.welcomeSubtitle}>
+              Tu piel tiene mucho que decir. Escúchala aquí
             </Text>
-            <Text style={styles.profileMeta}>{mock.document}</Text>
-            <Text style={styles.profileMeta}>{mock.ageLabel}</Text>
           </View>
-        </View>
 
-        <Pressable
-          style={styles.linkCard}
-          onPress={() =>
-            Alert.alert(
-              'Consejos',
-              'Contenido de consejos (mock). Se conectará al CMS/API.',
-            )
-          }
-        >
-          <View style={styles.linkIconWrap}>
-            <AppIcon icon={Icons.smile} size={22} color={branding.colors.primary} />
+          <View style={styles.profileRow}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
+            <View style={styles.profileInfo}>
+              <Text style={styles.profileName}>{name}</Text>
+              <Text style={styles.profileMeta}>
+                Última actualización:{' '}
+                {patient ? formatUpdate(patient.updatedAt) : '—'}
+              </Text>
+              {doc ? <Text style={styles.profileMeta}>{doc}</Text> : null}
+              <Text style={styles.profileMeta}>
+                Edad: {ageFromBirth(patient?.birthDate ?? null)}
+              </Text>
+            </View>
           </View>
-          <Text style={styles.linkLabel}>Consejos para el cuidado de la piel</Text>
-          <AppIcon icon={Icons.chevronRight} size={20} color={branding.colors.muted} />
-        </Pressable>
 
-        <Pressable
-          style={styles.linkCard}
-          onPress={() =>
-            Alert.alert(
-              'Enfermedades',
-              'Enciclopedia de enfermedades (mock). Se conectará al servicio.',
-            )
-          }
-        >
-          <View style={styles.linkIconWrap}>
-            <AppIcon
-              icon={Icons.prescription}
-              size={22}
-              color={branding.colors.primary}
-            />
-          </View>
-          <Text style={styles.linkLabel}>Enfermedades de la piel</Text>
-          <AppIcon icon={Icons.chevronRight} size={20} color={branding.colors.muted} />
-        </Pressable>
-
-        <View style={styles.historyHeader}>
-          <Text style={styles.historyTitle}>Histórico Análisis</Text>
           <Pressable
-            style={styles.assignLink}
-            onPress={() => {
-              onOpenAgenda?.();
-              Alert.alert('Asignar cita', 'Flujo de citas (mock).');
-            }}
+            style={styles.linkCard}
+            onPress={() =>
+              Alert.alert(
+                'Consejos',
+                'Contenido de consejos. Se conectará al CMS/API.',
+              )
+            }
           >
+            <View style={styles.linkIconWrap}>
+              <AppIcon
+                icon={Icons.smile}
+                size={22}
+                color={branding.colors.primary}
+              />
+            </View>
+            <Text style={styles.linkLabel}>
+              Consejos para el cuidado de la piel
+            </Text>
             <AppIcon
-              icon={Icons.calendarClock}
-              size={16}
-              color={branding.colors.primary}
+              icon={Icons.chevronRight}
+              size={20}
+              color={branding.colors.muted}
             />
-            <Text style={styles.assignText}>Asignar Cita</Text>
           </Pressable>
-        </View>
 
-        <View style={styles.historyList}>
-          {MOCK_ANALYSES.map((item, index) => (
+          <Pressable
+            style={styles.linkCard}
+            onPress={() =>
+              Alert.alert(
+                'Enfermedades',
+                'Enciclopedia de enfermedades. Se conectará al servicio.',
+              )
+            }
+          >
+            <View style={styles.linkIconWrap}>
+              <AppIcon
+                icon={Icons.prescription}
+                size={22}
+                color={branding.colors.primary}
+              />
+            </View>
+            <Text style={styles.linkLabel}>Enfermedades de la piel</Text>
+            <AppIcon
+              icon={Icons.chevronRight}
+              size={20}
+              color={branding.colors.muted}
+            />
+          </Pressable>
+
+          <View style={styles.historyHeader}>
+            <Text style={styles.historyTitle}>Histórico Análisis</Text>
             <Pressable
-              key={item.id}
-              style={[
-                styles.historyRow,
-                index === MOCK_ANALYSES.length - 1 && styles.historyRowLast,
-              ]}
-              onPress={() =>
-                Alert.alert(item.title, `Detalle mock · ${item.dateLabel}`)
-              }
+              style={styles.assignLink}
+              onPress={() => {
+                onOpenAgenda?.();
+                Alert.alert('Asignar cita', 'Flujo de citas próximamente.');
+              }}
             >
-              <View style={[styles.thumb, { backgroundColor: item.thumbColor }]} />
               <AppIcon
-                icon={item.tone === 'success' ? Icons.check : Icons.sad}
-                size={20}
-                color={TONE_COLOR[item.tone]}
+                icon={Icons.calendarClock}
+                size={16}
+                color={branding.colors.primary}
               />
-              <View style={styles.historyBody}>
-                <Text style={styles.historyItemTitle}>{item.title}</Text>
-                <Text style={styles.historyItemMeta}>{item.dateLabel}</Text>
-                {item.doctor ? (
-                  <Text style={styles.historyItemMeta}>{item.doctor}</Text>
-                ) : null}
-              </View>
-              <AppIcon
-                icon={Icons.chevronRight}
-                size={18}
-                color={branding.colors.muted}
-              />
+              <Text style={styles.assignText}>Asignar Cita</Text>
             </Pressable>
-          ))}
-        </View>
-      </ScrollView>
+          </View>
+
+          <View style={styles.historyList}>
+            {analyses.length === 0 ? (
+              <View style={styles.emptyHistory}>
+                <Text style={styles.emptyHistoryText}>
+                  Aún no tienes análisis compartidos por tu médico.
+                </Text>
+              </View>
+            ) : (
+              analyses.map((item, index) => {
+                const tone = analysisTone(item);
+                return (
+                  <Pressable
+                    key={item.id}
+                    style={[
+                      styles.historyRow,
+                      index === analyses.length - 1 && styles.historyRowLast,
+                    ]}
+                    onPress={() => setSelectedAnalysisId(item.id)}
+                  >
+                    <View
+                      style={[
+                        styles.thumb,
+                        { backgroundColor: `${TONE_COLOR[tone]}33` },
+                      ]}
+                    >
+                      <AppIcon
+                        icon={Icons.skin}
+                        size={22}
+                        color={branding.colors.primary}
+                      />
+                    </View>
+                    <AppIcon
+                      icon={tone === 'success' ? Icons.check : Icons.sad}
+                      size={20}
+                      color={TONE_COLOR[tone]}
+                    />
+                    <View style={styles.historyBody}>
+                      <Text style={styles.historyItemTitle}>
+                        {analysisTitle(item)}
+                      </Text>
+                      <Text style={styles.historyItemMeta}>
+                        {formatStamp(item.createdAt)}
+                      </Text>
+                    </View>
+                    <AppIcon
+                      icon={Icons.chevronRight}
+                      size={18}
+                      color={branding.colors.muted}
+                    />
+                  </Pressable>
+                );
+              })
+            )}
+          </View>
+        </ScrollView>
+      )}
 
       <AccountDrawer
         visible={menuOpen}
@@ -349,46 +534,6 @@ export function HomeView({
         variant="patient"
       />
 
-      <Modal
-        visible={consentOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setConsentOpen(false)}
-      >
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => setConsentOpen(false)}
-        >
-          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.modalIconWrap}>
-              <AppIcon
-                icon={Icons.smile}
-                size={32}
-                color={branding.colors.primary}
-              />
-            </View>
-            <Text style={styles.modalTitle}>Consentimiento</Text>
-            <Text style={styles.modalBody}>
-              Lee por favor antes de realizar el análisis. Se usará una foto de
-              tu piel para un diagnóstico asistido por IA. No sustituye una
-              consulta presencial.
-            </Text>
-            <Pressable
-              style={styles.modalButton}
-              onPress={() => {
-                setConsentOpen(false);
-                onConsentContinue?.();
-                Alert.alert(
-                  'Nuevo análisis',
-                  'Consentimiento aceptado (mock). El flujo de captura se conectará al servicio.',
-                );
-              }}
-            >
-              <Text style={styles.modalButtonText}>Continuar</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </View>
   );
 }

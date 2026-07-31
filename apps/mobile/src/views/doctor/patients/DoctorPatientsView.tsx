@@ -14,6 +14,10 @@ import { useBranding } from '../../../context/BrandingContext';
 import { ApiError } from '../../../services/api.client';
 import { patientsService } from '../../../services/patients.service';
 import type { PatientProfile } from '../../../types/patient';
+import { analysesService } from '../../../services/analyses.service';
+import type { PatientAnalysisSummary } from '../../../types/analysis';
+import { YoucamAnalysisFlow } from '../../analyses/youcam-flow/YoucamAnalysisFlow';
+import { AnalysisDetailView } from '../analyses/AnalysisDetailView';
 import { CreatePatientFlow } from '../create-patient/CreatePatientFlow';
 import { PaymentsView } from '../payments/PaymentsView';
 import { AccountDrawer } from './components/AccountDrawer';
@@ -21,6 +25,7 @@ import { DoctorHeader } from './components/DoctorHeader';
 import { PatientDetailView } from './components/PatientDetailView';
 import { PatientListRow } from './components/PatientListRow';
 import { createDoctorPatientsStyles } from './styles/patients.styles';
+import { patientDisplayName } from '../../profile/data/patient';
 
 type DoctorPatientsViewProps = {
   onOpenMessages?: () => void;
@@ -41,6 +46,7 @@ export function DoctorPatientsView({
   );
 
   const [patients, setPatients] = useState<PatientProfile[]>([]);
+  const [analyses, setAnalyses] = useState<PatientAnalysisSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +56,10 @@ export function DoctorPatientsView({
   const [selectedPatient, setSelectedPatient] = useState<PatientProfile | null>(
     null,
   );
+  const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(
+    null,
+  );
+  const [youcamFlowOpen, setYoucamFlowOpen] = useState(false);
 
   const handleMenuSelect = (id: string) => {
     setMenuOpen(false);
@@ -66,8 +76,12 @@ export function DoctorPatientsView({
   const load = useCallback(async () => {
     setError(null);
     try {
-      const list = await patientsService.list();
+      const [list, analysisList] = await Promise.all([
+        patientsService.list(),
+        analysesService.list().catch(() => [] as PatientAnalysisSummary[]),
+      ]);
       setPatients(list);
+      setAnalyses(analysisList);
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -79,6 +93,15 @@ export function DoctorPatientsView({
       setRefreshing(false);
     }
   }, []);
+
+  const skinAnalysisCount = useMemo(
+    () => analyses.filter((a) => !!a.youcamTaskId).length,
+    [analyses],
+  );
+  const lesionAnalysisCount = useMemo(
+    () => analyses.filter((a) => !a.youcamTaskId).length,
+    [analyses],
+  );
 
   useEffect(() => {
     void load();
@@ -101,6 +124,43 @@ export function DoctorPatientsView({
     );
   }
 
+  if (selectedPatient && youcamFlowOpen) {
+    return (
+      <>
+        <YoucamAnalysisFlow
+          patientName={patientDisplayName(selectedPatient)}
+          onClose={() => setYoucamFlowOpen(false)}
+          onOpenMenu={() => setMenuOpen(true)}
+          onOpenMessages={onOpenMessages}
+        />
+        <AccountDrawer
+          visible={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          onSelect={handleMenuSelect}
+        />
+      </>
+    );
+  }
+
+  if (selectedPatient && selectedAnalysisId) {
+    return (
+      <>
+        <AnalysisDetailView
+          analysisId={selectedAnalysisId}
+          patientName={patientDisplayName(selectedPatient)}
+          onBack={() => setSelectedAnalysisId(null)}
+          onOpenMenu={() => setMenuOpen(true)}
+          onOpenMessages={onOpenMessages}
+        />
+        <AccountDrawer
+          visible={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          onSelect={handleMenuSelect}
+        />
+      </>
+    );
+  }
+
   if (selectedPatient) {
     return (
       <>
@@ -109,6 +169,8 @@ export function DoctorPatientsView({
           onBack={() => setSelectedPatient(null)}
           onOpenMenu={() => setMenuOpen(true)}
           onOpenMessages={onOpenMessages}
+          onOpenAnalysis={(id) => setSelectedAnalysisId(id)}
+          onStartYoucamAnalysis={() => setYoucamFlowOpen(true)}
         />
         <AccountDrawer
           visible={menuOpen}
@@ -180,13 +242,13 @@ export function DoctorPatientsView({
             <View style={styles.metric}>
               <Text style={styles.metricLabel}># Análisis piel</Text>
               <View style={styles.metricCard}>
-                <Text style={styles.metricValue}>—</Text>
+                <Text style={styles.metricValue}>{skinAnalysisCount}</Text>
               </View>
             </View>
             <View style={styles.metric}>
               <Text style={styles.metricLabel}># Análisis Dist.</Text>
               <View style={styles.metricCard}>
-                <Text style={styles.metricValue}>—</Text>
+                <Text style={styles.metricValue}>{lesionAnalysisCount}</Text>
               </View>
             </View>
           </View>
