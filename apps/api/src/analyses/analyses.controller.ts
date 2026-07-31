@@ -61,4 +61,12 @@ export class AnalysesController {
   ) {
     return this.analysesService.confirm(id, dto, user);
   }
+
+  /** Publica el análisis en el historial del paciente (app móvil). */
+  @Patch(':id/share')
+  @UseGuards(RolesGuard)
+  @Roles('doctor', 'admin')
+  share(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.analysesService.shareWithPatient(id, user);
+  }
 }

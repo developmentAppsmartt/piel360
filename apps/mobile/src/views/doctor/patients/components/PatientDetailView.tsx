@@ -14,7 +14,14 @@ import { Icons } from '../../../../components/icons';
 import { useBranding } from '../../../../context/BrandingContext';
 import { ApiError } from '../../../../services/api.client';
 import { patientsService } from '../../../../services/patients.service';
-import type { PatientAnalysisSummary } from '../../../../types/analysis';
+import type {
+  PatientAnalysisSummary,
+  YoucamRawResponse,
+} from '../../../../types/analysis';
+import {
+  parseYoucamMetrics,
+  youcamOverallScore,
+} from '../../../../types/analysis';
 import type { PatientProfile } from '../../../../types/patient';
 import {
   formatPatientDocument,
@@ -67,6 +74,15 @@ function severityColor(
   analysis: PatientAnalysisSummary,
   colors: { error: string; success: string; secondary: string },
 ): string {
+  if (analysis.youcamTaskId) {
+    const metrics = parseYoucamMetrics(
+      analysis.aiRawResponse as YoucamRawResponse | null,
+    );
+    const overall = youcamOverallScore(metrics);
+    if (overall != null && overall < 70) return colors.error;
+    if (overall != null && overall < 85) return '#EAB308';
+    return colors.success;
+  }
   const label = (
     analysis.finalDiagnosis ??
     analysis.aiDiagnosis ??
@@ -91,11 +107,29 @@ function severityColor(
   return colors.success;
 }
 
+function analysisTitle(item: PatientAnalysisSummary): string {
+  const diagnosis =
+    item.finalDiagnosis?.trim() || item.aiDiagnosis?.trim() || '';
+  if (diagnosis) return diagnosis;
+  if (item.youcamTaskId) {
+    const metrics = parseYoucamMetrics(
+      item.aiRawResponse as YoucamRawResponse | null,
+    );
+    const overall = youcamOverallScore(metrics);
+    return overall != null
+      ? `Análisis facial · ${Math.round(overall)} pts`
+      : 'Análisis facial';
+  }
+  return 'Sin diagnóstico';
+}
+
 type PatientDetailViewProps = {
   patient: PatientProfile;
   onBack: () => void;
   onOpenMenu: () => void;
   onOpenMessages?: () => void;
+  onOpenAnalysis?: (analysisId: string) => void;
+  onStartYoucamAnalysis?: () => void;
 };
 
 export function PatientDetailView({
@@ -103,6 +137,8 @@ export function PatientDetailView({
   onBack,
   onOpenMenu,
   onOpenMessages,
+  onOpenAnalysis,
+  onStartYoucamAnalysis,
 }: PatientDetailViewProps) {
   const branding = useBranding();
   const headerStyles = useMemo(
@@ -185,12 +221,14 @@ export function PatientDetailView({
 
           <Pressable
             style={styles.newAnalysisBtn}
-            onPress={() =>
-              Alert.alert(
-                'Nuevo Análisis',
-                'El flujo de análisis se conectará en una próxima iteración.',
-              )
-            }
+            onPress={() => {
+              if (onStartYoucamAnalysis) onStartYoucamAnalysis();
+              else
+                Alert.alert(
+                  'Nuevo Análisis',
+                  'El flujo de análisis se conectará en una próxima iteración.',
+                );
+            }}
           >
             <Text style={styles.newAnalysisText}>Nuevo Análisis</Text>
           </Pressable>
@@ -240,20 +278,12 @@ export function PatientDetailView({
               </View>
             }
             renderItem={({ item }) => {
-              const diagnosis =
-                item.finalDiagnosis?.trim() ||
-                item.aiDiagnosis?.trim() ||
-                'Sin diagnóstico';
+              const title = analysisTitle(item);
               const thumb = item.coloredUrl || item.imageUrl;
               return (
                 <Pressable
                   style={styles.analysisRow}
-                  onPress={() =>
-                    Alert.alert(
-                      diagnosis,
-                      'El detalle del análisis se abrirá en una próxima iteración.',
-                    )
-                  }
+                  onPress={() => onOpenAnalysis?.(item.id)}
                 >
                   <View style={styles.thumb}>
                     {thumb ? (
@@ -273,12 +303,15 @@ export function PatientDetailView({
                         ]}
                       />
                       <Text style={styles.diagnosis} numberOfLines={1}>
-                        {diagnosis}
+                        {title}
                       </Text>
                     </View>
                     <View style={styles.stampRow}>
                       <AppIcon icon={Icons.calendarClock} size={13} color={primary} />
-                      <Text style={styles.stamp}>{formatStamp(item.createdAt)}</Text>
+                      <Text style={styles.stamp}>
+                        {formatStamp(item.createdAt)}
+                        {item.sharedWithPatient ? ' · Compartido' : ''}
+                      </Text>
                     </View>
                   </View>
                   <View style={styles.goBtn}>
