@@ -33,7 +33,7 @@ export function SidebarNav({ items }: { items: ResolvedNavItem[] }) {
             key={item.href}
             href={item.href}
             className={cn(
-              "flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium transition-colors",
+              "flex min-h-11 items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold tracking-tight transition-colors",
               active
                 ? "bg-sidebar-primary text-sidebar-primary-foreground"
                 : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",

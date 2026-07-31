@@ -24,7 +24,7 @@ export function PanelShell({
   }));
 
   return (
-    <div className="flex min-h-full flex-1 bg-muted/30">
+    <div className="flex min-h-full flex-1 bg-[#F5F6FA] dark:bg-background">
       <aside className="hidden w-72 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
         <div className="flex h-16 shrink-0 items-center px-5">
           <Logo />
@@ -54,7 +54,7 @@ export function PanelShell({
         ) : null}
       </aside>
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <PanelHeader
           email={user.email}
           role={user.role}

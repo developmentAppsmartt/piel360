@@ -18,7 +18,7 @@ export default async function DoctorPanelLayout({
     <PanelShell
       nav={doctorNav}
       user={{ email: session.email, role: session.role }}
-      sidebarUser={{ name: "Doctor", subtitle: session.email }}
+      sidebarUser={{ name: session.email, subtitle: "Empresa · Administrador" }}
     >
       {children}
     </PanelShell>

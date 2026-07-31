@@ -1,4 +1,5 @@
 import type { AdminReports } from "@/lib/queries/admin-reports";
+import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 
 const LINE_COLOR = "#3b82f6";
 const CHART_WIDTH = 300;
@@ -13,10 +14,12 @@ const MAX_X_LABELS = 6;
 export function AnalysesTimeSeriesChart({ timeSeries }: { timeSeries: AdminReports["timeSeries"] }) {
   if (timeSeries.length === 0) {
     return (
-      <div className="space-y-3 rounded-lg border border-border p-4">
-        <h2 className="text-sm font-medium text-muted-foreground">Análisis en el tiempo</h2>
+      <ModuleCard className="space-y-3 p-4">
+        <ModuleCardTitle className="text-sm font-medium text-muted-foreground">
+          Análisis en el tiempo
+        </ModuleCardTitle>
         <p className="text-sm text-muted-foreground">Sin datos en el rango seleccionado.</p>
-      </div>
+      </ModuleCard>
     );
   }
 
@@ -33,8 +36,10 @@ export function AnalysesTimeSeriesChart({ timeSeries }: { timeSeries: AdminRepor
   const labelStep = Math.max(1, Math.ceil(points.length / MAX_X_LABELS));
 
   return (
-    <div className="space-y-3 rounded-lg border border-border p-4">
-      <h2 className="text-sm font-medium text-muted-foreground">Análisis en el tiempo</h2>
+    <ModuleCard className="space-y-3 p-4">
+      <ModuleCardTitle className="text-sm font-medium text-muted-foreground">
+        Análisis en el tiempo
+      </ModuleCardTitle>
       <svg
         viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
         preserveAspectRatio="none"
@@ -53,6 +58,6 @@ export function AnalysesTimeSeriesChart({ timeSeries }: { timeSeries: AdminRepor
             <span key={p.period}>{p.period}</span>
           ))}
       </div>
-    </div>
+    </ModuleCard>
   );
 }

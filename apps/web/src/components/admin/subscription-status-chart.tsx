@@ -1,4 +1,5 @@
 import type { AdminReports } from "@/lib/queries/admin-reports";
+import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 
 // Mismos colores ya usados en subscription-stats.tsx para cada estado.
 const BARS: {
@@ -28,8 +29,10 @@ export function SubscriptionStatusChart({
   );
 
   return (
-    <div className="space-y-3 rounded-lg border border-border p-4">
-      <h2 className="text-sm font-medium text-muted-foreground">Estado de suscripciones</h2>
+    <ModuleCard className="space-y-3 p-4">
+      <ModuleCardTitle className="text-sm font-medium text-muted-foreground">
+        Estado de suscripciones
+      </ModuleCardTitle>
       <div className="space-y-3">
         {BARS.map((bar) => {
           const value = subscriptionStatus[bar.key];
@@ -43,11 +46,13 @@ export function SubscriptionStatusChart({
                   style={{ width: `${percent}%`, backgroundColor: bar.color }}
                 />
               </div>
-              <span className="w-8 shrink-0 text-right text-sm font-medium">{value}</span>
+              <span className="w-8 shrink-0 text-right text-sm font-semibold tabular-nums">
+                {value}
+              </span>
             </div>
           );
         })}
       </div>
-    </div>
+    </ModuleCard>
   );
 }

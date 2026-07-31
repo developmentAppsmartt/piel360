@@ -31,6 +31,7 @@ export interface Analysis {
   isValid: boolean;
   aiDiagnosis: string | null;
   aiProbability: number | null;
+  aiRawResponse?: unknown;
   finalDiagnosis: string | null;
   isConfirmed: boolean;
   isCorrected: boolean;

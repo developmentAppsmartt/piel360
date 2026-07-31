@@ -11,6 +11,7 @@ import {
 import { UnitRing } from "@/components/admin/unit-ring";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ModuleCard, ModuleMetric } from "@/components/ui/module-card";
 import { MOCK_CLIENTS, MOCK_UNIT_POOLS } from "@/lib/mocks/admin-bolsa";
 import { cn } from "@/lib/utils";
 
@@ -89,21 +90,15 @@ export default function BolsaClientesPage() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <p className="text-xs text-muted-foreground">Total unidades</p>
-          <p className="mt-2 text-2xl font-bold tabular-nums">
-            {formatInt(pool.total)}
-          </p>
-        </div>
-        <div className="flex items-center justify-between gap-2 rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <ModuleCard className="p-4">
+          <p className="text-xs font-medium text-muted-foreground">Total unidades</p>
+          <ModuleMetric className="mt-2 text-2xl">{formatInt(pool.total)}</ModuleMetric>
+        </ModuleCard>
+        <ModuleCard className="flex items-center justify-between gap-2 p-4">
           <div>
-            <p className="text-xs text-muted-foreground">Unidades usadas</p>
-            <p className="mt-2 text-2xl font-bold tabular-nums">
-              {formatInt(pool.used)}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {usedPct.toFixed(2)}%
-            </p>
+            <p className="text-xs font-medium text-muted-foreground">Unidades usadas</p>
+            <ModuleMetric className="mt-2 text-2xl">{formatInt(pool.used)}</ModuleMetric>
+            <p className="text-xs text-muted-foreground">{usedPct.toFixed(2)}%</p>
           </div>
           <UnitRing
             percent={usedPct}
@@ -111,16 +106,12 @@ export default function BolsaClientesPage() {
             className="size-16"
             progressClassName="stroke-primary"
           />
-        </div>
-        <div className="flex items-center justify-between gap-2 rounded-2xl border border-border bg-card p-4 shadow-sm">
+        </ModuleCard>
+        <ModuleCard className="flex items-center justify-between gap-2 p-4">
           <div>
-            <p className="text-xs text-muted-foreground">Disponibles</p>
-            <p className="mt-2 text-2xl font-bold tabular-nums">
-              {formatInt(pool.available)}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {availPct.toFixed(2)}%
-            </p>
+            <p className="text-xs font-medium text-muted-foreground">Disponibles</p>
+            <ModuleMetric className="mt-2 text-2xl">{formatInt(pool.available)}</ModuleMetric>
+            <p className="text-xs text-muted-foreground">{availPct.toFixed(2)}%</p>
           </div>
           <UnitRing
             percent={availPct}
@@ -128,17 +119,15 @@ export default function BolsaClientesPage() {
             className="size-16"
             progressClassName="stroke-chart-2"
           />
-        </div>
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <p className="text-xs text-muted-foreground">Empresas activas</p>
-          <p className="mt-2 text-2xl font-bold tabular-nums text-emerald-600">
-            24
-          </p>
+        </ModuleCard>
+        <ModuleCard className="p-4">
+          <p className="text-xs font-medium text-muted-foreground">Empresas activas</p>
+          <ModuleMetric className="mt-2 text-2xl text-emerald-600">24</ModuleMetric>
           <p className="text-xs text-muted-foreground">Últimos 30 días</p>
-        </div>
+        </ModuleCard>
       </div>
 
-      <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <ModuleCard className="overflow-hidden p-0">
         <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-sm font-semibold">
             Clientes con planes activos –{" "}
@@ -259,7 +248,7 @@ export default function BolsaClientesPage() {
           </span>
           <span>10 por página</span>
         </div>
-      </section>
+      </ModuleCard>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import type { AdminReports } from "@/lib/queries/admin-reports";
+import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 
 // Paleta categórica fija (nunca ciclada) — distinta de la semántica
 // verde/ámbar/rojo ya reservada para riesgo/estado en risk-chart.tsx y
@@ -29,8 +30,10 @@ export function DiagnosisByClassChart({
   const max = Math.max(...diagnosisByClass.map((d) => d.count), 1);
 
   return (
-    <div className="space-y-3 rounded-lg border border-border p-4">
-      <h2 className="text-sm font-medium text-muted-foreground">Diagnósticos por clase</h2>
+    <ModuleCard className="space-y-3 p-4">
+      <ModuleCardTitle className="text-sm font-medium text-muted-foreground">
+        Diagnósticos por clase
+      </ModuleCardTitle>
       {diagnosisByClass.length === 0 ? (
         <p className="text-sm text-muted-foreground">Sin datos en el rango seleccionado.</p>
       ) : (
@@ -49,12 +52,14 @@ export function DiagnosisByClassChart({
                     style={{ width: `${percent}%`, backgroundColor: color }}
                   />
                 </div>
-                <span className="w-8 shrink-0 text-right text-sm font-medium">{item.count}</span>
+                <span className="w-8 shrink-0 text-right text-sm font-semibold tabular-nums">
+                  {item.count}
+                </span>
               </div>
             );
           })}
         </div>
       )}
-    </div>
+    </ModuleCard>
   );
 }

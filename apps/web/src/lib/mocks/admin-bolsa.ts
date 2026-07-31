@@ -16,6 +16,7 @@ export type ActivityItem = {
   plan: string;
   deltaLabel: string;
   when: string;
+  kind: "purchase" | "clinic";
 };
 
 export type ClientRow = {
@@ -76,6 +77,7 @@ export const MOCK_ACTIVITY: ActivityItem[] = [
     plan: "Plan Estético Pro",
     deltaLabel: "-500 unidades estéticas",
     when: "Hace 12 min",
+    kind: "purchase",
   },
   {
     id: "2",
@@ -83,6 +85,7 @@ export const MOCK_ACTIVITY: ActivityItem[] = [
     plan: "Plan Dermatológico",
     deltaLabel: "-200 unidades derm.",
     when: "Hace 45 min",
+    kind: "clinic",
   },
   {
     id: "3",
@@ -90,6 +93,7 @@ export const MOCK_ACTIVITY: ActivityItem[] = [
     plan: "Plan Mixto",
     deltaLabel: "-150 unidades estéticas",
     when: "Hace 2 h",
+    kind: "purchase",
   },
   {
     id: "4",
@@ -97,6 +101,7 @@ export const MOCK_ACTIVITY: ActivityItem[] = [
     plan: "Plan Estético Pro",
     deltaLabel: "-80 unidades estéticas",
     when: "Hace 5 h",
+    kind: "clinic",
   },
 ];
 
@@ -231,6 +236,14 @@ export const MOCK_COMPANY_CONSUMPTION = {
   ],
   rows: [
     {
+      date: "07/07/2026",
+      aesthetic: 4,
+      derm: 1,
+      total: 5,
+      patients: 4,
+      professional: "Dra. Ana López",
+    },
+    {
       date: "06/07/2026",
       aesthetic: 5,
       derm: 3,
@@ -252,7 +265,7 @@ export const MOCK_COMPANY_CONSUMPTION = {
       derm: 3,
       total: 11,
       patients: 9,
-      professional: "Dr. Carlos Ruiz",
+      professional: "Dr. Carlos Méndez",
     },
     {
       date: "03/07/2026",
@@ -276,7 +289,7 @@ export const MOCK_COMPANY_CONSUMPTION = {
       derm: 1,
       total: 5,
       patients: 5,
-      professional: "Dr. Carlos Ruiz",
+      professional: "Dr. Carlos Méndez",
     },
   ] as DailyConsumption[],
 };

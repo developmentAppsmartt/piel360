@@ -6,10 +6,13 @@ import { AnalysisResultsView } from "@/components/analyses/analysis-results-view
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAnalysis } from "@/lib/queries/analyses";
+import { useMyPatient } from "@/lib/queries/patients";
 
-export default function AnalisisDetallePage() {
-  const { id: patientId, analysisId } = useParams<{ id: string; analysisId: string }>();
+export default function PatientAnalisisDetallePage() {
+  const { analysisId } = useParams<{ analysisId: string }>();
   const analysis = useAnalysis(analysisId);
+  const me = useMyPatient();
+  const patientId = analysis.data?.patientId ?? me.data?.id ?? "";
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -18,7 +21,9 @@ export default function AnalisisDetallePage() {
           <div className="flex items-center gap-2">
             <h1>Análisis</h1>
             {analysis.data && (
-              <Badge variant="outline">{analysis.data.youcamTaskId ? "YouCam" : "Skiniver"}</Badge>
+              <Badge variant="outline">
+                {analysis.data.youcamTaskId ? "YouCam" : "Skiniver"}
+              </Badge>
             )}
           </div>
           {analysis.data && (
@@ -33,13 +38,26 @@ export default function AnalisisDetallePage() {
         <Button
           variant="outline"
           nativeButton={false}
-          render={<Link href={`/doctor/pacientes/${patientId}`} />}
+          render={<Link href="/patient/analisis" />}
         >
-          Volver a la ficha
+          Volver
         </Button>
       </div>
 
-      <AnalysisResultsView analysisId={analysisId} patientId={patientId} />
+      {patientId ? (
+        <AnalysisResultsView
+          analysisId={analysisId}
+          patientId={patientId}
+          hideConfirm
+          patientName={
+            me.data
+              ? `${me.data.firstName} ${me.data.lastName}`.trim()
+              : undefined
+          }
+        />
+      ) : (
+        <p className="text-muted-foreground">Cargando...</p>
+      )}
     </div>
   );
 }
