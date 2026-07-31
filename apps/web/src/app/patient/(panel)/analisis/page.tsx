@@ -24,7 +24,12 @@ export default function AnalisisPage() {
       {error && !(error instanceof ApiError && error.status === 401) && (
         <p className="text-destructive">No se pudieron cargar tus análisis.</p>
       )}
-      {data && <AnalysesTable analyses={data} getHref={() => null} />}
+      {data && (
+        <AnalysesTable
+          analyses={data}
+          getHref={(row) => `/patient/analisis/${row.id}`}
+        />
+      )}
     </div>
   );
 }

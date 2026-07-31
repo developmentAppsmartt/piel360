@@ -2,8 +2,8 @@ import Link from "next/link";
 import type { Subscription } from "@/lib/queries/subscriptions";
 
 const PROVIDER_LABELS: Record<string, string> = {
-  skiniver: "Skiniver (análisis de piel)",
-  youcam: "YouCam (análisis facial)",
+  youcam: "Análisis de piel estéticos",
+  skiniver: "Análisis de imágenes dermatológicas",
 };
 
 /** Versión compacta de la barra de progreso de consumo/page.tsx, para el

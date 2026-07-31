@@ -239,7 +239,7 @@ export default function PatientDashboardPage() {
               return (
                 <li key={a.id}>
                   <Link
-                    href={`/patient/analisis?id=${a.id}`}
+                    href={`/patient/analisis/${a.id}`}
                     className="flex items-center gap-3 px-3 py-3 transition-colors hover:bg-muted/50"
                   >
                     <div className="size-14 shrink-0 overflow-hidden rounded-lg bg-muted">

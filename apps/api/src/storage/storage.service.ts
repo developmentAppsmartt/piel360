@@ -21,10 +21,17 @@ export class StorageService {
 
   constructor(private readonly config: ConfigService) {
     this.bucket = this.config.getOrThrow<string>('S3_BUCKET');
+    const endpoint = this.config.get<string>('S3_ENDPOINT') || undefined;
+    // Path-style es útil para MinIO/R2; en AWS S3 (*.amazonaws.com) el estilo
+    // virtual-hosted es el recomendado y evita firmas/URL raras al servir máscaras.
+    const isAws =
+      !endpoint ||
+      endpoint.includes('amazonaws.com') ||
+      endpoint.includes('amazonaws.com.cn');
     this.client = new S3Client({
       region: this.config.getOrThrow<string>('S3_REGION'),
-      endpoint: this.config.get<string>('S3_ENDPOINT') || undefined,
-      forcePathStyle: true,
+      endpoint,
+      forcePathStyle: !isAws,
       credentials: {
         accessKeyId: this.config.getOrThrow<string>('S3_ACCESS_KEY'),
         secretAccessKey: this.config.getOrThrow<string>('S3_SECRET_KEY'),

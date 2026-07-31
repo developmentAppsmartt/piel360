@@ -48,6 +48,11 @@ export interface AnalysisDetail {
   // muerto (placeholder interno) que no debe mostrarse.
   hasOriginalPhoto: boolean;
   createdAt: string;
+  patient?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
 }
 
 export interface CreateAnalysisInput {

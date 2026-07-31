@@ -6,6 +6,7 @@ import { AnalysesTable } from "@/components/analyses/analyses-table";
 import { RiskChart } from "@/components/admin/risk-chart";
 import { SubscriptionStats } from "@/components/admin/subscription-stats";
 import { Button } from "@/components/ui/button";
+import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import { useAdminDashboardStats } from "@/lib/queries/admin-dashboard";
 import { useAnalyses } from "@/lib/queries/analyses";
 
@@ -51,8 +52,8 @@ export default function AdminDashboardPage() {
         </>
       )}
 
-      <div className="space-y-2">
-        <h2 className="text-lg font-medium">Últimos análisis</h2>
+      <ModuleCard className="space-y-4">
+        <ModuleCardTitle>Últimos análisis</ModuleCardTitle>
         {analyses.isLoading && (
           <p className="text-muted-foreground">Cargando...</p>
         )}
@@ -62,7 +63,7 @@ export default function AdminDashboardPage() {
         {analyses.data && (
           <AnalysesTable analyses={latestAnalyses} getHref={() => null} />
         )}
-      </div>
+      </ModuleCard>
     </div>
   );
 }

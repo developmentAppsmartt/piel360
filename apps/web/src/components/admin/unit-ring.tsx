@@ -6,12 +6,14 @@ export function UnitRing({
   className,
   trackClassName,
   progressClassName,
+  decimals = 0,
 }: {
   percent: number;
   label: string;
   className?: string;
   trackClassName?: string;
   progressClassName?: string;
+  decimals?: number;
 }) {
   const r = 36;
   const c = 2 * Math.PI * r;
@@ -42,7 +44,9 @@ export function UnitRing({
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <span className="text-sm font-bold tabular-nums">{clamped.toFixed(0)}%</span>
+        <span className="text-sm font-bold tabular-nums">
+          {clamped.toFixed(decimals)}%
+        </span>
         <span className="text-[10px] text-muted-foreground">{label}</span>
       </div>
     </div>

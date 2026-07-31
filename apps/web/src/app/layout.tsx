@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { Geist_Mono, Manrope } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
 
 /**
  * Tipografía global Piel360 (admin / doctor / patient / landings).
- * Plus Jakarta Sans: sans moderna alineada a los mockups del backoffice.
+ * Manrope: sans geométrica moderna alineada al dashboard de referencia.
  */
-const fontSans = Plus_Jakarta_Sans({
+const fontSans = Manrope({
   variable: "--font-piel360-sans",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
