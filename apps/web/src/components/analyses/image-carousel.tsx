@@ -7,13 +7,15 @@ export function ImageCarousel({
   images,
   backgroundUrl,
 }: {
-  images: { label: string; url: string | null }[];
+  images: { label: string; url: string | null; subtitle?: string }[];
   // Foto original detrás de cada imagen del carrusel — usado por YouCam con
   // enableMaskOverlay:false, donde cada máscara es un .png crudo (transparente
   // salvo donde aplica) que necesita la foto de fondo para tener sentido.
   backgroundUrl?: string | null;
 }) {
-  const available = images.filter((img): img is { label: string; url: string } => !!img.url);
+  const available = images.filter(
+    (img): img is { label: string; url: string; subtitle?: string } => !!img.url,
+  );
   const [index, setIndex] = useState(0);
 
   if (available.length === 0) {
@@ -49,7 +51,15 @@ export function ImageCarousel({
         >
           Anterior
         </Button>
-        <span className="text-sm text-muted-foreground">{current.label}</span>
+        <span className="text-center text-sm text-muted-foreground">
+          {current.label}
+          {current.subtitle && (
+            <>
+              <br />
+              <span className="tabular-nums">{current.subtitle}</span>
+            </>
+          )}
+        </span>
         <Button
           type="button"
           variant="outline"
