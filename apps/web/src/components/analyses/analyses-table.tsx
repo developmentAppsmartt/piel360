@@ -34,7 +34,11 @@ const columns = [
   }),
   columnHelper.accessor("createdAt", {
     header: "Fecha",
-    cell: (info) => new Date(info.getValue()).toLocaleDateString("es-CO"),
+    cell: (info) =>
+      new Date(info.getValue()).toLocaleString("es-CO", {
+        dateStyle: "short",
+        timeStyle: "short",
+      }),
   }),
 ];
 
