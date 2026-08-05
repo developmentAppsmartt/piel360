@@ -7,29 +7,39 @@ import { DiagnosisDetailDialog } from "@/components/analyses/diagnosis-detail-di
 import { DiagnosisList } from "@/components/analyses/diagnosis-list";
 import { ImageCarousel } from "@/components/analyses/image-carousel";
 import { RiskGauge } from "@/components/analyses/risk-gauge";
+import { YoucamProgressView } from "@/components/analyses/youcam-progress-view";
+import { YoucamReportView } from "@/components/analyses/youcam-report-view";
+import { YoucamResultsSection } from "@/components/analyses/youcam-results-section";
+import { ModuleCard } from "@/components/ui/module-card";
 import { useAnalysis, useConfirmAnalysis } from "@/lib/queries/analyses";
-import { youcamMaskLabel } from "@/lib/youcam-metric-labels";
 
-/** Vista de resultados de un análisis (Skiniver o YouCam) — extraída de los
- * wizards de creación para reusarla también al revisar un análisis ya
- * existente (`pacientes/[id]/analisis/[analysisId]`). `onConfirmed` es
- * opcional: los wizards redirigen tras confirmar, la vista de detalle se
- * queda en la misma página (el estado se actualiza solo vía react-query). */
+type YoucamSubView = "detail" | "progress" | "report";
+
+/** Vista de resultados de un análisis (Skiniver o YouCam) — alineada a mobile.
+ * `hideConfirm` oculta el formulario de confirmación (flujo paciente). */
 export function AnalysisResultsView({
   analysisId,
   patientId,
   onConfirmed,
+  hideConfirm = false,
+  patientName,
 }: {
   analysisId: string;
   patientId: string;
   onConfirmed?: () => void;
+  hideConfirm?: boolean;
+  patientName?: string;
 }) {
   const analysis = useAnalysis(analysisId);
   const confirmAnalysis = useConfirmAnalysis(analysisId, patientId);
-  const [selectedDiagnosis, setSelectedDiagnosis] = useState<SkiniverDiagnosisCandidate | null>(null);
+  const [selectedDiagnosis, setSelectedDiagnosis] =
+    useState<SkiniverDiagnosisCandidate | null>(null);
+  const [youcamView, setYoucamView] = useState<YoucamSubView>("detail");
 
   const isYoucam = !!analysis.data?.youcamTaskId;
-  const prediction = !isYoucam ? (analysis.data?.aiRawResponse as SkiniverPrediction | undefined) : undefined;
+  const prediction = !isYoucam
+    ? (analysis.data?.aiRawResponse as SkiniverPrediction | undefined)
+    : undefined;
   const youcamError =
     isYoucam &&
     analysis.data?.aiRawResponse &&
@@ -39,49 +49,92 @@ export function AnalysisResultsView({
       ? analysis.data.aiRawResponse.message
       : null;
 
-  if (analysis.isLoading) return <p className="text-muted-foreground">Cargando resultados...</p>;
+  if (analysis.isLoading) {
+    return <p className="text-muted-foreground">Cargando resultados...</p>;
+  }
   if (!analysis.data) return null;
+
+  if (isYoucam && analysis.data.isValid && youcamView === "progress") {
+    return (
+      <YoucamProgressView
+        analysis={analysis.data}
+        onBack={() => setYoucamView("detail")}
+      />
+    );
+  }
+
+  if (isYoucam && analysis.data.isValid && youcamView === "report") {
+    return (
+      <YoucamReportView
+        analysis={analysis.data}
+        patientName={patientName}
+        onBack={() => setYoucamView("detail")}
+      />
+    );
+  }
+
+  const topDiagnosis = prediction?.topn?.[0];
+  const riskLabel = prediction?.risk ?? "—";
 
   return (
     <div className="space-y-6">
       {isYoucam && !analysis.data.isValid && youcamError && (
         <p className="text-destructive">
-          El análisis no se pudo procesar: {youcamError}. Intenta nuevamente con una foto de mejor
-          resolución.
+          El análisis no se pudo procesar: {youcamError}. Intenta nuevamente con
+          una foto de mejor resolución.
         </p>
       )}
 
       {isYoucam && !analysis.data.isValid && !youcamError && (
         <p className="text-muted-foreground">
-          Procesando el análisis facial... Esto puede tardar varios minutos — puedes cerrar esta
-          pantalla y volver más tarde.
+          Procesando el análisis facial... Esto puede tardar varios minutos —
+          puedes cerrar esta pantalla y volver más tarde.
         </p>
       )}
 
       {isYoucam && analysis.data.isValid && (
-        <>
-          {analysis.data.masks.length > 0 ? (
-            <ImageCarousel
-              images={analysis.data.masks.map((mask) => ({
-                label: youcamMaskLabel(mask.type, mask.region),
-                url: mask.url,
-              }))}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              El análisis se completó, pero no se generaron máscaras visuales.
-            </p>
-          )}
-        </>
+        <YoucamResultsSection
+          analysis={analysis.data}
+          onOpenProgress={() => setYoucamView("progress")}
+          onOpenReport={() => setYoucamView("report")}
+        />
       )}
 
       {!isYoucam && (
         <>
           <RiskGauge
-            percent={(prediction?.high_risk_prob ?? analysis.data.aiProbability ?? 0) * 100}
-            riskLabel={prediction?.risk ?? "—"}
+            percent={
+              (prediction?.high_risk_prob ?? analysis.data.aiProbability ?? 0) *
+              100
+            }
+            riskLabel={riskLabel}
           />
-          {prediction?.topn && <DiagnosisList items={prediction.topn} onSelect={setSelectedDiagnosis} />}
+
+          {topDiagnosis ? (
+            <ModuleCard className="flex items-center gap-4 p-4">
+              <div className="flex size-16 shrink-0 items-center justify-center rounded-full border-4 border-primary text-lg font-bold text-primary">
+                {Math.round(
+                  (topDiagnosis.prob <= 1
+                    ? topDiagnosis.prob * 100
+                    : topDiagnosis.prob),
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground">
+                  {topDiagnosis.desease ?? "Diagnóstico principal"}
+                </p>
+                <p className="truncate text-base font-semibold">
+                  {topDiagnosis.class}
+                </p>
+                {topDiagnosis.risk ? (
+                  <p className="text-sm text-muted-foreground">
+                    Riesgo: {topDiagnosis.risk}
+                  </p>
+                ) : null}
+              </div>
+            </ModuleCard>
+          ) : null}
+
           <ImageCarousel
             images={[
               { label: "Original", url: analysis.data.imageUrl },
@@ -89,14 +142,40 @@ export function AnalysisResultsView({
               { label: "Máscara", url: analysis.data.maskedUrl },
             ]}
           />
+
+          <ModuleCard className="border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/30">
+            <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+              Nivel de Riesgo: {riskLabel}
+            </p>
+            <p className="mt-1 text-sm text-amber-800/90 dark:text-amber-200/80">
+              Este resultado es orientativo. Consulta con un dermatólogo y evita
+              la automedicación.
+            </p>
+          </ModuleCard>
+
+          {prediction?.topn && prediction.topn.length > 0 ? (
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold">
+                Lee más sobre la enfermedad
+              </h3>
+              <DiagnosisList
+                items={prediction.topn}
+                onSelect={setSelectedDiagnosis}
+              />
+            </div>
+          ) : null}
         </>
       )}
 
-      {(!isYoucam || analysis.data.isValid) &&
+      {!hideConfirm &&
+        (!isYoucam || analysis.data.isValid) &&
         (analysis.data.isConfirmed ? (
           <p className="text-sm text-muted-foreground">
-            {isYoucam ? "Análisis" : "Diagnóstico"} {analysis.data.isCorrected ? "corregido" : "confirmado"}
-            {analysis.data.finalDiagnosis ? `: ${analysis.data.finalDiagnosis}` : "."}
+            {isYoucam ? "Análisis" : "Diagnóstico"}{" "}
+            {analysis.data.isCorrected ? "corregido" : "confirmado"}
+            {analysis.data.finalDiagnosis
+              ? `: ${analysis.data.finalDiagnosis}`
+              : "."}
           </p>
         ) : (
           <ConfirmAnalysisForm
@@ -109,7 +188,10 @@ export function AnalysisResultsView({
         ))}
 
       {!isYoucam && (
-        <DiagnosisDetailDialog item={selectedDiagnosis} onClose={() => setSelectedDiagnosis(null)} />
+        <DiagnosisDetailDialog
+          item={selectedDiagnosis}
+          onClose={() => setSelectedDiagnosis(null)}
+        />
       )}
     </div>
   );

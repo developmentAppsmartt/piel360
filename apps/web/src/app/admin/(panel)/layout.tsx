@@ -16,7 +16,12 @@ export default async function AdminPanelLayout({
   if (!session) redirect("/admin/login");
 
   return (
-    <PanelShell nav={adminNav} user={{ email: session.email, role: session.role }}>
+    <PanelShell
+      nav={adminNav}
+      user={{ email: session.email, role: session.role }}
+      notificationCount={12}
+      sidebarUser={{ name: "Super Admin", subtitle: "Acceso total" }}
+    >
       {children}
     </PanelShell>
   );

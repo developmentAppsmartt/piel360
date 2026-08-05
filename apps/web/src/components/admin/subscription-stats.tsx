@@ -1,4 +1,5 @@
 import type { AdminDashboardStats } from "@/lib/queries/admin-dashboard";
+import { ModuleCard, ModuleMetric } from "@/components/ui/module-card";
 
 const STATS: {
   key: keyof AdminDashboardStats["subscriptions"];
@@ -26,15 +27,21 @@ const STATS: {
   },
 ];
 
-export function SubscriptionStats({ subscriptions }: { subscriptions: AdminDashboardStats["subscriptions"] }) {
+export function SubscriptionStats({
+  subscriptions,
+}: {
+  subscriptions: AdminDashboardStats["subscriptions"];
+}) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       {STATS.map((stat) => (
-        <div key={stat.key} className="space-y-1 rounded-lg border border-border p-4">
+        <ModuleCard key={stat.key} className="space-y-2 p-4">
           <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
-          <p className={`text-3xl font-semibold ${stat.colorClass}`}>{subscriptions[stat.key]}</p>
+          <ModuleMetric className={stat.colorClass}>
+            {subscriptions[stat.key]}
+          </ModuleMetric>
           <p className="text-xs text-muted-foreground">{stat.description}</p>
-        </div>
+        </ModuleCard>
       ))}
     </div>
   );

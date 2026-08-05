@@ -42,7 +42,17 @@ export interface AnalysisDetail {
   coloredUrl: string | null;
   maskedUrl: string | null;
   masks: { type: string; region?: string; url: string }[];
+  // true solo si se guardó la selfie original aparte (YouCam con
+  // enableMaskOverlay: false) — en ese caso imageUrl es una foto real que
+  // sirve de fondo para las máscaras crudas; si no, imageUrl es un link
+  // muerto (placeholder interno) que no debe mostrarse.
+  hasOriginalPhoto: boolean;
   createdAt: string;
+  patient?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
 }
 
 export interface CreateAnalysisInput {

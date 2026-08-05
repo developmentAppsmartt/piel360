@@ -1,10 +1,17 @@
 "use client";
 
+import { YOUCAM_HD_MIN_SHORT_SIDE_PX, YOUCAM_UPSCALE_MIN_SHORT_SIDE_PX } from "@piel360/shared";
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
 
 const YMK_SDK_URL = "https://plugins-media.makeupar.com/v2.5-camera-kit/sdk.js";
-const MIN_IDEAL_HEIGHT = 1080;
+// Piso real de bloqueo — el mismo que usa el backend (youcam-analyses.service.ts):
+// por debajo de esto no se intenta escalar la imagen, es una foto genuinamente
+// de baja calidad. Entre este piso y YOUCAM_HD_MIN_SHORT_SIDE_PX (1080, el
+// mínimo real de YouCam), el backend redimensiona en vez de rechazar — bloquear
+// acá con el mismo umbral que el backend evita rechazar en el navegador algo
+// que el servidor de todos modos aceptaría.
+const MIN_CAPTURE_SHORT_SIDE = YOUCAM_UPSCALE_MIN_SHORT_SIDE_PX;
 
 interface YMKCapturedResult {
   images: { image: string; width: number; height: number }[];
@@ -48,11 +55,14 @@ export function YoucamCapture({
   const [lowResWarning, setLowResWarning] = useState(false);
   const [cameraError, setCameraError] = useState(false);
   const [captureRejected, setCaptureRejected] = useState(false);
+  const [rejectedResolution, setRejectedResolution] = useState<string | null>(null);
 
   useEffect(() => {
     if (!sdkReady || !window.YMK || !containerRef.current) return;
     const YMK = window.YMK;
-    const { width, height } = containerRef.current.getBoundingClientRect();
+    const rect = containerRef.current.getBoundingClientRect();
+    const containerWidth = Math.round(rect.width) || 360;
+    const containerHeight = Math.max(480, Math.round(rect.height));
 
     YMK.init({
       faceDetectionMode: "skincare",
@@ -61,49 +71,36 @@ export function YoucamCapture({
       // en la documentación pública del SDK Camera Kit: 'esp' es correcto
       // para español (no 'es').
       language: "esp",
-      qualityLevel: "relaxed",
+      qualityLevel: "relaxed", // Configurado según docs/js-camera-kit.MD
       videoQuality: "1080p",
       disableCameraResolutionCheck: true,
-      width: Math.round(width) || 640,
-      height: Math.round(height) || 480,
+      width: containerWidth,
+      height: containerHeight,
     });
 
     YMK.addEventListener("faceDetectionCaptured", (result) => {
       const captured = result?.images?.[0];
       if (!captured?.image) return;
 
-      // A diferencia del chequeo de `cameraOpened` (que solo inspecciona el
-      // stream de video en vivo, una aproximación), acá el SDK ya nos da el
-      // ancho/alto reales de la foto capturada — un iPad con cámara excelente
-      // puede igual negociar una resolución menor a la pedida (comportamiento
-      // conocido de getUserMedia en Safari/iOS), y `disableCameraResolutionCheck`
-      // deja que el SDK siga adelante sin avisar. Con este dato sí sabemos con
-      // certeza que la foto va a fallar la validación del backend
-      // (youcam-analyses.service.ts, mínimo 1080px de lado corto) — mejor
-      // avisar y dejar reintentar que gastar la llamada a YouCam en una foto
-      // condenada a fallar.
-      if (Math.min(captured.width, captured.height) < MIN_IDEAL_HEIGHT) {
+      if (Math.min(captured.width, captured.height) < MIN_CAPTURE_SHORT_SIDE) {
+        setRejectedResolution(`${captured.width}×${captured.height}`);
         setCaptureRejected(true);
         return;
       }
       setCaptureRejected(false);
+      setRejectedResolution(null);
       dataUrlToBlob(captured.image).then(onCapture);
     });
 
     YMK.addEventListener("cameraOpened", () => {
-      // Mismo chequeo que el Laravel viejo — solo advierte, no bloquea
-      // (pedido del cliente: "degradar con gracia, no bloquear el flujo").
       const video = containerRef.current?.querySelector("video");
-      if (video && video.videoHeight && video.videoHeight < MIN_IDEAL_HEIGHT) {
+      if (video && video.videoHeight && video.videoHeight < YOUCAM_HD_MIN_SHORT_SIDE_PX) {
         setLowResWarning(true);
       }
     });
 
     YMK.addEventListener("cameraFailed", () => setCameraError(true));
 
-    // Documentado en docs/js-camera-kit.MD: "Fired when the device resolution
-    // does not meet the minimum requirements for the selected mode" — no se
-    // escuchaba en absoluto antes de este fix.
     YMK.addEventListener("unsupportedResolution", () => setCaptureRejected(true));
 
     YMK.openCameraKit();
@@ -125,8 +122,8 @@ export function YoucamCapture({
       )}
       {captureRejected && !cameraError && (
         <p className="text-sm text-destructive">
-          La foto capturada quedó en muy baja resolución para el análisis. Verifica la
-          iluminación y la estabilidad de la cámara, y vuelve a intentarlo.
+          La foto capturada quedó en muy baja resolución para el análisis
+          {rejectedResolution ? ` (${rejectedResolution})` : ""}. Verifica la iluminación y la estabilidad de la cámara, y vuelve a intentarlo.
         </p>
       )}
       {lowResWarning && !cameraError && !captureRejected && (
@@ -136,7 +133,11 @@ export function YoucamCapture({
         </p>
       )}
 
-      <div id="YMK-module" ref={containerRef} className="h-96 w-full rounded-lg border border-border bg-muted" />
+      <div
+        id="YMK-module"
+        ref={containerRef}
+        className="relative h-[480px] w-full overflow-hidden rounded-lg border border-border bg-muted"
+      />
     </div>
   );
 }

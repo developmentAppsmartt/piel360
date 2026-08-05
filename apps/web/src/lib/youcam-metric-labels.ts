@@ -1,6 +1,4 @@
-import type { YouCamAction } from "@piel360/shared";
-
-export const YOUCAM_METRIC_LABELS: Record<YouCamAction, string> = {
+export const YOUCAM_METRIC_LABELS: Record<string, string> = {
   hd_redness: "Enrojecimiento",
   hd_oiliness: "Grasa",
   hd_age_spot: "Manchas de edad",
@@ -17,11 +15,15 @@ export const YOUCAM_METRIC_LABELS: Record<YouCamAction, string> = {
   hd_wrinkle: "Arrugas",
   hd_tear_trough: "Surco lagrimal",
   hd_skin_type: "Tipo de piel",
+  all: "Puntuación global",
+  skin_age: "Edad de la piel",
+  resize_image: "Imagen redimensionada",
 };
 
 // Algunas métricas (hd_pore, hd_wrinkle, hd_skin_type) traen varias regiones
-// bajo el mismo `type` — se usa para distinguirlas en el carrusel.
-const YOUCAM_REGION_LABELS: Record<string, string> = {
+// bajo el mismo `type` — se usa para distinguirlas en el carrusel y en el
+// selector de subcategorías de YoucamResultsSection.
+export const YOUCAM_REGION_LABELS: Record<string, string> = {
   whole: "General",
   forehead: "Frente",
   nose: "Nariz",
@@ -35,8 +37,12 @@ const YOUCAM_REGION_LABELS: Record<string, string> = {
   u_zone: "Zona U",
 };
 
+export function youcamRegionLabel(region: string): string {
+  return YOUCAM_REGION_LABELS[region] ?? region;
+}
+
 export function youcamMaskLabel(type: string, region?: string): string {
-  const base = YOUCAM_METRIC_LABELS[type as keyof typeof YOUCAM_METRIC_LABELS] ?? type;
+  const base = YOUCAM_METRIC_LABELS[type] ?? type;
   if (!region) return base;
-  return `${base} — ${YOUCAM_REGION_LABELS[region] ?? region}`;
+  return `${base} — ${youcamRegionLabel(region)}`;
 }

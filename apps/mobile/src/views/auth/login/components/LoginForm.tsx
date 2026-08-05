@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   Text,
   TextInput,
@@ -21,7 +20,7 @@ type LoginFormProps = {
 };
 
 export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const branding = useBranding();
   const styles = useMemo(() => createLoginStyles(branding.colors), [branding.colors]);
 
@@ -66,20 +65,43 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
     }
   }
 
+  async function onGoogleSignIn() {
+    setError(null);
+    if (!captcha || !terms) {
+      setError('Marca “No soy un robot” y acepta los términos.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await loginWithGoogle('patient');
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 499) {
+        // Usuario canceló el sheet de Google — sin mensaje de error.
+        return;
+      }
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : 'No se pudo iniciar sesión con Google.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <View>
       <View style={styles.methodStack}>
         <Pressable
           style={styles.methodBtn}
-          onPress={() =>
-            Alert.alert(
-              'Google',
-              'El inicio con Google se conectará en una próxima iteración. Usa email por ahora.',
-            )
-          }
+          onPress={onGoogleSignIn}
           disabled={submitting}
         >
-          <AppIcon icon={Icons.google} size={20} color="#DB4437" />
+          {submitting ? (
+            <ActivityIndicator color="#DB4437" />
+          ) : (
+            <AppIcon icon={Icons.google} size={20} color="#DB4437" />
+          )}
           <Text style={styles.methodBtnText}>Continuar con Google</Text>
         </Pressable>
       </View>

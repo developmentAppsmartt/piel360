@@ -2,20 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { SkiniverDiagnosisCandidate, SkiniverPrediction } from "@piel360/shared";
+import { AnalysisResultsView } from "@/components/analyses/analysis-results-view";
 import { BodySelector } from "@/components/analyses/body-selector";
-import { DiagnosisDetailDialog } from "@/components/analyses/diagnosis-detail-dialog";
-import { DiagnosisList } from "@/components/analyses/diagnosis-list";
-import { ImageCarousel } from "@/components/analyses/image-carousel";
 import { PhotoCapture } from "@/components/analyses/photo-capture";
-import { RiskGauge } from "@/components/analyses/risk-gauge";
 import { YoucamCapture } from "@/components/analyses/youcam-capture";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-error";
-import { useAnalysis, useCreateAnalysis } from "@/lib/queries/analyses";
+import { useCreateAnalysis } from "@/lib/queries/analyses";
 import { useMyPatient } from "@/lib/queries/patients";
 import { useCreateYoucamAnalysis } from "@/lib/queries/youcam";
-import { youcamMaskLabel } from "@/lib/youcam-metric-labels";
 
 type Provider = "skiniver" | "youcam";
 type Step = "elegir" | "consentimiento" | "captura" | "region" | "enviar" | "resultados";
@@ -37,15 +32,11 @@ export default function AutoAnalisisPage() {
   const [bodySelection, setBodySelection] = useState<BodySelection | null>(null);
   const [enableMaskOverlay, setEnableMaskOverlay] = useState(true);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
-  const [selectedDiagnosis, setSelectedDiagnosis] = useState<SkiniverDiagnosisCandidate | null>(null);
 
   const createSkiniverAnalysis = useCreateAnalysis();
   const createYoucamAnalysis = useCreateYoucamAnalysis();
-  const analysis = useAnalysis(analysisId ?? "");
 
   const createAnalysis = provider === "youcam" ? createYoucamAnalysis : createSkiniverAnalysis;
-  const prediction =
-    provider === "skiniver" ? (analysis.data?.aiRawResponse as SkiniverPrediction | undefined) : undefined;
 
   function chooseProvider(next: Provider) {
     setProvider(next);
@@ -81,8 +72,8 @@ export default function AutoAnalisisPage() {
   if (!patient.data) return <p className="text-destructive">No se pudo cargar tu perfil.</p>;
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-semibold">Auto-análisis</h1>
+    <div className="mx-auto max-w-3xl space-y-6">
+      <h1>Auto-análisis</h1>
 
       {step === "elegir" && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -208,65 +199,27 @@ export default function AutoAnalisisPage() {
         </div>
       )}
 
-      {step === "resultados" && analysisId && (
+      {step === "resultados" && analysisId && patient.data && (
         <div className="space-y-6">
-          {analysis.isLoading && <p className="text-muted-foreground">Cargando resultados...</p>}
-
-          {provider === "youcam" && analysis.data && !analysis.data.isValid && (
-            <p className="text-muted-foreground">
-              Procesando tu análisis facial... Esto puede tardar varios minutos — puedes cerrar
-              esta pantalla y volver más tarde desde &quot;Mis análisis&quot;.
+          <AnalysisResultsView
+            analysisId={analysisId}
+            patientId={patient.data.id}
+            hideConfirm
+            patientName={`${patient.data.firstName} ${patient.data.lastName}`.trim()}
+          />
+          <div className="space-y-2 rounded-lg border border-border bg-muted/50 p-4">
+            <p className="text-sm">
+              Tu análisis quedó registrado. Tu doctor lo revisará y confirmará el
+              diagnóstico.
             </p>
-          )}
-
-          {provider === "youcam" && analysis.data?.isValid && (
-            <>
-              {analysis.data.masks.length > 0 ? (
-                <ImageCarousel
-                  images={analysis.data.masks.map((mask) => ({
-                    label: youcamMaskLabel(mask.type, mask.region),
-                    url: mask.url,
-                  }))}
-                />
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  El análisis se completó, pero no se generaron máscaras visuales.
-                </p>
-              )}
-            </>
-          )}
-
-          {provider === "skiniver" && analysis.data && (
-            <>
-              <RiskGauge
-                percent={(prediction?.high_risk_prob ?? analysis.data.aiProbability ?? 0) * 100}
-                riskLabel={prediction?.risk ?? "—"}
-              />
-              {prediction?.topn && (
-                <DiagnosisList items={prediction.topn} onSelect={setSelectedDiagnosis} />
-              )}
-              <ImageCarousel
-                images={[
-                  { label: "Original", url: analysis.data.imageUrl },
-                  { label: "Coloreada", url: analysis.data.coloredUrl },
-                  { label: "Máscara", url: analysis.data.maskedUrl },
-                ]}
-              />
-            </>
-          )}
-
-          {analysis.data && (
-            <div className="space-y-2 rounded-lg border border-border bg-muted/50 p-4">
-              <p className="text-sm">
-                Tu análisis quedó registrado. Tu doctor lo revisará y confirmará el diagnóstico.
-              </p>
-              <Button type="button" variant="outline" onClick={() => router.push("/patient/analisis")}>
-                Ver mis análisis
-              </Button>
-            </div>
-          )}
-
-          <DiagnosisDetailDialog item={selectedDiagnosis} onClose={() => setSelectedDiagnosis(null)} />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push(`/patient/analisis/${analysisId}`)}
+            >
+              Abrir detalle completo
+            </Button>
+          </div>
         </div>
       )}
     </div>

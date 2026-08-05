@@ -180,8 +180,12 @@ export class AnalysesService {
       });
     }
 
+    // Paciente: solo análisis compartidos de su perfil (Patient.userId).
     return this.prisma.analysis.findMany({
-      where: { userId: BigInt(currentUser.sub) },
+      where: {
+        sharedWithPatient: true,
+        patient: { userId: BigInt(currentUser.sub) },
+      },
       include: { patient: true },
       orderBy: { id: 'desc' },
     });
@@ -210,6 +214,39 @@ export class AnalysesService {
         confirmedById: BigInt(currentUser.sub),
         confirmedAt: new Date(),
       },
+    });
+    return this.withImageUrls(updated);
+  }
+
+  /**
+   * Doctor/admin publica el análisis al paciente vinculado
+   * (`Patient.userId`). Sin ese vínculo el paciente no podrá listarlo.
+   */
+  async shareWithPatient(id: string, currentUser: JwtPayload) {
+    const analysis = await this.prisma.analysis.findUnique({
+      where: { id: BigInt(id) },
+      include: { patient: true },
+    });
+    if (!analysis) throw new NotFoundException('Análisis no encontrado');
+    await this.assertCanAccess(analysis, currentUser);
+
+    if (!analysis.patient.userId) {
+      throw new BadRequestException(
+        'Este paciente aún no tiene cuenta en la app. Debe registrarse o vincularse antes de compartir el análisis.',
+      );
+    }
+
+    if (analysis.sharedWithPatient) {
+      return this.withImageUrls(analysis);
+    }
+
+    const updated = await this.prisma.analysis.update({
+      where: { id: analysis.id },
+      data: {
+        sharedWithPatient: true,
+        sharedAt: new Date(),
+      },
+      include: { patient: true },
     });
     return this.withImageUrls(updated);
   }
@@ -249,7 +286,19 @@ export class AnalysesService {
       ]);
     const coloredUrl = signedColoredUrl ?? prediction?.colored_s3_url ?? null;
     const maskedUrl = signedMaskedUrl ?? prediction?.masked_s3_url ?? null;
-    return { ...analysis, imageUrl, coloredUrl, maskedUrl, masks };
+    // Para YouCam, `imagePath` solo es una key real cuando se guardó la selfie
+    // aparte (enableMaskOverlay: false, ver youcam-analyses.service.ts) — con
+    // el placeholder 'youcam' de siempre, imageUrl es un link muerto que el
+    // frontend no debe intentar mostrar.
+    const hasOriginalPhoto = analysis.imagePath !== 'youcam';
+    return {
+      ...analysis,
+      imageUrl,
+      coloredUrl,
+      maskedUrl,
+      masks,
+      hasOriginalPhoto,
+    };
   }
 
   private async signYoucamMasks(analysis: {
@@ -298,7 +347,11 @@ export class AnalysesService {
   }
 
   private async assertCanAccess(
-    analysis: { userId: bigint | null; patient: { doctorId: bigint | null } },
+    analysis: {
+      userId: bigint | null;
+      sharedWithPatient: boolean;
+      patient: { doctorId: bigint | null; userId: bigint | null };
+    },
     currentUser: JwtPayload,
   ) {
     if (currentUser.role === 'admin') return;
@@ -309,7 +362,17 @@ export class AnalysesService {
       throw new ForbiddenException('Este análisis no pertenece a tu consulta');
     }
 
+    // Paciente: solo si el análisis fue compartido y pertenece a su perfil.
+    if (
+      analysis.sharedWithPatient &&
+      analysis.patient.userId?.toString() === currentUser.sub
+    ) {
+      return;
+    }
+
+    // Compat: análisis autoejecutados por el propio paciente (userId = ejecutor).
     if (analysis.userId?.toString() === currentUser.sub) return;
+
     throw new ForbiddenException('No puedes acceder a este análisis');
   }
 }

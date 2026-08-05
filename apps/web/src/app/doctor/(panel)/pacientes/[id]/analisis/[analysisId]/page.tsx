@@ -12,11 +12,11 @@ export default function AnalisisDetallePage() {
   const analysis = useAnalysis(analysisId);
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold">Análisis</h1>
+            <h1>Análisis</h1>
             {analysis.data && (
               <Badge variant="outline">{analysis.data.youcamTaskId ? "YouCam" : "Skiniver"}</Badge>
             )}

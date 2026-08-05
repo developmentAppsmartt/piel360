@@ -1,4 +1,5 @@
 import type { AdminReports } from "@/lib/queries/admin-reports";
+import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 
 // Misma paleta categórica de diagnosis-by-class-chart.tsx, primeras 3
 // entradas — consistencia visual entre los charts categóricos de la página.
@@ -19,8 +20,10 @@ export function DiagnosisByAgeChart({
   const max = Math.max(...diagnosisByAge.map((d) => d.count), 1);
 
   return (
-    <div className="space-y-3 rounded-lg border border-border p-4">
-      <h2 className="text-sm font-medium text-muted-foreground">Diagnósticos por edad</h2>
+    <ModuleCard className="space-y-3 p-4">
+      <ModuleCardTitle className="text-sm font-medium text-muted-foreground">
+        Diagnósticos por edad
+      </ModuleCardTitle>
       <div className="space-y-3">
         {diagnosisByAge.map((item) => {
           const percent = (item.count / max) * 100;
@@ -33,11 +36,13 @@ export function DiagnosisByAgeChart({
                   style={{ width: `${percent}%`, backgroundColor: BUCKET_COLORS[item.label] }}
                 />
               </div>
-              <span className="w-8 shrink-0 text-right text-sm font-medium">{item.count}</span>
+              <span className="w-8 shrink-0 text-right text-sm font-semibold tabular-nums">
+                {item.count}
+              </span>
             </div>
           );
         })}
       </div>
-    </div>
+    </ModuleCard>
   );
 }

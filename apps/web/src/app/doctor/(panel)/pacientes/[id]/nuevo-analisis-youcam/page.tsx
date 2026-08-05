@@ -48,8 +48,8 @@ export default function NuevoAnalisisYoucamPage() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-semibold">Nuevo análisis facial (YouCam)</h1>
+    <div className="mx-auto max-w-3xl space-y-6">
+      <h1>Nuevo análisis facial (YouCam)</h1>
 
       {step === "consentimiento" && (
         <div className="space-y-4">

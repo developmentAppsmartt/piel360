@@ -3,7 +3,16 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-export function ImageCarousel({ images }: { images: { label: string; url: string | null }[] }) {
+export function ImageCarousel({
+  images,
+  backgroundUrl,
+}: {
+  images: { label: string; url: string | null }[];
+  // Foto original detrás de cada imagen del carrusel — usado por YouCam con
+  // enableMaskOverlay:false, donde cada máscara es un .png crudo (transparente
+  // salvo donde aplica) que necesita la foto de fondo para tener sentido.
+  backgroundUrl?: string | null;
+}) {
   const available = images.filter((img): img is { label: string; url: string } => !!img.url);
   const [index, setIndex] = useState(0);
 
@@ -15,8 +24,21 @@ export function ImageCarousel({ images }: { images: { label: string; url: string
 
   return (
     <div className="space-y-2">
-      {/* eslint-disable-next-line @next/next/no-img-element -- URL firmada externa (S3), no apta para next/image */}
-      <img src={current.url} alt={current.label} className="w-full rounded-lg border border-border" />
+      {backgroundUrl ? (
+        <div className="relative w-full overflow-hidden rounded-lg border border-border">
+          {/* eslint-disable-next-line @next/next/no-img-element -- URL firmada externa (S3), no apta para next/image */}
+          <img src={backgroundUrl} alt="Foto original" className="h-auto w-full" />
+          {/* eslint-disable-next-line @next/next/no-img-element -- URL firmada externa (S3), no apta para next/image */}
+          <img
+            src={current.url}
+            alt={current.label}
+            className="absolute inset-0 h-full w-full object-contain"
+          />
+        </div>
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element -- URL firmada externa (S3), no apta para next/image
+        <img src={current.url} alt={current.label} className="w-full rounded-lg border border-border" />
+      )}
       <div className="flex items-center justify-between">
         <Button
           type="button"

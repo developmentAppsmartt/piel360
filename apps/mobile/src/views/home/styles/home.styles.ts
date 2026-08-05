@@ -186,6 +186,20 @@ export function createHomeStyles(colors: AppBranding['colors']) {
       width: 48,
       height: 48,
       borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    emptyHistory: {
+      paddingVertical: 28,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+    },
+    emptyHistoryText: {
+      fontSize: 14,
+      color: colors.muted,
+      textAlign: 'center',
+      lineHeight: 20,
     },
     historyBody: {
       flex: 1,
