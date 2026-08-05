@@ -31,7 +31,7 @@ const DOCTOR_TABS: { key: TabKey; label: string; icon: AppIconName }[] = [
   { key: 'profile', label: 'Perfil', icon: Icons.account },
 ];
 
-/** Tabs del mockup paciente: Inicio | Agenda | Nuevo Análisis | Buscar | Perfil */
+/** Tabs paciente: Inicio | Agenda | Nuevo Análisis | Chat | Perfil */
 const PATIENT_TABS: {
   key: TabKey;
   label: string;
@@ -46,7 +46,7 @@ const PATIENT_TABS: {
     icon: Icons.plus,
     center: true,
   },
-  { key: 'search', label: 'Buscar', icon: Icons.search },
+  { key: 'chat', label: 'Chat', icon: Icons.chat },
   { key: 'profile', label: 'Perfil', icon: Icons.account },
 ];
 
@@ -93,6 +93,7 @@ export function MainTabNavigator() {
             <HomeView
               onOpenProfile={() => setActiveTab('profile')}
               onOpenAgenda={() => setActiveTab('agenda')}
+              onOpenMessages={() => setActiveTab('chat')}
               consentRequestId={consentRequestId}
             />
           )
@@ -114,12 +115,6 @@ export function MainTabNavigator() {
           <PlaceholderTabView
             title="Agenda"
             description="Aquí verás citas y disponibilidad (mock). Se conectará al servicio de agenda."
-          />
-        ) : null}
-        {activeTab === 'search' ? (
-          <PlaceholderTabView
-            title="Buscar"
-            description="Búsqueda de enfermedades y contenido (mock)."
           />
         ) : null}
         {activeTab === 'chat' ? (

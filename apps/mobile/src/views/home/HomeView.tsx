@@ -42,6 +42,7 @@ import { createHomeStyles } from './styles/home.styles';
 type HomeViewProps = {
   onOpenProfile?: () => void;
   onOpenAgenda?: () => void;
+  onOpenMessages?: () => void;
   /** Abre el flujo YouCam (también desde tab Nuevo Análisis). */
   consentRequestId?: number;
   onConsentContinue?: () => void;
@@ -175,6 +176,7 @@ const TONE_COLOR = {
 export function HomeView({
   onOpenProfile,
   onOpenAgenda,
+  onOpenMessages,
   consentRequestId = 0,
   onConsentContinue,
 }: HomeViewProps) {
@@ -357,6 +359,13 @@ export function HomeView({
             }
           >
             <AppIcon icon={Icons.bell} size={22} color={onDark} />
+          </Pressable>
+          <Pressable
+            hitSlop={8}
+            accessibilityLabel="Chat con mi médico"
+            onPress={() => onOpenMessages?.()}
+          >
+            <AppIcon icon={Icons.chat} size={22} color={onDark} />
           </Pressable>
           <Pressable
             hitSlop={8}
