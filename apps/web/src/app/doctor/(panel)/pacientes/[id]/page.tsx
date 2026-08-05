@@ -57,13 +57,13 @@ export default function PacienteDetallePage() {
             nativeButton={false}
             render={<Link href={`/doctor/pacientes/${p.id}/nuevo-analisis`} />}
           >
-            Análisis de piel (Skiniver)
+            Analisis Dermatologico
           </Button>
           <Button
             nativeButton={false}
             render={<Link href={`/doctor/pacientes/${p.id}/nuevo-analisis-youcam`} />}
           >
-            Análisis facial (YouCam)
+            Analisis Estetico
           </Button>
         </div>
       </div>
