@@ -82,7 +82,7 @@ export default function AutoAnalisisPage() {
             onClick={() => chooseProvider("skiniver")}
             className="rounded-lg border border-border p-4 text-left hover:bg-muted"
           >
-            <p className="font-medium">Análisis de piel (Skiniver)</p>
+            <p className="font-medium">Analisis Dermatologico</p>
             <p className="text-sm text-muted-foreground">
               Sube o toma una foto de una lesión o zona de la piel que quieras revisar.
             </p>
@@ -92,7 +92,7 @@ export default function AutoAnalisisPage() {
             onClick={() => chooseProvider("youcam")}
             className="rounded-lg border border-border p-4 text-left hover:bg-muted"
           >
-            <p className="font-medium">Análisis facial (YouCam)</p>
+            <p className="font-medium">Analisis Estetico</p>
             <p className="text-sm text-muted-foreground">
               Captura una selfie para evaluar 16 métricas de piel del rostro.
             </p>
