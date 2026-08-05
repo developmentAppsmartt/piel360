@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { ModuleCard } from "@/components/ui/module-card";
 import { youcamMetricCopy } from "@/lib/youcam-metric-copy";
-import { YOUCAM_METRIC_LABELS } from "@/lib/youcam-metric-labels";
+import { YOUCAM_METRIC_LABELS, youcamRegionLabel } from "@/lib/youcam-metric-labels";
 import type { AnalysisDetail } from "@/lib/queries/analyses";
 import {
   parseYoucamMetrics,
@@ -17,11 +17,28 @@ import {
 } from "@/lib/youcam-metrics";
 import { cn } from "@/lib/utils";
 
+// hd_pore/hd_wrinkle/hd_skin_type traen varias regiones bajo el mismo `type`
+// (ej. hd_wrinkle: forehead/glabellar/crowfeet/periocular/nasolabial/marionette/whole).
+// El chip principal sigue mostrando "whole" (como antes), pero además expone
+// `regions` para que el usuario pueda ver cada subcategoría — antes se perdían
+// por completo, colapsadas a un solo chip por `type`.
+const MULTI_REGION_TYPES = new Set(["hd_wrinkle", "hd_pore", "hd_skin_type"]);
+const DEFAULT_REGION = "whole";
+
+type MetricRegionOption = {
+  region: string;
+  label: string;
+  score: number | null;
+  skinType: string | null;
+  maskUrl: string | null;
+};
+
 type MetricChip = {
   type: string;
   label: string;
   score: number | null;
   maskUrl: string | null;
+  regions?: MetricRegionOption[];
 };
 
 function shortLabel(type: string): string {
@@ -30,17 +47,45 @@ function shortLabel(type: string): string {
   return full.split(" ")[0] ?? full;
 }
 
+/** A diferencia de `masks.find((x) => x.type === type)` (el bug original: toma
+ * el primer mask con ese `type` sin mirar la región, mezclando por ejemplo la
+ * imagen de "frente" con el puntaje de "general"), esto siempre matchea la
+ * región exacta. */
+function findMaskUrl(
+  masks: AnalysisDetail["masks"],
+  type: string,
+  region: string | undefined,
+): string | null {
+  return masks.find((m) => m.type === type && m.region === region)?.url ?? null;
+}
+
+function buildRegionOptions(
+  type: string,
+  candidates: YoucamMetric[],
+  masks: AnalysisDetail["masks"],
+): MetricRegionOption[] {
+  const sorted = [...candidates].sort((a, b) => {
+    const aWhole = (a.region ?? DEFAULT_REGION) === DEFAULT_REGION;
+    const bWhole = (b.region ?? DEFAULT_REGION) === DEFAULT_REGION;
+    if (aWhole === bWhole) return 0;
+    return aWhole ? -1 : 1;
+  });
+  return sorted.map((m) => {
+    const region = m.region ?? DEFAULT_REGION;
+    return {
+      region,
+      label: youcamRegionLabel(region),
+      score: youcamMetricValue(m),
+      skinType: m.skinType,
+      maskUrl: findMaskUrl(masks, type, m.region),
+    };
+  });
+}
+
 function buildChips(
   metrics: YoucamMetric[],
   masks: AnalysisDetail["masks"],
 ): MetricChip[] {
-  const byType = new Map<string, YoucamMetric>();
-  for (const m of metrics) {
-    if (!byType.has(m.type) || !m.region || m.region === "whole") {
-      byType.set(m.type, m);
-    }
-  }
-
   const chips: MetricChip[] = [
     {
       type: "overview",
@@ -50,28 +95,47 @@ function buildChips(
     },
   ];
 
-  const skinTypeMetric = byType.get("hd_skin_type");
-  if (skinTypeMetric) {
+  const skinTypeCandidates = metrics.filter((m) => m.type === "hd_skin_type");
+  if (skinTypeCandidates.length > 0) {
+    const whole =
+      skinTypeCandidates.find((m) => !m.region || m.region === DEFAULT_REGION) ??
+      skinTypeCandidates[0];
     chips.push({
       type: "hd_skin_type",
       label: "Tipo piel",
-      score: youcamMetricValue(skinTypeMetric),
-      maskUrl: masks.find((x) => x.type === "hd_skin_type")?.url ?? null,
+      score: youcamMetricValue(whole),
+      maskUrl: findMaskUrl(masks, "hd_skin_type", whole.region),
+      regions:
+        skinTypeCandidates.length > 1
+          ? buildRegionOptions("hd_skin_type", skinTypeCandidates, masks)
+          : undefined,
     });
   }
 
   for (const type of YOUCAM_MAIN_METRIC_TYPES) {
-    const metric = byType.get(type);
-    if (!metric) continue;
+    const candidates = metrics.filter((m) => m.type === type);
+    if (candidates.length === 0) continue;
+    const whole =
+      candidates.find((m) => !m.region || m.region === DEFAULT_REGION) ?? candidates[0];
     chips.push({
       type,
       label: shortLabel(type),
-      score: youcamMetricValue(metric),
-      maskUrl: masks.find((x) => x.type === type)?.url ?? null,
+      score: youcamMetricValue(whole),
+      maskUrl: findMaskUrl(masks, type, whole.region),
+      regions:
+        MULTI_REGION_TYPES.has(type) && candidates.length > 1
+          ? buildRegionOptions(type, candidates, masks)
+          : undefined,
     });
   }
 
   return chips;
+}
+
+function regionPillLabel(option: MetricRegionOption): string {
+  if (option.skinType) return `${option.label} · ${option.skinType}`;
+  if (option.score != null) return `${option.label} ${Math.round(option.score)}`;
+  return option.label;
 }
 
 export function YoucamResultsSection({
@@ -97,11 +161,24 @@ export function YoucamResultsSection({
   );
 
   const [selectedType, setSelectedType] = useState("overview");
+  const [selectedRegion, setSelectedRegion] = useState(DEFAULT_REGION);
   const selected = chips.find((c) => c.type === selectedType) ?? chips[0] ?? null;
+  const activeRegion = selected?.regions?.find((r) => r.region === selectedRegion) ?? null;
 
   const showBase = analysis.hasOriginalPhoto && !!analysis.imageUrl;
   const maskUrl =
-    selected?.type === "overview" ? null : (selected?.maskUrl ?? null);
+    selected?.type === "overview" ? null : (activeRegion?.maskUrl ?? selected?.maskUrl ?? null);
+  const badgeLabel =
+    selected && selected.type !== "overview"
+      ? activeRegion && activeRegion.region !== DEFAULT_REGION
+        ? `${selected.label} — ${activeRegion.label}`
+        : selected.label
+      : null;
+
+  function selectChip(type: string) {
+    setSelectedType(type);
+    setSelectedRegion(DEFAULT_REGION);
+  }
 
   return (
     <div className="space-y-4">
@@ -148,7 +225,7 @@ export function YoucamResultsSection({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={maskUrl}
-                  alt={selected?.label ?? "Máscara"}
+                  alt={badgeLabel ?? "Máscara"}
                   className="absolute inset-0 size-full object-cover"
                 />
               ) : null}
@@ -157,7 +234,7 @@ export function YoucamResultsSection({
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={maskUrl}
-              alt={selected?.label ?? "Máscara"}
+              alt={badgeLabel ?? "Máscara"}
               className="absolute inset-0 size-full object-contain"
             />
           ) : (
@@ -166,9 +243,9 @@ export function YoucamResultsSection({
               las métricas y el reporte.
             </div>
           )}
-          {selected && selected.type !== "overview" ? (
+          {badgeLabel ? (
             <span className="absolute bottom-3 left-3 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
-              {selected.label}
+              {badgeLabel}
             </span>
           ) : null}
         </div>
@@ -198,7 +275,7 @@ export function YoucamResultsSection({
             <button
               key={chip.type}
               type="button"
-              onClick={() => setSelectedType(chip.type)}
+              onClick={() => selectChip(chip.type)}
               className="flex w-16 shrink-0 flex-col items-center gap-1.5"
             >
               <span
@@ -223,6 +300,33 @@ export function YoucamResultsSection({
           );
         })}
       </div>
+
+      {/* Subcategorías (regiones) de la métrica activa — antes no había
+       * forma de ver forehead/nose/cheek/etc. de hd_pore, las 7 zonas de
+       * hd_wrinkle, o Zona T/Zona U de hd_skin_type: quedaban colapsadas
+       * al chip principal ("General"/whole) sin ninguna alternativa. */}
+      {selected?.regions && selected.regions.length > 0 ? (
+        <div className="-mx-1 flex flex-wrap gap-2 px-1">
+          {selected.regions.map((option) => {
+            const active = option.region === selectedRegion;
+            return (
+              <button
+                key={option.region}
+                type="button"
+                onClick={() => setSelectedRegion(option.region)}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-medium",
+                  active
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-card text-muted-foreground",
+                )}
+              >
+                {regionPillLabel(option)}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
 
       <ModuleCard className="p-4">
         <p className="text-sm leading-relaxed text-muted-foreground">

@@ -21,8 +21,9 @@ export const YOUCAM_METRIC_LABELS: Record<string, string> = {
 };
 
 // Algunas métricas (hd_pore, hd_wrinkle, hd_skin_type) traen varias regiones
-// bajo el mismo `type` — se usa para distinguirlas en el carrusel.
-const YOUCAM_REGION_LABELS: Record<string, string> = {
+// bajo el mismo `type` — se usa para distinguirlas en el carrusel y en el
+// selector de subcategorías de YoucamResultsSection.
+export const YOUCAM_REGION_LABELS: Record<string, string> = {
   whole: "General",
   forehead: "Frente",
   nose: "Nariz",
@@ -36,8 +37,12 @@ const YOUCAM_REGION_LABELS: Record<string, string> = {
   u_zone: "Zona U",
 };
 
+export function youcamRegionLabel(region: string): string {
+  return YOUCAM_REGION_LABELS[region] ?? region;
+}
+
 export function youcamMaskLabel(type: string, region?: string): string {
   const base = YOUCAM_METRIC_LABELS[type] ?? type;
   if (!region) return base;
-  return `${base} — ${YOUCAM_REGION_LABELS[region] ?? region}`;
+  return `${base} — ${youcamRegionLabel(region)}`;
 }
