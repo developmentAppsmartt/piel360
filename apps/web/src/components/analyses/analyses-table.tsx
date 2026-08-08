@@ -3,6 +3,7 @@
 import { createColumnHelper } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
+import { analysisProviderLabel } from "@/lib/analysis-provider-label";
 import type { AnalysisListItem } from "@/lib/queries/analyses";
 
 const columnHelper = createColumnHelper<AnalysisListItem>();
@@ -12,7 +13,7 @@ const columns = [
     id: "patient",
     header: "Paciente",
   }),
-  columnHelper.accessor((row) => (row.youcamTaskId ? "YouCam" : "Skiniver"), {
+  columnHelper.accessor((row) => analysisProviderLabel(row), {
     id: "provider",
     header: "Proveedor",
     cell: (info) => <Badge variant="outline">{info.getValue()}</Badge>,

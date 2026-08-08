@@ -84,6 +84,9 @@ export interface AnalysisListItem {
   isConfirmed: boolean;
   isCorrected: boolean;
   createdAt: string;
+  // Puede faltar en filas creadas antes de que providerId se empezara a
+  // guardar — ver apps/web/src/lib/analysis-provider-label.ts para el fallback.
+  provider?: { displayLabel: string | null } | null;
   patient: {
     id: string;
     firstName: string;

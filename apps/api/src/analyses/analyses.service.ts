@@ -107,6 +107,7 @@ export class AnalysesService {
         data: {
           patientId: BigInt(dto.patientId),
           userId,
+          providerId: subscription.plan.analysisProviderId,
           imagePath: `analyses/pending/original.jpg`,
           bodyRegion: dto.bodyRegion,
           xCoord: dto.xCoord,
@@ -164,9 +165,14 @@ export class AnalysesService {
   }
 
   async findAll(currentUser: JwtPayload) {
+    // `provider.displayLabel` — filas creadas antes de este campo (o sin
+    // providerId poblado) no traen relación; el frontend cae al heurístico
+    // por youcamTaskId como respaldo.
+    const providerSelect = { select: { displayLabel: true } };
+
     if (currentUser.role === 'admin') {
       return this.prisma.analysis.findMany({
-        include: { patient: true },
+        include: { patient: true, provider: providerSelect },
         orderBy: { id: 'desc' },
       });
     }
@@ -175,7 +181,7 @@ export class AnalysesService {
       const doctor = await this.doctors.requireDoctorByUserId(currentUser.sub);
       return this.prisma.analysis.findMany({
         where: { patient: { doctorId: doctor.id } },
-        include: { patient: true },
+        include: { patient: true, provider: providerSelect },
         orderBy: { id: 'desc' },
       });
     }
@@ -186,7 +192,7 @@ export class AnalysesService {
         sharedWithPatient: true,
         patient: { userId: BigInt(currentUser.sub) },
       },
-      include: { patient: true },
+      include: { patient: true, provider: providerSelect },
       orderBy: { id: 'desc' },
     });
   }

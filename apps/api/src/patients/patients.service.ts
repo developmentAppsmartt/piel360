@@ -113,26 +113,34 @@ export class PatientsService {
    * Paciente solo ve los compartidos; doctor/admin ven todos. */
   async findAnalyses(id: string, currentUser: JwtPayload, withCoords: boolean) {
     const patient = await this.findOne(id, currentUser);
+    const where = {
+      patientId: patient.id,
+      ...(currentUser.role === 'patient' ? { sharedWithPatient: true } : {}),
+    };
 
+    if (withCoords) {
+      return this.prisma.analysis.findMany({
+        where,
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          bodyRegion: true,
+          xCoord: true,
+          yCoord: true,
+          zCoord: true,
+          aiDiagnosis: true,
+          createdAt: true,
+        },
+      });
+    }
+
+    // `provider.displayLabel` — filas creadas antes de este campo (o sin
+    // providerId poblado) no traen relación; el frontend cae al heurístico
+    // por youcamTaskId como respaldo.
     return this.prisma.analysis.findMany({
-      where: {
-        patientId: patient.id,
-        ...(currentUser.role === 'patient'
-          ? { sharedWithPatient: true }
-          : {}),
-      },
+      where,
       orderBy: { createdAt: 'asc' },
-      select: withCoords
-        ? {
-            id: true,
-            bodyRegion: true,
-            xCoord: true,
-            yCoord: true,
-            zCoord: true,
-            aiDiagnosis: true,
-            createdAt: true,
-          }
-        : undefined,
+      include: { provider: { select: { displayLabel: true } } },
     });
   }
 
