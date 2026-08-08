@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { AnalysisResultsView } from "@/components/analyses/analysis-results-view";
@@ -7,9 +8,10 @@ import { BodySelector } from "@/components/analyses/body-selector";
 import { PhotoCapture } from "@/components/analyses/photo-capture";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-error";
+import { cn } from "@/lib/utils";
 import { useCreateAnalysis } from "@/lib/queries/analyses";
 
-type Step = "captura" | "region" | "enviar" | "resultados";
+type Step = "region" | "captura" | "enviar" | "resultados";
 
 interface BodySelection {
   bodyRegion: string;
@@ -22,7 +24,7 @@ export default function NuevoAnalisisPage() {
   const { id: patientId } = useParams<{ id: string }>();
   const router = useRouter();
 
-  const [step, setStep] = useState<Step>("captura");
+  const [step, setStep] = useState<Step>("region");
   const [photo, setPhoto] = useState<{ file: File; previewUrl: string } | null>(null);
   const [bodySelection, setBodySelection] = useState<BodySelection | null>(null);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
@@ -48,34 +50,49 @@ export default function NuevoAnalisisPage() {
     <div className="max-w-2xl space-y-6">
       <h1 className="text-2xl font-semibold">Nuevo análisis (Skiniver)</h1>
 
-      {step === "captura" && (
-        <div className="space-y-4">
-          <PhotoCapture onCapture={(file, previewUrl) => setPhoto({ file, previewUrl })} />
-          <Button type="button" disabled={!photo} onClick={() => setStep("region")}>
-            Continuar
-          </Button>
-        </div>
-      )}
-
       {step === "region" && (
         <div className="space-y-4">
           <BodySelector onSelect={setBodySelection} />
           <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={() => setStep("captura")}>
-              Atrás
-            </Button>
-            <Button type="button" onClick={() => setStep("enviar")}>
+            <Button type="button" onClick={() => setStep("captura")}>
               {bodySelection ? "Continuar" : "Omitir"}
             </Button>
           </div>
         </div>
       )}
 
-      {step === "enviar" && (
+      {step === "captura" && (
+        <div className="space-y-4">
+          <PhotoCapture onCapture={(file, previewUrl) => setPhoto({ file, previewUrl })} />
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={() => setStep("region")}>
+              Atrás — Cambiar zona
+            </Button>
+            <Button type="button" disabled={!photo} onClick={() => setStep("enviar")}>
+              Continuar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {step === "enviar" && photo && (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
             Se enviará la foto a Skiniver para el análisis. Esto puede tardar unos segundos.
           </p>
+          <div className="relative overflow-hidden rounded-lg border border-border">
+            {/* eslint-disable-next-line @next/next/no-img-element -- preview de un blob local, no apta para next/image */}
+            <img
+              src={photo.previewUrl}
+              alt="Foto a analizar"
+              className={cn("max-h-96 w-full object-contain", createAnalysis.isPending && "animate-pulse opacity-50")}
+            />
+            {createAnalysis.isPending && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/20">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            )}
+          </div>
           {createAnalysis.error && (
             <p className="text-sm text-destructive">
               {createAnalysis.error instanceof ApiError
@@ -84,7 +101,7 @@ export default function NuevoAnalisisPage() {
             </p>
           )}
           <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={() => setStep("region")}>
+            <Button type="button" variant="outline" disabled={createAnalysis.isPending} onClick={() => setStep("captura")}>
               Atrás
             </Button>
             <Button type="button" disabled={createAnalysis.isPending} onClick={handleSubmit}>

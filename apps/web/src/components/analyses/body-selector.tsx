@@ -118,6 +118,11 @@ export function BodySelector({
           ? `Región seleccionada: ${regionInfo.label} — ${regionInfo.description}`
           : "Haz click sobre el modelo para marcar la región de la lesión (opcional)."}
       </p>
+      {marker && (
+        <p className="font-mono text-xs text-muted-foreground">
+          X: {marker.x.toFixed(3)} · Y: {marker.y.toFixed(3)} · Z: {marker.z.toFixed(3)}
+        </p>
+      )}
     </div>
   );
 }

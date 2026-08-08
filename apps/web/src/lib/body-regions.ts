@@ -1,9 +1,15 @@
 /**
- * Port literal de `Piel360/public/js/human-body-selector.js` (BODY_PARTS_INFO +
+ * Port de `Piel360/public/js/human-body-selector.js` (BODY_PARTS_INFO +
  * inferBodyPartFromPoint) — la tabla de 30 regiones y el fallback geométrico
  * para cuando el nombre de una malla del GLB no coincide con ninguna región
  * conocida. Los umbrales de `inferBodyPartFromPoint` asumen el mismo
  * normalizado del modelo (escala a 1.8 de alto, centrado, +1.05 en Y).
+ *
+ * El corte hombro/brazo se subió respecto al original (1.5 → 1.65): al ser un
+ * único punto sobre una superficie curva, clics dirigidos al brazo caían
+ * fácilmente del lado de "hombro" — confirmado con clics reales de cliente
+ * en el mismo punto visual que dieron Y=1.49 (brazo, correcto) y Y=1.654
+ * (hombro por el corte viejo, mal percibido como el mismo lugar).
  */
 export interface BodyPartInfo {
   label: string;
@@ -68,7 +74,7 @@ export function inferBodyPartFromPoint(point: { x: number; y: number; z: number 
   // Brazos
   if (absX > 0.2 && y > 0.85) {
     const side = x < 0 ? "left" : "right";
-    if (y > 1.5) return `${side}_shoulder`;
+    if (y > 1.65) return `${side}_shoulder`;
     if (y > 1.2) return `${side}_upper_arm`;
     if (y > 1.0) return `${side}_elbow`;
     if (y > 0.7) return `${side}_forearm`;
