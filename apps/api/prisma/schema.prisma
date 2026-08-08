@@ -154,6 +154,9 @@ model AnalysisProvider {
   id        BigInt   @id @default(autoincrement())
   name      String
   slug      String   @unique
+  /** Nombre para mostrar en UI (ej. "Análisis Dermatológico") — distinto de
+   * `name` (la marca real, "Skiniver"/"YouCam", usada en planes/suscripciones). */
+  displayLabel String? @map("display_label")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

@@ -7,6 +7,7 @@ import { BodySelector } from "@/components/analyses/body-selector";
 import { PhotoCapture } from "@/components/analyses/photo-capture";
 import { YoucamCapture } from "@/components/analyses/youcam-capture";
 import { Button } from "@/components/ui/button";
+import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import { ApiError } from "@/lib/api-error";
 import { useCreateAnalysis } from "@/lib/queries/analyses";
 import { useMyPatient } from "@/lib/queries/patients";
@@ -82,7 +83,7 @@ export default function AutoAnalisisPage() {
             onClick={() => chooseProvider("skiniver")}
             className="rounded-lg border border-border p-4 text-left hover:bg-muted"
           >
-            <p className="font-medium">Analisis Dermatologico</p>
+            <p className="font-medium">{ANALYSIS_PROVIDER_STATIC_LABELS.skiniver}</p>
             <p className="text-sm text-muted-foreground">
               Sube o toma una foto de una lesión o zona de la piel que quieras revisar.
             </p>
@@ -92,7 +93,7 @@ export default function AutoAnalisisPage() {
             onClick={() => chooseProvider("youcam")}
             className="rounded-lg border border-border p-4 text-left hover:bg-muted"
           >
-            <p className="font-medium">Analisis Estetico</p>
+            <p className="font-medium">{ANALYSIS_PROVIDER_STATIC_LABELS.youcam}</p>
             <p className="text-sm text-muted-foreground">
               Captura una selfie para evaluar 16 métricas de piel del rostro.
             </p>

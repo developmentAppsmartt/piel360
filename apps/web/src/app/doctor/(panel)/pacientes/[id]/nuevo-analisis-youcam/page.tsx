@@ -6,6 +6,7 @@ import { AnalysisResultsView } from "@/components/analyses/analysis-results-view
 import { BodySelector } from "@/components/analyses/body-selector";
 import { YoucamCapture } from "@/components/analyses/youcam-capture";
 import { Button } from "@/components/ui/button";
+import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import { ApiError } from "@/lib/api-error";
 import { useCreateYoucamAnalysis } from "@/lib/queries/youcam";
 
@@ -49,7 +50,7 @@ export default function NuevoAnalisisYoucamPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <h1>Analisis Estetico</h1>
+      <h1>{ANALYSIS_PROVIDER_STATIC_LABELS.youcam}</h1>
 
       {step === "consentimiento" && (
         <div className="space-y-4">

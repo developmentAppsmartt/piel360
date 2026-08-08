@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ANALYSIS_PROVIDER_STATIC_LABELS, analysisProviderLabel } from "@/lib/analysis-provider-label";
 import { ApiError } from "@/lib/api-error";
 import { usePatient, usePatientAnalyses } from "@/lib/queries/patients";
 
@@ -57,13 +58,13 @@ export default function PacienteDetallePage() {
             nativeButton={false}
             render={<Link href={`/doctor/pacientes/${p.id}/nuevo-analisis`} />}
           >
-            Analisis Dermatologico
+            {ANALYSIS_PROVIDER_STATIC_LABELS.skiniver}
           </Button>
           <Button
             nativeButton={false}
             render={<Link href={`/doctor/pacientes/${p.id}/nuevo-analisis-youcam`} />}
           >
-            Analisis Estetico
+            {ANALYSIS_PROVIDER_STATIC_LABELS.youcam}
           </Button>
         </div>
       </div>
@@ -119,7 +120,7 @@ export default function PacienteDetallePage() {
                     onClick={() => router.push(`/doctor/pacientes/${id}/analisis/${a.id}`)}
                   >
                     <TableCell>
-                      <Badge variant="outline">{a.youcamTaskId ? "YouCam" : "Skiniver"}</Badge>
+                      <Badge variant="outline">{analysisProviderLabel(a)}</Badge>
                     </TableCell>
                     <TableCell>{a.bodyRegion ?? "—"}</TableCell>
                     <TableCell>{a.finalDiagnosis ?? a.aiDiagnosis ?? "—"}</TableCell>

@@ -39,13 +39,21 @@ async function main() {
   const [skiniver, youcam] = await Promise.all([
     prisma.analysisProvider.upsert({
       where: { slug: 'skiniver' },
-      update: {},
-      create: { name: 'Skiniver', slug: 'skiniver' },
+      update: { displayLabel: 'Análisis Dermatológico' },
+      create: {
+        name: 'Skiniver',
+        slug: 'skiniver',
+        displayLabel: 'Análisis Dermatológico',
+      },
     }),
     prisma.analysisProvider.upsert({
       where: { slug: 'youcam' },
-      update: {},
-      create: { name: 'YouCam', slug: 'youcam' },
+      update: { displayLabel: 'Análisis Estético' },
+      create: {
+        name: 'YouCam',
+        slug: 'youcam',
+        displayLabel: 'Análisis Estético',
+      },
     }),
   ]);
 

@@ -110,6 +110,7 @@ export class YoucamAnalysesService {
       data: {
         patientId: BigInt(dto.patientId),
         userId,
+        providerId: subscription.plan.analysisProviderId,
         youcamTaskId: taskId,
         // YouCam no requiere que persistamos la selfie original cuando las
         // máscaras vienen mezcladas con la foto (enableMaskOverlay: true) —
