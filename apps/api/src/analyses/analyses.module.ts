@@ -8,6 +8,7 @@ import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { AnalysesService } from './analyses.service';
 import { AnalysesController } from './analyses.controller';
 import { AnalysisImagesProcessor } from './analysis-images.processor';
+import { AnalysisImageUrlsService } from './analysis-image-urls.service';
 import { ANALYSIS_IMAGES_QUEUE, ENCYCLOPEDIA_QUEUE } from './queues';
 
 @Module({
@@ -22,7 +23,11 @@ import { ANALYSIS_IMAGES_QUEUE, ENCYCLOPEDIA_QUEUE } from './queues';
     SubscriptionsModule,
     StorageModule,
   ],
-  providers: [AnalysesService, AnalysisImagesProcessor],
+  providers: [
+    AnalysesService,
+    AnalysisImagesProcessor,
+    AnalysisImageUrlsService,
+  ],
   controllers: [AnalysesController],
 })
 export class AnalysesModule {}

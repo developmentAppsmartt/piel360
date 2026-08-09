@@ -100,7 +100,7 @@ export class YouCamService {
 
   async startAnalysis(
     fileId: string,
-    enableMaskOverlay = true,
+    enableMaskOverlay = false,
   ): Promise<string> {
     const response = await fetch(
       `${this.baseUrl}/s2s/v2.1/task/skin-analysis`,

@@ -27,7 +27,6 @@ export default function NuevoAnalisisYoucamPage() {
   const [consented, setConsented] = useState(false);
   const [photo, setPhoto] = useState<Blob | null>(null);
   const [bodySelection, setBodySelection] = useState<BodySelection | null>(null);
-  const [enableMaskOverlay, setEnableMaskOverlay] = useState(true);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
 
   const createAnalysis = useCreateYoucamAnalysis();
@@ -38,7 +37,6 @@ export default function NuevoAnalisisYoucamPage() {
       const created = await createAnalysis.mutateAsync({
         patientId,
         image: photo,
-        enableMaskOverlay,
         ...bodySelection,
       });
       setAnalysisId(created.analysisId);
@@ -97,17 +95,9 @@ export default function NuevoAnalisisYoucamPage() {
       {step === "enviar" && (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Se enviará la foto a YouCam para el análisis facial. El resultado puede tardar
+            Se enviará la foto para el análisis facial. El resultado puede tardar
             varios minutos en procesarse.
           </p>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={enableMaskOverlay}
-              onChange={(e) => setEnableMaskOverlay(e.target.checked)}
-            />
-            Superponer las máscaras sobre la foto original
-          </label>
           {createAnalysis.error && (
             <p className="text-sm text-destructive">
               {createAnalysis.error instanceof ApiError

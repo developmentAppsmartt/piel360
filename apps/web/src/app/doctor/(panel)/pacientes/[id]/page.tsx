@@ -66,6 +66,13 @@ export default function PacienteDetallePage() {
           >
             {ANALYSIS_PROVIDER_STATIC_LABELS.youcam}
           </Button>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href={`/doctor/pacientes/${p.id}/historial-3d`} />}
+          >
+            Historial 3D
+          </Button>
         </div>
       </div>
 
@@ -105,7 +112,7 @@ export default function PacienteDetallePage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Proveedor</TableHead>
+                  <TableHead>Tipo de análisis</TableHead>
                   <TableHead>Región</TableHead>
                   <TableHead>Diagnóstico</TableHead>
                   <TableHead>Estado</TableHead>

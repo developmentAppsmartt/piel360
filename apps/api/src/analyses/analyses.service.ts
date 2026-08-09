@@ -8,15 +8,14 @@ import {
 } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import type { Prisma } from '@prisma/client';
-import type { SkiniverPrediction, YouCamResults } from '@piel360/shared';
 import { DoctorsService } from '../doctors/doctors.service';
 import { PatientsService } from '../patients/patients.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SkiniverService } from '../skiniver/skiniver.service';
 import { StorageService } from '../storage/storage.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
-import { youcamMaskKey } from '../youcam/mask-key.util';
 import type { JwtPayload } from '../auth/types';
+import { AnalysisImageUrlsService } from './analysis-image-urls.service';
 import type { ConfirmAnalysisDto } from './dto/confirm-analysis.dto';
 import type { CreateAnalysisDto } from './dto/create-analysis.dto';
 import {
@@ -39,6 +38,7 @@ export class AnalysesService {
     private readonly patients: PatientsService,
     private readonly doctors: DoctorsService,
     private readonly storage: StorageService,
+    private readonly imageUrls: AnalysisImageUrlsService,
     @InjectQueue(ANALYSIS_IMAGES_QUEUE)
     private readonly analysisImagesQueue: Queue<AnalysisImagesJobData>,
     @InjectQueue(ENCYCLOPEDIA_QUEUE)
@@ -161,7 +161,7 @@ export class AnalysesService {
       }
     }
 
-    return this.withImageUrls(updated);
+    return this.imageUrls.withImageUrls(updated);
   }
 
   async findAll(currentUser: JwtPayload) {
@@ -204,7 +204,7 @@ export class AnalysesService {
     });
     if (!analysis) throw new NotFoundException('Análisis no encontrado');
     await this.assertCanAccess(analysis, currentUser);
-    return this.withImageUrls(analysis);
+    return this.imageUrls.withImageUrls(analysis);
   }
 
   async confirm(id: string, dto: ConfirmAnalysisDto, currentUser: JwtPayload) {
@@ -221,7 +221,7 @@ export class AnalysesService {
         confirmedAt: new Date(),
       },
     });
-    return this.withImageUrls(updated);
+    return this.imageUrls.withImageUrls(updated);
   }
 
   /**
@@ -243,7 +243,7 @@ export class AnalysesService {
     }
 
     if (analysis.sharedWithPatient) {
-      return this.withImageUrls(analysis);
+      return this.imageUrls.withImageUrls(analysis);
     }
 
     const updated = await this.prisma.analysis.update({
@@ -254,102 +254,7 @@ export class AnalysesService {
       },
       include: { patient: true },
     });
-    return this.withImageUrls(updated);
-  }
-
-  /** Las columnas *S3Url/imagePath solo guardan la key del bucket propio — se
-   * agregan URLs firmadas navegables sin tocar los campos crudos. Para
-   * análisis YouCam (youcamTaskId presente) también arma `masks` — a
-   * diferencia de Skiniver, YouCam no usa coloredS3Url/maskedS3Url sino una
-   * máscara por métrica en `analyses/{id}/masks/{type}` (sin extensión en la
-   * key, ver youcam-results.service.ts). */
-  private async withImageUrls<
-    T extends {
-      imagePath: string;
-      coloredS3Url: string | null;
-      maskedS3Url: string | null;
-      youcamTaskId: string | null;
-      aiRawResponse: Prisma.JsonValue | null;
-      id: bigint;
-    },
-  >(analysis: T) {
-    // Fallback temporal (mismo criterio que signYoucamMasks): si nuestra copia
-    // propia aún no existe o no se puede firmar (sin credenciales S3 reales),
-    // usar directamente la URL que ya da Skiniver — a diferencia de YouCam no
-    // trae expiración por query string, así que sirve como respaldo estable
-    // mientras no haya bucket propio configurado.
-    const prediction =
-      !analysis.youcamTaskId && analysis.aiRawResponse
-        ? (analysis.aiRawResponse as unknown as SkiniverPrediction)
-        : null;
-
-    const [imageUrl, signedColoredUrl, signedMaskedUrl, masks] =
-      await Promise.all([
-        this.signIfPresent(analysis.imagePath),
-        this.signIfPresent(analysis.coloredS3Url),
-        this.signIfPresent(analysis.maskedS3Url),
-        this.signYoucamMasks(analysis),
-      ]);
-    const coloredUrl = signedColoredUrl ?? prediction?.colored_s3_url ?? null;
-    const maskedUrl = signedMaskedUrl ?? prediction?.masked_s3_url ?? null;
-    // Para YouCam, `imagePath` solo es una key real cuando se guardó la selfie
-    // aparte (enableMaskOverlay: false, ver youcam-analyses.service.ts) — con
-    // el placeholder 'youcam' de siempre, imageUrl es un link muerto que el
-    // frontend no debe intentar mostrar.
-    const hasOriginalPhoto = analysis.imagePath !== 'youcam';
-    return {
-      ...analysis,
-      imageUrl,
-      coloredUrl,
-      maskedUrl,
-      masks,
-      hasOriginalPhoto,
-    };
-  }
-
-  private async signYoucamMasks(analysis: {
-    youcamTaskId: string | null;
-    aiRawResponse: Prisma.JsonValue | null;
-    id: bigint;
-  }): Promise<{ type: string; region?: string; url: string }[]> {
-    if (!analysis.youcamTaskId || !analysis.aiRawResponse) return [];
-
-    const results = analysis.aiRawResponse as unknown as YouCamResults;
-    const items = (results.output ?? []).filter(
-      (item) => item.mask_urls?.length,
-    );
-
-    const signed = await Promise.all(
-      items.map(
-        async (
-          item,
-        ): Promise<{ type: string; region?: string; url: string } | null> => {
-          const key = `analyses/${analysis.id}/masks/${youcamMaskKey(item)}`;
-          const signedUrl = await this.signIfPresent(key);
-          // Fallback temporal mientras el bucket propio no tenga credenciales
-          // reales (o la copia aún no se haya descargado): usar la URL que
-          // ya da YouCam directamente — temporal (~2h) pero deja el flujo
-          // usable en desarrollo sin depender de S3_REGION/S3_BUCKET.
-          const url = signedUrl ?? item.mask_urls[0] ?? null;
-          return url ? { type: item.type, region: item.region, url } : null;
-        },
-      ),
-    );
-    return signed.filter(
-      (m): m is { type: string; region?: string; url: string } => m !== null,
-    );
-  }
-
-  private async signIfPresent(key: string | null): Promise<string | null> {
-    if (!key) return null;
-    try {
-      return await this.storage.getSignedUrl(key);
-    } catch (error) {
-      // getSignedUrl puede fallar sin red (ej. falta S3_REGION) — no debe
-      // tumbar toda la respuesta del análisis por esto.
-      this.logger.warn(`No se pudo firmar la URL de ${key}: ${String(error)}`);
-      return null;
-    }
+    return this.imageUrls.withImageUrls(updated);
   }
 
   private async assertCanAccess(

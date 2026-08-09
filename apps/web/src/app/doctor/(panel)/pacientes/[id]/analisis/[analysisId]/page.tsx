@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { AnalysisResultsView } from "@/components/analyses/analysis-results-view";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { analysisProviderLabel } from "@/lib/analysis-provider-label";
 import { useAnalysis } from "@/lib/queries/analyses";
 
 export default function AnalisisDetallePage() {
@@ -18,7 +19,7 @@ export default function AnalisisDetallePage() {
           <div className="flex items-center gap-2">
             <h1>Análisis</h1>
             {analysis.data && (
-              <Badge variant="outline">{analysis.data.youcamTaskId ? "YouCam" : "Skiniver"}</Badge>
+              <Badge variant="outline">{analysisProviderLabel(analysis.data)}</Badge>
             )}
           </div>
           {analysis.data && (
