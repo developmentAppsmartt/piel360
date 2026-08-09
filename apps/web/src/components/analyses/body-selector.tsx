@@ -3,36 +3,10 @@
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import { useEffect, useMemo, useState } from "react";
-import * as THREE from "three";
+import type * as THREE from "three";
 import { Button } from "@/components/ui/button";
+import { type Gender, MODEL_PATHS, normalizeModel } from "@/lib/body-model";
 import { BODY_PARTS_INFO, inferBodyPartFromPoint, normalizeMeshName } from "@/lib/body-regions";
-
-const MODEL_PATHS = {
-  female: "/models/female/realistic_female_character_new.glb",
-  male: "/models/male/realistic_male_character_new.glb",
-} as const;
-
-type Gender = keyof typeof MODEL_PATHS;
-
-// Port de human-body-selector.js: escala a 1.8 de alto, centrado, +1.05 en Y
-// — los umbrales de inferBodyPartFromPoint asumen exactamente esta normalización.
-function normalizeModel(scene: THREE.Object3D) {
-  scene.traverse((child) => {
-    if (child instanceof THREE.Mesh) {
-      child.name = normalizeMeshName(child.name);
-    }
-  });
-
-  const box = new THREE.Box3().setFromObject(scene);
-  const size = box.getSize(new THREE.Vector3());
-  const scale = 1.8 / size.y;
-  scene.scale.setScalar(scale);
-
-  const scaledBox = new THREE.Box3().setFromObject(scene);
-  const center = scaledBox.getCenter(new THREE.Vector3());
-  scene.position.sub(center);
-  scene.position.y += 1.05;
-}
 
 function BodyModel({
   gender,

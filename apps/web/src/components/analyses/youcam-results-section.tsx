@@ -25,6 +25,19 @@ import { cn } from "@/lib/utils";
 const MULTI_REGION_TYPES = new Set(["hd_wrinkle", "hd_pore", "hd_skin_type"]);
 const DEFAULT_REGION = "whole";
 
+// Capas superpuestas en el chip "Salud de la piel" (overview) — ojeras,
+// firmeza, enrojecimiento, bolsas, surco, poros/manchas/arrugas general.
+const OVERVIEW_LAYER_TYPES = [
+  "hd_dark_circle",
+  "hd_firmness",
+  "hd_redness",
+  "hd_eye_bag",
+  "hd_tear_trough",
+  "hd_pore",
+  "hd_age_spot",
+  "hd_wrinkle",
+];
+
 type MetricRegionOption = {
   region: string;
   label: string;
@@ -89,7 +102,7 @@ function buildChips(
   const chips: MetricChip[] = [
     {
       type: "overview",
-      label: "Resumen",
+      label: "Salud de la piel",
       score: youcamOverallScore(metrics),
       maskUrl: null,
     },
@@ -132,6 +145,24 @@ function buildChips(
   return chips;
 }
 
+/** URLs de las capas superpuestas del chip "Salud de la piel" — mismo
+ * criterio whole/default que buildChips para elegir la región de cada tipo. */
+function buildOverviewMaskUrls(
+  metrics: YoucamMetric[],
+  masks: AnalysisDetail["masks"],
+): string[] {
+  const urls: string[] = [];
+  for (const type of OVERVIEW_LAYER_TYPES) {
+    const candidates = metrics.filter((m) => m.type === type);
+    if (candidates.length === 0) continue;
+    const whole =
+      candidates.find((m) => !m.region || m.region === DEFAULT_REGION) ?? candidates[0];
+    const url = findMaskUrl(masks, type, whole.region);
+    if (url) urls.push(url);
+  }
+  return urls;
+}
+
 function regionPillLabel(option: MetricRegionOption): string {
   if (option.skinType) return `${option.label} · ${option.skinType}`;
   if (option.score != null) return `${option.label} ${Math.round(option.score)}`;
@@ -159,15 +190,19 @@ export function YoucamResultsSection({
     () => buildChips(metrics, analysis.masks),
     [metrics, analysis.masks],
   );
+  const overviewMaskUrls = useMemo(
+    () => buildOverviewMaskUrls(metrics, analysis.masks),
+    [metrics, analysis.masks],
+  );
 
   const [selectedType, setSelectedType] = useState("overview");
   const [selectedRegion, setSelectedRegion] = useState(DEFAULT_REGION);
   const selected = chips.find((c) => c.type === selectedType) ?? chips[0] ?? null;
   const activeRegion = selected?.regions?.find((r) => r.region === selectedRegion) ?? null;
+  const isOverview = selected?.type === "overview";
 
   const showBase = analysis.hasOriginalPhoto && !!analysis.imageUrl;
-  const maskUrl =
-    selected?.type === "overview" ? null : (activeRegion?.maskUrl ?? selected?.maskUrl ?? null);
+  const maskUrl = isOverview ? null : (activeRegion?.maskUrl ?? selected?.maskUrl ?? null);
   const badgeLabel =
     selected && selected.type !== "overview"
       ? activeRegion && activeRegion.region !== DEFAULT_REGION
@@ -221,14 +256,24 @@ export function YoucamResultsSection({
                 alt="Foto del análisis"
                 className="absolute inset-0 size-full object-cover"
               />
-              {maskUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={maskUrl}
-                  alt={badgeLabel ?? "Máscara"}
-                  className="absolute inset-0 size-full object-cover"
-                />
-              ) : null}
+              {isOverview
+                ? overviewMaskUrls.map((url) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={url}
+                      src={url}
+                      alt=""
+                      className="absolute inset-0 size-full object-cover"
+                    />
+                  ))
+                : maskUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={maskUrl}
+                      alt={badgeLabel ?? "Máscara"}
+                      className="absolute inset-0 size-full object-cover"
+                    />
+                  )}
             </>
           ) : maskUrl ? (
             // eslint-disable-next-line @next/next/no-img-element

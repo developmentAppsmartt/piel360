@@ -10,12 +10,7 @@ interface CreateYoucamAnalysisResponse {
   analysisId: string;
 }
 
-export interface CreateYoucamAnalysisInput extends CreateAnalysisInput {
-  // Si es false, cada máscara vuelve como .png crudo (sin mezclar con la
-  // foto) en vez del .jpg ya superpuesto — default true (comportamiento
-  // histórico, sin cambios si no se especifica).
-  enableMaskOverlay?: boolean;
-}
+export type CreateYoucamAnalysisInput = CreateAnalysisInput;
 
 export function useCreateYoucamAnalysis() {
   const queryClient = useQueryClient();
@@ -28,9 +23,6 @@ export function useCreateYoucamAnalysis() {
       if (fields.xCoord !== undefined) form.append("xCoord", String(fields.xCoord));
       if (fields.yCoord !== undefined) form.append("yCoord", String(fields.yCoord));
       if (fields.zCoord !== undefined) form.append("zCoord", String(fields.zCoord));
-      if (fields.enableMaskOverlay !== undefined) {
-        form.append("enableMaskOverlay", String(fields.enableMaskOverlay));
-      }
 
       return apiClientFetch<CreateYoucamAnalysisResponse>("/youcam/analyses", {
         method: "POST",

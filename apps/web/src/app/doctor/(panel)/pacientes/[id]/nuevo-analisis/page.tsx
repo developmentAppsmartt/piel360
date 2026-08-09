@@ -1,8 +1,7 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnalysisResultsView } from "@/components/analyses/analysis-results-view";
 import { BodySelector } from "@/components/analyses/body-selector";
 import { PhotoCapture } from "@/components/analyses/photo-capture";
@@ -20,6 +19,19 @@ interface BodySelection {
   zCoord: number;
 }
 
+// Mismos cortes/mensajes que docs/create-analysis.blade.php (sistema viejo).
+const PROGRESS_STAGES: [threshold: number, label: string][] = [
+  [93, "Diagnósticos completos"],
+  [69, "Determinando patología"],
+  [48, "Calculando Nivel Riesgo"],
+  [26, "Analizando"],
+  [7, "Pre procesamiento"],
+];
+
+function progressLabel(progress: number) {
+  return PROGRESS_STAGES.find(([threshold]) => progress >= threshold)?.[1] ?? "Pre procesamiento";
+}
+
 export default function NuevoAnalisisPage() {
   const { id: patientId } = useParams<{ id: string }>();
   const router = useRouter();
@@ -28,21 +40,40 @@ export default function NuevoAnalisisPage() {
   const [photo, setPhoto] = useState<{ file: File; previewUrl: string } | null>(null);
   const [bodySelection, setBodySelection] = useState<BodySelection | null>(null);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const createAnalysis = useCreateAnalysis();
 
+  // Progreso simulado — igual que startAnalysis/stopAnalysis en
+  // docs/create-analysis.blade.php: incrementos aleatorios con tope en 95%
+  // hasta que la respuesta real llegue, salto a 100% al terminar.
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+    };
+  }, []);
+
   async function handleSubmit() {
     if (!photo) return;
+    setProgress(0);
+    progressIntervalRef.current = setInterval(() => {
+      setProgress((current) => (current < 95 ? current + Math.floor(Math.random() * 5) + 1 : current));
+    }, 200);
     try {
       const created = await createAnalysis.mutateAsync({
         patientId,
         image: photo.file,
         ...bodySelection,
       });
+      setProgress(100);
       setAnalysisId(created.id);
       setStep("resultados");
     } catch {
       // El error queda expuesto vía createAnalysis.error, renderizado más abajo.
+    } finally {
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
     }
   }
 
@@ -88,8 +119,15 @@ export default function NuevoAnalisisPage() {
               className={cn("max-h-96 w-full object-contain", createAnalysis.isPending && "animate-pulse opacity-50")}
             />
             {createAnalysis.isPending && (
-              <div className="absolute inset-0 flex items-center justify-center bg-background/20">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/60 px-6 text-center">
+                <p className="text-3xl font-bold text-primary">{progress} %</p>
+                <div className="h-1.5 w-2/3 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-200"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <p className="text-sm text-primary">{progressLabel(progress)}</p>
               </div>
             )}
           </div>

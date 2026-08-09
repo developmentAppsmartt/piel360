@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
+import { AnalysisImageUrlsService } from '../analyses/analysis-image-urls.service';
 import type { JwtPayload } from '../auth/types';
 import { DoctorsService } from '../doctors/doctors.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -16,6 +17,7 @@ export class PatientsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly doctors: DoctorsService,
+    private readonly imageUrls: AnalysisImageUrlsService,
   ) {}
 
   /** Scoping (MIGRACION.md §2.5/§2.6): doctor solo ve los suyos, patient
@@ -119,8 +121,13 @@ export class PatientsService {
     };
 
     if (withCoords) {
-      return this.prisma.analysis.findMany({
-        where,
+      const rows = await this.prisma.analysis.findMany({
+        where: {
+          ...where,
+          xCoord: { not: null },
+          yCoord: { not: null },
+          zCoord: { not: null },
+        },
         orderBy: { createdAt: 'asc' },
         select: {
           id: true,
@@ -129,9 +136,19 @@ export class PatientsService {
           yCoord: true,
           zCoord: true,
           aiDiagnosis: true,
+          finalDiagnosis: true,
+          aiRawResponse: true,
+          imagePath: true,
+          coloredS3Url: true,
+          maskedS3Url: true,
+          youcamTaskId: true,
           createdAt: true,
         },
       });
+      // imagePath/coloredS3Url/maskedS3Url son keys del bucket, no URLs
+      // navegables — hay que firmarlas igual que AnalysesService#findOne
+      // (ver AnalysisImageUrlsService).
+      return Promise.all(rows.map((row) => this.imageUrls.withImageUrls(row)));
     }
 
     // `provider.displayLabel` — filas creadas antes de este campo (o sin

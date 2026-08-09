@@ -101,10 +101,12 @@ export class YoucamAnalysesService {
     }
 
     const fileId = await this.youcam.uploadImage(uploadBuffer);
-    const taskId = await this.youcam.startAnalysis(
-      fileId,
-      dto.enableMaskOverlay ?? true,
-    );
+    // Siempre false: necesitamos la selfie original + máscaras transparentes
+    // por separado para poder superponerlas en el frontend (una sola capa en
+    // youcam-results-section.tsx, o las 8 del overview "Salud de la piel") —
+    // con enable_mask_overlay:true YouCam hornea la foto dentro de cada
+    // máscara (opaca) y no queda foto original que mostrar.
+    const taskId = await this.youcam.startAnalysis(fileId, false);
 
     const analysis = await this.prisma.analysis.create({
       data: {
@@ -112,11 +114,6 @@ export class YoucamAnalysesService {
         userId,
         providerId: subscription.plan.analysisProviderId,
         youcamTaskId: taskId,
-        // YouCam no requiere que persistamos la selfie original cuando las
-        // máscaras vienen mezcladas con la foto (enableMaskOverlay: true) —
-        // ya vive horneada en cada máscara. Solo la guardamos aparte cuando
-        // enableMaskOverlay es false (ver abajo), para poder dibujar cada
-        // máscara cruda sobre esta foto en el frontend.
         imagePath: 'youcam',
         bodyRegion: dto.bodyRegion,
         xCoord: dto.xCoord,
@@ -126,25 +123,23 @@ export class YoucamAnalysesService {
       },
     });
 
-    if (dto.enableMaskOverlay === false) {
-      const originalKey = `analyses/${analysis.id}/original.jpg`;
-      try {
-        // `uploadBuffer` (no `image`): si se redimensionó arriba, debe
-        // coincidir en dimensiones con las máscaras que YouCam va a generar
-        // a partir de esa misma versión — si no, quedarían desalineadas al
-        // superponerlas en el frontend.
-        await this.storage.upload(originalKey, uploadBuffer, 'image/jpeg');
-        await this.prisma.analysis.update({
-          where: { id: analysis.id },
-          data: { imagePath: originalKey },
-        });
-      } catch (error) {
-        // No bloquear la creación por una falla de storage — mismo criterio
-        // de tolerancia que analyses.service.ts#create con Skiniver.
-        this.logger.warn(
-          `No se pudo subir la foto original del análisis ${analysis.id}: ${String(error)}`,
-        );
-      }
+    const originalKey = `analyses/${analysis.id}/original.jpg`;
+    try {
+      // `uploadBuffer` (no `image`): si se redimensionó arriba, debe
+      // coincidir en dimensiones con las máscaras que YouCam va a generar
+      // a partir de esa misma versión — si no, quedarían desalineadas al
+      // superponerlas en el frontend.
+      await this.storage.upload(originalKey, uploadBuffer, 'image/jpeg');
+      await this.prisma.analysis.update({
+        where: { id: analysis.id },
+        data: { imagePath: originalKey },
+      });
+    } catch (error) {
+      // No bloquear la creación por una falla de storage — mismo criterio
+      // de tolerancia que analyses.service.ts#create con Skiniver.
+      this.logger.warn(
+        `No se pudo subir la foto original del análisis ${analysis.id}: ${String(error)}`,
+      );
     }
 
     await this.pollQueue.add(
