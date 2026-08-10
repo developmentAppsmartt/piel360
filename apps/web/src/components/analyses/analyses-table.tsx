@@ -15,7 +15,7 @@ const columns = [
   }),
   columnHelper.accessor((row) => analysisProviderLabel(row), {
     id: "provider",
-    header: "Proveedor",
+    header: "Tipo de análisis",
     cell: (info) => <Badge variant="outline">{info.getValue()}</Badge>,
   }),
   columnHelper.accessor((row) => row.finalDiagnosis ?? row.aiDiagnosis, {

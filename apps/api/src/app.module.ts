@@ -13,6 +13,7 @@ import { DoctorsModule } from './doctors/doctors.module';
 import { PatientsModule } from './patients/patients.module';
 import { AnalysesModule } from './analyses/analyses.module';
 import { YoucamModule } from './youcam/youcam.module';
+import { FitzpatrickModule } from './fitzpatrick/fitzpatrick.module';
 import { SkiniverModule } from './skiniver/skiniver.module';
 import { EncyclopediaModule } from './encyclopedia/encyclopedia.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
@@ -56,6 +57,7 @@ import { MessagesModule } from './messages/messages.module';
     MessagesModule,
     AnalysesModule,
     YoucamModule,
+    FitzpatrickModule,
     SkiniverModule,
     EncyclopediaModule,
     SubscriptionsModule,

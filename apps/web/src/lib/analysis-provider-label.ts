@@ -6,6 +6,7 @@
 export const ANALYSIS_PROVIDER_STATIC_LABELS = {
   skiniver: "Análisis Dermatológico",
   youcam: "Análisis Estético",
+  fitzpatrick: "Análisis Fitzpatrick",
 } as const;
 
 /** Label a mostrar para un análisis ya existente: prioriza

@@ -2,7 +2,7 @@
  * Slugs semilla de `analysis_providers` (MIGRACION.md §3.1/§3.2).
  * Cada `Plan` pertenece a exactamente uno; los créditos no son intercambiables entre ellos.
  */
-export const ANALYSIS_PROVIDER_SLUGS = ["skiniver", "youcam"] as const;
+export const ANALYSIS_PROVIDER_SLUGS = ["skiniver", "youcam", "fitzpatrick"] as const;
 export type AnalysisProviderSlug = (typeof ANALYSIS_PROVIDER_SLUGS)[number];
 
 /**

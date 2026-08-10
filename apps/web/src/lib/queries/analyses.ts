@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { SkiniverPrediction, YouCamResults } from "@piel360/shared";
+import type { FitzpatrickResult, SkiniverPrediction, YouCamResults } from "@piel360/shared";
 import { apiClientFetch } from "@/lib/api-client";
 
 // Shape que escribe YoucamResultsService#applyError cuando YouCam rechaza el
@@ -15,13 +15,15 @@ export interface YouCamAnalysisError {
 // Shape completo de GET/POST /analyses (`id` es string por el polyfill de
 // BigInt del backend). imageUrl/coloredUrl/maskedUrl/masks son URLs firmadas
 // agregadas por AnalysesService.withImageUrls — no existen como columnas.
-// aiRawResponse es SkiniverPrediction si youcamTaskId es null, YouCamResults
-// o YouCamAnalysisError si no (distinguir por youcamTaskId antes de leer sus
-// campos, y por la propiedad `error` para el caso de fallo).
+// aiRawResponse es SkiniverPrediction si youcamTaskId/fitzpatrickTaskId son
+// null, YouCamResults/YouCamAnalysisError si hay youcamTaskId, o
+// FitzpatrickResult si hay fitzpatrickTaskId (distinguir por esos campos
+// antes de leer, y por la propiedad `error` para el caso de fallo YouCam).
 export interface AnalysisDetail {
   id: string;
   patientId: string;
   youcamTaskId: string | null;
+  fitzpatrickTaskId: string | null;
   bodyRegion: string | null;
   xCoord: number | null;
   yCoord: number | null;
@@ -30,7 +32,12 @@ export interface AnalysisDetail {
   validationScore: number | null;
   aiDiagnosis: string | null;
   aiProbability: number | null;
-  aiRawResponse: SkiniverPrediction | YouCamResults | YouCamAnalysisError | null;
+  aiRawResponse:
+    | SkiniverPrediction
+    | YouCamResults
+    | YouCamAnalysisError
+    | FitzpatrickResult
+    | null;
   finalDiagnosis: string | null;
   isConfirmed: boolean;
   isCorrected: boolean;

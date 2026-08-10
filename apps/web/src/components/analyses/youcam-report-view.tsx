@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ArrowLeft, Download, FileText } from "lucide-react";
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
+import { cn } from "@/lib/utils";
 import type { AnalysisDetail } from "@/lib/queries/analyses";
-import { YOUCAM_METRIC_LABELS } from "@/lib/youcam-metric-labels";
+import { YOUCAM_METRIC_LABELS, youcamSkinTypeLabel } from "@/lib/youcam-metric-labels";
 import {
   parseYoucamMetrics,
   YOUCAM_MAIN_METRIC_TYPES,
@@ -158,7 +159,8 @@ export function YoucamReportView({
       parseYoucamMetrics(analysis.aiRawResponse as YoucamRawResponse | null),
     [analysis.aiRawResponse],
   );
-  const scores = useMemo(() => youcamScoresByType(metrics), [metrics]);
+  const [preferRaw, setPreferRaw] = useState(false);
+  const scores = useMemo(() => youcamScoresByType(metrics, preferRaw), [metrics, preferRaw]);
   const overall = youcamOverallScore(metrics);
   const skinAge = youcamSkinAge(metrics);
   const skinType = youcamSkinType(metrics);
@@ -224,6 +226,33 @@ export function YoucamReportView({
         </div>
       </div>
 
+      <div className="flex justify-end gap-1 text-xs">
+        <button
+          type="button"
+          onClick={() => setPreferRaw(false)}
+          className={cn(
+            "rounded-full border px-3 py-1 font-medium",
+            !preferRaw
+              ? "border-primary bg-primary/10 text-primary"
+              : "border-border bg-card text-muted-foreground",
+          )}
+        >
+          Puntuación ajustada
+        </button>
+        <button
+          type="button"
+          onClick={() => setPreferRaw(true)}
+          className={cn(
+            "rounded-full border px-3 py-1 font-medium",
+            preferRaw
+              ? "border-primary bg-primary/10 text-primary"
+              : "border-border bg-card text-muted-foreground",
+          )}
+        >
+          Puntuación real
+        </button>
+      </div>
+
       <ModuleCard className="space-y-4">
         <div className="flex items-center gap-3">
           <div className="size-14 overflow-hidden rounded-full bg-primary/10">
@@ -246,7 +275,7 @@ export function YoucamReportView({
 
         <div className="space-y-1 text-sm">
           <p>
-            Tipo de piel: <span className="font-semibold">{skinType ?? "—"}</span>
+            Tipo de piel: <span className="font-semibold">{skinType ? youcamSkinTypeLabel(skinType) : "—"}</span>
           </p>
           <p>
             Puntuación de la piel:{" "}

@@ -42,7 +42,7 @@ export function SubscriptionHistoryTable({ limit }: { limit?: number }) {
           <TableRow>
             <TableHead>Fecha</TableHead>
             <TableHead>Plan</TableHead>
-            <TableHead>Proveedor</TableHead>
+            <TableHead>Tipo de análisis</TableHead>
             <TableHead>Monto</TableHead>
             <TableHead>Estado</TableHead>
             <TableHead>Referencia</TableHead>

@@ -52,8 +52,12 @@ export function youcamSkinType(metrics: YoucamMetric[]): string | null {
   return item?.skinType ?? null;
 }
 
-/** Score preferido para UI: uiScore → score → rawScore. */
-export function youcamMetricValue(metric: YoucamMetric): number | null {
+/** Score preferido para UI: uiScore → score → rawScore (default), o
+ * rawScore → score → uiScore si el usuario prefiere ver el valor sin
+ * ajustar cosméticamente (ver toggle "Puntuación ajustada"/"Puntuación real"
+ * en youcam-results-section.tsx). */
+export function youcamMetricValue(metric: YoucamMetric, preferRaw = false): number | null {
+  if (preferRaw) return metric.rawScore ?? metric.score ?? metric.uiScore;
   return metric.uiScore ?? metric.score ?? metric.rawScore;
 }
 
@@ -93,10 +97,11 @@ export const YOUCAM_MAIN_METRIC_TYPES = [
 /** Agrupa por type eligiendo región whole/sin región cuando exista. */
 export function youcamScoresByType(
   metrics: YoucamMetric[],
+  preferRaw = false,
 ): Record<string, number> {
   const map: Record<string, number> = {};
   for (const m of metrics) {
-    const value = youcamMetricValue(m);
+    const value = youcamMetricValue(m, preferRaw);
     if (value == null) continue;
     const preferWhole = !m.region || m.region === "whole";
     if (map[m.type] == null || preferWhole) {
