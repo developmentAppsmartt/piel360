@@ -67,6 +67,12 @@ export default function PacienteDetallePage() {
             {ANALYSIS_PROVIDER_STATIC_LABELS.youcam}
           </Button>
           <Button
+            nativeButton={false}
+            render={<Link href={`/doctor/pacientes/${p.id}/nuevo-analisis-fitzpatrick`} />}
+          >
+            {ANALYSIS_PROVIDER_STATIC_LABELS.fitzpatrick}
+          </Button>
+          <Button
             variant="outline"
             nativeButton={false}
             render={<Link href={`/doctor/pacientes/${p.id}/historial-3d`} />}

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { ModuleCard } from "@/components/ui/module-card";
 import { youcamMetricCopy } from "@/lib/youcam-metric-copy";
-import { YOUCAM_METRIC_LABELS, youcamRegionLabel } from "@/lib/youcam-metric-labels";
+import { YOUCAM_METRIC_LABELS, youcamRegionLabel, youcamSkinTypeLabel } from "@/lib/youcam-metric-labels";
 import type { AnalysisDetail } from "@/lib/queries/analyses";
 import {
   parseYoucamMetrics,
@@ -76,6 +76,7 @@ function buildRegionOptions(
   type: string,
   candidates: YoucamMetric[],
   masks: AnalysisDetail["masks"],
+  preferRaw: boolean,
 ): MetricRegionOption[] {
   const sorted = [...candidates].sort((a, b) => {
     const aWhole = (a.region ?? DEFAULT_REGION) === DEFAULT_REGION;
@@ -88,7 +89,7 @@ function buildRegionOptions(
     return {
       region,
       label: youcamRegionLabel(region),
-      score: youcamMetricValue(m),
+      score: youcamMetricValue(m, preferRaw),
       skinType: m.skinType,
       maskUrl: findMaskUrl(masks, type, m.region),
     };
@@ -98,6 +99,7 @@ function buildRegionOptions(
 function buildChips(
   metrics: YoucamMetric[],
   masks: AnalysisDetail["masks"],
+  preferRaw: boolean,
 ): MetricChip[] {
   const chips: MetricChip[] = [
     {
@@ -116,11 +118,11 @@ function buildChips(
     chips.push({
       type: "hd_skin_type",
       label: "Tipo piel",
-      score: youcamMetricValue(whole),
+      score: youcamMetricValue(whole, preferRaw),
       maskUrl: findMaskUrl(masks, "hd_skin_type", whole.region),
       regions:
         skinTypeCandidates.length > 1
-          ? buildRegionOptions("hd_skin_type", skinTypeCandidates, masks)
+          ? buildRegionOptions("hd_skin_type", skinTypeCandidates, masks, preferRaw)
           : undefined,
     });
   }
@@ -133,11 +135,11 @@ function buildChips(
     chips.push({
       type,
       label: shortLabel(type),
-      score: youcamMetricValue(whole),
+      score: youcamMetricValue(whole, preferRaw),
       maskUrl: findMaskUrl(masks, type, whole.region),
       regions:
         MULTI_REGION_TYPES.has(type) && candidates.length > 1
-          ? buildRegionOptions(type, candidates, masks)
+          ? buildRegionOptions(type, candidates, masks, preferRaw)
           : undefined,
     });
   }
@@ -164,7 +166,7 @@ function buildOverviewMaskUrls(
 }
 
 function regionPillLabel(option: MetricRegionOption): string {
-  if (option.skinType) return `${option.label} · ${option.skinType}`;
+  if (option.skinType) return `${option.label} · ${youcamSkinTypeLabel(option.skinType)}`;
   if (option.score != null) return `${option.label} ${Math.round(option.score)}`;
   return option.label;
 }
@@ -186,9 +188,10 @@ export function YoucamResultsSection({
   const overall = youcamOverallScore(metrics);
   const skinAge = youcamSkinAge(metrics);
   const skinType = youcamSkinType(metrics);
+  const [preferRaw, setPreferRaw] = useState(false);
   const chips = useMemo(
-    () => buildChips(metrics, analysis.masks),
-    [metrics, analysis.masks],
+    () => buildChips(metrics, analysis.masks, preferRaw),
+    [metrics, analysis.masks, preferRaw],
   );
   const overviewMaskUrls = useMemo(
     () => buildOverviewMaskUrls(metrics, analysis.masks),
@@ -241,7 +244,7 @@ export function YoucamResultsSection({
         <p className="text-sm">
           Tipo de piel:{" "}
           <span className="font-semibold text-muted-foreground">
-            {skinType ?? "—"}
+            {skinType ? youcamSkinTypeLabel(skinType) : "—"}
           </span>
         </p>
       </ModuleCard>
@@ -310,6 +313,33 @@ export function YoucamResultsSection({
           className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
         >
           Reportes
+        </button>
+      </div>
+
+      <div className="flex justify-end gap-1 text-xs">
+        <button
+          type="button"
+          onClick={() => setPreferRaw(false)}
+          className={cn(
+            "rounded-full border px-3 py-1 font-medium",
+            !preferRaw
+              ? "border-primary bg-primary/10 text-primary"
+              : "border-border bg-card text-muted-foreground",
+          )}
+        >
+          Puntuación ajustada
+        </button>
+        <button
+          type="button"
+          onClick={() => setPreferRaw(true)}
+          className={cn(
+            "rounded-full border px-3 py-1 font-medium",
+            preferRaw
+              ? "border-primary bg-primary/10 text-primary"
+              : "border-border bg-card text-muted-foreground",
+          )}
+        >
+          Puntuación real
         </button>
       </div>
 

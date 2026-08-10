@@ -36,7 +36,7 @@ const ACTIONS = [
 
 async function main() {
   // --- Analysis providers (MIGRACION.md §3.1) ---
-  const [skiniver, youcam] = await Promise.all([
+  const [skiniver, youcam, fitzpatrick] = await Promise.all([
     prisma.analysisProvider.upsert({
       where: { slug: 'skiniver' },
       update: { displayLabel: 'Análisis Dermatológico' },
@@ -53,6 +53,15 @@ async function main() {
         name: 'YouCam',
         slug: 'youcam',
         displayLabel: 'Análisis Estético',
+      },
+    }),
+    prisma.analysisProvider.upsert({
+      where: { slug: 'fitzpatrick' },
+      update: { displayLabel: 'Análisis Fitzpatrick' },
+      create: {
+        name: 'Fitzpatrick',
+        slug: 'fitzpatrick',
+        displayLabel: 'Análisis Fitzpatrick',
       },
     }),
   ]);
@@ -118,7 +127,8 @@ async function main() {
       price: 29900,
       durationDays: 30,
       isActive: true,
-      description: 'Plan mensual de diagnóstico dermatológico por imagen (Skiniver).',
+      description:
+        'Plan mensual de diagnóstico dermatológico por imagen (Skiniver).',
     },
   });
 
@@ -133,7 +143,24 @@ async function main() {
       price: 29900,
       durationDays: 30,
       isActive: true,
-      description: 'Plan mensual de análisis facial de estado de piel (YouCam).',
+      description:
+        'Plan mensual de análisis facial de estado de piel (YouCam).',
+    },
+  });
+
+  await prisma.plan.upsert({
+    where: { id: 3n },
+    update: {},
+    create: {
+      id: 3n,
+      analysisProviderId: fitzpatrick.id,
+      name: 'Fitzpatrick Básico',
+      analysisLimit: 10,
+      price: 29900,
+      durationDays: 30,
+      isActive: true,
+      description:
+        'Plan mensual de clasificación de fototipo de piel (escala Fitzpatrick).',
     },
   });
 
@@ -158,7 +185,9 @@ async function main() {
   });
 
   console.log('Seed completado:');
-  console.log(`  - Providers: ${skiniver.slug}, ${youcam.slug}`);
+  console.log(
+    `  - Providers: ${skiniver.slug}, ${youcam.slug}, ${fitzpatrick.slug}`,
+  );
   console.log(`  - Roles: admin, doctor, patient`);
   console.log(`  - Permisos: ${permissionNames.length}`);
   console.log(`  - Admin: ${adminUser.email} (password: ${adminPassword})`);

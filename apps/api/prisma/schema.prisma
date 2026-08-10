@@ -107,7 +107,8 @@ model Patient {
 
 model Analysis {
   id              BigInt    @id @default(autoincrement())
-  youcamTaskId    String?   @map("youcam_task_id")
+  youcamTaskId      String? @map("youcam_task_id")
+  fitzpatrickTaskId String? @map("fitzpatrick_task_id")
   patientId       BigInt    @map("patient_id")
   userId          BigInt?   @map("user_id")
   providerId      BigInt?   @map("provider_id")
@@ -143,6 +144,7 @@ model Analysis {
   usage       SubscriptionUsage?
 
   @@index([youcamTaskId])
+  @@index([fitzpatrickTaskId])
   @@index([patientId], map: "idx_analyses_patient_id")
   @@index([userId], map: "idx_analyses_user_id")
   @@index([youcamTaskId], map: "idx_analyses_youcam_task_id")

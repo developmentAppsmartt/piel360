@@ -5,6 +5,7 @@ import type { SkiniverDiagnosisCandidate, SkiniverPrediction } from "@piel360/sh
 import { ConfirmAnalysisForm } from "@/components/analyses/confirm-analysis-form";
 import { DiagnosisDetailDialog } from "@/components/analyses/diagnosis-detail-dialog";
 import { DiagnosisList } from "@/components/analyses/diagnosis-list";
+import { FitzpatrickResultsSection } from "@/components/analyses/fitzpatrick-results-section";
 import { ImageCarousel } from "@/components/analyses/image-carousel";
 import { RiskGauge } from "@/components/analyses/risk-gauge";
 import { YoucamProgressView } from "@/components/analyses/youcam-progress-view";
@@ -37,7 +38,9 @@ export function AnalysisResultsView({
   const [youcamView, setYoucamView] = useState<YoucamSubView>("detail");
 
   const isYoucam = !!analysis.data?.youcamTaskId;
-  const prediction = !isYoucam
+  const isFitzpatrick = !!analysis.data?.fitzpatrickTaskId;
+  const isSkiniver = !isYoucam && !isFitzpatrick;
+  const prediction = isSkiniver
     ? (analysis.data?.aiRawResponse as SkiniverPrediction | undefined)
     : undefined;
   const youcamError =
@@ -100,7 +103,11 @@ export function AnalysisResultsView({
         />
       )}
 
-      {!isYoucam && (
+      {isFitzpatrick && (
+        <FitzpatrickResultsSection analysis={analysis.data} />
+      )}
+
+      {isSkiniver && (
         <>
           <RiskGauge
             percent={
@@ -171,7 +178,7 @@ export function AnalysisResultsView({
         (!isYoucam || analysis.data.isValid) &&
         (analysis.data.isConfirmed ? (
           <p className="text-sm text-muted-foreground">
-            {isYoucam ? "Análisis" : "Diagnóstico"}{" "}
+            {isYoucam || isFitzpatrick ? "Análisis" : "Diagnóstico"}{" "}
             {analysis.data.isCorrected ? "corregido" : "confirmado"}
             {analysis.data.finalDiagnosis
               ? `: ${analysis.data.finalDiagnosis}`
@@ -187,7 +194,7 @@ export function AnalysisResultsView({
           />
         ))}
 
-      {!isYoucam && (
+      {isSkiniver && (
         <DiagnosisDetailDialog
           item={selectedDiagnosis}
           onClose={() => setSelectedDiagnosis(null)}

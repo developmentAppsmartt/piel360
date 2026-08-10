@@ -46,3 +46,21 @@ export function youcamMaskLabel(type: string, region?: string): string {
   if (!region) return base;
   return `${base} — ${youcamRegionLabel(region)}`;
 }
+
+// Los 8 valores posibles de `skin_type`/`hd_skin_type[].skin_type` según la
+// doc de YouCam — clave en minúsculas porque la API no garantiza la misma
+// capitalización de la doc byte a byte.
+export const YOUCAM_SKIN_TYPE_LABELS: Record<string, string> = {
+  normal: "Normal",
+  oily: "Grasa",
+  dry: "Seca",
+  combination: "Mixta",
+  redness: "Enrojecida",
+  "dry & redness": "Seca y enrojecida",
+  "oily & redness": "Grasa y enrojecida",
+  "combination & redness": "Mixta y enrojecida",
+};
+
+export function youcamSkinTypeLabel(value: string): string {
+  return YOUCAM_SKIN_TYPE_LABELS[value.toLowerCase()] ?? value;
+}

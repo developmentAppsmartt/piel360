@@ -79,7 +79,7 @@ export default function NuevoAnalisisPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-semibold">Nuevo análisis (Skiniver)</h1>
+      <h1 className="text-2xl font-semibold">Nuevo análisis - Dermatológico</h1>
 
       {step === "region" && (
         <div className="space-y-4">
