@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import { ApiError } from "@/lib/api-error";
 import {
   type Analysis,
@@ -31,11 +32,6 @@ import {
 } from "@/lib/queries/patients";
 import { useMySubscriptions } from "@/lib/queries/subscriptions";
 import { cn } from "@/lib/utils";
-
-const PROVIDER_LABELS: Record<string, string> = {
-  skiniver: "Skiniver",
-  youcam: "YouCam",
-};
 
 function ageFromBirthDate(birthDate: string | null | undefined): number | null {
   if (!birthDate) return null;
@@ -153,7 +149,10 @@ export default function PatientDashboardPage() {
           </div>
           {activeSub ? (
             <Badge className="mt-1" variant="secondary">
-              Plan: {PROVIDER_LABELS[activeSub.plan.provider.slug] ?? activeSub.plan.name}
+              Plan:{" "}
+              {(ANALYSIS_PROVIDER_STATIC_LABELS as Record<string, string>)[
+                activeSub.plan.provider.slug
+              ] ?? activeSub.plan.name}
             </Badge>
           ) : null}
         </div>

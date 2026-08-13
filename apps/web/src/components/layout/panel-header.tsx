@@ -32,7 +32,7 @@ export function PanelHeader({
   return (
     <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-card/95 px-6 backdrop-blur">
       <div className="md:hidden">
-        <Logo className="h-6" />
+        <Logo className="h-8" />
       </div>
 
       <div className="ml-auto flex items-center gap-3">

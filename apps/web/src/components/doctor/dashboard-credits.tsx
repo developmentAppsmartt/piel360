@@ -1,10 +1,6 @@
 import Link from "next/link";
+import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import type { Subscription } from "@/lib/queries/subscriptions";
-
-const PROVIDER_LABELS: Record<string, string> = {
-  youcam: "Análisis de piel estéticos",
-  skiniver: "Análisis de imágenes dermatológicas",
-};
 
 /** Versión compacta de la barra de progreso de consumo/page.tsx, para el
  * dashboard del doctor — mismo cálculo (`analysisLimit - remainingCredits`). */
@@ -30,7 +26,11 @@ export function DashboardCredits({ subscriptions }: { subscriptions: Subscriptio
             return (
               <div key={sub.id} className="space-y-1">
                 <div className="flex items-center justify-between text-sm">
-                  <span>{PROVIDER_LABELS[sub.plan.provider.slug] ?? sub.plan.provider.name}</span>
+                  <span>
+                    {(ANALYSIS_PROVIDER_STATIC_LABELS as Record<string, string>)[
+                      sub.plan.provider.slug
+                    ] ?? sub.plan.provider.name}
+                  </span>
                   <span className="text-muted-foreground">
                     {sub.remainingCredits} de {sub.plan.analysisLimit} restantes
                   </span>
