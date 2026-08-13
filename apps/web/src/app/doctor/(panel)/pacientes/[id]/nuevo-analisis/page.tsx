@@ -6,6 +6,7 @@ import { AnalysisResultsView } from "@/components/analyses/analysis-results-view
 import { BodySelector } from "@/components/analyses/body-selector";
 import { PhotoCapture } from "@/components/analyses/photo-capture";
 import { Button } from "@/components/ui/button";
+import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import { ApiError } from "@/lib/api-error";
 import { cn } from "@/lib/utils";
 import { useCreateAnalysis } from "@/lib/queries/analyses";
@@ -109,7 +110,8 @@ export default function NuevoAnalisisPage() {
       {step === "enviar" && photo && (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Se enviará la foto a Skiniver para el análisis. Esto puede tardar unos segundos.
+            Se enviará la foto para el análisis de {ANALYSIS_PROVIDER_STATIC_LABELS.skiniver}. Esto
+            puede tardar unos segundos.
           </p>
           <div className="relative overflow-hidden rounded-lg border border-border">
             {/* eslint-disable-next-line @next/next/no-img-element -- preview de un blob local, no apta para next/image */}

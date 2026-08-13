@@ -4,13 +4,13 @@ import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { WompiCheckoutButton } from "@/components/payments/wompi-checkout-button";
+import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import { usePlans } from "@/lib/queries/plans";
 import { useMySubscriptions } from "@/lib/queries/subscriptions";
 
-const PROVIDER_LABELS: Record<string, string> = {
-  skiniver: "Skiniver (análisis de piel)",
-  youcam: "YouCam (análisis facial)",
-};
+function providerLabel(slug: string): string {
+  return (ANALYSIS_PROVIDER_STATIC_LABELS as Record<string, string>)[slug] ?? slug;
+}
 
 function formatCOP(price: string) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(
@@ -43,7 +43,7 @@ export function PlansBrowser() {
             {activeSubscriptions.map((sub) => (
               <li key={sub.id} className="flex items-center justify-between gap-2">
                 <span>
-                  {PROVIDER_LABELS[sub.plan.provider.slug] ?? sub.plan.provider.name} — {sub.plan.name}
+                  {providerLabel(sub.plan.provider.slug)} — {sub.plan.name}
                 </span>
                 <span className="text-muted-foreground">
                   Vence el {sub.endsAt ? new Date(sub.endsAt).toLocaleDateString("es-CO") : "—"}
@@ -66,7 +66,7 @@ export function PlansBrowser() {
               size="sm"
               onClick={() => setProviderSlug(slug)}
             >
-              {PROVIDER_LABELS[slug] ?? slug}
+              {providerLabel(slug)}
             </Button>
           ))}
         </div>
