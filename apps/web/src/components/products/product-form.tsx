@@ -25,11 +25,11 @@ const schema = z
     pricingType: z.enum(["fixed", "variable"]).optional(),
     originalPrice: z.preprocess(
       (v) => (typeof v === "number" && isNaN(v) ? undefined : v),
-      z.number({ invalid_type_error: "Ingresa un precio válido" }).positive("Debe ser mayor a 0").optional()
+      z.number({ error: "Ingresa un precio válido" }).positive("Debe ser mayor a 0").optional()
     ),
     sellingPrice: z.preprocess(
       (v) => (typeof v === "number" && isNaN(v) ? undefined : v),
-      z.number({ invalid_type_error: "Ingresa un precio válido" }).positive("Debe ser mayor a 0").optional()
+      z.number({ error: "Ingresa un precio válido" }).positive("Debe ser mayor a 0").optional()
     ),
   })
   .superRefine((data, ctx) => {
