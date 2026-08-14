@@ -13,6 +13,9 @@ import type { Product, CreateProductInput } from "@/lib/queries/products";
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
+// Los campos de precio se tratan como strings en el schema para evitar el
+// problema de `z.preprocess` que ensancha el tipo a `unknown` y rompe
+// zodResolver. La conversión a number ocurre en el submit handler.
 const schema = z
   .object({
     productName: z.string().min(1, "Requerido").max(200),
@@ -23,14 +26,8 @@ const schema = z
     categoryId: z.string().min(1, "Selecciona una categoría"),
     enablePrice: z.boolean(),
     pricingType: z.enum(["fixed", "variable"]).optional(),
-    originalPrice: z.preprocess(
-      (v) => (typeof v === "number" && isNaN(v) ? undefined : v),
-      z.number({ error: "Ingresa un precio válido" }).positive("Debe ser mayor a 0").optional()
-    ),
-    sellingPrice: z.preprocess(
-      (v) => (typeof v === "number" && isNaN(v) ? undefined : v),
-      z.number({ error: "Ingresa un precio válido" }).positive("Debe ser mayor a 0").optional()
-    ),
+    originalPrice: z.string().optional(),
+    sellingPrice: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.enablePrice) {
@@ -41,6 +38,22 @@ const schema = z
           message: "Selecciona el tipo de precio",
         });
       }
+      const validate = (
+        raw: string | undefined,
+        field: "originalPrice" | "sellingPrice"
+      ) => {
+        if (!raw || raw.trim() === "") return; // campo vacío = opcional, ok
+        const n = parseFloat(raw);
+        if (isNaN(n) || n <= 0) {
+          ctx.addIssue({
+            code: "custom",
+            path: [field],
+            message: "Ingresa un precio válido (mayor a 0)",
+          });
+        }
+      };
+      if (data.pricingType === "fixed") validate(data.originalPrice, "originalPrice");
+      validate(data.sellingPrice, "sellingPrice");
     }
   });
 
@@ -116,12 +129,8 @@ export function ProductForm({
       categoryId: defaultValues?.categoryId ?? "",
       enablePrice: defaultValues?.enablePrice ?? false,
       pricingType: (defaultValues?.pricingType as "fixed" | "variable") ?? undefined,
-      originalPrice: defaultValues?.originalPrice
-        ? parseFloat(defaultValues.originalPrice)
-        : undefined,
-      sellingPrice: defaultValues?.sellingPrice
-        ? parseFloat(defaultValues.sellingPrice)
-        : undefined,
+      originalPrice: defaultValues?.originalPrice ?? "",
+      sellingPrice: defaultValues?.sellingPrice ?? "",
     },
   });
 
@@ -150,10 +159,13 @@ export function ProductForm({
         pricingType: values.enablePrice ? values.pricingType : undefined,
         currencyCode: currency,
         originalPrice:
-          values.enablePrice && pricingType === "fixed"
-            ? values.originalPrice
+          values.enablePrice && pricingType === "fixed" && values.originalPrice
+            ? parseFloat(values.originalPrice)
             : undefined,
-        sellingPrice: values.enablePrice ? values.sellingPrice : undefined,
+        sellingPrice:
+          values.enablePrice && values.sellingPrice
+            ? parseFloat(values.sellingPrice)
+            : undefined,
       });
     } catch (err) {
       setError("root", {
@@ -285,7 +297,7 @@ export function ProductForm({
                   min="0"
                   className={inputCls}
                   placeholder="0.00"
-                  {...register("originalPrice", { valueAsNumber: true })}
+                  {...register("originalPrice")}
                 />
               </FormField>
             )}
@@ -303,7 +315,7 @@ export function ProductForm({
                 min="0"
                 className={inputCls}
                 placeholder="0.00"
-                {...register("sellingPrice", { valueAsNumber: true })}
+                {...register("sellingPrice")}
               />
             </FormField>
           </div>
