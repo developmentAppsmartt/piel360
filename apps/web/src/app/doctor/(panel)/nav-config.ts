@@ -7,6 +7,7 @@ import {
   LifeBuoy,
   Receipt,
   Settings,
+  ShoppingBag,
   UserRound,
   Users,
 } from "lucide-react";
@@ -21,6 +22,7 @@ export const doctorNav: NavItem[] = [
   { label: "Consumo de análisis", href: "/doctor/consumo", icon: BarChart3 },
   { label: "Compras y facturación", href: "/doctor/facturacion", icon: Receipt },
   { label: "Reportes", href: "/doctor/reportes", icon: FileBarChart2 },
+  { label: "Productos", href: "/doctor/productos", icon: ShoppingBag },
   { label: "Configuración", href: "/doctor/configuracion", icon: Settings },
   { label: "Soporte", href: "/doctor/soporte", icon: LifeBuoy },
 ];

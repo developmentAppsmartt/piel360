@@ -21,6 +21,9 @@ out/
 .env.*
 !.env.example
 
+# Config MCP local (contiene referencia a credenciales de BD por dev)
+.mcp.json
+
 # Logs
 *.log
 npm-debug.log*
