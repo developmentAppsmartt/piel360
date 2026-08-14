@@ -26,6 +26,8 @@ import { HealthModule } from './health/health.module';
 import { MailModule } from './mail/mail.module';
 import { CommonModule } from './common/common.module';
 import { MessagesModule } from './messages/messages.module';
+import { ProductsModule } from './products/products.module';
+import { AppConfigModule } from './app-config/app-config.module';
 
 @Module({
   imports: [
@@ -67,6 +69,8 @@ import { MessagesModule } from './messages/messages.module';
     AdminModule,
     RolesModule,
     HealthModule,
+    ProductsModule,
+    AppConfigModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

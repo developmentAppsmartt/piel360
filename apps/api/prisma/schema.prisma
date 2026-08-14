@@ -65,9 +65,11 @@ model Doctor {
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  patients      Patient[]
-  conversations Conversation[]
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  patients          Patient[]
+  conversations     Conversation[]
+  productCategories ProductCategory[]
+  products          Product[]
 
   @@map("doctors")
 }
@@ -362,4 +364,56 @@ model Permission {
   roles Role[]
 
   @@map("permissions")
+}
+
+/** Configuración global de la aplicación (clave-valor). */
+model AppConfig {
+  id        BigInt   @id @default(autoincrement())
+  key       String   @unique
+  value     String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("app_configs")
+}
+
+/** Categorías de productos — scoped al doctor. */
+model ProductCategory {
+  id           BigInt   @id @default(autoincrement())
+  doctorId     BigInt   @map("doctor_id")
+  categoryName String   @map("category_name")
+  createdAt    DateTime @default(now()) @map("created_at")
+  lastModified DateTime @updatedAt @map("last_modified")
+
+  doctor   Doctor    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@index([doctorId])
+  @@map("product_categories")
+}
+
+/** Productos — scoped al doctor vía categoría. */
+model Product {
+  id                 BigInt   @id @default(autoincrement())
+  doctorId           BigInt   @map("doctor_id")
+  categoryId         BigInt   @map("category_id")
+  productName        String   @map("product_name")
+  productDescription String?  @map("product_description") @db.Text
+  productUrl         String?  @map("product_url")
+  imageUrl           String?  @map("image_url")
+  enablePrice        Boolean  @default(false) @map("enable_price")
+  /** "fixed" | "variable" */
+  pricingType        String?  @map("pricing_type")
+  currencyCode       String   @default("COP") @map("currency_code")
+  originalPrice      Decimal? @map("original_price") @db.Decimal(12, 2)
+  sellingPrice       Decimal? @map("selling_price") @db.Decimal(12, 2)
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  doctor   Doctor          @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  category ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId])
+  @@index([categoryId])
+  @@map("products")
 }
