@@ -19,6 +19,7 @@ import type { Product, CreateProductInput } from "@/lib/queries/products";
 const schema = z
   .object({
     productName: z.string().min(1, "Requerido").max(200),
+    productType: z.enum(["product", "supplement"]),
     productDescription: z.string().optional(),
     productUrl: z
       .union([z.literal(""), z.string().url("URL inválida")])
@@ -124,6 +125,7 @@ export function ProductForm({
     resolver: zodResolver(schema),
     defaultValues: {
       productName: defaultValues?.productName ?? "",
+      productType: defaultValues?.productType ?? "product",
       productDescription: defaultValues?.productDescription ?? "",
       productUrl: defaultValues?.productUrl ?? "",
       categoryId: defaultValues?.categoryId ?? "",
@@ -152,6 +154,7 @@ export function ProductForm({
     try {
       await onSubmit({
         productName: values.productName,
+        productType: values.productType,
         productDescription: values.productDescription || undefined,
         productUrl: values.productUrl || undefined,
         categoryId: values.categoryId,
@@ -193,6 +196,14 @@ export function ProductForm({
           placeholder="Ej: Sérum Vitamina C"
           {...register("productName")}
         />
+      </FormField>
+
+      {/* Tipo */}
+      <FormField label="Tipo" id="productType" error={errors.productType?.message}>
+        <select id="productType" className={inputCls} {...register("productType")}>
+          <option value="product">Producto</option>
+          <option value="supplement">Suplemento</option>
+        </select>
       </FormField>
 
       {/* Descripción */}

@@ -1,6 +1,6 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
-import { normalizeYoucamResults, readOutput } from './youcam-normalize';
+import { normalizeYoucamResults, readOutput } from '../src/youcam/youcam-normalize.util';
 
 // Prisma 7: el cliente necesita un driver adapter explícito (ver src/prisma/prisma.service.ts).
 const adapter = new PrismaPg({

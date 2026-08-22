@@ -47,8 +47,7 @@ export function parseOAuthState(state: unknown): OAuthState {
     return { role: raw, platform: 'web' };
   }
   const [role, platformRaw, ...rest] = raw.split('.');
-  const platform: OAuthPlatform =
-    platformRaw === 'mobile' ? 'mobile' : 'web';
+  const platform: OAuthPlatform = platformRaw === 'mobile' ? 'mobile' : 'web';
   if (rest.length > 0) {
     const redirectUri = decodeURIComponent(rest.join('.'));
     return {

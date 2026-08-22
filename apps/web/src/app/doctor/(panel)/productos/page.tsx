@@ -3,14 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { ShoppingBag, FolderOpen } from "lucide-react";
+import { ShoppingBag, FolderOpen, Sparkles } from "lucide-react";
 import { CategoriesTab } from "@/components/products/categories-tab";
 import { ProductsTab } from "@/components/products/products-tab";
+import { SuggestedProductsTab } from "@/components/treatments/suggested-products-tab";
 import { ApiError } from "@/lib/api-error";
 import { useProductCategories } from "@/lib/queries/products";
 import { cn } from "@/lib/utils";
 
-type Tab = "categorias" | "productos";
+type Tab = "categorias" | "productos" | "sugeridos";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   {
@@ -22,6 +23,11 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     id: "productos",
     label: "Productos",
     icon: <ShoppingBag className="size-4" />,
+  },
+  {
+    id: "sugeridos",
+    label: "Sugeridos por puntaje",
+    icon: <Sparkles className="size-4" />,
   },
 ];
 
@@ -71,6 +77,7 @@ export default function ProductosPage() {
       {/* Contenido */}
       {activeTab === "categorias" && <CategoriesTab />}
       {activeTab === "productos" && <ProductsTab />}
+      {activeTab === "sugeridos" && <SuggestedProductsTab />}
     </div>
   );
 }
