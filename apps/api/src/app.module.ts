@@ -24,9 +24,13 @@ import { AdminModule } from './admin/admin.module';
 import { RolesModule } from './roles/roles.module';
 import { HealthModule } from './health/health.module';
 import { MailModule } from './mail/mail.module';
+import { SmsModule } from './sms/sms.module';
 import { CommonModule } from './common/common.module';
 import { MessagesModule } from './messages/messages.module';
 import { ProductsModule } from './products/products.module';
+import { RoutinesModule } from './routines/routines.module';
+import { TreatmentsModule } from './treatments/treatments.module';
+import { AnalysisConditionsModule } from './analysis-conditions/analysis-conditions.module';
 import { AppConfigModule } from './app-config/app-config.module';
 
 @Module({
@@ -52,6 +56,7 @@ import { AppConfigModule } from './app-config/app-config.module';
     PrismaModule,
     CommonModule,
     MailModule,
+    SmsModule,
     AuthModule,
     UsersModule,
     DoctorsModule,
@@ -70,6 +75,9 @@ import { AppConfigModule } from './app-config/app-config.module';
     RolesModule,
     HealthModule,
     ProductsModule,
+    RoutinesModule,
+    TreatmentsModule,
+    AnalysisConditionsModule,
     AppConfigModule,
   ],
   controllers: [AppController],

@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsString, Matches, MinLength } from 'class-validator';
 
 export class RegisterDoctorDto {
   @IsEmail()
@@ -13,4 +13,15 @@ export class RegisterDoctorDto {
 
   @IsString()
   lastName!: string;
+
+  @Matches(/^\d{10,15}$/, {
+    message:
+      'Teléfono inválido — usa solo dígitos, con indicativo de país (10 a 15 dígitos)',
+  })
+  phone!: string;
+
+  /** Ticket de `POST /auth/otp/phone/verify` — obligatorio, el registro no
+   * se completa sin haber verificado el teléfono. */
+  @IsString()
+  phoneTicket!: string;
 }

@@ -24,10 +24,7 @@ export class AppConfigController {
   @Put('admin/app-config/:key')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermission('manage_app_config')
-  upsert(
-    @Param('key') key: string,
-    @Body('value') value: string,
-  ) {
+  upsert(@Param('key') key: string, @Body('value') value: string) {
     return this.appConfigService.upsert(key, value);
   }
 }

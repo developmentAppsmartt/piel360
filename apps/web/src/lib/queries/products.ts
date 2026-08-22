@@ -14,11 +14,14 @@ export interface ProductCategory {
   _count?: { products: number };
 }
 
+export type ProductType = "product" | "supplement";
+
 export interface Product {
   id: string;
   doctorId: string;
   categoryId: string;
   productName: string;
+  productType: ProductType;
   productDescription: string | null;
   productUrl: string | null;
   imageUrl: string | null;
@@ -38,6 +41,7 @@ export interface CreateCategoryInput {
 
 export interface CreateProductInput {
   productName: string;
+  productType?: ProductType;
   productDescription?: string;
   productUrl?: string;
   categoryId: number | string;
@@ -99,13 +103,16 @@ export function useDeleteCategory() {
 
 // ─── Productos ─────────────────────────────────────────────────────────────────
 
-export function useProducts(categoryId?: string) {
+export function useProducts(categoryId?: string, productType?: ProductType) {
   return useQuery({
-    queryKey: ["products", categoryId],
-    queryFn: () =>
-      apiClientFetch<Product[]>(
-        categoryId ? `/products?categoryId=${categoryId}` : "/products"
-      ),
+    queryKey: ["products", categoryId, productType],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (categoryId) params.set("categoryId", categoryId);
+      if (productType) params.set("productType", productType);
+      const query = params.toString();
+      return apiClientFetch<Product[]>(query ? `/products?${query}` : "/products");
+    },
   });
 }
 

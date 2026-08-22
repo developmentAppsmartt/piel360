@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ModuleCard } from "@/components/ui/module-card";
+import { RecommendationsPanel } from "@/components/analyses/recommendations-panel";
 import { youcamMetricCopy } from "@/lib/youcam-metric-copy";
 import { YOUCAM_METRIC_LABELS, youcamRegionLabel, youcamSkinTypeLabel } from "@/lib/youcam-metric-labels";
 import type { AnalysisDetail } from "@/lib/queries/analyses";
@@ -203,6 +204,7 @@ export function YoucamResultsSection({
   const selected = chips.find((c) => c.type === selectedType) ?? chips[0] ?? null;
   const activeRegion = selected?.regions?.find((r) => r.region === selectedRegion) ?? null;
   const isOverview = selected?.type === "overview";
+  const metricType = selected && !isOverview ? selected.type : null;
 
   const showBase = analysis.hasOriginalPhoto && !!analysis.imageUrl;
   const maskUrl = isOverview ? null : (activeRegion?.maskUrl ?? selected?.maskUrl ?? null);
@@ -408,6 +410,8 @@ export function YoucamResultsSection({
           {youcamMetricCopy(selected?.type)}
         </p>
       </ModuleCard>
+
+      <RecommendationsPanel analysisId={analysis.id} metricType={metricType} />
     </div>
   );
 }

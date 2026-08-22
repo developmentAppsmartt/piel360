@@ -19,6 +19,8 @@ import { RegisterPatientDto } from './dto/register-patient.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { SendPhoneOtpDto } from './dto/send-phone-otp.dto';
+import { VerifyPhoneOtpDto } from './dto/verify-phone-otp.dto';
 import { GoogleAuthGuard } from './google-auth.guard';
 import type { GoogleProfile } from './google.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -58,6 +60,18 @@ export class AuthController {
   @HttpCode(200)
   verifyOtp(@Body() dto: VerifyOtpDto) {
     return this.authService.verifyOtp(dto);
+  }
+
+  @Post('otp/phone/send')
+  @HttpCode(200)
+  sendPhoneOtp(@Body() dto: SendPhoneOtpDto) {
+    return this.authService.sendPhoneOtp(dto);
+  }
+
+  @Post('otp/phone/verify')
+  @HttpCode(200)
+  verifyPhoneOtp(@Body() dto: VerifyPhoneOtpDto) {
+    return this.authService.verifyPhoneOtp(dto);
   }
 
   @Post('forgot-password')

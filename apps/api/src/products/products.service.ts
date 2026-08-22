@@ -89,12 +89,13 @@ export class ProductsService {
 
   // ─── Productos ──────────────────────────────────────────────────────────────
 
-  async getProducts(userId: string, categoryId?: string) {
+  async getProducts(userId: string, categoryId?: string, productType?: string) {
     const doctor = await this.requireDoctor(userId);
     const products = await this.prisma.product.findMany({
       where: {
         doctorId: doctor.id,
         ...(categoryId ? { categoryId: BigInt(categoryId) } : {}),
+        ...(productType ? { productType } : {}),
       },
       include: { category: { select: { id: true, categoryName: true } } },
       orderBy: { createdAt: 'asc' },
@@ -134,6 +135,7 @@ export class ProductsService {
         doctorId: doctor.id,
         categoryId: BigInt(dto.categoryId),
         productName: dto.productName,
+        productType: dto.productType ?? 'product',
         productDescription: dto.productDescription,
         productUrl: dto.productUrl,
         imageUrl: dto.imageUrl,
@@ -164,6 +166,7 @@ export class ProductsService {
           ? { categoryId: BigInt(dto.categoryId) }
           : {}),
         productName: dto.productName,
+        productType: dto.productType,
         productDescription: dto.productDescription,
         productUrl: dto.productUrl,
         enablePrice: dto.enablePrice,

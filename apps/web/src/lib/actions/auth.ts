@@ -61,12 +61,14 @@ export async function registerAction(
   const password = String(formData.get("password") ?? "");
   const firstName = String(formData.get("firstName") ?? "");
   const lastName = String(formData.get("lastName") ?? "");
+  const phone = String(formData.get("phone") ?? "");
+  const phoneTicket = String(formData.get("phoneTicket") ?? "");
 
   let result: AuthResponse;
   try {
     result = await apiFetch<AuthResponse>(`/auth/register/${role}`, {
       method: "POST",
-      body: JSON.stringify({ email, password, firstName, lastName }),
+      body: JSON.stringify({ email, password, firstName, lastName, phone, phoneTicket }),
     });
   } catch (err) {
     if (err instanceof ApiError) return { error: err.message };

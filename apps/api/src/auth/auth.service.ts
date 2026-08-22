@@ -12,6 +12,7 @@ import * as argon2 from 'argon2';
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { Redis } from 'ioredis';
 import { MailService } from '../mail/mail.service';
+import { SmsService } from '../sms/sms.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { ForgotPasswordDto } from './dto/forgot-password.dto';
 import type { LoginDto } from './dto/login.dto';
@@ -20,6 +21,8 @@ import type { RegisterPatientDto } from './dto/register-patient.dto';
 import type { ResetPasswordDto } from './dto/reset-password.dto';
 import type { SendOtpDto } from './dto/send-otp.dto';
 import type { VerifyOtpDto } from './dto/verify-otp.dto';
+import type { SendPhoneOtpDto } from './dto/send-phone-otp.dto';
+import type { VerifyPhoneOtpDto } from './dto/verify-phone-otp.dto';
 import type { GoogleProfile } from './google.strategy';
 import type { JwtPayload } from './types';
 
@@ -65,6 +68,7 @@ export class AuthService implements OnModuleDestroy {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly mail: MailService,
+    private readonly sms: SmsService,
   ) {
     this.redis = new Redis(this.config.getOrThrow<string>('REDIS_URL'), {
       lazyConnect: true,
@@ -78,6 +82,7 @@ export class AuthService implements OnModuleDestroy {
   }
 
   async registerDoctor(dto: RegisterDoctorDto): Promise<AuthResult> {
+    await this.consumePhoneTicket(dto.phoneTicket, dto.phone);
     await this.assertEmailAvailable(dto.email);
     const password = await argon2.hash(dto.password);
 
@@ -88,6 +93,8 @@ export class AuthService implements OnModuleDestroy {
         name: `${dto.firstName} ${dto.lastName}`,
         firstName: dto.firstName,
         lastName: dto.lastName,
+        phone: dto.phone,
+        phoneVerifiedAt: new Date(),
         roles: { connect: { name: 'doctor' } },
         doctor: {
           create: {
@@ -104,10 +111,11 @@ export class AuthService implements OnModuleDestroy {
 
   async registerPatient(dto: RegisterPatientDto): Promise<AuthResult> {
     const email = dto.email.trim().toLowerCase();
-    const ticket = dto.emailTicket?.trim();
-    if (ticket) {
-      await this.consumeRegisterTicket(ticket, email);
+    const emailTicket = dto.emailTicket?.trim();
+    if (emailTicket) {
+      await this.consumeRegisterTicket(emailTicket, email);
     }
+    await this.consumePhoneTicket(dto.phoneTicket, dto.phone);
 
     await this.assertEmailAvailable(email);
     const password = await argon2.hash(dto.password);
@@ -120,7 +128,9 @@ export class AuthService implements OnModuleDestroy {
         firstName: dto.firstName,
         lastName: dto.lastName,
         // Solo se marca verificado si hubo ticket OTP.
-        emailVerifiedAt: ticket ? new Date() : null,
+        emailVerifiedAt: emailTicket ? new Date() : null,
+        phone: dto.phone,
+        phoneVerifiedAt: new Date(),
         roles: { connect: { name: 'patient' } },
         patient: {
           create: {
@@ -417,6 +427,58 @@ export class AuthService implements OnModuleDestroy {
     ]);
 
     return { ok: true };
+  }
+
+  /**
+   * OTP de teléfono por SMS — a diferencia del OTP de email (código propio
+   * guardado en Redis), acá Altiria genera/guarda/valida el código por su
+   * lado (ver SmsService); nosotros solo emitimos un ticket corto una vez
+   * que Altiria confirma el código, igual que hace el email con su ticket.
+   */
+  async sendPhoneOtp(dto: SendPhoneOtpDto): Promise<{ ok: true }> {
+    const phone = dto.phone.trim();
+    const existing = await this.prisma.user.findFirst({ where: { phone } });
+    if (existing) {
+      throw new ConflictException('Ya existe una cuenta con ese teléfono');
+    }
+    await this.sms.generateOtp(phone);
+    return { ok: true };
+  }
+
+  async verifyPhoneOtp(
+    dto: VerifyPhoneOtpDto,
+  ): Promise<{ ok: true; ticket: string }> {
+    const phone = dto.phone.trim();
+    const valid = await this.sms.checkOtp(phone, dto.code.trim());
+    if (!valid) {
+      throw new BadRequestException('Código inválido o expirado');
+    }
+
+    const ticket = randomUUID();
+    await this.ensureRedis();
+    await this.redis.set(
+      this.phoneTicketKey(ticket),
+      phone,
+      'EX',
+      OTP_TICKET_TTL_SECONDS,
+    );
+    return { ok: true, ticket };
+  }
+
+  private phoneTicketKey(ticket: string) {
+    return `otp-ticket:phone:${ticket}`;
+  }
+
+  private async consumePhoneTicket(ticket: string, phone: string) {
+    await this.ensureRedis();
+    const key = this.phoneTicketKey(ticket);
+    const storedPhone = await this.redis.get(key);
+    if (!storedPhone || storedPhone !== phone.trim()) {
+      throw new BadRequestException(
+        'Debes verificar tu teléfono con el código enviado por SMS antes de registrarte',
+      );
+    }
+    await this.redis.del(key);
   }
 
   private otpKey(purpose: string, email: string) {

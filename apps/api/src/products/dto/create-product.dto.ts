@@ -12,11 +12,17 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
+export const PRODUCT_TYPES = ['product', 'supplement'] as const;
+
 export class CreateProductDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(200)
   productName: string;
+
+  @IsIn(PRODUCT_TYPES)
+  @IsOptional()
+  productType?: string;
 
   @IsString()
   @IsOptional()

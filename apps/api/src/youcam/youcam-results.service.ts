@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { youcamMaskKey } from './mask-key.util';
+import { normalizeYoucamResults } from './youcam-normalize.util';
 
 const YOUCAM_PROVIDER_SLUG = 'youcam';
 
@@ -48,6 +49,24 @@ export class YoucamResultsService {
           item.mask_urls[0],
         );
       }
+    }
+
+    // Vuelca el mismo output[] a analysis_results/analysis_masks (filas
+    // estructuradas por métrica) — antes solo quedaba el JSON crudo en
+    // aiRawResponse. No bloquea la respuesta si falla (best-effort, mismo
+    // criterio que downloadMask): el JSON crudo sigue siendo la fuente de
+    // verdad y se puede re-normalizar con backfill-youcam-results.ts.
+    try {
+      await this.prisma.$transaction(
+        (tx) =>
+          normalizeYoucamResults(tx, analysisId, analysis.providerId, results),
+        // ~30 métricas × (resultado + máscara) supera el timeout de 5s por defecto.
+        { timeout: 30_000 },
+      );
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo normalizar analysis_results del análisis ${analysisId}: ${String(error)}`,
+      );
     }
 
     await this.consumeCreditIfNeeded(analysisId);
