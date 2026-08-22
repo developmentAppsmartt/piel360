@@ -65,8 +65,9 @@ export class ProductsController {
   getProducts(
     @CurrentUser() user: JwtPayload,
     @Query('categoryId') categoryId?: string,
+    @Query('productType') productType?: string,
   ) {
-    return this.productsService.getProducts(user.sub, categoryId);
+    return this.productsService.getProducts(user.sub, categoryId, productType);
   }
 
   @Get('products/:id')
@@ -98,9 +99,7 @@ export class ProductsController {
 
   /** Upload de imagen del producto — multipart/form-data, campo "file". */
   @Post('products/:id/image')
-  @UseInterceptors(
-    FileInterceptor('file', { storage: memoryStorage() }),
-  )
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
   uploadImage(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,

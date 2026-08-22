@@ -17,8 +17,7 @@ export class GoogleAuthGuard extends AuthGuard('google') {
       typeof request.query.platform === 'string'
         ? request.query.platform
         : 'web';
-    const platform: OAuthPlatform =
-      platformRaw === 'mobile' ? 'mobile' : 'web';
+    const platform: OAuthPlatform = platformRaw === 'mobile' ? 'mobile' : 'web';
     const redirectRaw =
       typeof request.query.redirect_uri === 'string'
         ? request.query.redirect_uri

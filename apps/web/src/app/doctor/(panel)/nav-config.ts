@@ -5,6 +5,7 @@ import {
   FileBarChart2,
   Home,
   LifeBuoy,
+  ListChecks,
   Receipt,
   Settings,
   ShoppingBag,
@@ -23,6 +24,7 @@ export const doctorNav: NavItem[] = [
   { label: "Compras y facturación", href: "/doctor/facturacion", icon: Receipt },
   { label: "Reportes", href: "/doctor/reportes", icon: FileBarChart2 },
   { label: "Productos", href: "/doctor/productos", icon: ShoppingBag },
+  { label: "Rutinas y tratamientos", href: "/doctor/rutinas", icon: ListChecks },
   { label: "Configuración", href: "/doctor/configuracion", icon: Settings },
   { label: "Soporte", href: "/doctor/soporte", icon: LifeBuoy },
 ];

@@ -23,6 +23,7 @@ import {
   useDeleteProduct,
   type Product,
   type CreateProductInput,
+  type ProductType,
 } from "@/lib/queries/products";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -118,7 +119,8 @@ function EditProductDialog({
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function ProductsTab() {
-  const { data: products, isLoading } = useProducts();
+  const [typeFilter, setTypeFilter] = useState<ProductType | undefined>(undefined);
+  const { data: products, isLoading } = useProducts(undefined, typeFilter);
   const deleteMutation = useDeleteProduct();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -145,6 +147,14 @@ export function ProductsTab() {
       },
     }),
     col.accessor("productName", { header: "Nombre" }),
+    col.accessor("productType", {
+      header: "Tipo",
+      cell: (info) => (
+        <Badge variant={info.getValue() === "supplement" ? "outline" : "secondary"}>
+          {info.getValue() === "supplement" ? "Suplemento" : "Producto"}
+        </Badge>
+      ),
+    }),
     col.accessor((row) => row.category.categoryName, {
       id: "category",
       header: "Categoría",
@@ -241,6 +251,31 @@ export function ProductsTab() {
         >
           <PlusIcon className="mr-2 size-4" />
           Nuevo producto
+        </Button>
+      </div>
+
+      {/* Filtro por tipo */}
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          variant={typeFilter === undefined ? "default" : "outline"}
+          onClick={() => setTypeFilter(undefined)}
+        >
+          Todos
+        </Button>
+        <Button
+          size="sm"
+          variant={typeFilter === "product" ? "default" : "outline"}
+          onClick={() => setTypeFilter("product")}
+        >
+          Productos
+        </Button>
+        <Button
+          size="sm"
+          variant={typeFilter === "supplement" ? "default" : "outline"}
+          onClick={() => setTypeFilter("supplement")}
+        >
+          Suplementos
         </Button>
       </div>
 
