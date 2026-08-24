@@ -22,7 +22,7 @@ export const YOUCAM_METRIC_LABELS: Record<string, string> = {
   resize_image: 'Imagen redimensionada',
 };
 
-const YOUCAM_REGION_LABELS: Record<string, string> = {
+export const YOUCAM_REGION_LABELS: Record<string, string> = {
   whole: 'General',
   forehead: 'Frente',
   nose: 'Nariz',
@@ -36,8 +36,28 @@ const YOUCAM_REGION_LABELS: Record<string, string> = {
   u_zone: 'Zona U',
 };
 
+export function youcamRegionLabel(region: string): string {
+  return YOUCAM_REGION_LABELS[region] ?? region;
+}
+
 export function youcamMetricLabel(type: string, region?: string): string {
   const base = YOUCAM_METRIC_LABELS[type] ?? type;
   if (!region) return base;
-  return `${base} — ${YOUCAM_REGION_LABELS[region] ?? region}`;
+  return `${base} — ${youcamRegionLabel(region)}`;
+}
+
+/** Los 8 valores posibles de skin_type según la doc de YouCam. */
+export const YOUCAM_SKIN_TYPE_LABELS: Record<string, string> = {
+  normal: 'Normal',
+  oily: 'Grasa',
+  dry: 'Seca',
+  combination: 'Mixta',
+  redness: 'Enrojecida',
+  'dry & redness': 'Seca y enrojecida',
+  'oily & redness': 'Grasa y enrojecida',
+  'combination & redness': 'Mixta y enrojecida',
+};
+
+export function youcamSkinTypeLabel(value: string): string {
+  return YOUCAM_SKIN_TYPE_LABELS[value.toLowerCase()] ?? value;
 }

@@ -197,7 +197,7 @@ export function YoucamProgressView({
           >
             {!previous ? (
               <Text style={styles.note}>
-                Aún no hay un análisis YouCam anterior para comparar. Se muestran
+                Aún no hay un análisis estético anterior para comparar. Se muestran
                 solo las métricas del análisis actual.
               </Text>
             ) : null}

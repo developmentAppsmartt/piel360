@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { AppIcon } from '../../../../components/AppIcon';
 import { useBranding } from '../../../../context/BrandingContext';
+import { resolveLatestFitzpatrickType } from '../../../../data/fitzpatrickLabels';
 import {
   PATIENT_DOC_TYPES,
   PATIENT_FITZ_OPTIONS,
@@ -16,7 +17,11 @@ import {
   PATIENT_SKIN_OPTIONS,
 } from '../../../../data/patientFormOptions';
 import { ApiError } from '../../../../services/api.client';
-import type { UpdatePatientInput } from '../../../../services/patients.service';
+import {
+  patientsService,
+  type UpdatePatientInput,
+} from '../../../../services/patients.service';
+import type { PatientAnalysisSummary } from '../../../../types/analysis';
 import type { PatientProfile } from '../../../../types/patient';
 import { createEditProfileStyles } from '../styles/editProfile.styles';
 
@@ -35,9 +40,18 @@ function optional(value: string): string | undefined {
 type EditProfileFormProps = {
   patient: PatientProfile;
   onSubmit: (input: UpdatePatientInput) => Promise<void>;
+  /** Si false, el correo se muestra pero no se puede editar ni enviar. */
+  emailEditable?: boolean;
+  /** Historial ya cargado (evita un fetch extra desde detalle del paciente). */
+  analyses?: PatientAnalysisSummary[];
 };
 
-export function EditProfileForm({ patient, onSubmit }: EditProfileFormProps) {
+export function EditProfileForm({
+  patient,
+  onSubmit,
+  emailEditable = true,
+  analyses,
+}: EditProfileFormProps) {
   const branding = useBranding();
   const styles = useMemo(
     () => createEditProfileStyles(branding.colors),
@@ -56,11 +70,34 @@ export function EditProfileForm({ patient, onSubmit }: EditProfileFormProps) {
   const [address, setAddress] = useState(patient.address ?? '');
   const [mascotType, setMascotType] = useState(patient.mascotType ?? '');
   const [skinType, setSkinType] = useState(patient.skinType ?? '');
-  const [fitzpatrickType, setFitzpatrickType] = useState(
-    patient.fitzpatrickType ?? '',
+  const [fitzpatrickType, setFitzpatrickType] = useState(() =>
+    resolveLatestFitzpatrickType(patient, analyses ?? []),
   );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (analyses) {
+      const resolved = resolveLatestFitzpatrickType(patient, analyses);
+      if (resolved) setFitzpatrickType(resolved);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await patientsService.listAnalyses(patient.id);
+        if (cancelled) return;
+        const resolved = resolveLatestFitzpatrickType(patient, list);
+        if (resolved) setFitzpatrickType(resolved);
+      } catch {
+        // Mantener el valor del perfil si el historial no carga.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [patient.id, patient.fitzpatrickType, analyses]);
 
   const primary = branding.colors.primary;
   const onDark = branding.colors.textOnDark;
@@ -83,7 +120,6 @@ export function EditProfileForm({ patient, onSubmit }: EditProfileFormProps) {
     const input: UpdatePatientInput = {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
-      email: optional(email),
       phone: optional(phone),
       areaCode: optional(areaCode),
       docType: optional(docType),
@@ -95,6 +131,9 @@ export function EditProfileForm({ patient, onSubmit }: EditProfileFormProps) {
       skinType: optional(skinType),
       fitzpatrickType: optional(fitzpatrickType),
     };
+    if (emailEditable) {
+      input.email = optional(email);
+    }
 
     setSubmitting(true);
     try {
@@ -237,13 +276,16 @@ export function EditProfileForm({ patient, onSubmit }: EditProfileFormProps) {
         <View style={styles.field}>
           <Text style={styles.label}>Correo</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, !emailEditable && styles.inputReadonly]}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
-            editable={!submitting}
+            editable={emailEditable && !submitting}
           />
+          {!emailEditable ? (
+            <Text style={styles.hint}>El correo no se puede modificar.</Text>
+          ) : null}
         </View>
       </View>
 
@@ -302,7 +344,7 @@ export function EditProfileForm({ patient, onSubmit }: EditProfileFormProps) {
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Fototipo Fitzpatrick</Text>
+          <Text style={styles.label}>Fototipo</Text>
           <View style={styles.fitzRow}>
             {PATIENT_FITZ_OPTIONS.map((f) => {
               const active = fitzpatrickType === f.value;

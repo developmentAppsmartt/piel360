@@ -10,6 +10,7 @@ type CreatePatientSuccessProps = {
   onDone: () => void;
   onNewDermatology?: () => void;
   onNewSkinState?: () => void;
+  onNewFitzpatrick?: () => void;
 };
 
 export function CreatePatientSuccess({
@@ -17,6 +18,7 @@ export function CreatePatientSuccess({
   onDone,
   onNewDermatology,
   onNewSkinState,
+  onNewFitzpatrick,
 }: CreatePatientSuccessProps) {
   const branding = useBranding();
   const styles = useMemo(
@@ -41,6 +43,9 @@ export function CreatePatientSuccess({
       </Pressable>
       <Pressable onPress={onNewSkinState}>
         <Text style={styles.successLink}>ℹ Nuevo Análisis Estado de la Piel</Text>
+      </Pressable>
+      <Pressable onPress={onNewFitzpatrick}>
+        <Text style={styles.successLink}>ℹ Nuevo Análisis de Fototipo</Text>
       </Pressable>
 
       <Pressable style={styles.successDone} onPress={onDone}>

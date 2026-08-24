@@ -16,9 +16,15 @@ import { AppIcon } from '../../../components/AppIcon';
 import { Icons, type AppIconName } from '../../../components/icons';
 import { useAuth } from '../../../context/AuthContext';
 import { useBranding } from '../../../context/BrandingContext';
+import {
+  analysisProviderLabel,
+  analysisStatus,
+} from '../../../data/analysisProviderLabel';
 import { ApiError } from '../../../services/api.client';
+import { analysesService } from '../../../services/analyses.service';
 import { doctorsService } from '../../../services/doctors.service';
 import { patientsService } from '../../../services/patients.service';
+import type { PatientAnalysisSummary } from '../../../types/analysis';
 import type { PatientProfile } from '../../../types/patient';
 import { patientDisplayName } from '../../../types/patient';
 import { AccountDrawer } from '../patients/components/AccountDrawer';
@@ -31,10 +37,7 @@ type DoctorHomeViewProps = {
   onOpenPatients: () => void;
   onOpenMessages?: () => void;
   onOpenProfile?: () => void;
-  onOpenNosologies?: () => void;
 };
-
-type ActivityStatus = 'pending' | 'done';
 
 function lastNameFromUserName(name: string | undefined): string {
   const raw = (name ?? '').trim();
@@ -58,17 +61,17 @@ function initials(name: string): string {
     .join('');
 }
 
-function activityStatus(p: PatientProfile, index: number): ActivityStatus {
-  const n = Number(p.id);
-  if (!Number.isNaN(n)) return n % 3 === 0 ? 'pending' : 'done';
-  return index % 3 === 0 ? 'pending' : 'done';
+function analysisPatientName(a: PatientAnalysisSummary): string {
+  if (a.patient) {
+    return patientDisplayName(a.patient);
+  }
+  return 'Paciente';
 }
 
 export function DoctorHomeView({
   onOpenPatients,
   onOpenMessages,
   onOpenProfile,
-  onOpenNosologies,
 }: DoctorHomeViewProps) {
   const insets = useSafeAreaInsets();
   const branding = useBranding();
@@ -79,6 +82,7 @@ export function DoctorHomeView({
   );
 
   const [patients, setPatients] = useState<PatientProfile[]>([]);
+  const [analyses, setAnalyses] = useState<PatientAnalysisSummary[]>([]);
   const [doctorLastName, setDoctorLastName] = useState(
     lastNameFromUserName(user?.name),
   );
@@ -89,11 +93,13 @@ export function DoctorHomeView({
 
   const load = useCallback(async () => {
     try {
-      const [list, doctor] = await Promise.all([
+      const [list, analysisList, doctor] = await Promise.all([
         patientsService.list(),
+        analysesService.list().catch(() => [] as PatientAnalysisSummary[]),
         doctorsService.getMe().catch(() => null),
       ]);
       setPatients(list);
+      setAnalyses(analysisList);
       if (doctor?.lastName?.trim()) {
         setDoctorLastName(doctor.lastName.trim());
       }
@@ -121,20 +127,33 @@ export function DoctorHomeView({
   const primaryDark = branding.colors.primaryDark;
   const secondary = branding.colors.secondary;
 
-  const activeCount = patients.length;
-  const pendingCount = patients.filter((p, i) => activityStatus(p, i) === 'pending')
-    .length;
-  const completedCount = Math.max(patients.length * 4, patients.length);
+  const dermatologicoCount = useMemo(
+    () =>
+      analyses.filter((a) => !a.youcamTaskId && !a.fitzpatrickTaskId).length,
+    [analyses],
+  );
+  const esteticoCount = useMemo(
+    () => analyses.filter((a) => !!a.youcamTaskId).length,
+    [analyses],
+  );
+  const fototipoCount = useMemo(
+    () => analyses.filter((a) => !!a.fitzpatrickTaskId).length,
+    [analyses],
+  );
+  const pendingCount = useMemo(
+    () => analyses.filter((a) => !a.isConfirmed && a.isValid !== false).length,
+    [analyses],
+  );
 
   const recent = useMemo(
     () =>
-      [...patients]
+      [...analyses]
         .sort(
           (a, b) =>
-            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
         )
         .slice(0, 8),
-    [patients],
+    [analyses],
   );
 
   const handleMenuSelect = (id: string) => {
@@ -155,24 +174,29 @@ export function DoctorHomeView({
   };
 
   const stats: {
-    value: string | number;
+    value: number;
     label: string;
     icon: AppIconName;
   }[] = [
     {
-      value: activeCount,
-      label: 'Pacientes Activos',
+      value: patients.length,
+      label: 'Pacientes',
+      icon: Icons.accountGroup,
+    },
+    {
+      value: dermatologicoCount,
+      label: 'Dermatológico',
+      icon: Icons.skin,
+    },
+    {
+      value: esteticoCount,
+      label: 'Estético',
+      icon: Icons.smile,
+    },
+    {
+      value: fototipoCount,
+      label: 'Fototipo',
       icon: Icons.heartPulse,
-    },
-    {
-      value: pendingCount,
-      label: 'Casos Pendientes',
-      icon: Icons.clipboard,
-    },
-    {
-      value: completedCount,
-      label: 'Diagnósticos Completados',
-      icon: Icons.clipboardCheck,
     },
   ];
 
@@ -238,6 +262,12 @@ export function DoctorHomeView({
         <View>
           <Text style={styles.welcomeLabel}>Bienvenido,</Text>
           <Text style={styles.welcomeName}>{welcomeName}</Text>
+          {!loading && pendingCount > 0 ? (
+            <Text style={styles.pendingHint}>
+              {pendingCount} análisis pendiente{pendingCount === 1 ? '' : 's'}{' '}
+              de confirmar
+            </Text>
+          ) : null}
         </View>
 
         {loading ? (
@@ -246,16 +276,29 @@ export function DoctorHomeView({
           </View>
         ) : (
           <>
-            <View style={styles.statsRow}>
-              {stats.map((s) => (
-                <View key={s.label} style={styles.statCard}>
-                  <View style={styles.statIconWrap}>
-                    <AppIcon icon={s.icon} size={18} color={primary} />
+            <View style={styles.statsGrid}>
+              <View style={styles.statsRow}>
+                {stats.slice(0, 2).map((s) => (
+                  <View key={s.label} style={styles.statCard}>
+                    <View style={styles.statIconWrap}>
+                      <AppIcon icon={s.icon} size={18} color={primary} />
+                    </View>
+                    <Text style={styles.statValue}>{s.value}</Text>
+                    <Text style={styles.statLabel}>{s.label}</Text>
                   </View>
-                  <Text style={styles.statValue}>{s.value}</Text>
-                  <Text style={styles.statLabel}>{s.label}</Text>
-                </View>
-              ))}
+                ))}
+              </View>
+              <View style={styles.statsRow}>
+                {stats.slice(2, 4).map((s) => (
+                  <View key={s.label} style={styles.statCard}>
+                    <View style={styles.statIconWrap}>
+                      <AppIcon icon={s.icon} size={18} color={primary} />
+                    </View>
+                    <Text style={styles.statValue}>{s.value}</Text>
+                    <Text style={styles.statLabel}>{s.label}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
 
             <View style={styles.actionsRow}>
@@ -263,20 +306,21 @@ export function DoctorHomeView({
                 [
                   {
                     label: 'Nuevos Casos',
-                    onPress: () =>
-                      onOpenNosologies?.() ??
-                      Alert.alert(
-                        'Nuevos Casos',
-                        'Abre Nosologías desde la barra inferior.',
-                      ),
+                    onPress: onOpenPatients,
                   },
                   { label: 'Mis Pacientes', onPress: onOpenPatients },
                   {
                     label: 'Estadísticas',
                     onPress: () =>
                       Alert.alert(
-                        'Estadísticas',
-                        'Las estadísticas detalladas llegarán pronto.',
+                        'Resumen de análisis',
+                        [
+                          `Dermatológico: ${dermatologicoCount}`,
+                          `Estético: ${esteticoCount}`,
+                          `Fototipo: ${fototipoCount}`,
+                          `Pendientes de confirmar: ${pendingCount}`,
+                          `Total: ${analyses.length}`,
+                        ].join('\n'),
                       ),
                   },
                 ] as const
@@ -299,23 +343,23 @@ export function DoctorHomeView({
             </View>
 
             <View>
-              <Text style={styles.sectionTitle}>Actividad Reciente</Text>
+              <Text style={styles.sectionTitle}>Actividad reciente</Text>
               <View style={styles.activityCard}>
                 {recent.length === 0 ? (
                   <View style={styles.empty}>
                     <Text style={styles.emptyText}>
-                      Aún no hay actividad. Crea tu primer paciente desde Mis
-                      Pacientes.
+                      Aún no hay análisis. Crea un paciente e inicia un análisis
+                      desde Mis Pacientes.
                     </Text>
                   </View>
                 ) : (
-                  recent.map((p, index) => {
-                    const name = patientDisplayName(p);
-                    const status = activityStatus(p, index);
-                    const pending = status === 'pending';
+                  recent.map((item) => {
+                    const name = analysisPatientName(item);
+                    const status = analysisStatus(item);
+                    const typeLabel = analysisProviderLabel(item);
                     return (
                       <Pressable
-                        key={p.id}
+                        key={item.id}
                         style={styles.activityRow}
                         onPress={onOpenPatients}
                       >
@@ -327,25 +371,34 @@ export function DoctorHomeView({
                         <View style={styles.activityBody}>
                           <Text style={styles.activityName}>{name}</Text>
                           <Text style={styles.activityMeta}>
-                            Actualizado{' '}
-                            {new Date(p.updatedAt).toLocaleDateString('es-CO')}
+                            {typeLabel} ·{' '}
+                            {new Date(item.createdAt).toLocaleDateString(
+                              'es-CO',
+                            )}
                           </Text>
                         </View>
                         <View
                           style={[
                             styles.badge,
-                            pending ? styles.badgePending : styles.badgeDone,
+                            status.kind === 'pending' && styles.badgePending,
+                            status.kind === 'confirmed' && styles.badgeDone,
+                            status.kind === 'corrected' && styles.badgeDone,
+                            status.kind === 'invalid' && styles.badgeInvalid,
                           ]}
                         >
                           <Text
                             style={[
                               styles.badgeText,
-                              pending
-                                ? styles.badgeTextPending
-                                : styles.badgeTextDone,
+                              status.kind === 'pending' &&
+                                styles.badgeTextPending,
+                              (status.kind === 'confirmed' ||
+                                status.kind === 'corrected') &&
+                                styles.badgeTextDone,
+                              status.kind === 'invalid' &&
+                                styles.badgeTextInvalid,
                             ]}
                           >
-                            {pending ? 'Pendiente' : 'Completado'}
+                            {status.label}
                           </Text>
                         </View>
                       </Pressable>

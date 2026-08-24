@@ -5,6 +5,7 @@ import type {
   MessageTab,
 } from '../types/messages';
 import { apiRequest } from './api.client';
+import { appendLocalFileField } from './form-image';
 
 export const messagesService = {
   async listContacts(): Promise<MessageContact[]> {
@@ -60,11 +61,7 @@ export const messagesService = {
     },
   ): Promise<ChatMessage> {
     const form = new FormData();
-    form.append('file', {
-      uri: file.uri,
-      name: file.name,
-      type: file.mimeType,
-    } as unknown as Blob);
+    await appendLocalFileField(form, 'file', file);
 
     return apiRequest<ChatMessage>(
       `/messages/conversations/${conversationId}/attachments`,

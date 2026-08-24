@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -7,9 +7,11 @@ import {
   Text,
   View,
 } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { AppIcon } from '../../../../components/AppIcon';
 import { Icons } from '../../../../components/icons';
 import { useBranding } from '../../../../context/BrandingContext';
+import { BODY_PARTS_INFO } from '../../../../data/bodyRegions';
 import { ApiError } from '../../../../services/api.client';
 import {
   encyclopediaService,
@@ -27,11 +29,15 @@ import { SkiniverRiskGauge } from './SkiniverRiskGauge';
 
 const RISK_COLORS: Record<string, string> = {
   low: '#22c55e',
-  medium: '#facc15',
+  medium: '#EAB308',
   high: '#ef4444',
 };
 
-function riskBannerColors(risk: string): { bg: string; border: string; text: string } {
+function riskBannerColors(risk: string): {
+  bg: string;
+  border: string;
+  text: string;
+} {
   const key = risk.toLowerCase();
   if (key.includes('alto') || key.includes('high')) {
     return { bg: '#FEF2F2', border: '#FECACA', text: '#B91C1C' };
@@ -42,7 +48,70 @@ function riskBannerColors(risk: string): { bg: string; border: string; text: str
   return { bg: '#FFFBEB', border: '#FDE68A', text: '#A16207' };
 }
 
-function DiagnosisCard({
+function formatStamp(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}${mm}${yyyy} ${hh}:${min}`;
+}
+
+function DonutProb({
+  prob,
+  color,
+}: {
+  prob: number;
+  color: string;
+}) {
+  const size = 56;
+  const stroke = 5;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const pct = Math.max(0, Math.min(100, prob)) / 100;
+  const offset = c * (1 - pct);
+
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size} style={{ position: 'absolute' }}>
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke="#E5E7EB"
+          strokeWidth={stroke}
+          fill="none"
+        />
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke={color}
+          strokeWidth={stroke}
+          fill="none"
+          strokeDasharray={`${c} ${c}`}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          rotation={-90}
+          origin={`${size / 2}, ${size / 2}`}
+        />
+      </Svg>
+      <Text
+        style={{
+          fontSize: 13,
+          fontWeight: '800',
+          color: '#374151',
+        }}
+      >
+        {prob.toFixed(1).replace('.', ',')}
+      </Text>
+    </View>
+  );
+}
+
+function DiagnosisStatCard({
   item,
   onPress,
   styles,
@@ -56,11 +125,7 @@ function DiagnosisCard({
 
   return (
     <Pressable style={styles.diagnosisCard} onPress={onPress}>
-      <View style={[styles.diagnosisRing, { borderColor: color }]}>
-        <Text style={[styles.diagnosisProb, { color }]}>
-          {Math.round(prob)}%
-        </Text>
-      </View>
+      <DonutProb prob={prob} color={color} />
       <View style={styles.diagnosisBody}>
         <Text style={styles.diagnosisTitle} numberOfLines={2}>
           {item.class}
@@ -70,21 +135,28 @@ function DiagnosisCard({
             {item.desease}
           </Text>
         ) : null}
-        {item.risk ? (
-          <Text style={styles.diagnosisSub}>Riesgo: {item.risk}</Text>
-        ) : null}
       </View>
-      <AppIcon icon={Icons.chevronRight} size={20} color="#9CA3AF" />
+      <View style={styles.diagnosisChevronBtn}>
+        <AppIcon icon={Icons.chevronRight} size={18} color="#FFFFFF" />
+      </View>
     </Pressable>
   );
 }
 
 type SkiniverResultsSectionProps = {
   analysis: AnalysisDetail;
+  /** Pie de la vista detalle (confirmar / corregir). */
+  detailFooter?: ReactNode;
+  /** Vista controlada desde el padre (para el botón Volver del header). */
+  view?: 'stats' | 'detail';
+  onViewChange?: (view: 'stats' | 'detail') => void;
 };
 
 export function SkiniverResultsSection({
   analysis,
+  detailFooter,
+  view: viewProp,
+  onViewChange,
 }: SkiniverResultsSectionProps) {
   const branding = useBranding();
   const styles = useMemo(
@@ -103,59 +175,96 @@ export function SkiniverResultsSection({
   })();
 
   const topn = Array.isArray(prediction?.topn) ? prediction.topn : [];
-  const top =
-    topn[0] ??
-    (prediction?.class
-      ? {
-          class: prediction.class,
-          prob: prediction.prob ?? analysis.aiProbability ?? 0,
-          risk: prediction.risk ?? '—',
-          desease: undefined,
-        }
-      : null);
+  const fallbackTop: SkiniverDiagnosisCandidate | null = prediction?.class
+    ? {
+        class: prediction.class,
+        prob: prediction.prob ?? analysis.aiProbability ?? 0,
+        risk: prediction.risk ?? '—',
+        desease: undefined,
+        atlas_page_link: undefined,
+      }
+    : null;
+  const list = topn.length > 0 ? topn : fallbackTop ? [fallbackTop] : [];
 
-  const conclusionLabel =
-    analysis.finalDiagnosis ??
-    analysis.aiDiagnosis ??
-    top?.class ??
-    'Sin diagnóstico';
-  const conclusionProb =
-    top != null
-      ? Math.round(normalizedProb(top.prob))
-      : analysis.aiProbability != null
-        ? Math.round(normalizedProb(analysis.aiProbability))
-        : null;
-
-  const banner = riskBannerColors(String(riskLabel));
+  const [internalView, setInternalView] = useState<'stats' | 'detail'>('stats');
+  const view = viewProp ?? internalView;
+  function setView(next: 'stats' | 'detail') {
+    onViewChange?.(next);
+    if (viewProp === undefined) setInternalView(next);
+  }
 
   const [selected, setSelected] = useState<SkiniverDiagnosisCandidate | null>(
     null,
   );
+
+  const [storyOpen, setStoryOpen] = useState(false);
   const [storyLoading, setStoryLoading] = useState(false);
   const [storyTitle, setStoryTitle] = useState<string | null>(null);
   const [storyText, setStoryText] = useState<string | null>(null);
   const [storyError, setStoryError] = useState<string | null>(null);
 
-  async function openDiagnosis(item: SkiniverDiagnosisCandidate) {
+  const [descLoading, setDescLoading] = useState(false);
+  const [description, setDescription] = useState<string | null>(null);
+
+  const active = selected ?? list[0] ?? null;
+  const displayDiagnosis =
+    analysis.finalDiagnosis?.trim() ||
+    active?.class ||
+    analysis.aiDiagnosis ||
+    'Sin diagnóstico';
+  const banner = riskBannerColors(String(active?.risk ?? riskLabel));
+  const bodyLabel = analysis.bodyRegion
+    ? BODY_PARTS_INFO[analysis.bodyRegion]?.label ?? analysis.bodyRegion
+    : null;
+  const activeProb =
+    active != null ? Math.round(normalizedProb(active.prob)) : null;
+
+  useEffect(() => {
+    let cancelled = false;
+    const link = active?.atlas_page_link;
+    if (!link || view !== 'detail') {
+      setDescription(null);
+      return;
+    }
+    setDescLoading(true);
+    (async () => {
+      try {
+        const entry = await encyclopediaService.getByUrl(link);
+        if (!cancelled) {
+          setDescription(
+            entry?.content ? stripHtml(entry.content).slice(0, 900) : null,
+          );
+        }
+      } catch {
+        if (!cancelled) setDescription(null);
+      } finally {
+        if (!cancelled) setDescLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [active?.atlas_page_link, view]);
+
+  function openDetail(item: SkiniverDiagnosisCandidate) {
     setSelected(item);
+    setView('detail');
+  }
+
+  async function openEncyclopedia(item: SkiniverDiagnosisCandidate) {
+    setStoryOpen(true);
     setStoryTitle(item.class);
     setStoryText(null);
     setStoryError(null);
-
     if (!item.atlas_page_link) {
-      setStoryError(
-        'No hay artículo de enciclopedia asociado a este diagnóstico.',
-      );
+      setStoryError('No hay artículo de enciclopedia asociado.');
       return;
     }
-
     setStoryLoading(true);
     try {
       const entry = await encyclopediaService.getByUrl(item.atlas_page_link);
       if (!entry?.content) {
-        setStoryError(
-          'La historia de la enfermedad aún no está disponible. Inténtalo en unos minutos.',
-        );
+        setStoryError('La historia aún no está disponible.');
         return;
       }
       setStoryTitle(entry.title ?? item.class);
@@ -164,153 +273,242 @@ export function SkiniverResultsSection({
       setStoryError(
         err instanceof ApiError
           ? err.message
-          : 'No se pudo cargar la historia de la enfermedad.',
+          : 'No se pudo cargar la historia.',
       );
     } finally {
       setStoryLoading(false);
     }
   }
 
-  return (
-    <View style={styles.skiniverBlock}>
-      <SkiniverRiskGauge percent={gaugePercent} riskLabel={String(riskLabel)} />
-
-      {top ? (
+  if (view === 'detail' && active) {
+    return (
+      <View style={styles.skiniverBlock}>
         <Pressable
-          style={styles.topDiagnosisCard}
-          onPress={() => openDiagnosis(top as SkiniverDiagnosisCandidate)}
+          style={styles.backToStats}
+          onPress={() => setView('stats')}
+          accessibilityLabel="Volver a estadísticas"
         >
-          <View
-            style={[
-              styles.diagnosisRing,
-              {
-                borderColor:
-                  RISK_COLORS[
-                    (top as SkiniverDiagnosisCandidate).risk_level ?? 'medium'
-                  ] ?? RISK_COLORS.medium,
-              },
-            ]}
-          >
-            <Text style={styles.diagnosisProb}>
-              {conclusionProb != null ? String(conclusionProb).replace('.', ',') : '—'}
+          <AppIcon
+            icon={Icons.back}
+            size={18}
+            color={branding.colors.primary}
+          />
+          <Text style={styles.backToStatsText}>Estadísticas</Text>
+        </Pressable>
+
+        <Text style={styles.resultHeroTitle}>Resultado Piel 360 AI</Text>
+
+        <View style={styles.resultMetaBar}>
+          <Text style={styles.resultMetaId}>ID # {analysis.id}</Text>
+        </View>
+
+        <AnalysisImageCarousel
+          images={[
+            { label: 'Original', url: analysis.imageUrl },
+            { label: 'Coloreada', url: analysis.coloredUrl },
+            { label: 'Máscara', url: analysis.maskedUrl },
+          ]}
+        />
+
+        <View style={styles.infoRow}>
+          <AppIcon
+            icon={Icons.calendarClock}
+            size={20}
+            color={branding.colors.muted}
+          />
+          <View style={styles.infoRowBody}>
+            <Text style={styles.infoRowLabel}>Fecha</Text>
+            <Text style={styles.infoRowValue}>
+              {formatStamp(analysis.createdAt)}
             </Text>
           </View>
-          <View style={styles.diagnosisBody}>
-            <Text style={styles.diagnosisTitle}>{top.class}</Text>
-            {(top as SkiniverDiagnosisCandidate).desease ? (
-              <Text style={styles.diagnosisSub}>
-                {(top as SkiniverDiagnosisCandidate).desease}
-              </Text>
-            ) : null}
+        </View>
+
+        <View
+          style={[
+            styles.infoRow,
+            { backgroundColor: banner.bg, borderColor: banner.border },
+          ]}
+        >
+          <AppIcon icon={Icons.alertCircle} size={20} color={banner.text} />
+          <View style={styles.infoRowBody}>
+            <Text style={[styles.infoRowLabel, { color: banner.text }]}>
+              Nivel de riesgo
+            </Text>
+            <Text style={[styles.infoRowValue, { color: banner.text }]}>
+              {active.risk || riskLabel}
+            </Text>
           </View>
-          <AppIcon icon={Icons.chevronRight} size={20} color={branding.colors.primary} />
+        </View>
+
+        <Pressable style={styles.infoRow} onPress={() => openEncyclopedia(active)}>
+          <AppIcon
+            icon={Icons.document}
+            size={20}
+            color={branding.colors.primary}
+          />
+          <View style={styles.infoRowBody}>
+            <Text style={styles.infoRowLabel}>
+              {analysis.isCorrected ? 'Diagnóstico corregido' : 'Diagnóstico'}
+            </Text>
+            <Text style={styles.infoRowValue}>
+              {displayDiagnosis}
+              {!analysis.finalDiagnosis && activeProb != null
+                ? `: ${activeProb}%`
+                : ''}
+            </Text>
+            {active?.desease && !analysis.finalDiagnosis ? (
+              <Text style={styles.diagnosisSub}>{active.desease}</Text>
+            ) : null}
+            <Text style={styles.missingNote}>
+              Código ICD: no disponible en la respuesta actual.
+            </Text>
+          </View>
+          <AppIcon
+            icon={Icons.chevronRight}
+            size={18}
+            color={branding.colors.muted}
+          />
         </Pressable>
-      ) : null}
 
-      <AnalysisImageCarousel
-        images={[
-          { label: 'Original', url: analysis.imageUrl },
-          { label: 'Coloreada', url: analysis.coloredUrl },
-          { label: 'Máscara', url: analysis.maskedUrl },
-        ]}
-      />
+        {bodyLabel ? (
+          <View style={styles.infoRow}>
+            <AppIcon
+              icon={Icons.mapMarker}
+              size={20}
+              color={branding.colors.muted}
+            />
+            <View style={styles.infoRowBody}>
+              <Text style={styles.infoRowLabel}>Región del cuerpo</Text>
+              <Text style={styles.infoRowValue}>{bodyLabel}</Text>
+            </View>
+          </View>
+        ) : null}
 
-      <View
-        style={[
-          styles.riskBanner,
-          { backgroundColor: banner.bg, borderColor: banner.border },
-        ]}
-      >
-        <AppIcon icon={Icons.alertCircle} size={20} color={banner.text} />
-        <Text style={[styles.riskBannerText, { color: banner.text }]}>
-          Nivel de Riesgo: {riskLabel}
-        </Text>
-      </View>
+        <View style={styles.descBox}>
+          <Text style={styles.descTitle}>Descripción</Text>
+          {descLoading ? (
+            <ActivityIndicator color={branding.colors.primary} />
+          ) : description ? (
+            <Text style={styles.descBody}>{description}</Text>
+          ) : (
+            <Text style={styles.missingNote}>
+              Sin descripción estructurada. Se usa la enciclopedia si hay enlace
+              disponible.
+            </Text>
+          )}
+        </View>
 
-      <View style={styles.conclusionBox}>
-        <AppIcon icon={Icons.account} size={18} color={branding.colors.primary} />
-        <Text style={styles.conclusionText}>
-          Conclusión
-          {conclusionProb != null ? `: ${conclusionProb}% ` : ': '}
-          {conclusionLabel}
-        </Text>
-      </View>
-
-      {analysis.bodyRegion ? (
-        <View style={styles.metaRow}>
-          <AppIcon icon={Icons.mapMarker} size={18} color={branding.colors.muted} />
-          <Text style={styles.metaText}>
-            Región del cuerpo: {analysis.bodyRegion}
+        <View style={styles.conclusionBox}>
+          <AppIcon
+            icon={Icons.account}
+            size={18}
+            color={branding.colors.primary}
+          />
+          <Text style={styles.conclusionText}>
+            Conclusión
+            {activeProb != null && !analysis.finalDiagnosis
+              ? `: ${activeProb}% `
+              : ': '}
+            {displayDiagnosis}
           </Text>
         </View>
-      ) : null}
 
-      {topn.length > 0 ? (
+        <View style={styles.descBox}>
+          <Text style={styles.descTitle}>
+            Diagnóstico preciso · Tratamiento · Consejo
+          </Text>
+          <Text style={styles.missingNote}>
+            Estos campos aún no llegan en el análisis. El equipo de backend debe
+            enviarlos en la respuesta para mostrarlos aquí.
+          </Text>
+        </View>
+
+        <View style={styles.observationsBox}>
+          <Text style={styles.observationsLabel}>Observaciones</Text>
+          <Text style={styles.observationsText}>
+            {analysis.doctorNotes?.trim()
+              ? analysis.doctorNotes
+              : 'Sin observaciones del médico todavía.'}
+          </Text>
+        </View>
+
+        {detailFooter}
+
+        <Modal
+          visible={storyOpen}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setStoryOpen(false)}
+        >
+          <View style={styles.storyModalBackdrop}>
+            <View style={styles.storyModalCard}>
+              <View style={styles.storyModalHeader}>
+                <Text style={styles.storyModalTitle} numberOfLines={2}>
+                  {storyTitle ?? 'Historia'}
+                </Text>
+                <Pressable
+                  style={styles.roundBtn}
+                  onPress={() => setStoryOpen(false)}
+                >
+                  <AppIcon
+                    icon={Icons.close}
+                    size={18}
+                    color={branding.colors.muted}
+                  />
+                </Pressable>
+              </View>
+              <ScrollView
+                style={styles.storyScroll}
+                contentContainerStyle={styles.storyScrollContent}
+              >
+                {storyLoading ? (
+                  <ActivityIndicator color={branding.colors.primary} />
+                ) : storyError ? (
+                  <Text style={styles.note}>{storyError}</Text>
+                ) : storyText ? (
+                  <Text style={styles.storyBody}>{storyText}</Text>
+                ) : null}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.skiniverBlock}>
+      <Text style={styles.resultHeroTitle}>Resultado Piel 360 AI</Text>
+
+      <SkiniverRiskGauge percent={gaugePercent} riskLabel={String(riskLabel)} />
+
+      {list.length > 0 ? (
         <>
-          <Text style={styles.sectionTitle}>Lee más sobre la enfermedad</Text>
-          {topn.map((item, index) => (
-            <DiagnosisCard
+          <Text style={styles.supportTitle}>
+            Elija una opción de los diagnósticos de apoyo
+          </Text>
+          {list.map((item, index) => (
+            <DiagnosisStatCard
               key={`${item.class}-${index}`}
               item={item}
               styles={styles}
-              onPress={() => openDiagnosis(item)}
+              onPress={() => openDetail(item)}
             />
           ))}
+          <Pressable onPress={() => list[0] && openDetail(list[0])}>
+            <Text style={styles.supportLink}>Seleccionar de la lista</Text>
+          </Pressable>
         </>
-      ) : null}
+      ) : (
+        <Text style={styles.note}>No hay diagnósticos disponibles.</Text>
+      )}
 
       <Text style={styles.disclaimer}>
         La IA solo cubre algunas enfermedades y es una ayuda diagnóstica. Consulta
         siempre a un dermatólogo.
       </Text>
-
-      <Modal
-        visible={!!selected}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setSelected(null)}
-      >
-        <View style={styles.storyModalBackdrop}>
-          <View style={styles.storyModalCard}>
-            <View style={styles.storyModalHeader}>
-              <Text style={styles.storyModalTitle} numberOfLines={2}>
-                {storyTitle ?? 'Historia'}
-              </Text>
-              <Pressable
-                style={styles.roundBtn}
-                onPress={() => setSelected(null)}
-                accessibilityLabel="Cerrar"
-              >
-                <AppIcon
-                  icon={Icons.close}
-                  size={18}
-                  color={branding.colors.muted}
-                />
-              </Pressable>
-            </View>
-            {selected ? (
-              <Text style={styles.storyMeta}>
-                Probabilidad:{' '}
-                {Math.round(normalizedProb(selected.prob))}%
-                {selected.desease ? ` — ${selected.desease}` : ''}
-              </Text>
-            ) : null}
-            <ScrollView
-              style={styles.storyScroll}
-              contentContainerStyle={styles.storyScrollContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {storyLoading ? (
-                <ActivityIndicator color={branding.colors.primary} />
-              ) : storyError ? (
-                <Text style={styles.note}>{storyError}</Text>
-              ) : storyText ? (
-                <Text style={styles.storyBody}>{storyText}</Text>
-              ) : null}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      <Text style={styles.supportLink}>Ver acuerdo de usuario</Text>
     </View>
   );
 }

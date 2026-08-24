@@ -8,9 +8,26 @@ import { createYoucamFlowStyles } from './styles/youcamFlow.styles';
 type YoucamConsentStepProps = {
   onNext: () => void;
   onCancel: () => void;
+  title?: string;
+  subtitle?: string;
+  body?: string;
+  bullet?: string;
 };
 
-export function YoucamConsentStep({ onNext, onCancel }: YoucamConsentStepProps) {
+const DEFAULT_BODY =
+  'Al continuar, autorizas el escaneo facial y el procesamiento de imágenes según el aviso de información de Piel 360, incluyendo la retención y eliminación de tus datos conforme a la política aplicable.';
+
+const DEFAULT_BULLET =
+  '• Has revisado y aceptas los términos de uso del análisis de estado de la piel asistido por IA.';
+
+export function YoucamConsentStep({
+  onNext,
+  onCancel,
+  title = 'Consentimiento',
+  subtitle = 'Respetamos tu privacidad',
+  body = DEFAULT_BODY,
+  bullet = DEFAULT_BULLET,
+}: YoucamConsentStepProps) {
   const branding = useBranding();
   const styles = useMemo(
     () => createYoucamFlowStyles(branding.colors),
@@ -21,17 +38,10 @@ export function YoucamConsentStep({ onNext, onCancel }: YoucamConsentStepProps) 
   return (
     <View style={styles.card}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Consentimiento</Text>
-        <Text style={styles.subtitle}>Respetamos tu privacidad</Text>
-        <Text style={styles.body}>
-          Al continuar, autorizas el escaneo facial y el procesamiento de imágenes
-          según el aviso de información de Piel 360, incluyendo la retención y
-          eliminación de tus datos conforme a la política aplicable.
-        </Text>
-        <Text style={styles.bullet}>
-          • Has revisado y aceptas los términos de uso del análisis de estado de
-          la piel asistido por IA.
-        </Text>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.subtitle}>{subtitle}</Text>
+        <Text style={styles.body}>{body}</Text>
+        <Text style={styles.bullet}>{bullet}</Text>
         <Pressable
           onPress={() =>
             Alert.alert(

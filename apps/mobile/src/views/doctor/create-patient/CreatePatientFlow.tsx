@@ -2,11 +2,14 @@ import { useMemo, useState } from 'react';
 import { Alert, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useBranding } from '../../../context/BrandingContext';
+import type { AnalysisProviderSlug } from '../../../data/analysisProviderLabel';
 import { ApiError } from '../../../services/api.client';
 import {
   patientsService,
   type CreatePatientInput,
 } from '../../../services/patients.service';
+import { FitzpatrickAnalysisFlow } from '../../analyses/fitzpatrick-flow/FitzpatrickAnalysisFlow';
+import { SkiniverAnalysisFlow } from '../../analyses/skiniver-flow/SkiniverAnalysisFlow';
 import { YoucamAnalysisFlow } from '../../analyses/youcam-flow/YoucamAnalysisFlow';
 import { DoctorHeader } from '../patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
@@ -15,7 +18,7 @@ import { CreatePatientForm } from './components/CreatePatientForm';
 import { CreatePatientSuccess } from './components/CreatePatientSuccess';
 import { createCreatePatientStyles } from './styles/createPatient.styles';
 
-type Step = 'form' | 'consent' | 'success' | 'youcam';
+type Step = 'form' | 'consent' | 'success';
 
 type CreatePatientFlowProps = {
   onClose: () => void;
@@ -42,6 +45,8 @@ export function CreatePatientFlow({
   const [draft, setDraft] = useState<CreatePatientInput | null>(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [activeProvider, setActiveProvider] =
+    useState<AnalysisProviderSlug | null>(null);
 
   async function submitCreate() {
     if (!draft) return;
@@ -63,10 +68,43 @@ export function CreatePatientFlow({
     }
   }
 
-  if (step === 'youcam') {
+  if (createdId && activeProvider === 'youcam') {
     return (
       <YoucamAnalysisFlow
-        onClose={() => setStep('success')}
+        patientId={createdId}
+        onClose={() => setActiveProvider(null)}
+        onAnalysisCreated={() => {
+          setActiveProvider(null);
+          onClose();
+        }}
+        onOpenMenu={onOpenMenu}
+      />
+    );
+  }
+
+  if (createdId && activeProvider === 'skiniver') {
+    return (
+      <SkiniverAnalysisFlow
+        patientId={createdId}
+        onClose={() => setActiveProvider(null)}
+        onAnalysisCreated={() => {
+          setActiveProvider(null);
+          onClose();
+        }}
+        onOpenMenu={onOpenMenu}
+      />
+    );
+  }
+
+  if (createdId && activeProvider === 'fitzpatrick') {
+    return (
+      <FitzpatrickAnalysisFlow
+        patientId={createdId}
+        onClose={() => setActiveProvider(null)}
+        onAnalysisCreated={() => {
+          setActiveProvider(null);
+          onClose();
+        }}
         onOpenMenu={onOpenMenu}
       />
     );
@@ -107,8 +145,9 @@ export function CreatePatientFlow({
         <CreatePatientSuccess
           patientId={createdId}
           onDone={onClose}
-          onNewDermatology={() => setStep('youcam')}
-          onNewSkinState={() => setStep('youcam')}
+          onNewDermatology={() => setActiveProvider('skiniver')}
+          onNewSkinState={() => setActiveProvider('youcam')}
+          onNewFitzpatrick={() => setActiveProvider('fitzpatrick')}
         />
       ) : null}
     </View>

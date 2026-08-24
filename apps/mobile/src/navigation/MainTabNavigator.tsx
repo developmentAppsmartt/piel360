@@ -9,14 +9,12 @@ import { DoctorHomeView } from '../views/doctor/home/DoctorHomeView';
 import { DoctorPatientsView } from '../views/doctor/patients/DoctorPatientsView';
 import { HomeView } from '../views/home/HomeView';
 import { MessagesView } from '../views/messages/MessagesView';
-import { NosologiesView } from '../views/nosologies/NosologiesView';
 import { ProfileView } from '../views/profile/ProfileView';
 import { PlaceholderTabView } from '../views/shared/PlaceholderTabView';
 
 type TabKey =
   | 'home'
   | 'patients'
-  | 'nosologias'
   | 'agenda'
   | 'analysis'
   | 'search'
@@ -26,7 +24,6 @@ type TabKey =
 const DOCTOR_TABS: { key: TabKey; label: string; icon: AppIconName }[] = [
   { key: 'home', label: 'Inicio', icon: Icons.home },
   { key: 'patients', label: 'Pacientes', icon: Icons.accountGroup },
-  { key: 'nosologias', label: 'Nosologías', icon: Icons.nosology },
   { key: 'chat', label: 'Chat', icon: Icons.chat },
   { key: 'profile', label: 'Perfil', icon: Icons.account },
 ];
@@ -87,7 +84,6 @@ export function MainTabNavigator() {
               onOpenPatients={() => setActiveTab('patients')}
               onOpenMessages={() => setActiveTab('chat')}
               onOpenProfile={() => setActiveTab('profile')}
-              onOpenNosologies={() => setActiveTab('nosologias')}
             />
           ) : (
             <HomeView
@@ -103,12 +99,6 @@ export function MainTabNavigator() {
             onOpenMessages={() => setActiveTab('chat')}
             onOpenProfile={() => setActiveTab('profile')}
             onCreatingChange={setCreatingPatient}
-          />
-        ) : null}
-        {activeTab === 'nosologias' ? (
-          <NosologiesView
-            onOpenMessages={() => setActiveTab('chat')}
-            onOpenProfile={() => setActiveTab('profile')}
           />
         ) : null}
         {activeTab === 'agenda' ? (

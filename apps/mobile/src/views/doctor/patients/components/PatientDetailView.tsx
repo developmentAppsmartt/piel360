@@ -5,6 +5,7 @@ import {
   FlatList,
   Image,
   Pressable,
+  ScrollView,
   Text,
   View,
 } from 'react-native';
@@ -12,21 +13,26 @@ import { StatusBar } from 'expo-status-bar';
 import { AppIcon } from '../../../../components/AppIcon';
 import { Icons } from '../../../../components/icons';
 import { useBranding } from '../../../../context/BrandingContext';
-import { ApiError } from '../../../../services/api.client';
-import { patientsService } from '../../../../services/patients.service';
-import type {
-  PatientAnalysisSummary,
-  YoucamRawResponse,
-} from '../../../../types/analysis';
 import {
-  parseYoucamMetrics,
-  youcamOverallScore,
-} from '../../../../types/analysis';
+  analysisProviderLabel,
+  analysisStatus,
+  availableProvidersFromSubscriptions,
+  type AnalysisProviderSlug,
+} from '../../../../data/analysisProviderLabel';
+import { ApiError } from '../../../../services/api.client';
+import {
+  patientsService,
+  type UpdatePatientInput,
+} from '../../../../services/patients.service';
+import { subscriptionsService } from '../../../../services/subscriptions.service';
+import type { PatientAnalysisSummary } from '../../../../types/analysis';
 import type { PatientProfile } from '../../../../types/patient';
+import type { Subscription } from '../../../../types/subscription';
 import {
   formatPatientDocument,
   patientDisplayName,
 } from '../../../profile/data/patient';
+import { EditProfileView } from '../../../profile/edit/EditProfileView';
 import { DoctorHeader } from './DoctorHeader';
 import { createDoctorPatientsStyles } from '../styles/patients.styles';
 import { createPatientDetailStyles } from '../styles/patientDetail.styles';
@@ -59,7 +65,7 @@ function formatStamp(iso: string): string {
   const yyyy = d.getFullYear();
   const hh = String(d.getHours()).padStart(2, '0');
   const min = String(d.getMinutes()).padStart(2, '0');
-  return `${dd}${mm}${yyyy} ${hh}:${min}`;
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
 }
 
 function initials(p: PatientProfile): string {
@@ -69,58 +75,8 @@ function initials(p: PatientProfile): string {
     .slice(0, 2);
 }
 
-/** Heurística visual de riesgo hasta tener taxonomía formal. */
-function severityColor(
-  analysis: PatientAnalysisSummary,
-  colors: { error: string; success: string; secondary: string },
-): string {
-  if (analysis.youcamTaskId) {
-    const metrics = parseYoucamMetrics(
-      analysis.aiRawResponse as YoucamRawResponse | null,
-    );
-    const overall = youcamOverallScore(metrics);
-    if (overall != null && overall < 70) return colors.error;
-    if (overall != null && overall < 85) return '#EAB308';
-    return colors.success;
-  }
-  const label = (
-    analysis.finalDiagnosis ??
-    analysis.aiDiagnosis ??
-    ''
-  ).toLowerCase();
-  if (
-    label.includes('melanoma') ||
-    label.includes('carcinoma') ||
-    label.includes('bowen') ||
-    label.includes('cáncer') ||
-    label.includes('cancer')
-  ) {
-    return colors.error;
-  }
-  if (
-    label.includes('nevo') ||
-    label.includes('nevus') ||
-    (analysis.aiProbability != null && analysis.aiProbability >= 0.5)
-  ) {
-    return '#EAB308';
-  }
-  return colors.success;
-}
-
-function analysisTitle(item: PatientAnalysisSummary): string {
-  const diagnosis =
-    item.finalDiagnosis?.trim() || item.aiDiagnosis?.trim() || '';
-  if (diagnosis) return diagnosis;
-  if (item.youcamTaskId) {
-    const metrics = parseYoucamMetrics(
-      item.aiRawResponse as YoucamRawResponse | null,
-    );
-    const overall = youcamOverallScore(metrics);
-    return overall != null
-      ? `Análisis facial · ${Math.round(overall)} pts`
-      : 'Análisis facial';
-  }
-  return 'Sin diagnóstico';
+function analysisDiagnosis(item: PatientAnalysisSummary): string {
+  return item.finalDiagnosis?.trim() || item.aiDiagnosis?.trim() || '—';
 }
 
 type PatientDetailViewProps = {
@@ -129,7 +85,8 @@ type PatientDetailViewProps = {
   onOpenMenu: () => void;
   onOpenMessages?: () => void;
   onOpenAnalysis?: (analysisId: string) => void;
-  onStartYoucamAnalysis?: () => void;
+  onStartAnalysis?: (provider: AnalysisProviderSlug) => void;
+  onPatientUpdated?: (patient: PatientProfile) => void;
 };
 
 export function PatientDetailView({
@@ -138,7 +95,8 @@ export function PatientDetailView({
   onOpenMenu,
   onOpenMessages,
   onOpenAnalysis,
-  onStartYoucamAnalysis,
+  onStartAnalysis,
+  onPatientUpdated,
 }: PatientDetailViewProps) {
   const branding = useBranding();
   const headerStyles = useMemo(
@@ -151,7 +109,10 @@ export function PatientDetailView({
   );
 
   const [analyses, setAnalyses] = useState<PatientAnalysisSummary[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingPlans, setLoadingPlans] = useState(true);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -178,11 +139,65 @@ export function PatientDetailView({
     };
   }, [patient.id]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoadingPlans(true);
+      try {
+        const list = await subscriptionsService.listMine();
+        if (!cancelled) setSubscriptions(list);
+      } catch {
+        if (!cancelled) setSubscriptions([]);
+      } finally {
+        if (!cancelled) setLoadingPlans(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const availableProviders = useMemo(
+    () => availableProvidersFromSubscriptions(subscriptions),
+    [subscriptions],
+  );
+
   const doc = formatPatientDocument(patient.docType, patient.docNumber);
   const name = patientDisplayName(patient);
   const primary = branding.colors.primary;
   const onDark = branding.colors.textOnDark;
   const muted = branding.colors.muted;
+
+  function handleStart(provider: AnalysisProviderSlug, label: string) {
+    if (onStartAnalysis) {
+      onStartAnalysis(provider);
+      return;
+    }
+    Alert.alert(
+      label,
+      'El flujo de este análisis se conectará en una próxima iteración.',
+    );
+  }
+
+  async function handleSavePatient(input: UpdatePatientInput) {
+    const updated = await patientsService.update(patient.id, input);
+    onPatientUpdated?.(updated);
+    setEditing(false);
+    Alert.alert('Listo', 'Los datos del paciente se actualizaron.');
+  }
+
+  if (editing) {
+    return (
+      <EditProfileView
+        patient={patient}
+        title="Datos del paciente"
+        emailEditable={false}
+        analyses={analyses}
+        onBack={() => setEditing(false)}
+        onSave={handleSavePatient}
+      />
+    );
+  }
 
   return (
     <View style={styles.screen}>
@@ -196,19 +211,33 @@ export function PatientDetailView({
 
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <Pressable style={styles.roundBtn} onPress={onBack} accessibilityLabel="Volver">
+          <Pressable
+            style={styles.roundBtn}
+            onPress={onBack}
+            accessibilityLabel="Volver"
+          >
             <AppIcon icon={Icons.back} size={22} color={muted} />
           </Pressable>
           <Text style={styles.cardTitle}>Datos del paciente</Text>
-          <Pressable style={styles.roundBtn} onPress={onBack} accessibilityLabel="Cerrar">
+          <Pressable
+            style={styles.roundBtn}
+            onPress={onBack}
+            accessibilityLabel="Cerrar"
+          >
             <AppIcon icon={Icons.close} size={18} color={muted} />
           </Pressable>
         </View>
 
         <View style={styles.identity}>
-          <View style={styles.avatar}>
+          <Pressable
+            style={styles.avatar}
+            onPress={() => setEditing(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Editar datos del paciente"
+          >
             <Text style={styles.avatarText}>{initials(patient)}</Text>
-          </View>
+          </Pressable>
+          <Text style={styles.avatarHint}>Toca la foto para editar</Text>
           <Text style={styles.name}>{name}</Text>
           <Text style={styles.meta}>
             Última actualización: {formatUpdate(patient.updatedAt)}
@@ -219,28 +248,48 @@ export function PatientDetailView({
           </Text>
           <Text style={styles.meta}>Edad: {ageFromBirth(patient.birthDate)}</Text>
 
-          <Pressable
-            style={styles.newAnalysisBtn}
-            onPress={() => {
-              if (onStartYoucamAnalysis) onStartYoucamAnalysis();
-              else
-                Alert.alert(
-                  'Nuevo Análisis',
-                  'El flujo de análisis se conectará en una próxima iteración.',
-                );
-            }}
-          >
-            <Text style={styles.newAnalysisText}>Nuevo Análisis</Text>
-          </Pressable>
+          <View style={styles.newAnalysisSection}>
+            <Text style={styles.newAnalysisHint}>Nuevo análisis</Text>
+            {loadingPlans ? (
+              <ActivityIndicator color={primary} />
+            ) : availableProviders.length === 0 ? (
+              <View style={styles.providerEmpty}>
+                <Text style={styles.providerEmptyText}>
+                  No tienes planes activos con créditos. Revisa tu suscripción
+                  para iniciar un análisis.
+                </Text>
+              </View>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.providerScroll}
+                contentContainerStyle={styles.providerScrollContent}
+              >
+                {availableProviders.map((provider) => (
+                  <Pressable
+                    key={provider.slug}
+                    style={styles.providerPill}
+                    onPress={() => handleStart(provider.slug, provider.label)}
+                  >
+                    <Text style={styles.providerPillText}>{provider.label}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+          </View>
         </View>
 
         <View style={styles.historyHeader}>
-          <Text style={styles.historyTitle}>Histórico Análisis</Text>
+          <Text style={styles.historyTitle}>Historial de análisis</Text>
           <View style={styles.historyActions}>
             <Pressable
               style={styles.historyAction}
               onPress={() =>
-                Alert.alert('Asignar Cita', 'La agenda se conectará próximamente.')
+                Alert.alert(
+                  'Asignar Cita',
+                  'La agenda se conectará próximamente.',
+                )
               }
             >
               <AppIcon icon={Icons.calendarClock} size={16} color={primary} />
@@ -278,7 +327,10 @@ export function PatientDetailView({
               </View>
             }
             renderItem={({ item }) => {
-              const title = analysisTitle(item);
+              const typeLabel = analysisProviderLabel(item);
+              const status = analysisStatus(item);
+              const diagnosis = analysisDiagnosis(item);
+              const region = item.bodyRegion?.trim() || '—';
               const thumb = item.coloredUrl || item.imageUrl;
               return (
                 <Pressable
@@ -287,27 +339,63 @@ export function PatientDetailView({
                 >
                   <View style={styles.thumb}>
                     {thumb ? (
-                      <Image source={{ uri: thumb }} style={styles.thumbImage} />
+                      <Image
+                        source={{ uri: thumb }}
+                        style={styles.thumbImage}
+                      />
                     ) : (
                       <AppIcon icon={Icons.skin} size={22} color={primary} />
                     )}
                   </View>
                   <View style={styles.analysisBody}>
-                    <View style={styles.diagnosisRow}>
+                    <View style={styles.metaBadges}>
+                      <View style={styles.typeBadge}>
+                        <Text style={styles.typeBadgeText} numberOfLines={1}>
+                          {typeLabel}
+                        </Text>
+                      </View>
                       <View
                         style={[
-                          styles.severity,
-                          {
-                            backgroundColor: severityColor(item, branding.colors),
-                          },
+                          styles.statusBadge,
+                          status.kind === 'invalid' &&
+                            styles.statusBadgeInvalid,
+                          status.kind === 'confirmed' &&
+                            styles.statusBadgeConfirmed,
+                          status.kind === 'corrected' &&
+                            styles.statusBadgeCorrected,
+                          status.kind === 'pending' &&
+                            styles.statusBadgePending,
                         ]}
-                      />
-                      <Text style={styles.diagnosis} numberOfLines={1}>
-                        {title}
-                      </Text>
+                      >
+                        <Text
+                          style={[
+                            styles.statusBadgeText,
+                            status.kind === 'invalid' &&
+                              styles.statusBadgeTextInvalid,
+                            status.kind === 'confirmed' &&
+                              styles.statusBadgeTextConfirmed,
+                            status.kind === 'corrected' &&
+                              styles.statusBadgeTextCorrected,
+                            status.kind === 'pending' &&
+                              styles.statusBadgeTextPending,
+                          ]}
+                        >
+                          {status.label}
+                        </Text>
+                      </View>
                     </View>
+                    <Text style={styles.diagnosis} numberOfLines={1}>
+                      {diagnosis}
+                    </Text>
+                    <Text style={styles.regionLine} numberOfLines={1}>
+                      Región: {region}
+                    </Text>
                     <View style={styles.stampRow}>
-                      <AppIcon icon={Icons.calendarClock} size={13} color={primary} />
+                      <AppIcon
+                        icon={Icons.calendarClock}
+                        size={13}
+                        color={primary}
+                      />
                       <Text style={styles.stamp}>
                         {formatStamp(item.createdAt)}
                         {item.sharedWithPatient ? ' · Compartido' : ''}
@@ -315,7 +403,11 @@ export function PatientDetailView({
                     </View>
                   </View>
                   <View style={styles.goBtn}>
-                    <AppIcon icon={Icons.chevronRight} size={16} color={onDark} />
+                    <AppIcon
+                      icon={Icons.chevronRight}
+                      size={16}
+                      color={onDark}
+                    />
                   </View>
                 </Pressable>
               );

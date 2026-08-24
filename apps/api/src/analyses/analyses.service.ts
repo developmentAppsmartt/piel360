@@ -51,6 +51,29 @@ export class AnalysesService {
     image: Buffer,
     currentUser: JwtPayload,
   ) {
+    try {
+      return await this.performAnalysisInner(dto, image, currentUser);
+    } catch (err) {
+      if (
+        err instanceof BadRequestException ||
+        err instanceof ForbiddenException ||
+        err instanceof NotFoundException
+      ) {
+        throw err;
+      }
+      this.logger.error(
+        `POST /analyses falló (patientId=${dto.patientId}): ${String(err)}`,
+        err instanceof Error ? err.stack : undefined,
+      );
+      throw err;
+    }
+  }
+
+  private async performAnalysisInner(
+    dto: CreateAnalysisDto,
+    image: Buffer,
+    currentUser: JwtPayload,
+  ) {
     // Verifica que el usuario puede operar sobre este paciente (scoping).
     await this.patients.findOne(dto.patientId, currentUser);
 
@@ -91,6 +114,12 @@ export class AnalysesService {
       user.diagnosticLanguage,
     );
 
+    if (prediction.error) {
+      throw new BadRequestException(
+        `Skiniver rechazó la imagen: ${prediction.error}`,
+      );
+    }
+
     const analysis = await this.prisma.$transaction(async (tx) => {
       const remainingInTx = await this.subscriptions.remainingCredits(
         tx,
@@ -121,7 +150,9 @@ export class AnalysesService {
           validationScore: Number(validation.prob),
           aiDiagnosis: prediction.class,
           aiProbability:
-            prediction.prob > 1 ? prediction.prob / 100 : prediction.prob,
+            Number(prediction.prob) > 1
+              ? Number(prediction.prob) / 100
+              : Number(prediction.prob),
           aiRawResponse: prediction as unknown as Prisma.InputJsonValue,
         },
       });
@@ -147,17 +178,29 @@ export class AnalysesService {
       data: { imagePath: originalKey },
     });
 
-    await this.analysisImagesQueue.add('download', {
-      analysisId: analysis.id.toString(),
-      coloredUrl: prediction.colored_s3_url,
-      maskedUrl: prediction.masked_s3_url,
-    });
+    try {
+      await this.analysisImagesQueue.add('download', {
+        analysisId: analysis.id.toString(),
+        coloredUrl: prediction.colored_s3_url,
+        maskedUrl: prediction.masked_s3_url,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo encolar imágenes del análisis ${analysis.id}: ${String(error)}`,
+      );
+    }
 
-    for (const candidate of prediction.topn) {
+    for (const candidate of prediction.topn ?? []) {
       if (candidate.atlas_page_link) {
-        await this.encyclopediaQueue.add('process', {
-          url: candidate.atlas_page_link,
-        });
+        try {
+          await this.encyclopediaQueue.add('process', {
+            url: candidate.atlas_page_link,
+          });
+        } catch (error) {
+          this.logger.warn(
+            `No se pudo encolar encyclopedia ${candidate.atlas_page_link}: ${String(error)}`,
+          );
+        }
       }
     }
 
@@ -209,18 +252,42 @@ export class AnalysesService {
 
   async confirm(id: string, dto: ConfirmAnalysisDto, currentUser: JwtPayload) {
     const analysis = await this.findOne(id, currentUser);
+    const finalDiagnosis = dto.finalDiagnosis ?? analysis.aiDiagnosis;
 
-    const updated = await this.prisma.analysis.update({
-      where: { id: analysis.id },
-      data: {
-        isConfirmed: true,
-        isCorrected: dto.isCorrected ?? false,
-        finalDiagnosis: dto.finalDiagnosis ?? analysis.aiDiagnosis,
-        doctorNotes: dto.doctorNotes,
-        confirmedById: BigInt(currentUser.sub),
-        confirmedAt: new Date(),
-      },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.analysis.update({
+        where: { id: analysis.id },
+        data: {
+          isConfirmed: true,
+          isCorrected: dto.isCorrected ?? false,
+          finalDiagnosis,
+          doctorNotes: dto.doctorNotes,
+          confirmedById: BigInt(currentUser.sub),
+          confirmedAt: new Date(),
+        },
+        include: { patient: true },
+      });
+
+      // Al confirmar Fitzpatrick, el fototipo pasa al perfil del paciente
+      // (lo usa el chip "Tipo piel" de análisis YouCam posteriores).
+      if (analysis.fitzpatrickTaskId) {
+        const raw = analysis.aiRawResponse as {
+          fitzpatrick_scale?: string;
+        } | null;
+        const scale =
+          raw?.fitzpatrick_scale ??
+          finalDiagnosis?.match(/\b(I{1,3}|IV|V|VI)\b/i)?.[1]?.toUpperCase();
+        if (scale && ['I', 'II', 'III', 'IV', 'V', 'VI'].includes(scale)) {
+          await tx.patient.update({
+            where: { id: analysis.patientId },
+            data: { fitzpatrickType: scale },
+          });
+        }
+      }
+
+      return row;
     });
+
     return this.imageUrls.withImageUrls(updated);
   }
 

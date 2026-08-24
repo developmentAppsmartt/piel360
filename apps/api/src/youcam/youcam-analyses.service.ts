@@ -46,6 +46,23 @@ export class YoucamAnalysesService {
     image: Buffer,
     currentUser: JwtPayload,
   ) {
+    try {
+      return await this.createAnalysisInner(dto, image, currentUser);
+    } catch (err) {
+      if (err instanceof BadRequestException) throw err;
+      this.logger.error(
+        `POST /youcam/analyses falló (patientId=${dto.patientId}): ${String(err)}`,
+        err instanceof Error ? err.stack : undefined,
+      );
+      throw err;
+    }
+  }
+
+  private async createAnalysisInner(
+    dto: CreateYoucamAnalysisDto,
+    image: Buffer,
+    currentUser: JwtPayload,
+  ) {
     await this.patients.findOne(dto.patientId, currentUser); // scoping, igual que Skiniver
 
     const userId = BigInt(currentUser.sub);
@@ -73,7 +90,23 @@ export class YoucamAnalysesService {
     // El crédito NO se consume aquí — se consume al completarse (asimetría
     // intencional vs. Skiniver, MIGRACION.md deuda #4).
 
-    const { width, height } = imageSize(image);
+    let width: number;
+    let height: number;
+    try {
+      const size = imageSize(image);
+      width = size.width ?? 0;
+      height = size.height ?? 0;
+    } catch (err) {
+      throw new BadRequestException(
+        `No se pudo leer la imagen: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+    if (!width || !height) {
+      throw new BadRequestException(
+        'La imagen no tiene dimensiones válidas (¿formato soportado?).',
+      );
+    }
+
     const shortSide = Math.min(width, height);
     let uploadBuffer = image;
 
@@ -100,13 +133,28 @@ export class YoucamAnalysesService {
       );
     }
 
-    const fileId = await this.youcam.uploadImage(uploadBuffer);
+    let fileId: string;
+    try {
+      fileId = await this.youcam.uploadImage(uploadBuffer);
+    } catch (err) {
+      if (err instanceof BadRequestException) throw err;
+      this.logger.error(`YouCam uploadImage falló: ${String(err)}`);
+      throw err;
+    }
+
     // Siempre false: necesitamos la selfie original + máscaras transparentes
     // por separado para poder superponerlas en el frontend (una sola capa en
     // youcam-results-section.tsx, o las 8 del overview "Salud de la piel") —
     // con enable_mask_overlay:true YouCam hornea la foto dentro de cada
     // máscara (opaca) y no queda foto original que mostrar.
-    const taskId = await this.youcam.startAnalysis(fileId, false);
+    let taskId: string;
+    try {
+      taskId = await this.youcam.startAnalysis(fileId, false);
+    } catch (err) {
+      if (err instanceof BadRequestException) throw err;
+      this.logger.error(`YouCam startAnalysis falló: ${String(err)}`);
+      throw err;
+    }
 
     const analysis = await this.prisma.analysis.create({
       data: {
@@ -142,15 +190,22 @@ export class YoucamAnalysesService {
       );
     }
 
-    await this.pollQueue.add(
-      'poll',
-      { analysisId: analysis.id.toString(), taskId },
-      {
-        attempts: POLL_ATTEMPTS,
-        backoff: { type: 'exponential', delay: POLL_BACKOFF_DELAY_MS },
-        delay: POLL_INITIAL_DELAY_MS,
-      },
-    );
+    try {
+      await this.pollQueue.add(
+        'poll',
+        { analysisId: analysis.id.toString(), taskId },
+        {
+          attempts: POLL_ATTEMPTS,
+          backoff: { type: 'exponential', delay: POLL_BACKOFF_DELAY_MS },
+          delay: POLL_INITIAL_DELAY_MS,
+        },
+      );
+    } catch (error) {
+      // El análisis ya existe; el webhook de YouCam puede completar sin poll.
+      this.logger.warn(
+        `No se pudo encolar poll YouCam del análisis ${analysis.id}: ${String(error)}`,
+      );
+    }
 
     return { analysisId: analysis.id.toString() };
   }

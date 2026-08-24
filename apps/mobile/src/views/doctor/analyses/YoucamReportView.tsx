@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -12,7 +13,14 @@ import Svg, { Circle, Line, Polygon, Text as SvgText } from 'react-native-svg';
 import { AppIcon } from '../../../components/AppIcon';
 import { Icons } from '../../../components/icons';
 import { useBranding } from '../../../context/BrandingContext';
-import { YOUCAM_METRIC_LABELS } from '../../../data/youcamMetricLabels';
+import {
+  youcamMetricAdvice,
+} from '../../../data/youcamMetricCopy';
+import {
+  YOUCAM_METRIC_LABELS,
+  youcamMetricLabel,
+  youcamSkinTypeLabel,
+} from '../../../data/youcamMetricLabels';
 import { analysesService } from '../../../services/analyses.service';
 import { ApiError } from '../../../services/api.client';
 import type {
@@ -22,6 +30,7 @@ import type {
 import {
   parseYoucamMetrics,
   YOUCAM_MAIN_METRIC_TYPES,
+  youcamMetricValue,
   youcamOverallScore,
   youcamScoreBand,
   youcamScoreBandLabel,
@@ -31,6 +40,7 @@ import {
 } from '../../../types/analysis';
 import { DoctorHeader } from '../patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
+import { FitzpatrickResultsSection } from './components/FitzpatrickResultsSection';
 import { createYoucamResultsStyles } from './styles/youcamResults.styles';
 
 const RADAR_TYPES = [
@@ -64,6 +74,7 @@ function formatStamp(iso: string): string {
 function buildSummary(
   scores: Record<string, number>,
   overall: number | null,
+  skinTypeLabel: string | null,
 ): string {
   const lows = Object.entries(scores)
     .filter(([, v]) => v < 70)
@@ -71,14 +82,47 @@ function buildSummary(
     .slice(0, 3)
     .map(([type]) => YOUCAM_METRIC_LABELS[type] ?? type);
 
+  const typeHint = skinTypeLabel
+    ? ` Tu tipo de piel es ${skinTypeLabel.toLowerCase()}.`
+    : '';
+
   if (overall != null && overall >= 90) {
-    return 'Su piel está en buen estado general. Mantén tu rutina de cuidado y protección solar diaria.';
+    return `Ya vas camino a una gran piel.${typeHint} Mantén tu rutina y protección solar diaria. Revisa el detalle de cada métrica abajo.`;
+  }
+  if (overall != null && overall >= 70) {
+    return `Vas en el promedio.${typeHint}${
+      lows.length
+        ? ` Un poco más de cuidado en ${lows.join(', ')} puede marcar la diferencia.`
+        : ''
+    } Revisa el análisis completo abajo.`;
   }
   if (lows.length === 0) {
-    return 'Su piel está en el promedio. Revisa las zonas detalladas abajo para priorizar tu rutina.';
+    return `Hay margen de mejora general.${typeHint} Prioriza hidratación, SPF y una rutina constante.`;
   }
-  return `Prioriza mejorar: ${lows.join(', ')}. Considera hidratación adecuada, protección solar y consulta dermatológica si persisten las molestias.`;
+  return `Prioriza mejorar: ${lows.join(', ')}.${typeHint} Considera hidratación, protección solar y seguimiento dermatológico si persisten las molestias.`;
 }
+
+function findMaskUrl(
+  masks: AnalysisDetail['masks'],
+  type: string,
+  region: string | undefined,
+): string | null {
+  return (
+    masks.find((m) => m.type === type && m.region === (region ?? 'whole'))
+      ?.url ??
+    masks.find((m) => m.type === type)?.url ??
+    null
+  );
+}
+
+type ReportMetricRow = {
+  key: string;
+  type: string;
+  region?: string;
+  title: string;
+  score: number;
+  maskUrl: string | null;
+};
 
 function RadarChart({
   scores,
@@ -192,10 +236,15 @@ export function YoucamReportView({
       parseYoucamMetrics(analysis.aiRawResponse as YoucamRawResponse | null),
     [analysis.aiRawResponse],
   );
-  const scores = useMemo(() => youcamScoresByType(metrics), [metrics]);
+  const [preferRaw, setPreferRaw] = useState(false);
+  const scores = useMemo(
+    () => youcamScoresByType(metrics, preferRaw),
+    [metrics, preferRaw],
+  );
   const overall = youcamOverallScore(metrics);
   const skinAge = youcamSkinAge(metrics);
   const skinType = youcamSkinType(metrics);
+  const skinTypeLabel = skinType ? youcamSkinTypeLabel(skinType) : null;
   const band = overall != null ? youcamScoreBand(overall) : null;
   const name =
     patientName ??
@@ -203,20 +252,49 @@ export function YoucamReportView({
       ? `${analysis.patient.firstName} ${analysis.patient.lastName}`.trim()
       : 'Paciente');
 
-  const gridTypes = useMemo(() => {
-    const types = new Set<string>([...YOUCAM_MAIN_METRIC_TYPES]);
-    for (const key of Object.keys(scores)) {
-      if (
-        key !== 'all' &&
-        key !== 'skin_age' &&
-        key !== 'resize_image' &&
-        key !== 'hd_skin_type'
-      ) {
-        types.add(key);
+  const reportRows = useMemo((): ReportMetricRow[] => {
+    const rows: ReportMetricRow[] = [];
+    const seen = new Set<string>();
+
+    for (const type of YOUCAM_MAIN_METRIC_TYPES) {
+      const candidates = metrics.filter((m) => m.type === type);
+      const whole =
+        candidates.find((m) => !m.region || m.region === 'whole') ??
+        candidates[0];
+      if (!whole) continue;
+      const score = youcamMetricValue(whole, preferRaw);
+      if (score == null) continue;
+      const key = `${type}:${whole.region ?? 'whole'}`;
+      seen.add(key);
+      rows.push({
+        key,
+        type,
+        region: whole.region,
+        title: youcamMetricLabel(type, whole.region),
+        score,
+        maskUrl: findMaskUrl(analysis.masks, type, whole.region),
+      });
+
+      for (const m of candidates) {
+        if (!m.region || m.region === 'whole') continue;
+        const subScore = youcamMetricValue(m, preferRaw);
+        if (subScore == null) continue;
+        const subKey = `${type}:${m.region}`;
+        if (seen.has(subKey)) continue;
+        seen.add(subKey);
+        rows.push({
+          key: subKey,
+          type,
+          region: m.region,
+          title: youcamMetricLabel(type, m.region),
+          score: subScore,
+          maskUrl: findMaskUrl(analysis.masks, type, m.region),
+        });
       }
     }
-    return [...types].filter((t) => scores[t] != null);
-  }, [scores]);
+
+    return rows;
+  }, [metrics, preferRaw, analysis.masks]);
 
   async function handleShare() {
     if (!canShare || analysis.sharedWithPatient) return;
@@ -314,6 +392,35 @@ export function YoucamReportView({
         <ScrollView showsVerticalScrollIndicator={false}>
           <Text style={styles.reportTitle}>Reporte Salud de la Piel</Text>
 
+          <View style={styles.scoreModeRow}>
+            <Pressable
+              style={[styles.scoreModeBtn, !preferRaw && styles.scoreModeBtnOn]}
+              onPress={() => setPreferRaw(false)}
+            >
+              <Text
+                style={[
+                  styles.scoreModeText,
+                  !preferRaw && styles.scoreModeTextOn,
+                ]}
+              >
+                Puntuación ajustada
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.scoreModeBtn, preferRaw && styles.scoreModeBtnOn]}
+              onPress={() => setPreferRaw(true)}
+            >
+              <Text
+                style={[
+                  styles.scoreModeText,
+                  preferRaw && styles.scoreModeTextOn,
+                ]}
+              >
+                Puntuación real
+              </Text>
+            </Pressable>
+          </View>
+
           <View style={styles.reportHeader}>
             <View style={styles.reportAvatar}>
               {analysis.hasOriginalPhoto && analysis.imageUrl ? (
@@ -340,8 +447,14 @@ export function YoucamReportView({
 
           <View style={styles.reportStats}>
             <Text style={styles.reportMetaText}>
-              Tipo de piel: {skinType ?? '—'}
+              Tipo de piel:{' '}
+              {skinTypeLabel ?? '—'}
             </Text>
+            {analysis.patient?.fitzpatrickType ? (
+              <Text style={styles.reportMetaText}>
+                Piel: Tipo {analysis.patient.fitzpatrickType}
+              </Text>
+            ) : null}
             <Text style={styles.reportMetaText}>
               Puntuación de la piel:{' '}
               {overall != null ? Math.round(overall) : '—'}
@@ -355,6 +468,10 @@ export function YoucamReportView({
               </Text>
             ) : null}
           </View>
+
+          {analysis.patient?.fitzpatrickType ? (
+            <FitzpatrickResultsSection analysis={analysis} silentIfEmpty compact />
+          ) : null}
 
           {overall != null ? (
             <>
@@ -398,7 +515,7 @@ export function YoucamReportView({
           <View style={styles.summaryBox}>
             <Text style={styles.summaryTitle}>RESUMEN</Text>
             <Text style={styles.summaryBody}>
-              {buildSummary(scores, overall)}
+              {buildSummary(scores, overall, skinTypeLabel)}
             </Text>
           </View>
 
@@ -406,33 +523,88 @@ export function YoucamReportView({
             <RadarChart scores={scores} color={branding.colors.primary} />
           </View>
 
-          <View style={styles.metricGrid}>
-            {gridTypes.map((type) => {
-              const score = scores[type] ?? 0;
-              const itemBand = youcamScoreBand(score);
+          <Text style={styles.sectionHeading}>Detalle por métrica</Text>
+
+          <View style={styles.metricList}>
+            {reportRows.map((row) => {
+              const itemBand = youcamScoreBand(row.score);
               const color = BAND_COLOR[itemBand];
+              const advice = youcamMetricAdvice(row.type, itemBand);
+
               return (
-                <View key={type} style={styles.metricCard}>
-                  <Text style={styles.metricCardTitle} numberOfLines={2}>
-                    {YOUCAM_METRIC_LABELS[type] ?? type}
-                  </Text>
-                  <Text style={[styles.metricCardBand, { color }]}>
-                    {youcamScoreBandLabel(itemBand)}
-                  </Text>
-                  <View style={styles.metricCardTrack}>
-                    <View
-                      style={[
-                        styles.metricCardFill,
-                        {
-                          width: `${Math.max(0, Math.min(100, score))}%`,
-                          backgroundColor: color,
-                        },
-                      ]}
-                    />
+                <View key={row.key} style={styles.metricRowCard}>
+                  <View style={styles.metricRowTop}>
+                    <View style={styles.metricRowThumbWrap}>
+                      {analysis.imageUrl ? (
+                        <Image
+                          source={{ uri: analysis.imageUrl }}
+                          style={styles.metricRowThumb}
+                          contentFit="cover"
+                        />
+                      ) : (
+                        <View style={styles.metricRowThumbEmpty}>
+                          <AppIcon
+                            icon={Icons.camera}
+                            size={22}
+                            color={branding.colors.muted}
+                          />
+                        </View>
+                      )}
+                      {row.maskUrl ? (
+                        <Image
+                          source={{ uri: row.maskUrl }}
+                          style={[
+                            styles.metricRowThumb,
+                            StyleSheet.absoluteFill,
+                          ]}
+                          contentFit="cover"
+                        />
+                      ) : null}
+                    </View>
+
+                    <View style={styles.metricRowBody}>
+                      <View style={styles.metricRowHeader}>
+                        <Text style={styles.metricRowTitle} numberOfLines={2}>
+                          {row.title}
+                        </Text>
+                        <Text style={[styles.metricRowBand, { color }]}>
+                          {youcamScoreBandLabel(itemBand)}
+                        </Text>
+                      </View>
+
+                      <View style={styles.metricRowScoreRow}>
+                        <View
+                          style={[styles.metricRowPin, { backgroundColor: color }]}
+                        >
+                          <Text style={styles.metricRowPinText}>
+                            {Math.round(row.score)}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.metricCardTrack}>
+                        <View
+                          style={[
+                            styles.metricCardFill,
+                            {
+                              width: `${Math.max(0, Math.min(100, row.score))}%`,
+                              backgroundColor: color,
+                            },
+                          ]}
+                        />
+                      </View>
+                      <View style={styles.metricRowScale}>
+                        <Text style={styles.metricRowScaleText}>0</Text>
+                        <Text style={styles.metricRowScaleText}>70</Text>
+                        <Text style={styles.metricRowScaleText}>90</Text>
+                        <Text style={styles.metricRowScaleText}>100</Text>
+                      </View>
+                    </View>
                   </View>
-                  <Text style={styles.metricCardScore}>
-                    {Math.round(score)}
-                  </Text>
+
+                  <View style={styles.metricAdviceBox}>
+                    <Text style={styles.metricAdviceText}>{advice}</Text>
+                  </View>
                 </View>
               );
             })}

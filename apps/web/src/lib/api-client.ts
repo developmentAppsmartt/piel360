@@ -26,7 +26,13 @@ export async function apiClientFetch<T>(path: string, init?: RequestInit): Promi
   const body = await res.json().catch(() => null);
 
   if (!res.ok) {
-    throw new ApiError(body?.message ?? "Error inesperado", res.status);
+    const raw = body?.message;
+    const message = Array.isArray(raw)
+      ? raw.join(". ")
+      : typeof raw === "string"
+        ? raw
+        : "Error inesperado";
+    throw new ApiError(message, res.status);
   }
 
   return body as T;

@@ -1,27 +1,32 @@
-// Fuente de verdad: AnalysisProvider.displayLabel (backend) — evita repetir
-// "Análisis Dermatológico"/"Análisis Estético" hardcodeado en cada componente
-// que muestra un análisis existente. Estas constantes solo cubren los 2 casos
-// que NO leen de un `Analysis` ya creado (botones para iniciar un análisis
-// nuevo, antes de que exista una fila con `provider` que consultar).
+// Fuente de verdad: AnalysisProvider.displayLabel (backend). Estas constantes
+// cubren botones para iniciar un análisis nuevo (aún sin fila `provider`).
+// Nunca exponer nombres de API (Skiniver / YouCam / Fitzpatrick) al usuario.
 export const ANALYSIS_PROVIDER_STATIC_LABELS = {
-  skiniver: "Análisis Dermatológico",
-  youcam: "Análisis Estético",
-  fitzpatrick: "Análisis Fitzpatrick",
+  skiniver: "Piel 360 AI · Dermatológico",
+  youcam: "Piel 360 AI · Estético",
+  fitzpatrick: "Piel 360 AI · Fototipo",
 } as const;
 
+function looksLikeApiVendor(label: string): boolean {
+  const lower = label.toLowerCase();
+  return (
+    lower.includes("skiniver") ||
+    lower.includes("youcam") ||
+    lower.includes("fitzpatrick") ||
+    lower.includes("perfect")
+  );
+}
+
 /** Label a mostrar para un análisis ya existente: prioriza
- * `provider.displayLabel` (base de datos); si la fila es de antes de que
- * `providerId` se empezara a guardar (o no tiene provider vinculado), cae al
- * mismo texto vía el heurístico ya usado en el resto del código
- * (`youcamTaskId` presente → YouCam). */
+ * `provider.displayLabel` si no es un nombre de API; si no, heurística por task id. */
 export function analysisProviderLabel(row: {
   youcamTaskId: string | null;
+  fitzpatrickTaskId?: string | null;
   provider?: { displayLabel: string | null } | null;
 }): string {
-  return (
-    row.provider?.displayLabel ??
-    (row.youcamTaskId
-      ? ANALYSIS_PROVIDER_STATIC_LABELS.youcam
-      : ANALYSIS_PROVIDER_STATIC_LABELS.skiniver)
-  );
+  const raw = row.provider?.displayLabel?.trim();
+  if (raw && !looksLikeApiVendor(raw)) return raw;
+  if (row.youcamTaskId) return ANALYSIS_PROVIDER_STATIC_LABELS.youcam;
+  if (row.fitzpatrickTaskId) return ANALYSIS_PROVIDER_STATIC_LABELS.fitzpatrick;
+  return ANALYSIS_PROVIDER_STATIC_LABELS.skiniver;
 }

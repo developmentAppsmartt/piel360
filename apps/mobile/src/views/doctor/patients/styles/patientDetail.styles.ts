@@ -62,6 +62,12 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
       fontWeight: '800',
       color: colors.primary,
     },
+    avatarHint: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.muted,
+      marginBottom: 4,
+    },
     name: {
       fontSize: 20,
       fontWeight: '800',
@@ -87,6 +93,53 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
       color: colors.textOnDark,
       fontWeight: '700',
       fontSize: 15,
+    },
+    newAnalysisSection: {
+      marginTop: 12,
+      alignSelf: 'stretch',
+      gap: 8,
+    },
+    newAnalysisHint: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.muted,
+      textAlign: 'center',
+      paddingHorizontal: 16,
+    },
+    providerScroll: {
+      marginHorizontal: -4,
+    },
+    providerScrollContent: {
+      paddingHorizontal: 16,
+      gap: 8,
+      alignItems: 'center',
+    },
+    providerPill: {
+      backgroundColor: colors.primary,
+      borderRadius: 999,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    providerPillText: {
+      color: colors.textOnDark,
+      fontWeight: '700',
+      fontSize: 13,
+    },
+    providerEmpty: {
+      marginHorizontal: 24,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      borderRadius: 12,
+      backgroundColor: '#F3F4F6',
+    },
+    providerEmptyText: {
+      fontSize: 13,
+      color: colors.muted,
+      textAlign: 'center',
+      fontWeight: '600',
+      lineHeight: 18,
     },
     historyHeader: {
       marginTop: 18,
@@ -152,21 +205,68 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
       minWidth: 0,
       gap: 4,
     },
-    diagnosisRow: {
+    metaBadges: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'center',
       gap: 6,
     },
-    severity: {
-      width: 14,
-      height: 14,
-      borderRadius: 7,
+    typeBadge: {
+      maxWidth: '70%',
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: '#D1D5DB',
+      backgroundColor: '#F9FAFB',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    typeBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    statusBadge: {
+      borderRadius: 999,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    statusBadgeInvalid: {
+      backgroundColor: soft(colors.error, '18'),
+    },
+    statusBadgeConfirmed: {
+      backgroundColor: soft(colors.primary, '18'),
+    },
+    statusBadgeCorrected: {
+      backgroundColor: soft(colors.secondary, '22'),
+    },
+    statusBadgePending: {
+      backgroundColor: '#F3F4F6',
+    },
+    statusBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    statusBadgeTextInvalid: {
+      color: colors.error,
+    },
+    statusBadgeTextConfirmed: {
+      color: colors.primary,
+    },
+    statusBadgeTextCorrected: {
+      color: colors.secondary,
+    },
+    statusBadgeTextPending: {
+      color: colors.muted,
     },
     diagnosis: {
-      flex: 1,
       fontSize: 14,
       fontWeight: '700',
       color: colors.text,
+    },
+    regionLine: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.muted,
     },
     stampRow: {
       flexDirection: 'row',

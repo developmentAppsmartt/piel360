@@ -57,11 +57,11 @@ async function main() {
     }),
     prisma.analysisProvider.upsert({
       where: { slug: 'fitzpatrick' },
-      update: { displayLabel: 'Análisis Fitzpatrick' },
+      update: { displayLabel: 'Piel 360 AI · Fototipo' },
       create: {
-        name: 'Fitzpatrick',
+        name: 'Fototipo',
         slug: 'fitzpatrick',
-        displayLabel: 'Análisis Fitzpatrick',
+        displayLabel: 'Piel 360 AI · Fototipo',
       },
     }),
   ]);
@@ -150,17 +150,21 @@ async function main() {
 
   await prisma.plan.upsert({
     where: { id: 3n },
-    update: {},
+    update: {
+      name: 'Fototipo Básico',
+      description:
+        'Plan mensual de clasificación de fototipo de piel (tipos I a VI).',
+    },
     create: {
       id: 3n,
       analysisProviderId: fitzpatrick.id,
-      name: 'Fitzpatrick Básico',
+      name: 'Fototipo Básico',
       analysisLimit: 10,
       price: 29900,
       durationDays: 30,
       isActive: true,
       description:
-        'Plan mensual de clasificación de fototipo de piel (escala Fitzpatrick).',
+        'Plan mensual de clasificación de fototipo de piel (tipos I a VI).',
     },
   });
 

@@ -14,22 +14,30 @@ import { useAuth } from '../../../context/AuthContext';
 import { useBranding } from '../../../context/BrandingContext';
 import { ApiError } from '../../../services/api.client';
 import { analysesService } from '../../../services/analyses.service';
+import { patientsService } from '../../../services/patients.service';
 import type {
   AnalysisDetail,
+  FitzpatrickRawResponse,
   YoucamRawResponse,
 } from '../../../types/analysis';
+import { FITZPATRICK_SCALES } from '../../../data/fitzpatrickLabels';
+import { ANALYSIS_PROVIDER_STATIC_LABELS } from '../../../data/analysisProviderLabel';
 import { DoctorHeader } from '../patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
+import { ConfirmAnalysisForm } from './components/ConfirmAnalysisForm';
+import { FitzpatrickResultsSection } from './components/FitzpatrickResultsSection';
 import { SkiniverResultsSection } from './components/SkiniverResultsSection';
 import { YoucamResultsSection } from './components/YoucamResultsSection';
 import { createAnalysisDetailStyles } from './styles/analysisDetail.styles';
 import { YoucamProgressView } from './YoucamProgressView';
 import { YoucamReportView } from './YoucamReportView';
+import { NosologyPicker } from '../../nosologies/NosologyPicker';
+import type { NosologyItem } from '../../../types/nosology';
 
 type AnalysisDetailViewProps = {
   analysisId: string;
   patientName?: string;
-  /** Si false, oculta el botón compartir (vista paciente). */
+  /** Si false, oculta compartir y confirmar (vista paciente). */
   canShare?: boolean;
   onBack: () => void;
   onOpenMenu: () => void;
@@ -47,6 +55,75 @@ function formatStamp(iso: string): string {
   const hh = String(d.getHours()).padStart(2, '0');
   const min = String(d.getMinutes()).padStart(2, '0');
   return `${dd}/${mm}/${yyyy} · ${hh}:${min}`;
+}
+
+/** Completa skinType/fitzpatrickType: prioridad al último Fitzpatrick confirmado. */
+async function enrichAnalysisPatient(
+  detail: AnalysisDetail,
+): Promise<AnalysisDetail> {
+  let fitzpatrickType: string | null = null;
+  let skinType = detail.patient?.skinType ?? null;
+  let firstName = detail.patient?.firstName ?? '';
+  let lastName = detail.patient?.lastName ?? '';
+
+  try {
+    const profile = await patientsService.getById(detail.patientId);
+    firstName = profile.firstName;
+    lastName = profile.lastName;
+    skinType = profile.skinType ?? skinType;
+    // Perfil solo como respaldo; el confirmado manda.
+    fitzpatrickType = profile.fitzpatrickType ?? null;
+  } catch {
+    // Si falla el perfil, seguimos con historial.
+  }
+
+  try {
+    const history = await patientsService.listAnalyses(detail.patientId);
+    const latestConfirmed = [...history]
+      .filter((a) => !!a.fitzpatrickTaskId && a.isConfirmed === true)
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )[0];
+
+    if (latestConfirmed) {
+      const fromRaw = (
+        latestConfirmed.aiRawResponse as FitzpatrickRawResponse | null
+      )?.fitzpatrick_scale;
+      const fromDiagnosis = parseFitzpatrickScale(
+        latestConfirmed.finalDiagnosis ?? latestConfirmed.aiDiagnosis,
+      );
+      const scale = fromRaw ?? fromDiagnosis;
+      if (scale && (FITZPATRICK_SCALES as readonly string[]).includes(scale)) {
+        fitzpatrickType = scale;
+      }
+    }
+  } catch {
+    // Sin historial Fitzpatrick disponible.
+  }
+
+  return {
+    ...detail,
+    patient: {
+      id: detail.patientId,
+      firstName,
+      lastName,
+      skinType,
+      fitzpatrickType,
+    },
+  };
+}
+
+function parseFitzpatrickScale(
+  diagnosis: string | null | undefined,
+): string | null {
+  if (!diagnosis) return null;
+  const match = diagnosis.match(/\b(I{1,3}|IV|V|VI)\b/i);
+  if (!match) return null;
+  const value = match[1].toUpperCase();
+  return (FITZPATRICK_SCALES as readonly string[]).includes(value)
+    ? value
+    : null;
 }
 
 export function AnalysisDetailView({
@@ -68,14 +145,22 @@ export function AnalysisDetailView({
     [branding.colors],
   );
 
-  const showShare =
+  const canManage =
     canShare ?? (user?.role === 'doctor' || user?.role === 'admin');
+  const showShare = canManage;
 
   const [analysis, setAnalysis] = useState<AnalysisDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [sharing, setSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [subView, setSubView] = useState<SubView>('detail');
+  const [skiniverView, setSkiniverView] = useState<'stats' | 'detail'>('stats');
+  const [nosologyPickerOpen, setNosologyPickerOpen] = useState(false);
+  const [correcting, setCorrecting] = useState(false);
+
+  useEffect(() => {
+    setSkiniverView('stats');
+  }, [analysisId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,7 +169,8 @@ export function AnalysisDetailView({
       setError(null);
       try {
         const detail = await analysesService.getById(analysisId);
-        if (!cancelled) setAnalysis(detail);
+        const enriched = await enrichAnalysisPatient(detail);
+        if (!cancelled) setAnalysis(enriched);
       } catch (err) {
         if (!cancelled) {
           setError(
@@ -103,11 +189,21 @@ export function AnalysisDetailView({
   }, [analysisId]);
 
   const isYoucam = !!analysis?.youcamTaskId;
+  const isFitzpatrick = !!analysis?.fitzpatrickTaskId;
+  const isSkiniver = !!analysis && !isYoucam && !isFitzpatrick;
   const raw = (analysis?.aiRawResponse ?? null) as YoucamRawResponse | null;
   const youcamError =
     isYoucam && raw && raw.error === true
       ? raw.message ?? 'Error al procesar el análisis'
       : null;
+
+  function handleHeaderBack() {
+    if (isSkiniver && skiniverView === 'detail') {
+      setSkiniverView('stats');
+      return;
+    }
+    onBack();
+  }
 
   const displayName =
     patientName ??
@@ -120,7 +216,7 @@ export function AnalysisDetailView({
     setSharing(true);
     try {
       const updated = await analysesService.shareWithPatient(analysis.id);
-      setAnalysis(updated);
+      setAnalysis(await enrichAnalysisPatient(updated));
       Alert.alert(
         'Análisis compartido',
         'El paciente ya puede verlo en el histórico de su inicio.',
@@ -135,6 +231,61 @@ export function AnalysisDetailView({
     } finally {
       setSharing(false);
     }
+  }
+
+  async function handleConfirm(input: {
+    isCorrected: boolean;
+    finalDiagnosis?: string;
+    doctorNotes?: string;
+  }) {
+    if (!analysis) return;
+    const updated = await analysesService.confirm(analysis.id, input);
+    setAnalysis(await enrichAnalysisPatient(updated));
+    Alert.alert(
+      input.isCorrected ? 'Análisis corregido' : 'Análisis confirmado',
+      input.isCorrected
+        ? `El diagnóstico quedó como: ${input.finalDiagnosis ?? updated.finalDiagnosis ?? '—'}.`
+        : 'El resultado quedó confirmado.',
+    );
+  }
+
+  async function handleNosologySelected(item: NosologyItem) {
+    if (!analysis || correcting) return;
+    setCorrecting(true);
+    try {
+      await handleConfirm({
+        isCorrected: true,
+        finalDiagnosis: item.name,
+      });
+      setNosologyPickerOpen(false);
+      setSkiniverView('detail');
+    } catch (err) {
+      Alert.alert(
+        'No se pudo corregir',
+        err instanceof ApiError
+          ? err.message
+          : 'Inténtalo de nuevo en unos segundos.',
+      );
+    } finally {
+      setCorrecting(false);
+    }
+  }
+
+  const canConfirm =
+    canManage && analysis && (!isYoucam || analysis.isValid);
+
+  if (nosologyPickerOpen) {
+    return (
+      <NosologyPicker
+        title="Corregir resultado"
+        onCancel={() => {
+          if (!correcting) setNosologyPickerOpen(false);
+        }}
+        onSelect={(item) => {
+          void handleNosologySelected(item);
+        }}
+      />
+    );
   }
 
   if (analysis && isYoucam && analysis.isValid && subView === 'progress') {
@@ -154,7 +305,9 @@ export function AnalysisDetailView({
         analysis={analysis}
         patientName={displayName}
         canShare={showShare}
-        onShared={setAnalysis}
+        onShared={async (next) => {
+          setAnalysis(await enrichAnalysisPatient(next));
+        }}
         onBack={() => setSubView('detail')}
         onOpenMenu={onOpenMenu}
         onOpenMessages={onOpenMessages}
@@ -176,7 +329,7 @@ export function AnalysisDetailView({
         <View style={styles.cardHeader}>
           <Pressable
             style={styles.roundBtn}
-            onPress={onBack}
+            onPress={handleHeaderBack}
             accessibilityLabel="Volver"
           >
             <AppIcon
@@ -185,7 +338,11 @@ export function AnalysisDetailView({
               color={branding.colors.muted}
             />
           </Pressable>
-          <Text style={styles.cardTitle}>Resultado del análisis</Text>
+          <Text style={styles.cardTitle}>
+            {isFitzpatrick
+              ? ANALYSIS_PROVIDER_STATIC_LABELS.fitzpatrick
+              : 'Resultado del análisis'}
+          </Text>
           <Pressable
             style={styles.roundBtn}
             onPress={onBack}
@@ -282,7 +439,55 @@ export function AnalysisDetailView({
               />
             ) : null}
 
-            {!isYoucam ? <SkiniverResultsSection analysis={analysis} /> : null}
+            {isFitzpatrick ? (
+              <FitzpatrickResultsSection analysis={analysis} />
+            ) : null}
+
+            {isSkiniver ? (
+              <SkiniverResultsSection
+                analysis={analysis}
+                view={skiniverView}
+                onViewChange={setSkiniverView}
+                detailFooter={
+                  canConfirm ? (
+                    analysis.isConfirmed ? (
+                      <Text style={styles.confirmStatus}>
+                        Análisis{' '}
+                        {analysis.isCorrected ? 'corregido' : 'confirmado'}
+                        {analysis.finalDiagnosis
+                          ? `: ${analysis.finalDiagnosis}`
+                          : '.'}
+                      </Text>
+                    ) : (
+                      <ConfirmAnalysisForm
+                        aiDiagnosis={analysis.aiDiagnosis}
+                        onSubmit={handleConfirm}
+                        correctMode="nosology"
+                        onCorrectPress={() => setNosologyPickerOpen(true)}
+                      />
+                    )
+                  ) : null
+                }
+              />
+            ) : null}
+
+            {canConfirm && !isSkiniver ? (
+              analysis.isConfirmed ? (
+                <Text style={styles.confirmStatus}>
+                  Análisis{' '}
+                  {analysis.isCorrected ? 'corregido' : 'confirmado'}
+                  {analysis.finalDiagnosis
+                    ? `: ${analysis.finalDiagnosis}`
+                    : '.'}
+                </Text>
+              ) : (
+                <ConfirmAnalysisForm
+                  aiDiagnosis={analysis.aiDiagnosis}
+                  onSubmit={handleConfirm}
+                  correctMode="notes"
+                />
+              )
+            ) : null}
           </ScrollView>
         ) : null}
       </View>

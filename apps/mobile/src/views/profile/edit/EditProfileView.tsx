@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import type { UpdatePatientInput } from '../../../services/patients.service';
+import type { PatientAnalysisSummary } from '../../../types/analysis';
 import type { PatientProfile } from '../../../types/patient';
 import { useBranding } from '../../../context/BrandingContext';
 import { ProfileHeaderBar } from '../components/ProfileHeaderBar';
@@ -18,12 +19,18 @@ type EditProfileViewProps = {
   patient: PatientProfile;
   onBack: () => void;
   onSave: (input: UpdatePatientInput) => Promise<void>;
+  title?: string;
+  emailEditable?: boolean;
+  analyses?: PatientAnalysisSummary[];
 };
 
 export function EditProfileView({
   patient,
   onBack,
   onSave,
+  title = 'Editar perfil',
+  emailEditable = true,
+  analyses,
 }: EditProfileViewProps) {
   const branding = useBranding();
   const headerStyles = useMemo(
@@ -40,7 +47,7 @@ export function EditProfileView({
       <StatusBar style="light" />
       <ProfileHeaderBar
         styles={headerStyles}
-        title="Editar perfil"
+        title={title}
         onBack={onBack}
       />
       <KeyboardAvoidingView
@@ -53,7 +60,12 @@ export function EditProfileView({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <EditProfileForm patient={patient} onSubmit={onSave} />
+          <EditProfileForm
+            patient={patient}
+            onSubmit={onSave}
+            emailEditable={emailEditable}
+            analyses={analyses}
+          />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>

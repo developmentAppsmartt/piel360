@@ -1,8 +1,16 @@
-import { useMemo } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
 import { AppIcon } from '../../../components/AppIcon';
 import { Icons } from '../../../components/icons';
 import { useBranding } from '../../../context/BrandingContext';
+import { requireGuidedFaceCapture } from '../../../native/guidedCapture';
 import { createYoucamFlowStyles } from './styles/youcamFlow.styles';
 
 const TIPS: { icon: (typeof Icons)[keyof typeof Icons]; text: string }[] = [
@@ -26,21 +34,52 @@ const TIPS: { icon: (typeof Icons)[keyof typeof Icons]; text: string }[] = [
 
 type YoucamInstructionsStepProps = {
   onCancel: () => void;
+  /** URI local de la foto capturada con Camera Kit. */
+  onCaptured: (imageUri: string) => void;
 };
 
 export function YoucamInstructionsStep({
   onCancel,
+  onCaptured,
 }: YoucamInstructionsStepProps) {
   const branding = useBranding();
   const styles = useMemo(
     () => createYoucamFlowStyles(branding.colors),
     [branding.colors],
   );
+  const [busy, setBusy] = useState(false);
+
+  async function handleStart() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const capture = await requireGuidedFaceCapture();
+      onCaptured(capture.uri);
+    } catch (err) {
+      const code =
+        err && typeof err === 'object' && 'code' in err
+          ? String((err as { code?: string }).code)
+          : '';
+      if (code === 'E_CANCELLED') return;
+
+      Alert.alert(
+        'Análisis estético',
+        err instanceof Error
+          ? err.message
+          : 'No se pudo completar la captura.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <View style={styles.card}>
       <Text style={styles.title}>Instrucciones</Text>
-      <Text style={styles.subtitle}>Prepárate para el análisis</Text>
+      <Text style={styles.subtitle}>
+        Usa la captura guiada de Piel 360. Verás indicadores de iluminación, mirada y
+        posición de la cara.
+      </Text>
 
       <ScrollView style={styles.tipList} showsVerticalScrollIndicator={false}>
         {TIPS.map((tip) => (
@@ -58,18 +97,18 @@ export function YoucamInstructionsStep({
       </ScrollView>
 
       <Pressable
-        style={styles.primaryBtn}
-        onPress={() =>
-          Alert.alert(
-            'Captura pendiente',
-            'La captura Perfect Corp se conectará próximamente. Mientras tanto puedes revisar análisis YouCam ya existentes en el histórico.',
-          )
-        }
+        style={[styles.primaryBtn, busy && { opacity: 0.7 }]}
+        disabled={busy}
+        onPress={() => void handleStart()}
       >
-        <Text style={styles.primaryBtnText}>Iniciar Análisis</Text>
+        {busy ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.primaryBtnText}>Iniciar con Camera Kit</Text>
+        )}
       </Pressable>
 
-      <Pressable style={styles.cancel} onPress={onCancel}>
+      <Pressable style={styles.cancel} onPress={onCancel} disabled={busy}>
         <Text style={styles.cancelText}>Cancelar</Text>
       </Pressable>
 

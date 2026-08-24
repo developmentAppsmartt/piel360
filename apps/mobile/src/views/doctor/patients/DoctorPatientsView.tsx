@@ -16,10 +16,13 @@ import { patientsService } from '../../../services/patients.service';
 import type { PatientProfile } from '../../../types/patient';
 import { analysesService } from '../../../services/analyses.service';
 import type { PatientAnalysisSummary } from '../../../types/analysis';
+import { FitzpatrickAnalysisFlow } from '../../analyses/fitzpatrick-flow/FitzpatrickAnalysisFlow';
+import { SkiniverAnalysisFlow } from '../../analyses/skiniver-flow/SkiniverAnalysisFlow';
 import { YoucamAnalysisFlow } from '../../analyses/youcam-flow/YoucamAnalysisFlow';
 import { AnalysisDetailView } from '../analyses/AnalysisDetailView';
 import { CreatePatientFlow } from '../create-patient/CreatePatientFlow';
 import { PaymentsView } from '../payments/PaymentsView';
+import type { AnalysisProviderSlug } from '../../../data/analysisProviderLabel';
 import { AccountDrawer } from './components/AccountDrawer';
 import { DoctorHeader } from './components/DoctorHeader';
 import { PatientDetailView } from './components/PatientDetailView';
@@ -59,7 +62,8 @@ export function DoctorPatientsView({
   const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(
     null,
   );
-  const [youcamFlowOpen, setYoucamFlowOpen] = useState(false);
+  const [activeProvider, setActiveProvider] =
+    useState<AnalysisProviderSlug | null>(null);
 
   const handleMenuSelect = (id: string) => {
     setMenuOpen(false);
@@ -94,12 +98,17 @@ export function DoctorPatientsView({
     }
   }, []);
 
-  const skinAnalysisCount = useMemo(
+  const dermatologicoCount = useMemo(
+    () =>
+      analyses.filter((a) => !a.youcamTaskId && !a.fitzpatrickTaskId).length,
+    [analyses],
+  );
+  const esteticoCount = useMemo(
     () => analyses.filter((a) => !!a.youcamTaskId).length,
     [analyses],
   );
-  const lesionAnalysisCount = useMemo(
-    () => analyses.filter((a) => !a.youcamTaskId).length,
+  const fototipoCount = useMemo(
+    () => analyses.filter((a) => !!a.fitzpatrickTaskId).length,
     [analyses],
   );
 
@@ -124,12 +133,64 @@ export function DoctorPatientsView({
     );
   }
 
-  if (selectedPatient && youcamFlowOpen) {
+  if (selectedPatient && activeProvider === 'youcam') {
+    // YouCam: Camera Kit nativo → POST /youcam/analyses
     return (
       <>
         <YoucamAnalysisFlow
+          patientId={selectedPatient.id}
           patientName={patientDisplayName(selectedPatient)}
-          onClose={() => setYoucamFlowOpen(false)}
+          onClose={() => setActiveProvider(null)}
+          onAnalysisCreated={(analysisId) => {
+            setActiveProvider(null);
+            setSelectedAnalysisId(analysisId);
+          }}
+          onOpenMenu={() => setMenuOpen(true)}
+          onOpenMessages={onOpenMessages}
+        />
+        <AccountDrawer
+          visible={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          onSelect={handleMenuSelect}
+        />
+      </>
+    );
+  }
+
+  if (selectedPatient && activeProvider === 'skiniver') {
+    return (
+      <>
+        <SkiniverAnalysisFlow
+          patientId={selectedPatient.id}
+          patientName={patientDisplayName(selectedPatient)}
+          onClose={() => setActiveProvider(null)}
+          onAnalysisCreated={(analysisId) => {
+            setActiveProvider(null);
+            setSelectedAnalysisId(analysisId);
+          }}
+          onOpenMenu={() => setMenuOpen(true)}
+          onOpenMessages={onOpenMessages}
+        />
+        <AccountDrawer
+          visible={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          onSelect={handleMenuSelect}
+        />
+      </>
+    );
+  }
+
+  if (selectedPatient && activeProvider === 'fitzpatrick') {
+    return (
+      <>
+        <FitzpatrickAnalysisFlow
+          patientId={selectedPatient.id}
+          patientName={patientDisplayName(selectedPatient)}
+          onClose={() => setActiveProvider(null)}
+          onAnalysisCreated={(analysisId) => {
+            setActiveProvider(null);
+            setSelectedAnalysisId(analysisId);
+          }}
           onOpenMenu={() => setMenuOpen(true)}
           onOpenMessages={onOpenMessages}
         />
@@ -170,7 +231,13 @@ export function DoctorPatientsView({
           onOpenMenu={() => setMenuOpen(true)}
           onOpenMessages={onOpenMessages}
           onOpenAnalysis={(id) => setSelectedAnalysisId(id)}
-          onStartYoucamAnalysis={() => setYoucamFlowOpen(true)}
+          onStartAnalysis={(provider) => setActiveProvider(provider)}
+          onPatientUpdated={(updated) => {
+            setSelectedPatient(updated);
+            setPatients((prev) =>
+              prev.map((p) => (p.id === updated.id ? updated : p)),
+            );
+          }}
         />
         <AccountDrawer
           visible={menuOpen}
@@ -232,23 +299,33 @@ export function DoctorPatientsView({
             />
           }
         >
-          <View style={styles.metricsRow}>
-            <View style={styles.metric}>
-              <Text style={styles.metricLabel}>Mis Pacientes</Text>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricValue}>{patients.length}</Text>
+          <View style={styles.metricsGrid}>
+            <View style={styles.metricsRow}>
+              <View style={styles.metric}>
+                <View style={styles.metricCard}>
+                  <Text style={styles.metricValue}>{patients.length}</Text>
+                  <Text style={styles.metricLabel}>Pacientes</Text>
+                </View>
+              </View>
+              <View style={styles.metric}>
+                <View style={styles.metricCard}>
+                  <Text style={styles.metricValue}>{dermatologicoCount}</Text>
+                  <Text style={styles.metricLabel}>Dermatológico</Text>
+                </View>
               </View>
             </View>
-            <View style={styles.metric}>
-              <Text style={styles.metricLabel}># Análisis piel</Text>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricValue}>{skinAnalysisCount}</Text>
+            <View style={styles.metricsRow}>
+              <View style={styles.metric}>
+                <View style={styles.metricCard}>
+                  <Text style={styles.metricValue}>{esteticoCount}</Text>
+                  <Text style={styles.metricLabel}>Estético</Text>
+                </View>
               </View>
-            </View>
-            <View style={styles.metric}>
-              <Text style={styles.metricLabel}># Análisis Dist.</Text>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricValue}>{lesionAnalysisCount}</Text>
+              <View style={styles.metric}>
+                <View style={styles.metricCard}>
+                  <Text style={styles.metricValue}>{fototipoCount}</Text>
+                  <Text style={styles.metricLabel}>Fototipo</Text>
+                </View>
               </View>
             </View>
           </View>
