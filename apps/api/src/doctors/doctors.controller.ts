@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -21,6 +22,17 @@ import type { JwtPayload } from '../auth/types';
 import { DoctorsService } from './doctors.service';
 import { UpdateDoctorDto } from './dto/update-doctor.dto';
 import { UpdateDoctorVerificationDto } from './dto/update-doctor-verification.dto';
+
+function assertModeratorPerm(
+  user: JwtPayload,
+  permission: string,
+  message: string,
+) {
+  if (user.role === 'superadmin') return;
+  if (!user.permissions?.includes(permission)) {
+    throw new ForbiddenException(message);
+  }
+}
 
 @Controller()
 export class DoctorsController {
@@ -90,7 +102,41 @@ export class DoctorsController {
   @Patch('admin/doctors/:id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermission('update_doctor')
-  update(@Param('id') id: string, @Body() dto: UpdateDoctorDto) {
+  update(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: UpdateDoctorDto,
+  ) {
+    if (user.role === 'monitor') {
+      const touchesSpecialty = dto.specialty !== undefined;
+      const personalKeys = [
+        'firstName',
+        'lastName',
+        'phone',
+        'address',
+        'city',
+        'docType',
+        'docNumber',
+        'birthDate',
+        'gender',
+      ] as const;
+      const touchesPersonal = personalKeys.some((k) => dto[k] !== undefined);
+
+      if (touchesSpecialty) {
+        assertModeratorPerm(
+          user,
+          'change_specialty',
+          'No tienes permiso para cambiar la profesión',
+        );
+      }
+      if (touchesPersonal) {
+        assertModeratorPerm(
+          user,
+          'edit_personal_data',
+          'No tienes permiso para editar datos personales',
+        );
+      }
+    }
     return this.doctorsService.update(id, dto);
   }
 
@@ -98,9 +144,31 @@ export class DoctorsController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermission('validate_doctor')
   updateVerification(
+    @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
     @Body() dto: UpdateDoctorVerificationDto,
   ) {
+    if (user.role === 'monitor') {
+      if (dto.status === 'active' || dto.status === 'approved') {
+        assertModeratorPerm(
+          user,
+          'approve_professional',
+          'No tienes permiso para aprobar profesionales',
+        );
+      } else if (dto.status === 'rejected') {
+        assertModeratorPerm(
+          user,
+          'reject_professional',
+          'No tienes permiso para rechazar profesionales',
+        );
+      } else {
+        assertModeratorPerm(
+          user,
+          'suspend_validation',
+          'No tienes permiso para suspender la validación',
+        );
+      }
+    }
     return this.doctorsService.updateVerification(id, dto.status);
   }
 }

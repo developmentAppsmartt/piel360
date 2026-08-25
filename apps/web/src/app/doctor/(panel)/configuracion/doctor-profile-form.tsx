@@ -12,6 +12,7 @@ import {
   type DoctorProfileInput,
   type MyDoctorProfile,
 } from "@/lib/queries/doctors";
+import { SpecialtySelect } from "@/components/specialties/specialty-select";
 
 const DOC_TYPES = ["CC", "CE", "TI", "PA"] as const;
 
@@ -19,14 +20,6 @@ const GENDER_OPTIONS = [
   { value: "female", label: "Femenino" },
   { value: "male", label: "Masculino" },
   { value: "other", label: "Otro" },
-] as const;
-
-const SPECIALTIES = [
-  "Dermatólogo",
-  "Médico general",
-  "Cirujano plástico",
-  "Estética médica",
-  "Otra",
 ] as const;
 
 const inputClass =
@@ -144,7 +137,7 @@ function profileToForm(p: MyDoctorProfile) {
     docNumber: p.docNumber ?? "",
     gender: p.gender ?? "",
     birthDate: toDateInput(p.birthDate),
-    specialty: p.specialty ?? SPECIALTIES[0],
+    specialty: p.specialty ?? "",
     medicalRegistry: p.medicalRegistry ?? "",
     licenseNumber: p.licenseNumber ?? "",
     educationEntity: p.educationEntity ?? "",
@@ -342,23 +335,12 @@ export function DoctorProfileForm() {
           />
         </Field>
         <Field label="Especialidad">
-          <select
+          <SpecialtySelect
             className={inputClass}
-            value={
-              SPECIALTIES.includes(
-                form.specialty as (typeof SPECIALTIES)[number],
-              )
-                ? form.specialty
-                : "Otra"
-            }
-            onChange={(e) => set("specialty", e.target.value)}
-          >
-            {SPECIALTIES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+            value={form.specialty}
+            onChange={(v) => set("specialty", v)}
+            includeValue={form.specialty || null}
+          />
         </Field>
         <Field label="Registro médico">
           <input

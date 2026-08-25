@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { createColumnHelper } from "@tanstack/react-table";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
+import { ModeratorPermissionsDialog } from "@/components/admin/moderator-permissions-dialog";
 import type { Moderator } from "@/lib/queries/moderators";
 import { useDeleteModerator } from "@/lib/queries/moderators";
 
@@ -11,6 +13,7 @@ const columnHelper = createColumnHelper<Moderator>();
 
 export function ModeratorsTable({ moderators }: { moderators: Moderator[] }) {
   const remove = useDeleteModerator();
+  const [permsModerator, setPermsModerator] = useState<Moderator | null>(null);
 
   const columns = [
     columnHelper.accessor((row) => row.user.email, {
@@ -36,38 +39,62 @@ export function ModeratorsTable({ moderators }: { moderators: Moderator[] }) {
     }),
     columnHelper.display({
       id: "actions",
-      header: "",
+      header: "Acciones",
       cell: ({ row }) => (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={remove.isPending}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (
-              confirm(
-                `¿Eliminar moderador ${row.original.firstName} ${row.original.lastName}?`,
-              )
-            ) {
-              void remove.mutateAsync(row.original.id);
-            }
-          }}
-        >
-          Eliminar
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setPermsModerator(row.original);
+            }}
+          >
+            Editar permisos
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="text-destructive hover:bg-destructive/10"
+            disabled={remove.isPending}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (
+                confirm(
+                  `¿Eliminar moderador ${row.original.firstName} ${row.original.lastName}?`,
+                )
+              ) {
+                void remove.mutateAsync(row.original.id);
+              }
+            }}
+          >
+            Eliminar
+          </Button>
+        </div>
       ),
     }),
   ];
 
   return (
-    <DataTable
-      columns={columns}
-      data={moderators}
-      searchPlaceholder="Buscar moderador…"
-      emptyMessage="Sin moderadores. Crea el primero."
-    />
+    <>
+      <DataTable
+        columns={columns}
+        data={moderators}
+        searchPlaceholder="Buscar moderador…"
+        emptyMessage="Sin moderadores. Crea el primero."
+      />
+      <ModeratorPermissionsDialog
+        moderator={permsModerator}
+        open={!!permsModerator}
+        onOpenChange={(open) => {
+          if (!open) setPermsModerator(null);
+        }}
+      />
+    </>
   );
 }
 

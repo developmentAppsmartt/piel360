@@ -212,6 +212,23 @@ async function main() {
     },
   });
 
+  // --- Especialidades médicas (catálogo admin) ---
+  const specialtyNames = [
+    'Dermatólogo',
+    'Médico general',
+    'Cirujano plástico',
+    'Estética médica',
+    'Otra',
+  ] as const;
+  for (let i = 0; i < specialtyNames.length; i++) {
+    const name = specialtyNames[i];
+    await prisma.specialty.upsert({
+      where: { name },
+      update: { sortOrder: i + 1, isActive: true },
+      create: { name, sortOrder: i + 1, isActive: true },
+    });
+  }
+
   // --- Usuario superadmin inicial ---
   const adminEmail = process.env.SEED_ADMIN_EMAIL ?? 'admin@piel360.local';
   const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? '123456789';
@@ -244,6 +261,9 @@ async function main() {
     '  - Roles: superadmin, monitor, doctor, patient',
   );
   console.log(`  - Permisos: ${permissionNames.length}`);
+  console.log(
+    `  - Especialidades: ${specialtyNames.length}`,
+  );
   console.log(`  - Superadmin: ${adminUser.email} (password: ${adminPassword})`);
 }
 

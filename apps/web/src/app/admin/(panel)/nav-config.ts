@@ -19,6 +19,7 @@ import {
   Stethoscope,
   UserRound,
   UserCog,
+  BriefcaseMedical,
 } from "lucide-react";
 import type { NavItem } from "@/components/layout/nav-items";
 
@@ -68,6 +69,12 @@ export const adminNav: NavItem[] = [
     label: "Bolsa de unidades",
     href: "/admin/bolsa-unidades",
     icon: Package,
+    roles: ["superadmin"],
+  },
+  {
+    label: "Especialidades",
+    href: "/admin/especialidades",
+    icon: BriefcaseMedical,
     roles: ["superadmin"],
   },
   {

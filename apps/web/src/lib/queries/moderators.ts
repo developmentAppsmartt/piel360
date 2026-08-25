@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { ModeratorPermission } from "@piel360/shared";
 import { apiClientFetch } from "@/lib/api-client";
 
 export type Moderator = {
@@ -11,7 +12,9 @@ export type Moderator = {
   docType: string | null;
   docNumber: string | null;
   phone: string | null;
+  permissions: ModeratorPermission[];
   createdAt: string;
+  updatedAt?: string;
   user: { email: string; createdAt: string };
 };
 
@@ -39,6 +42,20 @@ export function useCreateModerator() {
       apiClientFetch("/admin/moderators", {
         method: "POST",
         body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "moderators"] });
+    },
+  });
+}
+
+export function useUpdateModeratorPermissions(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (permissions: ModeratorPermission[]) =>
+      apiClientFetch(`/admin/moderators/${id}/permissions`, {
+        method: "PATCH",
+        body: JSON.stringify({ permissions }),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "moderators"] });

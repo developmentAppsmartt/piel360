@@ -9,7 +9,10 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import {
   SEAT_PLAN_LIMITS,
+  DEFAULT_MODERATOR_PERMISSIONS,
+  MODERATOR_PERMISSIONS,
   type MembershipType,
+  type ModeratorPermission,
   type Role,
 } from '@piel360/shared';
 import * as argon2 from 'argon2';
@@ -55,6 +58,44 @@ interface AuthUser {
     empresaReferida: boolean;
     verificationStatus: string;
   } | null;
+  moderator?: { permissions: unknown } | null;
+}
+
+function parseModeratorPermissions(raw: unknown): ModeratorPermission[] {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return [...DEFAULT_MODERATOR_PERMISSIONS];
+  }
+  const allowed = new Set<string>(MODERATOR_PERMISSIONS);
+  return raw.filter((p): p is ModeratorPermission =>
+    typeof p === 'string' && allowed.has(p),
+  );
+}
+
+/** Traduce permisos granulares del moderador a los RBAC que usan los guards. */
+function deriveMonitorRbac(granular: ModeratorPermission[]): string[] {
+  const out = new Set<string>(granular);
+  if (
+    granular.includes('view_registered_professionals') ||
+    granular.includes('view_pending_requests')
+  ) {
+    out.add('view_any_doctor');
+    out.add('view_doctor');
+  }
+  if (
+    granular.includes('approve_professional') ||
+    granular.includes('reject_professional') ||
+    granular.includes('suspend_validation') ||
+    granular.includes('view_pending_requests')
+  ) {
+    out.add('validate_doctor');
+  }
+  if (
+    granular.includes('edit_personal_data') ||
+    granular.includes('change_specialty')
+  ) {
+    out.add('update_doctor');
+  }
+  return Array.from(out);
 }
 
 export interface AuthResult {
@@ -247,6 +288,7 @@ export class AuthService implements OnModuleDestroy {
             verificationStatus: true,
           },
         },
+        moderator: { select: { permissions: true } },
       },
     });
 
@@ -277,6 +319,7 @@ export class AuthService implements OnModuleDestroy {
             verificationStatus: true,
           },
         },
+        moderator: { select: { permissions: true } },
       },
     });
 
@@ -323,6 +366,7 @@ export class AuthService implements OnModuleDestroy {
               verificationStatus: true,
             },
           },
+          moderator: { select: { permissions: true } },
         },
       });
 
@@ -370,6 +414,7 @@ export class AuthService implements OnModuleDestroy {
                   verificationStatus: true,
                 },
               },
+              moderator: { select: { permissions: true } },
             },
           })
         : existing;
@@ -659,17 +704,24 @@ export class AuthService implements OnModuleDestroy {
     const names = user.roles.map((r) => r.name);
     const match = ROLE_PRIORITY.find((role) => names.includes(role));
     if (match) return match;
-    if (this.resolvePermissions(user).length > 0) return 'superadmin';
+    if (this.resolvePermissions(user, 'superadmin').length > 0) return 'superadmin';
     throw new UnauthorizedException('El usuario no tiene un rol asignado');
   }
 
   /** Unión de los permisos de todos los roles del usuario (no solo el de
    * mayor prioridad) — un usuario puede tener superadmin más un rol
-   * personalizado adicional. */
-  private resolvePermissions(user: AuthUser): string[] {
+   * personalizado adicional. Para `monitor`, los permisos granulares del
+   * perfil Moderator mandan y se derivan los RBAC de verificación. */
+  private resolvePermissions(user: AuthUser, role: Role): string[] {
+    if (role === 'monitor') {
+      return deriveMonitorRbac(
+        parseModeratorPermissions(user.moderator?.permissions),
+      );
+    }
+
     const names = new Set<string>();
-    for (const role of user.roles) {
-      for (const permission of role.permissions) names.add(permission.name);
+    for (const r of user.roles) {
+      for (const permission of r.permissions) names.add(permission.name);
     }
     return Array.from(names);
   }
@@ -686,7 +738,7 @@ export class AuthService implements OnModuleDestroy {
       sub: user.id.toString(),
       email: user.email,
       role,
-      permissions: this.resolvePermissions(user),
+      permissions: this.resolvePermissions(user, role),
       surveyCompletedAt:
         role === 'patient'
           ? (user.patient?.surveyCompletedAt?.toISOString() ?? null)

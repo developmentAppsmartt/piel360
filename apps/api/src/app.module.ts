@@ -34,6 +34,7 @@ import { AnalysisConditionsModule } from './analysis-conditions/analysis-conditi
 import { AppConfigModule } from './app-config/app-config.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { ModeratorsModule } from './moderators/moderators.module';
+import { SpecialtiesModule } from './specialties/specialties.module';
 
 @Module({
   imports: [
@@ -83,6 +84,7 @@ import { ModeratorsModule } from './moderators/moderators.module';
     AppConfigModule,
     OrganizationsModule,
     ModeratorsModule,
+    SpecialtiesModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

@@ -95,5 +95,76 @@ export const TEAM_MEMBER_PERMISSION_LABELS: Record<
 export const DEFAULT_TEAM_MEMBER_PERMISSIONS: readonly TeamMemberPermission[] =
   [...TEAM_MEMBER_PERMISSIONS];
 
+/**
+ * Permisos granulares del rol monitor (Moderator.permissions).
+ * Sección A — Gestión de profesionales / verificación.
+ */
+export const MODERATOR_PERMISSIONS = [
+  "view_registered_professionals",
+  "view_pending_requests",
+  "view_personal_info",
+  "view_email_phone",
+  "view_specialty",
+  "view_license",
+  "view_education_institution",
+  "view_attached_documents",
+  "download_documents",
+  "review_document_validity",
+  "compare_info_vs_documents",
+  "request_corrections",
+  "add_observations",
+  "approve_professional",
+  "reject_professional",
+  "suspend_validation",
+  "change_specialty",
+  "edit_personal_data",
+  "delete_user",
+] as const;
+
+export type ModeratorPermission = (typeof MODERATOR_PERMISSIONS)[number];
+
+export const MODERATOR_PERMISSION_LABELS: Record<ModeratorPermission, string> =
+  {
+    view_registered_professionals: "Ver profesionales registrados",
+    view_pending_requests: "Ver solicitudes pendientes",
+    view_personal_info: "Ver información personal",
+    view_email_phone: "Ver correo y teléfono",
+    view_specialty: "Ver profesión/especialidad",
+    view_license: "Ver número de licencia/tarjeta profesional",
+    view_education_institution: "Ver institución educativa",
+    view_attached_documents: "Ver documentos adjuntos",
+    download_documents: "Descargar documentos",
+    review_document_validity: "Revisar vigencia de documentos",
+    compare_info_vs_documents: "Comparar información vs documentos",
+    request_corrections: "Solicitar correcciones",
+    add_observations: "Agregar observaciones",
+    approve_professional: "Aprobar profesional",
+    reject_professional: "Rechazar profesional",
+    suspend_validation: "Suspender validación",
+    change_specialty: "Cambiar profesión",
+    edit_personal_data: "Editar datos personales",
+    delete_user: "Eliminar usuario",
+  };
+
+/** Por defecto: todo lo de verificación, sin editar datos / profesión / eliminar. */
+export const DEFAULT_MODERATOR_PERMISSIONS: readonly ModeratorPermission[] = [
+  "view_registered_professionals",
+  "view_pending_requests",
+  "view_personal_info",
+  "view_email_phone",
+  "view_specialty",
+  "view_license",
+  "view_education_institution",
+  "view_attached_documents",
+  "download_documents",
+  "review_document_validity",
+  "compare_info_vs_documents",
+  "request_corrections",
+  "add_observations",
+  "approve_professional",
+  "reject_professional",
+  "suspend_validation",
+];
+
 /** Roles con acceso al panel clínico `/doctor` (web y mobile). */
 export const DOCTOR_PANEL_ROLES: readonly Role[] = ["doctor"];

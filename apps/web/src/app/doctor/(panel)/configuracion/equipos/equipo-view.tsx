@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { ApiError } from "@/lib/api-error";
 import { apiClientFetch } from "@/lib/api-client";
+import { SpecialtySelect } from "@/components/specialties/specialty-select";
 
 type OrgMember = {
   id: string;
@@ -57,14 +58,6 @@ type AddDoctorInput = {
 const inputClass =
   "h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-sky-500";
 
-const SPECIALTIES = [
-  "Dermatólogo",
-  "Médico general",
-  "Cirujano plástico",
-  "Estética médica",
-  "Otra",
-] as const;
-
 function AddDoctorDialog({
   open,
   onOpenChange,
@@ -82,14 +75,14 @@ function AddDoctorDialog({
     email: string;
     password: string;
     phone: string;
-    specialty: (typeof SPECIALTIES)[number];
+    specialty: string;
   }>({
     firstName: "",
     lastName: "",
     email: "",
     password: "",
     phone: "",
-    specialty: SPECIALTIES[0],
+    specialty: "",
   });
 
   const mutation = useMutation({
@@ -107,7 +100,7 @@ function AddDoctorDialog({
         email: "",
         password: "",
         phone: "",
-        specialty: SPECIALTIES[0],
+        specialty: "",
       });
       setError(null);
     },
@@ -194,22 +187,11 @@ function AddDoctorDialog({
           </label>
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-medium">Especialidad</span>
-            <select
+            <SpecialtySelect
               className={inputClass}
               value={form.specialty}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  specialty: e.target.value as (typeof SPECIALTIES)[number],
-                })
-              }
-            >
-              {SPECIALTIES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+              onChange={(specialty) => setForm({ ...form, specialty })}
+            />
           </label>
           <label className="flex flex-col gap-1 text-sm sm:col-span-2">
             <span className="font-medium">Contraseña temporal</span>

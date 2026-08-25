@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -11,6 +12,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { CreateModeratorDto } from './dto/create-moderator.dto';
+import { UpdateModeratorPermissionsDto } from './dto/update-moderator-permissions.dto';
 import { ModeratorsService } from './moderators.service';
 
 /**
@@ -36,6 +38,14 @@ export class ModeratorsController {
   @Get('admin/moderators/:id')
   findOne(@Param('id') id: string) {
     return this.moderatorsService.findOne(id);
+  }
+
+  @Patch('admin/moderators/:id/permissions')
+  updatePermissions(
+    @Param('id') id: string,
+    @Body() dto: UpdateModeratorPermissionsDto,
+  ) {
+    return this.moderatorsService.updatePermissions(id, dto.permissions);
   }
 
   @Delete('admin/moderators/:id')

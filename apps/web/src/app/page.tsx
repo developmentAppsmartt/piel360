@@ -15,6 +15,9 @@ export default function Home() {
         <Link href="/patient" className="underline">
           Soy paciente
         </Link>
+        <Link href="/admin/login" className="underline">
+          Soy moderador
+        </Link>
       </div>
     </main>
   );

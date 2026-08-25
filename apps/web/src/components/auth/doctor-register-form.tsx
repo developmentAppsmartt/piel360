@@ -9,14 +9,7 @@ import {
   registerDoctorExtendedAction,
   type AuthActionState,
 } from "@/lib/actions/auth";
-
-const SPECIALTIES = [
-  "Dermatólogo",
-  "Médico general",
-  "Cirujano plástico",
-  "Estética médica",
-  "Otra",
-] as const;
+import { SpecialtySelect } from "@/components/specialties/specialty-select";
 
 const DOC_TYPES = ["CC", "CE", "TI", "PA"] as const;
 
@@ -135,7 +128,7 @@ export function DoctorRegisterForm() {
   const [docNumber, setDocNumber] = useState("");
   const [gender, setGender] = useState("");
   const [birthDate, setBirthDate] = useState("");
-  const [specialty, setSpecialty] = useState<string>(SPECIALTIES[0]);
+  const [specialty, setSpecialty] = useState("");
   const [medicalRegistry, setMedicalRegistry] = useState("");
   const [licenseNumber, setLicenseNumber] = useState("");
   const [educationEntity, setEducationEntity] = useState("");
@@ -428,18 +421,12 @@ export function DoctorRegisterForm() {
           />
         </Field>
         <Field label="Especialidad" required>
-          <select
+          <SpecialtySelect
             className={inputClass}
             value={specialty}
-            onChange={(e) => setSpecialty(e.target.value)}
+            onChange={setSpecialty}
             required
-          >
-            {SPECIALTIES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+          />
         </Field>
         <Field label="Contraseña" required>
           <input
