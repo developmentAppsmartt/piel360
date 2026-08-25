@@ -6,8 +6,11 @@ export default function AdminLoginPage() {
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 p-16">
       <Logo className="h-12" />
-      <h1 className="text-2xl font-semibold">Ingresar como administrador</h1>
-      <LoginForm role="admin" />
+      <h1 className="text-2xl font-semibold">Ingresar al backoffice</h1>
+      <p className="max-w-sm text-center text-sm text-muted-foreground">
+        Super admin y moderadores
+      </p>
+      <LoginForm role="superadmin" />
     </main>
   );
 }

@@ -6,9 +6,13 @@ export { ApiError };
 
 /** Fetch server-to-server contra la API NestJS. Nunca se llama desde el navegador. */
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const isFormData = init?.body instanceof FormData;
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: {
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
+      ...init?.headers,
+    },
     cache: "no-store",
   });
 

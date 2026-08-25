@@ -5,13 +5,15 @@ import { LogoutButton } from "@/components/auth/logout-button";
 import { Logo } from "./logo";
 
 const ROLE_LABELS: Record<Role, string> = {
-  admin: "Super Admin",
+  superadmin: "Super Admin",
+  monitor: "Moderador",
   doctor: "Doctor",
   patient: "Paciente",
 };
 
 const ROLE_SCOPE: Record<Role, string> = {
-  admin: "Global",
+  superadmin: "Global",
+  monitor: "Verificación",
   doctor: "Consulta",
   patient: "Paciente",
 };
@@ -52,7 +54,7 @@ export function PanelHeader({
         <div className="flex items-center gap-2 rounded-full border border-border bg-background py-1 pr-3 pl-1">
           <Avatar className="size-8 bg-primary text-primary-foreground">
             <AvatarFallback className="bg-primary text-primary-foreground">
-              {role === "admin" ? (
+              {role === "superadmin" ? (
                 <Crown className="size-3.5" />
               ) : (
                 initialsFromEmail(email)

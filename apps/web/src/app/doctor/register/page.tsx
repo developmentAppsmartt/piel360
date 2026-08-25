@@ -1,10 +1,9 @@
-import { RegisterForm } from "@/components/auth/register-form";
+import { DoctorRegisterForm } from "@/components/auth/doctor-register-form";
 
 export default function DoctorRegisterPage() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 p-16">
-      <h1 className="text-2xl font-semibold">Registro de doctor</h1>
-      <RegisterForm role="doctor" loginHref="/doctor/login" />
+    <main className="flex flex-1 flex-col items-center bg-white px-4 py-10 sm:px-8 sm:py-14">
+      <DoctorRegisterForm />
     </main>
   );
 }

@@ -1,3 +1,6 @@
-export default function EquipoPage() {
-  return <h1 className="text-2xl font-semibold">Equipo</h1>;
+import { redirect } from "next/navigation";
+
+/** Ruta legacy: el módulo Equipo vive en Configuración. */
+export default function EquipoRedirectPage() {
+  redirect("/doctor/configuracion/equipos");
 }

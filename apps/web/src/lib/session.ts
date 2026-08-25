@@ -7,6 +7,9 @@ export interface Session {
   email: string;
   role: Role;
   surveyCompletedAt?: string | null;
+  empresa?: boolean;
+  empresaReferida?: boolean;
+  verificationStatus?: string;
 }
 
 const ACCESS_COOKIE = "piel360_token";
