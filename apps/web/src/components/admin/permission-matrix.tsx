@@ -16,6 +16,7 @@ const RESOURCES = [
   { key: "role", label: "Roles" },
   { key: "analysis", label: "Análisis" },
   { key: "encyclopedia_entry", label: "Enciclopedia" },
+  { key: "organization", label: "Organizaciones" },
 ] as const;
 
 const ACTIONS = [

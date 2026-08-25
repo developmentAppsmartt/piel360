@@ -8,4 +8,9 @@ export interface JwtPayload {
   role: Role;
   permissions: string[];
   surveyCompletedAt?: string | null;
+  /** Flags de Doctor (no roles): activan módulos de equipo / referidos. */
+  empresa?: boolean;
+  empresaReferida?: boolean;
+  /** pending | in_review | verified | approved | active */
+  verificationStatus?: string;
 }

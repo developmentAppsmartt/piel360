@@ -49,7 +49,7 @@ describe('Wompi checkout + webhook (e2e)', () => {
       .post('/auth/login')
       .send({
         email: process.env.SEED_ADMIN_EMAIL ?? 'admin@piel360.local',
-        password: process.env.SEED_ADMIN_PASSWORD ?? 'ChangeMe123!',
+        password: process.env.SEED_ADMIN_PASSWORD ?? '123456789',
       });
     adminToken = login.body.accessToken;
 

@@ -6,7 +6,7 @@ import { AdminService } from './admin.service';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('admin')
+@Roles('superadmin')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
@@ -22,5 +22,10 @@ export class AdminController {
     @Query('granularity') granularity?: 'day' | 'month' | 'year',
   ) {
     return this.adminService.getReports(startDate, endDate, granularity);
+  }
+
+  @Get('map-markers')
+  getMapMarkers(@Query('kind') kind?: 'doctor' | 'patient') {
+    return this.adminService.getMapMarkers(kind);
   }
 }

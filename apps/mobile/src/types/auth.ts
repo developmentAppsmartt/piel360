@@ -1,4 +1,4 @@
-export type Role = 'admin' | 'doctor' | 'patient';
+export type Role = 'superadmin' | 'monitor' | 'doctor' | 'patient';
 
 /** Roles que pueden usar la app móvil. */
 export const MOBILE_ROLES: Role[] = ['patient', 'doctor'];
@@ -8,6 +8,8 @@ export type AuthUser = {
   email: string;
   name: string;
   role: Role;
+  empresa?: boolean;
+  empresaReferida?: boolean;
 };
 
 export type AuthResult = {

@@ -15,12 +15,17 @@ export default async function AdminPanelLayout({
   const session = await getSession();
   if (!session) redirect("/admin/login");
 
+  const isMonitor = session.role === "monitor";
+
   return (
     <PanelShell
       nav={adminNav}
       user={{ email: session.email, role: session.role }}
-      notificationCount={12}
-      sidebarUser={{ name: "Super Admin", subtitle: "Acceso total" }}
+      notificationCount={isMonitor ? 0 : 12}
+      sidebarUser={{
+        name: isMonitor ? "Moderador" : "Super Admin",
+        subtitle: isMonitor ? "Verificación de doctores" : "Acceso total",
+      }}
     >
       {children}
     </PanelShell>

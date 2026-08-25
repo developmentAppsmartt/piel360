@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
+import { DOCTOR_PANEL_ROLES, type Role } from '@piel360/shared';
 import { AnalysisImageUrlsService } from '../analyses/analysis-image-urls.service';
 import type { JwtPayload } from '../auth/types';
 import { DoctorsService } from '../doctors/doctors.service';
@@ -11,6 +12,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import type { CreatePatientDto } from './dto/create-patient.dto';
 import type { SurveyDto } from './dto/survey.dto';
 import type { UpdatePatientDto } from './dto/update-patient.dto';
+
+function isDoctorPanelRole(role: Role): boolean {
+  return (DOCTOR_PANEL_ROLES as readonly Role[]).includes(role);
+}
 
 @Injectable()
 export class PatientsService {
@@ -20,14 +25,14 @@ export class PatientsService {
     private readonly imageUrls: AnalysisImageUrlsService,
   ) {}
 
-  /** Scoping (MIGRACION.md §2.5/§2.6): doctor solo ve los suyos, patient
-   * solo se ve a sí mismo, admin ve todos. */
+  /** Scoping (MIGRACION.md §2.5/§2.6): doctor/empresa solo ve los suyos,
+   * patient solo se ve a sí mismo, superadmin ve todos. */
   async findAll(currentUser: JwtPayload) {
-    if (currentUser.role === 'admin') {
+    if (currentUser.role === 'superadmin') {
       return this.prisma.patient.findMany({ orderBy: { id: 'asc' } });
     }
 
-    if (currentUser.role === 'doctor') {
+    if (isDoctorPanelRole(currentUser.role)) {
       const doctor = await this.doctors.requireDoctorByUserId(currentUser.sub);
       return this.prisma.patient.findMany({
         where: { doctorId: doctor.id },
@@ -50,12 +55,12 @@ export class PatientsService {
 
   async create(dto: CreatePatientDto, currentUser: JwtPayload) {
     let doctorId: bigint | undefined;
-    if (currentUser.role === 'doctor') {
+    if (isDoctorPanelRole(currentUser.role)) {
       const doctor = await this.doctors.requireDoctorByUserId(currentUser.sub);
       doctorId = doctor.id;
-    } else if (currentUser.role !== 'admin') {
+    } else if (currentUser.role !== 'superadmin') {
       throw new ForbiddenException(
-        'Solo doctores o admins pueden crear pacientes',
+        'Solo doctores o administradores pueden crear pacientes',
       );
     }
 
@@ -175,9 +180,9 @@ export class PatientsService {
     patient: { doctorId: bigint | null; userId: bigint | null },
     currentUser: JwtPayload,
   ) {
-    if (currentUser.role === 'admin') return;
+    if (currentUser.role === 'superadmin') return;
 
-    if (currentUser.role === 'doctor') {
+    if (isDoctorPanelRole(currentUser.role)) {
       const doctor = await this.doctors.requireDoctorByUserId(currentUser.sub);
       if (patient.doctorId === doctor.id) return;
       throw new ForbiddenException('Este paciente no pertenece a tu consulta');

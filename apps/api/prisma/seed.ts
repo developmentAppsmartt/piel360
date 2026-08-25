@@ -23,6 +23,7 @@ const RESOURCES = [
   'role',
   'analysis',
   'encyclopedia_entry',
+  'organization',
 ] as const;
 
 const ACTIONS = [
@@ -32,6 +33,12 @@ const ACTIONS = [
   'update',
   'delete',
   'delete_any',
+] as const;
+
+const ORG_OWNER_PERMS = [
+  'view_organization',
+  'create_organization',
+  'update_organization',
 ] as const;
 
 async function main() {
@@ -66,12 +73,22 @@ async function main() {
     }),
   ]);
 
+  // Compat: si quedó el rol legacy `admin`, renómbralo antes del upsert.
+  await prisma.$executeRawUnsafe(
+    `UPDATE "roles" SET "name" = 'superadmin' WHERE "name" = 'admin'`,
+  );
+
   // --- Roles ---
-  const [adminRole, doctorRole, patientRole] = await Promise.all([
+  const [
+    superadminRole,
+    doctorRole,
+    patientRole,
+    monitorRole,
+  ] = await Promise.all([
     prisma.role.upsert({
-      where: { name: 'admin' },
+      where: { name: 'superadmin' },
       update: {},
-      create: { name: 'admin' },
+      create: { name: 'superadmin' },
     }),
     prisma.role.upsert({
       where: { name: 'doctor' },
@@ -83,12 +100,25 @@ async function main() {
       update: {},
       create: { name: 'patient' },
     }),
+    prisma.role.upsert({
+      where: { name: 'monitor' },
+      update: {},
+      create: { name: 'monitor' },
+    }),
   ]);
 
-  // --- Permissions: view_any_user, create_doctor, ... (9 recursos x 6 acciones = 54) ---
-  const permissionNames = RESOURCES.flatMap((resource) =>
-    ACTIONS.map((action) => `${action}_${resource}`),
-  );
+  // Compat: eliminar roles legacy empresa* si aún existen
+  await prisma.role.deleteMany({
+    where: { name: { in: ['empresa', 'empresa_aliada', 'admin'] } },
+  });
+
+  // --- Permissions: view_any_user, create_doctor, ... + validate_doctor ---
+  const permissionNames = [
+    ...RESOURCES.flatMap((resource) =>
+      ACTIONS.map((action) => `${action}_${resource}`),
+    ),
+    'validate_doctor',
+  ];
 
   await prisma.$transaction(
     permissionNames.map((name) =>
@@ -100,10 +130,9 @@ async function main() {
     ),
   );
 
-  // El admin tiene todos los permisos; doctor/patient se autorizan por rol
-  // a nivel de panel (@Roles), no por permiso granular (MIGRACION.md §5).
+  // Superadmin: todos los permisos
   await prisma.role.update({
-    where: { id: adminRole.id },
+    where: { id: superadminRole.id },
     data: {
       permissions: {
         set: [],
@@ -112,8 +141,27 @@ async function main() {
     },
   });
 
+  // Monitor: doctores + validación
+  await prisma.role.update({
+    where: { id: monitorRole.id },
+    data: {
+      permissions: {
+        set: [],
+        connect: [
+          { name: 'view_any_doctor' },
+          { name: 'view_doctor' },
+          { name: 'update_doctor' },
+          { name: 'validate_doctor' },
+        ],
+      },
+    },
+  });
+
+  // Permisos de organization quedan en catálogo; el acceso se controla por
+  // flags Doctor.empresa / Doctor.empresaReferida (no por rol RBAC).
   void doctorRole;
   void patientRole;
+  void ORG_OWNER_PERMS;
 
   // --- Planes semilla (uno por proveedor) ---
   await prisma.plan.upsert({
@@ -164,13 +212,17 @@ async function main() {
     },
   });
 
-  // --- Usuario admin inicial ---
+  // --- Usuario superadmin inicial ---
   const adminEmail = process.env.SEED_ADMIN_EMAIL ?? 'admin@piel360.local';
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? 'ChangeMe123!';
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? '123456789';
+  const adminPasswordHash = await argon2.hash(adminPassword);
 
   const adminUser = await prisma.user.upsert({
     where: { email: adminEmail },
-    update: {},
+    update: {
+      password: adminPasswordHash,
+      roles: { set: [], connect: [{ id: superadminRole.id }] },
+    },
     create: {
       email: adminEmail,
       name: 'Admin Piel360',
@@ -179,8 +231,8 @@ async function main() {
       gender: 'other',
       phone: '',
       address: '',
-      password: await argon2.hash(adminPassword),
-      roles: { connect: [{ id: adminRole.id }] },
+      password: adminPasswordHash,
+      roles: { connect: [{ id: superadminRole.id }] },
     },
   });
 
@@ -188,9 +240,11 @@ async function main() {
   console.log(
     `  - Providers: ${skiniver.slug}, ${youcam.slug}, ${fitzpatrick.slug}`,
   );
-  console.log(`  - Roles: admin, doctor, patient`);
+  console.log(
+    '  - Roles: superadmin, monitor, doctor, patient',
+  );
   console.log(`  - Permisos: ${permissionNames.length}`);
-  console.log(`  - Admin: ${adminUser.email} (password: ${adminPassword})`);
+  console.log(`  - Superadmin: ${adminUser.email} (password: ${adminPassword})`);
 }
 
 main()

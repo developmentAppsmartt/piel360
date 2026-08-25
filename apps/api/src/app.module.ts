@@ -32,6 +32,8 @@ import { RoutinesModule } from './routines/routines.module';
 import { TreatmentsModule } from './treatments/treatments.module';
 import { AnalysisConditionsModule } from './analysis-conditions/analysis-conditions.module';
 import { AppConfigModule } from './app-config/app-config.module';
+import { OrganizationsModule } from './organizations/organizations.module';
+import { ModeratorsModule } from './moderators/moderators.module';
 
 @Module({
   imports: [
@@ -79,6 +81,8 @@ import { AppConfigModule } from './app-config/app-config.module';
     TreatmentsModule,
     AnalysisConditionsModule,
     AppConfigModule,
+    OrganizationsModule,
+    ModeratorsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
