@@ -70,22 +70,22 @@ export class AnalysisImageUrlsService {
     if (!analysis.youcamTaskId || !analysis.aiRawResponse) return [];
 
     const results = analysis.aiRawResponse as unknown as YouCamResults;
-    const items = (results.output ?? []).filter(
-      (item) => item.mask_urls?.length,
-    );
+    // Incluir TODOS los output items (no solo los que traen mask_urls).
+    // Poros/arrugas por zona (forehead/nose/cheek/…) suelen estar en S3
+    // aunque mask_urls haya expirado o venga vacío — sin esto "General"
+    // solo recibía la máscara whole/mejillas.
+    const items = results.output ?? [];
 
     const signed = await Promise.all(
       items.map(
         async (
           item,
         ): Promise<{ type: string; region?: string; url: string } | null> => {
+          if (!item?.type) return null;
           const key = `analyses/${analysis.id}/masks/${youcamMaskKey(item)}`;
           const signedUrl = await this.signIfPresent(key);
-          // Fallback temporal mientras el bucket propio no tenga credenciales
-          // reales (o la copia aún no se haya descargado): usar la URL que
-          // ya da YouCam directamente — temporal (~2h) pero deja el flujo
-          // usable en desarrollo sin depender de S3_REGION/S3_BUCKET.
-          const url = signedUrl ?? item.mask_urls[0] ?? null;
+          const fallback = item.mask_urls?.[0] ?? null;
+          const url = signedUrl ?? fallback ?? null;
           return url ? { type: item.type, region: item.region, url } : null;
         },
       ),

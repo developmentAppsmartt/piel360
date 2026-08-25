@@ -104,7 +104,7 @@ export function YoucamInstructionsStep({
         {busy ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.primaryBtnText}>Iniciar con Camera Kit</Text>
+          <Text style={styles.primaryBtnText}>Iniciar captura</Text>
         )}
       </Pressable>
 

@@ -26,11 +26,11 @@ const TIPS: { icon: (typeof Icons)[keyof typeof Icons]; text: string }[] = [
   },
   {
     icon: Icons.alertCircle,
-    text: 'Iluminación uniforme en el rostro (Camera Kit valida luz/pose)',
+    text: 'Iluminación uniforme en el rostro (el sistema valida luz/pose)',
   },
   {
     icon: Icons.camera,
-    text: 'Centra la cara en el óvalo hasta que el kit habilite la captura',
+    text: 'Centra la cara en el óvalo hasta que el sistema tome la captura',
   },
 ];
 
@@ -137,7 +137,7 @@ export function FitzpatrickAnalysisFlow({
           {busy ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.primaryBtnText}>Abrir Camera Kit</Text>
+            <Text style={styles.primaryBtnText}>Iniciar captura</Text>
           )}
         </Pressable>
 

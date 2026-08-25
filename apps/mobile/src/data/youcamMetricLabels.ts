@@ -1,10 +1,10 @@
 /** Labels de métricas YouCam (espejo de apps/web/src/lib/youcam-metric-labels.ts). */
 
 export const YOUCAM_METRIC_LABELS: Record<string, string> = {
-  hd_redness: 'Enrojecimiento',
+  hd_redness: 'Eritema',
   hd_oiliness: 'Grasa',
   hd_age_spot: 'Manchas de edad',
-  hd_radiance: 'Luminosidad',
+  hd_radiance: 'Brillo',
   hd_moisture: 'Hidratación',
   hd_dark_circle: 'Ojeras',
   hd_eye_bag: 'Bolsas oculares',

@@ -47,6 +47,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     }
   }
 
+  // La API usa TTL de access token distinto para mobile (24h) vs web (15m).
+  headers['X-Client'] = 'mobile';
+
   const baseUrl = getApiBaseUrl();
   const url = `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
 

@@ -13,7 +13,7 @@ import {
 } from '../../../../data/fitzpatrickLabels';
 import { PATIENT_FITZ_OPTIONS } from '../../../../data/patientFormOptions';
 import { youcamMetricAdvice, youcamMetricCopy } from '../../../../data/youcamMetricCopy';
-import { youcamMetricConvention } from '../../../../data/youcamMetricConventions';
+import { youcamMetricConvention, youcamViewerBadgeLabel } from '../../../../data/youcamMetricConventions';
 import {
   YOUCAM_METRIC_LABELS,
   youcamRegionLabel,
@@ -36,7 +36,9 @@ import {
 import { createYoucamResultsStyles } from '../styles/youcamResults.styles';
 import { FitzpatrickResultsSection } from './FitzpatrickResultsSection';
 import { YoucamCatalogSection } from './YoucamCatalogSection';
+import { YoucamAcneConventionBar } from './YoucamAcneConventionBar';
 import { YoucamMetricConventionBar } from './YoucamMetricConventionBar';
+import { YoucamSkinTypeConventionBar } from './YoucamSkinTypeConventionBar';
 
 /** Colores de respaldo si no hay fototipo Fitzpatrick. */
 const SKIN_TYPE_SWATCH: Record<string, string> = {
@@ -140,12 +142,22 @@ function shortLabel(type: string): string {
   return full.split(' ')[0] ?? full;
 }
 
+function normalizeRegion(region: string | undefined | null): string {
+  if (!region || region === '') return DEFAULT_REGION;
+  return region;
+}
+
 function findMaskUrl(
   masks: AnalysisDetail['masks'],
   type: string,
   region: string | undefined,
 ): string | null {
-  return masks.find((m) => m.type === type && m.region === region)?.url ?? null;
+  const want = normalizeRegion(region);
+  return (
+    masks.find(
+      (m) => m.type === type && normalizeRegion(m.region) === want,
+    )?.url ?? null
+  );
 }
 
 function buildRegionOptions(
@@ -155,19 +167,19 @@ function buildRegionOptions(
   preferRaw: boolean,
 ): MetricRegionOption[] {
   const sorted = [...candidates].sort((a, b) => {
-    const aWhole = (a.region ?? DEFAULT_REGION) === DEFAULT_REGION;
-    const bWhole = (b.region ?? DEFAULT_REGION) === DEFAULT_REGION;
+    const aWhole = normalizeRegion(a.region) === DEFAULT_REGION;
+    const bWhole = normalizeRegion(b.region) === DEFAULT_REGION;
     if (aWhole === bWhole) return 0;
     return aWhole ? -1 : 1;
   });
   return sorted.map((m) => {
-    const region = m.region ?? DEFAULT_REGION;
+    const region = normalizeRegion(m.region);
     return {
       region,
       label: youcamRegionLabel(region),
       score: youcamMetricValue(m, preferRaw),
       skinType: m.skinType,
-      maskUrl: findMaskUrl(masks, type, m.region),
+      maskUrl: findMaskUrl(masks, type, region),
     };
   });
 }
@@ -241,12 +253,63 @@ function buildOverviewMaskUrls(
     const candidates = metrics.filter((m) => m.type === type);
     if (candidates.length === 0) continue;
     const whole =
-      candidates.find((m) => !m.region || m.region === DEFAULT_REGION) ??
+      candidates.find((m) => normalizeRegion(m.region) === DEFAULT_REGION) ??
       candidates[0];
     const url = findMaskUrl(masks, type, whole.region);
     if (url) urls.push(url);
   }
   return urls;
+}
+
+/**
+ * En "General" de poros/arrugas Perfect apila las máscaras de cada zona
+ * (frente, nariz, mejillas…). La máscara `whole` sola no basta.
+ * Si eliges una región concreta, solo esa máscara.
+ */
+function resolveMetricMaskUrls(
+  selected: MetricChip | null,
+  selectedRegion: string,
+  allMasks: AnalysisDetail['masks'],
+): string[] {
+  if (!selected || selected.type === 'overview') return [];
+
+  const type = selected.type;
+  const typeMasks = allMasks.filter((m) => m.type === type && !!m.url);
+  const isMultiZone = type === 'hd_pore' || type === 'hd_wrinkle';
+  const wantGeneral = normalizeRegion(selectedRegion) === DEFAULT_REGION;
+
+  if (isMultiZone && wantGeneral) {
+    // Todas las zonas (frente, nariz, mejillas, crowfeet, …) — sin `whole`,
+    // que a menudo solo pinta mejillas y tapa el resto.
+    const byRegion = new Map<string, string>();
+    for (const m of typeMasks) {
+      const region = normalizeRegion(m.region);
+      if (region === DEFAULT_REGION) continue;
+      if (!byRegion.has(region)) byRegion.set(region, m.url);
+    }
+    // También rellenar desde el chip por si el API omitió alguna máscara
+    // en `masks` pero sí vino en regions[].maskUrl.
+    for (const r of selected.regions ?? []) {
+      const region = normalizeRegion(r.region);
+      if (region === DEFAULT_REGION || !r.maskUrl) continue;
+      if (!byRegion.has(region)) byRegion.set(region, r.maskUrl);
+    }
+    if (byRegion.size > 0) return [...byRegion.values()];
+    const whole = typeMasks.find(
+      (m) => normalizeRegion(m.region) === DEFAULT_REGION,
+    );
+    return whole ? [whole.url] : [];
+  }
+
+  const match = typeMasks.find(
+    (m) => normalizeRegion(m.region) === normalizeRegion(selectedRegion),
+  );
+  if (match) return [match.url];
+
+  const fromChip =
+    selected.regions?.find((r) => r.region === selectedRegion)?.maskUrl ??
+    selected.maskUrl;
+  return fromChip ? [fromChip] : [];
 }
 
 function regionPillLabel(option: MetricRegionOption): string {
@@ -321,27 +384,27 @@ export function YoucamResultsSection({
       : null;
 
   const showBase = analysis.hasOriginalPhoto && !!analysis.imageUrl;
-  const maskUrl = isOverview
-    ? null
-    : (activeRegion?.maskUrl ?? selected?.maskUrl ?? null);
+  const metricMaskUrls = useMemo(
+    () => resolveMetricMaskUrls(selected, selectedRegion, analysis.masks),
+    [selected, selectedRegion, analysis.masks],
+  );
   const badgeLabel =
-    selected && selected.type !== 'overview' && selected.type !== 'hd_skin_type'
-      ? null
-      : selected && selected.type !== 'overview'
-        ? activeRegion && activeRegion.region !== DEFAULT_REGION
-          ? `${selected.label} — ${activeRegion.label}`
-          : selected.label
-        : null;
+    selected?.type === 'hd_skin_type'
+      ? activeRegion && activeRegion.region !== DEFAULT_REGION
+        ? `${selected.label} — ${activeRegion.label}`
+        : selected.label
+      : youcamViewerBadgeLabel(selected?.type);
   const showConvention =
     !!selected &&
     selected.type !== 'overview' &&
-    selected.type !== 'hd_skin_type';
-
+    selected.type !== 'hd_skin_type' &&
+    selected.type !== 'hd_acne';
+  const showSkinTypeConvention = selected?.type === 'hd_skin_type';
+  const showAcneConvention = selected?.type === 'hd_acne';
   function selectChip(type: string) {
     setSelectedType(type);
     setSelectedRegion(DEFAULT_REGION);
   }
-
   return (
     <View style={styles.block}>
       <View style={styles.summaryRow}>
@@ -398,22 +461,28 @@ export function YoucamResultsSection({
                     contentFit="cover"
                   />
                 ))
-              : maskUrl
-                ? (
-                    <Image
-                      source={{ uri: maskUrl }}
-                      style={styles.viewerOverlay}
-                      contentFit="cover"
-                    />
-                  )
-                : null}
+              : metricMaskUrls.map((url) => (
+                  <Image
+                    key={url}
+                    source={{ uri: url }}
+                    style={styles.viewerOverlay}
+                    contentFit="cover"
+                  />
+                ))}
           </>
-        ) : maskUrl ? (
-          <Image
-            source={{ uri: maskUrl }}
-            style={styles.viewerImage}
-            contentFit="contain"
-          />
+        ) : metricMaskUrls.length > 0 ? (
+          <>
+            {metricMaskUrls.map((url, index) => (
+              <Image
+                key={url}
+                source={{ uri: url }}
+                style={
+                  index === 0 ? styles.viewerImage : styles.viewerOverlay
+                }
+                contentFit={index === 0 ? 'contain' : 'cover'}
+              />
+            ))}
+          </>
         ) : (
           <View style={styles.viewerEmpty}>
             <Text style={styles.viewerEmptyText}>
@@ -423,16 +492,31 @@ export function YoucamResultsSection({
           </View>
         )}
         {badgeLabel ? (
-          <View style={styles.viewerBadge}>
+          <View
+            style={[
+              styles.viewerBadge,
+              selected && selected.type !== 'overview'
+                ? {
+                    backgroundColor: youcamMetricConvention(selected.type)
+                      .color,
+                  }
+                : null,
+            ]}
+          >
             <Text style={styles.viewerBadgeText}>{badgeLabel}</Text>
           </View>
         ) : null}
         {showConvention && selected ? (
           <YoucamMetricConventionBar
             metricType={selected.type}
-            score={activeScore}
             styles={styles}
           />
+        ) : null}
+        {showSkinTypeConvention ? (
+          <YoucamSkinTypeConventionBar styles={styles} />
+        ) : null}
+        {showAcneConvention ? (
+          <YoucamAcneConventionBar styles={styles} />
         ) : null}
       </View>
 
