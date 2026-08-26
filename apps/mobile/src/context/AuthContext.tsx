@@ -8,10 +8,12 @@ import {
   type ReactNode,
 } from 'react';
 import { authService } from '../services/auth.service';
+import { doctorsService } from '../services/doctors.service';
 import {
   completeGoogleLoginFromUrl,
   loginWithGoogle as googleLogin,
 } from '../services/google-auth.service';
+import { storageService } from '../services/storage.service';
 import type {
   AuthUser,
   LoginPayload,
@@ -28,6 +30,10 @@ type AuthContextValue = {
   ) => Promise<void>;
   registerPatient: (payload: RegisterPatientPayload) => Promise<void>;
   logout: () => Promise<void>;
+  /** Actualiza campos del usuario en memoria y SecureStore. */
+  patchUser: (partial: Partial<AuthUser>) => Promise<void>;
+  /** Refresca verificationStatus del doctor desde la API. */
+  refreshDoctorVerification: () => Promise<string | null>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -83,6 +89,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const patchUser = useCallback(async (partial: Partial<AuthUser>) => {
+    const current = await storageService.getUser();
+    if (!current) return;
+    const next = { ...current, ...partial };
+    await storageService.saveUser(next);
+    setUser(next);
+  }, []);
+
+  const refreshDoctorVerification = useCallback(async () => {
+    const current = await storageService.getUser();
+    if (!current || current.role !== 'doctor') return null;
+    try {
+      const doctor = await doctorsService.getMe();
+      const verificationStatus = doctor.verificationStatus;
+      const next = { ...current, verificationStatus };
+      await storageService.saveUser(next);
+      setUser(next);
+      return verificationStatus;
+    } catch {
+      return current.verificationStatus ?? null;
+    }
+  }, []);
+
   const value = useMemo(
     () => ({
       user,
@@ -91,8 +120,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loginWithGoogle,
       registerPatient,
       logout,
+      patchUser,
+      refreshDoctorVerification,
     }),
-    [user, isLoading, login, loginWithGoogle, registerPatient, logout],
+    [
+      user,
+      isLoading,
+      login,
+      loginWithGoogle,
+      registerPatient,
+      logout,
+      patchUser,
+      refreshDoctorVerification,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

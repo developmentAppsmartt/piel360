@@ -27,6 +27,8 @@ import { patientsService } from '../../../services/patients.service';
 import type { PatientAnalysisSummary } from '../../../types/analysis';
 import type { PatientProfile } from '../../../types/patient';
 import { patientDisplayName } from '../../../types/patient';
+import { resolveMediaUrl } from '../../../utils/mediaUrl';
+import { AnalysisDetailView } from '../analyses/AnalysisDetailView';
 import { AccountDrawer } from '../patients/components/AccountDrawer';
 import { PaymentsView } from '../payments/PaymentsView';
 import { createDoctorHomeStyles } from './styles/home.styles';
@@ -86,10 +88,14 @@ export function DoctorHomeView({
   const [doctorLastName, setDoctorLastName] = useState(
     lastNameFromUserName(user?.name),
   );
+  const [doctorAvatarUrl, setDoctorAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showingPayments, setShowingPayments] = useState(false);
+  const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(
+    null,
+  );
 
   const load = useCallback(async () => {
     try {
@@ -103,6 +109,7 @@ export function DoctorHomeView({
       if (doctor?.lastName?.trim()) {
         setDoctorLastName(doctor.lastName.trim());
       }
+      setDoctorAvatarUrl(resolveMediaUrl(doctor?.avatarUrl));
     } catch (err) {
       Alert.alert(
         'Inicio',
@@ -159,7 +166,7 @@ export function DoctorHomeView({
   const handleMenuSelect = (id: string) => {
     setMenuOpen(false);
     if (id === 'salir') void logout();
-    else if (id === 'perfil') onOpenProfile?.();
+    else if (id === 'perfil' || id === 'config') onOpenProfile?.();
     else if (id === 'suscripcion') setShowingPayments(true);
     else if (id === 'acerca')
       Alert.alert(
@@ -218,6 +225,29 @@ export function DoctorHomeView({
     );
   }
 
+  if (selectedAnalysisId) {
+    const selected = analyses.find((a) => a.id === selectedAnalysisId);
+    return (
+      <>
+        <AnalysisDetailView
+          analysisId={selectedAnalysisId}
+          patientName={
+            selected ? analysisPatientName(selected) : undefined
+          }
+          onBack={() => setSelectedAnalysisId(null)}
+          onOpenMenu={() => setMenuOpen(true)}
+          onOpenMessages={onOpenMessages}
+        />
+        <AccountDrawer
+          visible={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          onSelect={handleMenuSelect}
+          variant="doctor"
+        />
+      </>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <StatusBar style="dark" />
@@ -245,7 +275,9 @@ export function DoctorHomeView({
             accessibilityLabel="Mi cuenta"
           >
             <Image
-              source={DOCTOR_AVATAR}
+              source={
+                doctorAvatarUrl ? { uri: doctorAvatarUrl } : DOCTOR_AVATAR
+              }
               style={styles.avatarImage}
               accessibilityIgnoresInvertColors
             />
@@ -361,7 +393,7 @@ export function DoctorHomeView({
                       <Pressable
                         key={item.id}
                         style={styles.activityRow}
-                        onPress={onOpenPatients}
+                        onPress={() => setSelectedAnalysisId(item.id)}
                       >
                         <View style={styles.activityAvatar}>
                           <Text style={styles.activityAvatarText}>

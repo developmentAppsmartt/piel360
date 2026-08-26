@@ -34,6 +34,8 @@ model User {
   address            String?
   latitude           Decimal?  @db.Decimal(10, 7)
   longitude          Decimal?  @db.Decimal(10, 7)
+  /** Key S3 de la foto de perfil (URL firmada al leer). */
+  avatarKey          String?   @map("avatar_key")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
@@ -107,6 +109,7 @@ model Doctor {
 
   user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   patients            Patient[]
+  analysisRequests    AnalysisRequest[]
   conversations       Conversation[]
   productCategories   ProductCategory[]
   products            Product[]
@@ -205,8 +208,29 @@ model Patient {
   user          User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
   analyses      Analysis[]
   conversations Conversation[]
+  analysisRequests AnalysisRequest[]
 
   @@map("patients")
+}
+
+/** Solicitud de análisis del doctor al paciente (desbloquea «Nuevo Análisis» en mobile). */
+model AnalysisRequest {
+  id           BigInt   @id @default(autoincrement())
+  patientId    BigInt   @map("patient_id")
+  doctorId     BigInt   @map("doctor_id")
+  /** skiniver | youcam | fitzpatrick */
+  providerSlug String   @map("provider_slug")
+  /** pending | completed | cancelled */
+  status       String   @default("pending")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor  Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, status])
+  @@index([doctorId])
+  @@map("analysis_requests")
 }
 
 model Analysis {

@@ -1,4 +1,5 @@
 import type { Role } from '../../../types/auth';
+import type { DoctorProfile } from '../../../services/doctors.service';
 import type { PatientProfileDisplay } from './patient';
 import {
   formatPatientDocument,
@@ -103,6 +104,181 @@ function formatGender(value: string | null | undefined): string {
     prefer_not: 'Prefiero no decir',
   };
   return labels[value.toLowerCase()] ?? value;
+}
+
+function formatVerification(status: string | null | undefined): string {
+  if (!status) return EMPTY;
+  const labels: Record<string, string> = {
+    pending: 'Pendiente',
+    in_review: 'En revisión',
+    verified: 'Verificado',
+    approved: 'Aprobado',
+    active: 'Activo',
+    rejected: 'Rechazado',
+  };
+  return labels[status] ?? status;
+}
+
+function doctorDisplayName(doctor: DoctorProfile, fallback: string): string {
+  const full = `${doctor.firstName ?? ''} ${doctor.lastName ?? ''}`.trim();
+  const base = full || fallback;
+  return base.startsWith('Dr.') ? base : `Dr. ${base}`;
+}
+
+function buildDoctorSections(doctor?: DoctorProfile | null): ProfileSectionConfig[] {
+  const document = formatPatientDocument(doctor?.docType, doctor?.docNumber);
+  const location = [doctor?.city, doctor?.country]
+    .map((x) => x?.trim())
+    .filter(Boolean)
+    .join(', ');
+
+  return [
+    {
+      id: 'personal',
+      title: 'Información personal',
+      rows: [
+        {
+          id: 'email',
+          label: 'Correo',
+          value: orEmpty(doctor?.user?.email),
+          kind: 'info',
+          icon: 'mail',
+        },
+        {
+          id: 'documento',
+          label: 'Documento',
+          value: document ?? EMPTY,
+          kind: 'nav',
+          icon: 'doc',
+        },
+        {
+          id: 'telefono',
+          label: 'Teléfono',
+          value: orEmpty(doctor?.phone),
+          kind: 'nav',
+          icon: 'phone',
+        },
+        {
+          id: 'birth_date',
+          label: 'Fecha de nacimiento',
+          value: formatBirthDate(doctor?.birthDate),
+          kind: 'nav',
+          icon: 'calendar',
+        },
+        {
+          id: 'gender',
+          label: 'Género',
+          value: formatGender(doctor?.gender),
+          kind: 'nav',
+          icon: 'user',
+        },
+        {
+          id: 'address',
+          label: 'Dirección',
+          value: orEmpty(doctor?.address),
+          kind: 'nav',
+          icon: 'home',
+        },
+        {
+          id: 'city',
+          label: 'Ciudad / País',
+          value: location || EMPTY,
+          kind: 'nav',
+          icon: 'home',
+        },
+      ],
+    },
+    {
+      id: 'profesional',
+      title: 'Información profesional',
+      rows: [
+        {
+          id: 'specialty',
+          label: 'Especialidad',
+          value: orEmpty(doctor?.specialty),
+          kind: 'nav',
+        },
+        {
+          id: 'medical_registry',
+          label: 'Registro médico',
+          value: orEmpty(doctor?.medicalRegistry),
+          kind: 'nav',
+          icon: 'doc',
+        },
+        {
+          id: 'license',
+          label: 'Licencia',
+          value: orEmpty(doctor?.licenseNumber),
+          kind: 'nav',
+          icon: 'doc',
+        },
+        {
+          id: 'education',
+          label: 'Formación',
+          value: orEmpty(
+            doctor?.graduationInstitution || doctor?.educationEntity,
+          ),
+          kind: 'nav',
+        },
+        {
+          id: 'verification',
+          label: 'Verificación',
+          value: formatVerification(doctor?.verificationStatus),
+          kind: 'info',
+        },
+      ],
+    },
+    {
+      id: 'preferencias',
+      title: 'Preferencias de cuenta',
+      rows: [
+        {
+          id: 'notificaciones',
+          label: 'Notificaciones',
+          kind: 'toggle',
+          toggleDefault: true,
+        },
+        {
+          id: 'idioma',
+          label: 'Idioma',
+          value: 'Español',
+          kind: 'nav',
+        },
+      ],
+    },
+    {
+      id: 'seguridad',
+      title: 'Seguridad',
+      rows: [
+        { id: 'password', label: 'Cambiar Contraseña', kind: 'nav' },
+        {
+          id: 'biometria',
+          label: 'Autenticación Biométrica',
+          kind: 'toggle',
+          toggleDefault: true,
+        },
+      ],
+    },
+    {
+      id: 'soporte',
+      title: 'Soporte',
+      rows: [
+        { id: 'ayuda', label: 'Ayuda y Tutoriales', kind: 'nav' },
+        {
+          id: 'contacto',
+          label: 'Contactar Soporte',
+          kind: 'nav',
+          icon: 'mail',
+        },
+        {
+          id: 'acerca',
+          label: 'Acerca de',
+          value: 'Versión 1.2.0',
+          kind: 'info',
+        },
+      ],
+    },
+  ];
 }
 
 function buildPatientSections(patient?: PatientProfileDisplay | null): ProfileSectionConfig[] {
@@ -249,108 +425,43 @@ type BuildProfileOptions = {
   role: Role;
   userName: string;
   email: string;
-  /** Datos de `patients` cuando el API esté conectado. */
   patient?: PatientProfileDisplay | null;
+  doctor?: DoctorProfile | null;
 };
 
-/** Contenido de perfil según rol (paciente usa campos de la tabla `patients`). */
+/** Contenido de perfil según rol. */
 export function buildProfileContent({
   role,
   userName,
   email,
   patient,
+  doctor,
 }: BuildProfileOptions): ProfileContent {
   if (role === 'doctor') {
-    const name = userName.startsWith('Dr.') ? userName : `Dr. ${userName}`;
+    const displayName = doctor
+      ? doctorDisplayName(doctor, userName)
+      : userName.startsWith('Dr.')
+        ? userName
+        : `Dr. ${userName}`;
+    const registry =
+      doctor?.licenseNumber?.trim() ||
+      doctor?.medicalRegistry?.trim() ||
+      null;
+
     return {
-      displayName: name,
-      subtitle: 'Dermatólogo Especialista',
-      secondarySubtitle: 'Cédula Profesional: —',
-      avatarInitials: initialsFromName(userName),
-      sections: [
-        {
-          id: 'profesional',
-          title: 'Información profesional',
-          rows: [
-            {
-              id: 'especialidades',
-              label: 'Especialidades',
-              value: 'Dermatología',
-              kind: 'nav',
-            },
-            {
-              id: 'hospital',
-              label: 'Hospital/Clínica',
-              value: 'Sin asignar',
-              kind: 'nav',
-            },
-            {
-              id: 'horario',
-              label: 'Horario de Atención',
-              value: 'Lunes a Viernes 9:00 - 18:00',
-              kind: 'nav',
-              icon: 'clock',
-            },
-          ],
-        },
-        {
-          id: 'preferencias',
-          title: 'Preferencias de cuenta',
-          rows: [
-            {
-              id: 'notificaciones',
-              label: 'Notificaciones',
-              kind: 'toggle',
-              toggleDefault: true,
-            },
-            {
-              id: 'idioma',
-              label: 'Idioma',
-              value: 'Español',
-              kind: 'nav',
-            },
-            {
-              id: 'ia',
-              label: 'Configuración IA',
-              value: 'Nivel de asistencia: Alto',
-              kind: 'nav',
-              icon: 'robot',
-            },
-          ],
-        },
-        {
-          id: 'seguridad',
-          title: 'Seguridad',
-          rows: [
-            { id: 'password', label: 'Cambiar Contraseña', kind: 'nav' },
-            {
-              id: 'biometria',
-              label: 'Autenticación Biométrica',
-              kind: 'toggle',
-              toggleDefault: true,
-            },
-          ],
-        },
-        {
-          id: 'soporte',
-          title: 'Soporte',
-          rows: [
-            { id: 'ayuda', label: 'Ayuda y Tutoriales', kind: 'nav' },
-            {
-              id: 'contacto',
-              label: 'Contactar Soporte',
-              kind: 'nav',
-              icon: 'mail',
-            },
-            {
-              id: 'acerca',
-              label: 'Acerca de',
-              value: 'Versión 1.2.0',
-              kind: 'info',
-            },
-          ],
-        },
-      ],
+      displayName,
+      subtitle:
+        orEmpty(doctor?.specialty) === EMPTY
+          ? 'Médico'
+          : orEmpty(doctor?.specialty),
+      secondarySubtitle: registry
+        ? `Licencia / registro: ${registry}`
+        : 'Sin licencia registrada',
+      avatarInitials: initialsFromName(
+        `${doctor?.firstName ?? ''} ${doctor?.lastName ?? ''}`.trim() ||
+          userName,
+      ),
+      sections: buildDoctorSections(doctor),
     };
   }
 

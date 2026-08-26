@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -14,14 +15,17 @@ import { AppIcon } from '../../../../components/AppIcon';
 import { Icons } from '../../../../components/icons';
 import { useBranding } from '../../../../context/BrandingContext';
 import {
+  ANALYSIS_PROVIDER_STATIC_LABELS,
   analysisProviderLabel,
   analysisStatus,
   availableProvidersFromSubscriptions,
+  isAnalysisProviderSlug,
   type AnalysisProviderSlug,
 } from '../../../../data/analysisProviderLabel';
 import { ApiError } from '../../../../services/api.client';
 import {
   patientsService,
+  type AnalysisRequest,
   type UpdatePatientInput,
 } from '../../../../services/patients.service';
 import { subscriptionsService } from '../../../../services/subscriptions.service';
@@ -109,9 +113,13 @@ export function PatientDetailView({
   );
 
   const [analyses, setAnalyses] = useState<PatientAnalysisSummary[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<AnalysisRequest[]>(
+    [],
+  );
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingPlans, setLoadingPlans] = useState(true);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
 
   useEffect(() => {
@@ -119,8 +127,16 @@ export function PatientDetailView({
     (async () => {
       setLoading(true);
       try {
-        const list = await patientsService.listAnalyses(patient.id);
-        if (!cancelled) setAnalyses([...list].reverse());
+        const [list, pending] = await Promise.all([
+          patientsService.listAnalyses(patient.id),
+          patientsService
+            .listPendingAnalysisRequests(patient.id)
+            .catch(() => [] as AnalysisRequest[]),
+        ]);
+        if (!cancelled) {
+          setAnalyses([...list].reverse());
+          setPendingRequests(pending);
+        }
       } catch (err) {
         if (!cancelled) {
           Alert.alert(
@@ -179,6 +195,47 @@ export function PatientDetailView({
     );
   }
 
+  function pendingLabel(slug: string): string {
+    return isAnalysisProviderSlug(slug)
+      ? ANALYSIS_PROVIDER_STATIC_LABELS[slug]
+      : 'Análisis solicitado';
+  }
+
+  const listItems = useMemo(() => {
+    const requests = pendingRequests.map((request) => ({
+      kind: 'request' as const,
+      id: `request-${request.id}`,
+      request,
+    }));
+    const history = analyses.map((analysis) => ({
+      kind: 'analysis' as const,
+      id: analysis.id,
+      analysis,
+    }));
+    return [...requests, ...history];
+  }, [pendingRequests, analyses]);
+
+  async function handleCancelRequest(request: AnalysisRequest) {
+    if (cancellingId) return;
+    setCancellingId(request.id);
+    setPendingRequests((prev) => prev.filter((r) => r.id !== request.id));
+    try {
+      await patientsService.cancelAnalysisRequest(patient.id, request.id);
+    } catch (err) {
+      setPendingRequests((prev) =>
+        prev.some((r) => r.id === request.id) ? prev : [...prev, request],
+      );
+      Alert.alert(
+        'No se pudo cancelar',
+        err instanceof ApiError
+          ? err.message
+          : 'Intenta de nuevo en un momento.',
+      );
+    } finally {
+      setCancellingId(null);
+    }
+  }
+
   async function handleSavePatient(input: UpdatePatientInput) {
     const updated = await patientsService.update(patient.id, input);
     onPatientUpdated?.(updated);
@@ -228,114 +285,207 @@ export function PatientDetailView({
           </Pressable>
         </View>
 
-        <View style={styles.identity}>
-          <Pressable
-            style={styles.avatar}
-            onPress={() => setEditing(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Editar datos del paciente"
-          >
-            <Text style={styles.avatarText}>{initials(patient)}</Text>
-          </Pressable>
-          <Text style={styles.avatarHint}>Toca la foto para editar</Text>
-          <Text style={styles.name}>{name}</Text>
-          <Text style={styles.meta}>
-            Última actualización: {formatUpdate(patient.updatedAt)}
-          </Text>
-          <Text style={styles.meta}>
-            ID: {patient.id}
-            {doc ? `  ·  ${doc}` : ''}
-          </Text>
-          <Text style={styles.meta}>Edad: {ageFromBirth(patient.birthDate)}</Text>
-
-          <View style={styles.newAnalysisSection}>
-            <Text style={styles.newAnalysisHint}>Nuevo análisis</Text>
-            {loadingPlans ? (
-              <ActivityIndicator color={primary} />
-            ) : availableProviders.length === 0 ? (
-              <View style={styles.providerEmpty}>
-                <Text style={styles.providerEmptyText}>
-                  No tienes planes activos con créditos. Revisa tu suscripción
-                  para iniciar un análisis.
-                </Text>
-              </View>
-            ) : (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.providerScroll}
-                contentContainerStyle={styles.providerScrollContent}
-              >
-                {availableProviders.map((provider) => (
-                  <Pressable
-                    key={provider.slug}
-                    style={styles.providerPill}
-                    onPress={() => handleStart(provider.slug, provider.label)}
-                  >
-                    <Text style={styles.providerPillText}>{provider.label}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            )}
-          </View>
-        </View>
-
-        <View style={styles.historyHeader}>
-          <Text style={styles.historyTitle}>Historial de análisis</Text>
-          <View style={styles.historyActions}>
-            <Pressable
-              style={styles.historyAction}
-              onPress={() =>
-                Alert.alert(
-                  'Asignar Cita',
-                  'La agenda se conectará próximamente.',
-                )
-              }
-            >
-              <AppIcon icon={Icons.calendarClock} size={16} color={primary} />
-              <Text style={styles.historyActionText}>Asignar Cita</Text>
-            </Pressable>
-            <Pressable
-              style={styles.historyAction}
-              onPress={() =>
-                Alert.alert(
-                  'Solicitar Imagen',
-                  'La solicitud de imagen se conectará próximamente.',
-                )
-              }
-            >
-              <AppIcon icon={Icons.image} size={16} color={primary} />
-              <Text style={styles.historyActionText}>Solicitar Imagen</Text>
-            </Pressable>
-          </View>
-        </View>
-
         {loading ? (
           <View style={styles.loading}>
             <ActivityIndicator color={primary} />
           </View>
         ) : (
           <FlatList
-            data={analyses}
+            data={listItems}
             keyExtractor={(item) => item.id}
+            style={styles.list}
             contentContainerStyle={styles.listContent}
+            keyboardShouldPersistTaps="always"
+            removeClippedSubviews={false}
+            ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+            ListHeaderComponent={
+              <View>
+                <View style={styles.identity}>
+                  <Pressable
+                    style={styles.avatar}
+                    onPress={() => setEditing(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Editar datos del paciente"
+                  >
+                    {patient.avatarUrl ? (
+                      <Image
+                        source={{ uri: patient.avatarUrl }}
+                        style={styles.avatarImage}
+                        accessibilityIgnoresInvertColors
+                      />
+                    ) : (
+                      <Text style={styles.avatarText}>{initials(patient)}</Text>
+                    )}
+                  </Pressable>
+                  <Text style={styles.avatarHint}>Toca la foto para editar</Text>
+                  <Text style={styles.name}>{name}</Text>
+                  <Text style={styles.meta}>
+                    Última actualización: {formatUpdate(patient.updatedAt)}
+                  </Text>
+                  <Text style={styles.meta}>
+                    ID: {patient.id}
+                    {doc ? `  ·  ${doc}` : ''}
+                  </Text>
+                  <Text style={styles.meta}>
+                    Edad: {ageFromBirth(patient.birthDate)}
+                  </Text>
+
+                  <View style={styles.newAnalysisSection}>
+                    <Text style={styles.newAnalysisHint}>Nuevo análisis</Text>
+                    {loadingPlans ? (
+                      <ActivityIndicator color={primary} />
+                    ) : availableProviders.length === 0 ? (
+                      <View style={styles.providerEmpty}>
+                        <Text style={styles.providerEmptyText}>
+                          No tienes planes activos con créditos. Revisa tu
+                          suscripción para iniciar un análisis.
+                        </Text>
+                      </View>
+                    ) : (
+                      <ScrollView
+                        horizontal
+                        nestedScrollEnabled
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.providerScroll}
+                        contentContainerStyle={styles.providerScrollContent}
+                      >
+                        {availableProviders.map((provider) => (
+                          <Pressable
+                            key={provider.slug}
+                            style={styles.providerPill}
+                            onPress={() =>
+                              handleStart(provider.slug, provider.label)
+                            }
+                          >
+                            <Text style={styles.providerPillText}>
+                              {provider.label}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </ScrollView>
+                    )}
+                  </View>
+                </View>
+
+                <View style={styles.historyHeader}>
+                  <Text style={styles.historyTitle}>Historial de análisis</Text>
+                  <View style={styles.historyActions}>
+                    <Pressable
+                      style={styles.historyAction}
+                      onPress={() =>
+                        Alert.alert(
+                          'Asignar Cita',
+                          'La agenda se conectará próximamente.',
+                        )
+                      }
+                    >
+                      <AppIcon
+                        icon={Icons.calendarClock}
+                        size={16}
+                        color={primary}
+                      />
+                      <Text style={styles.historyActionText}>Asignar Cita</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.historyAction}
+                      onPress={() =>
+                        Alert.alert(
+                          'Solicitar Imagen',
+                          'La solicitud de imagen se conectará próximamente.',
+                        )
+                      }
+                    >
+                      <AppIcon icon={Icons.image} size={16} color={primary} />
+                      <Text style={styles.historyActionText}>
+                        Solicitar Imagen
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+            }
             ListEmptyComponent={
-              <View style={styles.empty}>
+              <View style={[styles.empty, { paddingHorizontal: 16 }]}>
                 <Text style={styles.emptyText}>
-                  Este paciente aún no tiene análisis registrados.
+                  Este paciente aún no tiene análisis ni solicitudes.
                 </Text>
               </View>
             }
             renderItem={({ item }) => {
-              const typeLabel = analysisProviderLabel(item);
-              const status = analysisStatus(item);
-              const diagnosis = analysisDiagnosis(item);
-              const region = item.bodyRegion?.trim() || '—';
-              const thumb = item.coloredUrl || item.imageUrl;
+              if (item.kind === 'request') {
+                const req = item.request;
+                const busy = cancellingId === req.id;
+                return (
+                  <View style={styles.analysisRow}>
+                    <View style={styles.thumb}>
+                      <AppIcon icon={Icons.skin} size={22} color={primary} />
+                    </View>
+                    <View style={styles.analysisBody}>
+                      <View style={styles.metaBadges}>
+                        <View style={styles.typeBadge}>
+                          <Text style={styles.typeBadgeText} numberOfLines={1}>
+                            {pendingLabel(req.providerSlug)}
+                          </Text>
+                        </View>
+                        <View
+                          style={[
+                            styles.statusBadge,
+                            styles.statusBadgePending,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.statusBadgeText,
+                              styles.statusBadgeTextPending,
+                            ]}
+                          >
+                            Solicitado
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.diagnosis} numberOfLines={1}>
+                        Pendiente en app del paciente
+                      </Text>
+                      <View style={styles.stampRow}>
+                        <AppIcon
+                          icon={Icons.calendarClock}
+                          size={13}
+                          color={primary}
+                        />
+                        <Text style={styles.stamp}>
+                          {formatStamp(req.createdAt)}
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.pendingCancelBtn}
+                      activeOpacity={0.7}
+                      disabled={busy}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                      onPress={() => void handleCancelRequest(req)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Cancelar solicitud"
+                    >
+                      {busy ? (
+                        <ActivityIndicator size="small" color="#EF4444" />
+                      ) : (
+                        <Text style={styles.pendingCancelText}>Cancelar</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                );
+              }
+
+              const analysis = item.analysis;
+              const typeLabel = analysisProviderLabel(analysis);
+              const status = analysisStatus(analysis);
+              const diagnosis = analysisDiagnosis(analysis);
+              const region = analysis.bodyRegion?.trim() || '—';
+              const thumb = analysis.coloredUrl || analysis.imageUrl;
               return (
                 <Pressable
                   style={styles.analysisRow}
-                  onPress={() => onOpenAnalysis?.(item.id)}
+                  onPress={() => onOpenAnalysis?.(analysis.id)}
                 >
                   <View style={styles.thumb}>
                     {thumb ? (
@@ -397,8 +547,8 @@ export function PatientDetailView({
                         color={primary}
                       />
                       <Text style={styles.stamp}>
-                        {formatStamp(item.createdAt)}
-                        {item.sharedWithPatient ? ' · Compartido' : ''}
+                        {formatStamp(analysis.createdAt)}
+                        {analysis.sharedWithPatient ? ' · Compartido' : ''}
                       </Text>
                     </View>
                   </View>

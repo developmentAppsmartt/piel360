@@ -10,7 +10,16 @@ export type AuthUser = {
   role: Role;
   empresa?: boolean;
   empresaReferida?: boolean;
+  /** Solo doctores: pending | in_review | active | approved | … */
+  verificationStatus?: string;
 };
+
+/** Cuenta doctor con panel clínico completo (no solo perfil). */
+export function isDoctorVerificationActive(
+  status: string | null | undefined,
+): boolean {
+  return status === 'active' || status === 'approved';
+}
 
 export type AuthResult = {
   accessToken: string;

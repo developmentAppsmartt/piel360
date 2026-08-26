@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 import { AppIcon } from '../../../../components/AppIcon';
 import { Icons } from '../../../../components/icons';
 import type { PatientProfile } from '../../../../types/patient';
@@ -45,7 +45,15 @@ export function PatientListRow({ styles, patient, onPress }: PatientListRowProps
   return (
     <Pressable style={styles.row} onPress={onPress}>
       <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{initials(patient)}</Text>
+        {patient.avatarUrl ? (
+          <Image
+            source={{ uri: patient.avatarUrl }}
+            style={styles.avatarImage}
+            accessibilityIgnoresInvertColors
+          />
+        ) : (
+          <Text style={styles.avatarText}>{initials(patient)}</Text>
+        )}
       </View>
       <View style={styles.rowBody}>
         <Text style={styles.rowName} numberOfLines={1}>

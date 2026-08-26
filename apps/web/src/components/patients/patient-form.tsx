@@ -17,26 +17,49 @@ import {
 } from "@/lib/patient-form-options";
 
 // Espejo de CreatePatientDto + campos del form mobile (CreatePatientForm).
-const patientSchema = z.object({
-  firstName: z.string().min(1, "Requerido"),
-  lastName: z.string().min(1, "Requerido"),
-  email: z.union([z.literal(""), z.string().email("Email inválido")]),
-  docType: z.string(),
-  docNumber: z.string(),
-  gender: z.string(),
-  address: z.string(),
-  areaCode: z.string(),
-  phone: z.string(),
-  birthDate: z.union([
-    z.literal(""),
-    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Usa AAAA-MM-DD"),
-  ]),
-  mascotType: z.string(),
-  skinType: z.string(),
-  fitzpatrickType: z.string(),
-});
+function createPatientSchema(requireAccess: boolean) {
+  return z
+    .object({
+      firstName: z.string().min(1, "Requerido"),
+      lastName: z.string().min(1, "Requerido"),
+      email: z.union([z.literal(""), z.string().email("Email inválido")]),
+      password: z.string(),
+      docType: z.string(),
+      docNumber: z.string(),
+      gender: z.string(),
+      address: z.string(),
+      areaCode: z.string(),
+      phone: z.string(),
+      birthDate: z.union([
+        z.literal(""),
+        z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Usa AAAA-MM-DD"),
+      ]),
+      mascotType: z.string(),
+      skinType: z.string(),
+      fitzpatrickType: z.string(),
+    })
+    .superRefine((values, ctx) => {
+      if (!requireAccess) return;
+      const email = values.email.trim();
+      const password = values.password.trim();
+      if (!email) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["email"],
+          message: "Correo requerido para crear acceso",
+        });
+      }
+      if (password.length < 8) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["password"],
+          message: "Mínimo 8 caracteres",
+        });
+      }
+    });
+}
 
-type PatientFormValues = z.infer<typeof patientSchema>;
+type PatientFormValues = z.infer<ReturnType<typeof createPatientSchema>>;
 
 function toDateInput(value: string | null | undefined): string {
   if (!value) return "";
@@ -48,11 +71,12 @@ function opt(v: string): string | undefined {
   return t ? t : undefined;
 }
 
-function toInput(values: PatientFormValues): PatientInput {
+function toInput(values: PatientFormValues, includePassword: boolean): PatientInput {
   return {
     firstName: values.firstName.trim(),
     lastName: values.lastName.trim(),
     email: opt(values.email),
+    ...(includePassword ? { password: opt(values.password) } : {}),
     docType: opt(values.docType),
     docNumber: opt(values.docNumber),
     gender: opt(values.gender),
@@ -108,6 +132,7 @@ export function PatientForm({
   onSubmit: (input: PatientInput) => Promise<unknown>;
   submitLabel: string;
 }) {
+  const isCreate = !defaultValues;
   const {
     register,
     handleSubmit,
@@ -116,11 +141,12 @@ export function PatientForm({
     setError,
     formState: { errors, isSubmitting },
   } = useForm<PatientFormValues>({
-    resolver: zodResolver(patientSchema),
+    resolver: zodResolver(createPatientSchema(isCreate)),
     defaultValues: {
       firstName: defaultValues?.firstName ?? "",
       lastName: defaultValues?.lastName ?? "",
       email: defaultValues?.email ?? "",
+      password: "",
       docType: defaultValues?.docType ?? "CC",
       docNumber: defaultValues?.docNumber ?? "",
       gender: defaultValues?.gender ?? "",
@@ -139,7 +165,7 @@ export function PatientForm({
 
   const submit = handleSubmit(async (values) => {
     try {
-      await onSubmit(toInput(values));
+      await onSubmit(toInput(values, isCreate));
     } catch (err) {
       setError("root", {
         message:
@@ -236,6 +262,20 @@ export function PatientForm({
       {errors.email && (
         <p className="text-sm text-destructive">{errors.email.message}</p>
       )}
+      {isCreate ? (
+        <>
+          <TextField
+            label="Contraseña de acceso"
+            id="password"
+            type="password"
+            autoComplete="new-password"
+            {...register("password")}
+          />
+          {errors.password && (
+            <p className="text-sm text-destructive">{errors.password.message}</p>
+          )}
+        </>
+      ) : null}
 
       <div className="space-y-2">
         <p className="text-sm font-medium">Mascota</p>

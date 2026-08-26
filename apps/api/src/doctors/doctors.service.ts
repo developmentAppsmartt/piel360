@@ -36,7 +36,7 @@ export class DoctorsService {
 
   findAll() {
     return this.prisma.doctor.findMany({
-      include: { user: { select: { email: true } } },
+      include: { user: { select: { email: true, avatarKey: true } } },
       orderBy: { id: 'asc' },
     });
   }
@@ -47,7 +47,7 @@ export class DoctorsService {
       where: {
         verificationStatus: { in: ['pending', 'in_review', 'verified'] },
       },
-      include: { user: { select: { email: true } } },
+      include: { user: { select: { email: true, avatarKey: true } } },
       orderBy: { createdAt: 'asc' },
     });
   }
@@ -60,7 +60,7 @@ export class DoctorsService {
     const doctor = await this.prisma.doctor.update({
       where: { id: BigInt(id) },
       data: { verificationStatus: status },
-      include: { user: { select: { email: true } } },
+      include: { user: { select: { email: true, avatarKey: true } } },
     });
     return this.withDocumentUrls(doctor);
   }
@@ -69,7 +69,7 @@ export class DoctorsService {
   async findMe(userId: string) {
     const doctor = await this.prisma.doctor.findUnique({
       where: { userId: BigInt(userId) },
-      include: { user: { select: { email: true } } },
+      include: { user: { select: { email: true, avatarKey: true } } },
     });
     if (!doctor) {
       throw new ForbiddenException('El usuario no tiene un perfil de doctor');
@@ -83,7 +83,7 @@ export class DoctorsService {
     }
     const doctor = await this.prisma.doctor.findUnique({
       where: { id: BigInt(id) },
-      include: { user: { select: { email: true } } },
+      include: { user: { select: { email: true, avatarKey: true } } },
     });
     if (!doctor) throw new NotFoundException('Doctor no encontrado');
     return this.withDocumentUrls(doctor);
@@ -100,7 +100,7 @@ export class DoctorsService {
           ? { birthDate: birthDate ? new Date(birthDate) : null }
           : {}),
       },
-      include: { user: { select: { email: true } } },
+      include: { user: { select: { email: true, avatarKey: true } } },
     });
     return this.withDocumentUrls(doctor);
   }
@@ -120,7 +120,7 @@ export class DoctorsService {
           ? { birthDate: birthDate ? new Date(birthDate) : null }
           : {}),
       },
-      include: { user: { select: { email: true } } },
+      include: { user: { select: { email: true, avatarKey: true } } },
     });
 
     const userPatch: {
@@ -161,16 +161,21 @@ export class DoctorsService {
       cedulaDocKey: string | null;
       medicalRegistryDocKey: string | null;
       diplomaDocKey: string | null;
+      user?: { email: string; avatarKey?: string | null } | null;
     },
   >(doctor: T) {
-    const [cedulaDocUrl, medicalRegistryDocUrl, diplomaDocUrl] =
+    const [cedulaDocUrl, medicalRegistryDocUrl, diplomaDocUrl, avatarUrl] =
       await Promise.all([
         this.signDoc(doctor.cedulaDocKey),
         this.signDoc(doctor.medicalRegistryDocKey),
         this.signDoc(doctor.diplomaDocKey),
+        this.signDoc(doctor.user?.avatarKey),
       ]);
+    const { user, ...rest } = doctor;
     return {
-      ...doctor,
+      ...rest,
+      user: user ? { email: user.email } : null,
+      avatarUrl,
       cedulaDocUrl,
       medicalRegistryDocUrl,
       diplomaDocUrl,
@@ -231,7 +236,7 @@ export class DoctorsService {
     return this.prisma.doctor.update({
       where: { id: doctor.id },
       data,
-      include: { user: { select: { email: true } } },
+      include: { user: { select: { email: true, avatarKey: true } } },
     }).then((d) => this.withDocumentUrls(d));
   }
 }

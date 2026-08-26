@@ -62,6 +62,10 @@ export const storageService = {
     }
   },
 
+  async saveUser(user: AuthUser): Promise<void> {
+    await setItem(KEYS.user, JSON.stringify(user));
+  },
+
   async clearSession(): Promise<void> {
     await Promise.all([
       deleteItem(KEYS.accessToken),

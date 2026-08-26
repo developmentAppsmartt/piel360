@@ -64,10 +64,27 @@ export function createProfileStyles(colors: AppBranding['colors']) {
       backgroundColor: softPrimary(colors.primary),
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 14,
+      marginBottom: 8,
       borderWidth: 3,
       borderColor: '#FFFFFF',
+      overflow: 'hidden',
       ...appShadow({ opacity: 0.08, radius: 8, offsetY: 2, elevation: 2 }),
+    },
+    avatarImage: {
+      width: '100%',
+      height: '100%',
+    },
+    avatarOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.35)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarHint: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.muted,
+      marginBottom: 10,
     },
     avatarText: {
       fontSize: 34,
@@ -147,6 +164,28 @@ export function createProfileStyles(colors: AppBranding['colors']) {
     logoutWrap: {
       paddingHorizontal: 16,
       paddingTop: 20,
+    },
+    pendingBanner: {
+      marginHorizontal: 16,
+      marginTop: 16,
+      marginBottom: 4,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: '#FCD34D',
+      backgroundColor: '#FFFBEB',
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    pendingBannerTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: '#92400E',
+      marginBottom: 4,
+    },
+    pendingBannerText: {
+      fontSize: 13,
+      lineHeight: 18,
+      color: '#A16207',
     },
     logoutButton: {
       borderRadius: 12,

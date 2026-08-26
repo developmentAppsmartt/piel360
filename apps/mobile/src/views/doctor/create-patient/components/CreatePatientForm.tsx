@@ -33,6 +33,8 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [docType, setDocType] = useState('CC');
   const [docNumber, setDocNumber] = useState('');
   const [gender, setGender] = useState('');
@@ -57,6 +59,20 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
       setError('Nombre y apellidos son obligatorios.');
       return;
     }
+    const emailTrim = email.trim();
+    const passwordTrim = password.trim();
+    if (!emailTrim) {
+      setError('El correo es obligatorio para que el paciente pueda acceder.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
+      setError('Correo inválido.');
+      return;
+    }
+    if (passwordTrim.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres.');
+      return;
+    }
     if (birthDate && !/^\d{4}-\d{2}-\d{2}$/.test(birthDate.trim())) {
       setError('Fecha inválida. Usa AAAA-MM-DD.');
       return;
@@ -65,6 +81,8 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
     onNext({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
+      email: emailTrim,
+      password: passwordTrim,
       docType: opt(docType),
       docNumber: opt(docNumber),
       gender: opt(gender),
@@ -99,6 +117,31 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
             style={styles.input}
             value={lastName}
             onChangeText={setLastName}
+          />
+        </View>
+
+        <View style={styles.field}>
+          <Text style={styles.label}>Correo</Text>
+          <TextInput
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
+
+        <View style={styles.field}>
+          <Text style={styles.label}>Contraseña de acceso</Text>
+          <TextInput
+            style={styles.input}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            textContentType="newPassword"
           />
         </View>
 
