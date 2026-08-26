@@ -555,10 +555,10 @@ export class AuthService implements OnModuleDestroy {
   }
 
   /**
-   * OTP de teléfono por SMS — a diferencia del OTP de email (código propio
-   * guardado en Redis), acá Altiria genera/guarda/valida el código por su
-   * lado (ver SmsService); nosotros solo emitimos un ticket corto una vez
-   * que Altiria confirma el código, igual que hace el email con su ticket.
+   * OTP de teléfono por SMS — Altiria no tiene ningún recurso de OTP nativo
+   * (confirmado contra la spec oficial), solo envío de SMS. El código lo
+   * generamos y guardamos nosotros, mismo patrón exacto que el OTP de email
+   * (sendOtp/verifyOtp): 5 dígitos en Redis con intentos/expiración.
    */
   async sendPhoneOtp(dto: SendPhoneOtpDto): Promise<{ ok: true }> {
     const phone = dto.phone.trim();
@@ -566,7 +566,26 @@ export class AuthService implements OnModuleDestroy {
     if (existing) {
       throw new ConflictException('Ya existe una cuenta con ese teléfono');
     }
-    await this.sms.generateOtp(phone);
+
+    const code = String(randomInt(10000, 100000));
+    await this.ensureRedis();
+    await this.redis.set(
+      this.phoneOtpKey(phone),
+      JSON.stringify({ code, attempts: 0 }),
+      'EX',
+      OTP_TTL_SECONDS,
+    );
+
+    await this.sms.sendSms(
+      phone,
+      `Tu código de verificación Piel360 es: ${code}. Expira en 10 minutos.`,
+    );
+
+    if (!this.config.get<string>('ALTIRIA_API_KEY')) {
+      // Local/dev sin credenciales de Altiria: deja el código en logs del API.
+      console.warn(`[OTP phone] ${phone} → ${code}`);
+    }
+
     return { ok: true };
   }
 
@@ -574,13 +593,36 @@ export class AuthService implements OnModuleDestroy {
     dto: VerifyPhoneOtpDto,
   ): Promise<{ ok: true; ticket: string }> {
     const phone = dto.phone.trim();
-    const valid = await this.sms.checkOtp(phone, dto.code.trim());
-    if (!valid) {
+    const key = this.phoneOtpKey(phone);
+    await this.ensureRedis();
+    const raw = await this.redis.get(key);
+    if (!raw) {
       throw new BadRequestException('Código inválido o expirado');
     }
 
+    const stored = JSON.parse(raw) as { code: string; attempts: number };
+    if (stored.attempts >= OTP_MAX_ATTEMPTS) {
+      await this.redis.del(key);
+      throw new BadRequestException(
+        'Demasiados intentos. Solicita un nuevo código.',
+      );
+    }
+
+    if (stored.code !== dto.code.trim()) {
+      stored.attempts += 1;
+      const ttl = await this.redis.ttl(key);
+      await this.redis.set(
+        key,
+        JSON.stringify(stored),
+        'EX',
+        ttl > 0 ? ttl : OTP_TTL_SECONDS,
+      );
+      throw new BadRequestException('Código incorrecto');
+    }
+
+    await this.redis.del(key);
+
     const ticket = randomUUID();
-    await this.ensureRedis();
     await this.redis.set(
       this.phoneTicketKey(ticket),
       phone,
@@ -588,6 +630,10 @@ export class AuthService implements OnModuleDestroy {
       OTP_TICKET_TTL_SECONDS,
     );
     return { ok: true, ticket };
+  }
+
+  private phoneOtpKey(phone: string) {
+    return `otp:phone:${phone}`;
   }
 
   private phoneTicketKey(ticket: string) {
