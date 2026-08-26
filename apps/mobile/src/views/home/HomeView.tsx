@@ -125,6 +125,11 @@ function analysisTitle(item: PatientAnalysisSummary): string {
   const diagnosis =
     item.finalDiagnosis?.trim() || item.aiDiagnosis?.trim() || '';
   if (diagnosis) return diagnosis;
+  if (item.fitzpatrickTaskId) {
+    const scale = (item.aiRawResponse as { fitzpatrick_scale?: string } | null)
+      ?.fitzpatrick_scale;
+    return scale ? `Fototipo ${scale}` : 'Piel 360 AI · Fototipo';
+  }
   if (item.youcamTaskId) {
     const metrics = parseYoucamMetrics(
       item.aiRawResponse as YoucamRawResponse | null,
@@ -268,9 +273,15 @@ export function HomeView({
     return (
       <>
         <YoucamAnalysisFlow
+          patientId={patient?.id ?? ''}
           onClose={() => {
             setYoucamFlowOpen(false);
             onConsentContinue?.();
+          }}
+          onAnalysisCreated={(analysisId) => {
+            setYoucamFlowOpen(false);
+            setSelectedAnalysisId(analysisId);
+            void loadHome();
           }}
           onOpenMenu={() => setMenuOpen(true)}
         />

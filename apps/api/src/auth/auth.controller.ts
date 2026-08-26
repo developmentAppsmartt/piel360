@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   Post,
   Req,
@@ -27,6 +28,10 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { parseOAuthState } from './oauth-state';
 import type { JwtPayload } from './types';
 
+function authClient(header?: string): 'mobile' | 'web' {
+  return header?.toLowerCase() === 'mobile' ? 'mobile' : 'web';
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -35,19 +40,25 @@ export class AuthController {
   ) {}
 
   @Post('register/doctor')
-  registerDoctor(@Body() dto: RegisterDoctorDto) {
-    return this.authService.registerDoctor(dto);
+  registerDoctor(
+    @Body() dto: RegisterDoctorDto,
+    @Headers('x-client') clientHeader?: string,
+  ) {
+    return this.authService.registerDoctor(dto, authClient(clientHeader));
   }
 
   @Post('register/patient')
-  registerPatient(@Body() dto: RegisterPatientDto) {
-    return this.authService.registerPatient(dto);
+  registerPatient(
+    @Body() dto: RegisterPatientDto,
+    @Headers('x-client') clientHeader?: string,
+  ) {
+    return this.authService.registerPatient(dto, authClient(clientHeader));
   }
 
   @Post('login')
   @HttpCode(200)
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  login(@Body() dto: LoginDto, @Headers('x-client') clientHeader?: string) {
+    return this.authService.login(dto, authClient(clientHeader));
   }
 
   @Post('otp/send')
@@ -106,9 +117,13 @@ export class AuthController {
     @Req() req: Request & { user: GoogleProfile },
     @Res() res: Response,
   ) {
-    const result = await this.authService.loginOrRegisterWithGoogle(req.user);
-    const code = await this.authService.createGoogleExchangeCode(result);
     const { platform, redirectUri } = parseOAuthState(req.query.state);
+    const client = platform === 'mobile' ? 'mobile' : 'web';
+    const result = await this.authService.loginOrRegisterWithGoogle(
+      req.user,
+      client,
+    );
+    const code = await this.authService.createGoogleExchangeCode(result);
 
     // redirect_uri explícito (Expo web / deep link) tiene prioridad.
     if (redirectUri) {

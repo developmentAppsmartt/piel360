@@ -47,24 +47,44 @@ export class SkiniverService {
     image: Buffer,
     fields: Record<string, string> = {},
   ): Promise<T> {
+    if (!image?.length) {
+      throw new InternalServerErrorException(
+        'No se recibió imagen para enviar a Skiniver',
+      );
+    }
+
     const form = new FormData();
     form.append('img', new Blob([new Uint8Array(image)]), 'photo.jpg');
     for (const [key, value] of Object.entries(fields)) {
       form.append(key, value);
     }
 
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      method: 'POST',
-      headers: { Authorization: `Basic ${this.token}` },
-      body: form,
-    });
-
-    if (!response.ok) {
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl}${path}`, {
+        method: 'POST',
+        headers: { Authorization: `Basic ${this.token}` },
+        body: form,
+      });
+    } catch (err) {
       throw new InternalServerErrorException(
-        `Skiniver ${path} respondió ${response.status}`,
+        `No se pudo contactar Skiniver ${path}: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
 
-    return response.json() as Promise<T>;
+    const raw = await response.text();
+    if (!response.ok) {
+      throw new InternalServerErrorException(
+        `Skiniver ${path} respondió ${response.status}: ${raw.slice(0, 300)}`,
+      );
+    }
+
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      throw new InternalServerErrorException(
+        `Skiniver ${path} devolvió JSON inválido: ${raw.slice(0, 200)}`,
+      );
+    }
   }
 }

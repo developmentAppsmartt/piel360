@@ -5,16 +5,28 @@ export type PatientAnalysisSummary = {
   finalDiagnosis?: string | null;
   aiProbability?: number | null;
   isConfirmed?: boolean;
+  isCorrected?: boolean;
   isValid?: boolean;
   sharedWithPatient?: boolean;
   sharedAt?: string | null;
   youcamTaskId?: string | null;
+  fitzpatrickTaskId?: string | null;
   imagePath?: string;
   imageUrl?: string | null;
   coloredUrl?: string | null;
   createdAt: string;
-  /** Presente en el listado crudo del API; útil para scores YouCam. */
-  aiRawResponse?: YoucamRawResponse | SkiniverRawResponse | null;
+  provider?: { displayLabel: string | null } | null;
+  patient?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
+  /** Presente en el listado crudo del API; útil para scores YouCam / Fitzpatrick. */
+  aiRawResponse?:
+    | YoucamRawResponse
+    | SkiniverRawResponse
+    | FitzpatrickRawResponse
+    | null;
 };
 
 export type YoucamOutputItem = {
@@ -53,6 +65,15 @@ export type SkiniverRawResponse = {
   [key: string]: unknown;
 };
 
+/** Resultado de GET task Fitzpatrick (packages/shared FitzpatrickResult). */
+export type FitzpatrickRawResponse = {
+  fitzpatrick_scale?: string;
+  timed?: number;
+  error?: boolean;
+  message?: string;
+  [key: string]: unknown;
+};
+
 export function normalizedProb(prob: number): number {
   return prob <= 1 ? prob * 100 : prob;
 }
@@ -74,6 +95,7 @@ export type AnalysisDetail = {
   id: string;
   patientId: string;
   youcamTaskId: string | null;
+  fitzpatrickTaskId?: string | null;
   bodyRegion: string | null;
   isValid: boolean;
   isConfirmed: boolean;
@@ -89,13 +111,19 @@ export type AnalysisDetail = {
   maskedUrl: string | null;
   hasOriginalPhoto: boolean;
   masks: AnalysisMask[];
-  aiRawResponse: YoucamRawResponse | SkiniverRawResponse | null;
+  aiRawResponse:
+    | YoucamRawResponse
+    | SkiniverRawResponse
+    | FitzpatrickRawResponse
+    | null;
   createdAt: string;
   updatedAt: string;
   patient?: {
     id: string;
     firstName: string;
     lastName: string;
+    skinType?: string | null;
+    fitzpatrickType?: string | null;
   } | null;
 };
 
@@ -134,12 +162,23 @@ export function youcamSkinAge(metrics: YoucamMetric[]): number | null {
 }
 
 export function youcamSkinType(metrics: YoucamMetric[]): string | null {
-  const item = metrics.find((m) => m.type === 'hd_skin_type');
-  return item?.skinType ?? null;
+  const preferred =
+    metrics.find(
+      (m) =>
+        m.type === 'hd_skin_type' &&
+        m.skinType &&
+        (!m.region || m.region === 'whole'),
+    ) ?? metrics.find((m) => m.type === 'hd_skin_type' && m.skinType);
+  return preferred?.skinType ?? null;
 }
 
-/** Score preferido para UI: uiScore → score → rawScore. */
-export function youcamMetricValue(metric: YoucamMetric): number | null {
+/** Score preferido para UI: uiScore → score → rawScore (default), o
+ * rawScore → score → uiScore si el usuario prefiere el valor sin ajustar. */
+export function youcamMetricValue(
+  metric: YoucamMetric,
+  preferRaw = false,
+): number | null {
+  if (preferRaw) return metric.rawScore ?? metric.score ?? metric.uiScore;
   return metric.uiScore ?? metric.score ?? metric.rawScore;
 }
 
@@ -179,10 +218,11 @@ export const YOUCAM_MAIN_METRIC_TYPES = [
 /** Agrupa por type eligiendo región whole/sin región cuando exista. */
 export function youcamScoresByType(
   metrics: YoucamMetric[],
+  preferRaw = false,
 ): Record<string, number> {
   const map: Record<string, number> = {};
   for (const m of metrics) {
-    const value = youcamMetricValue(m);
+    const value = youcamMetricValue(m, preferRaw);
     if (value == null) continue;
     const preferWhole = !m.region || m.region === 'whole';
     if (map[m.type] == null || preferWhole) {

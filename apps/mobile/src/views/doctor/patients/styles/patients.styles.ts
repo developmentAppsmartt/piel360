@@ -21,9 +21,12 @@ export function createDoctorPatientsStyles(colors: AppBranding['colors']) {
       justifyContent: 'space-between',
     },
     headerLeft: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
+      minWidth: 0,
+      paddingRight: 8,
     },
     headerBack: {
       color: colors.textOnDark,
@@ -32,14 +35,18 @@ export function createDoctorPatientsStyles(colors: AppBranding['colors']) {
       width: 28,
     },
     headerTitle: {
+      flex: 1,
+      flexShrink: 1,
       color: colors.textOnDark,
-      fontSize: 17,
+      fontSize: 15,
       fontWeight: '700',
+      lineHeight: 18,
     },
     headerActions: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
+      flexShrink: 0,
     },
     headerIconBtn: {
       width: 40,
@@ -76,33 +83,36 @@ export function createDoctorPatientsStyles(colors: AppBranding['colors']) {
       paddingBottom: 28,
       gap: 16,
     },
+    metricsGrid: {
+      gap: 10,
+    },
     metricsRow: {
       flexDirection: 'row',
       gap: 10,
     },
     metric: {
       flex: 1,
-      gap: 6,
+    },
+    metricCard: {
+      backgroundColor: '#FFFFFF',
+      borderRadius: 14,
+      borderWidth: 1.5,
+      borderColor: soft(colors.primary, '55'),
+      paddingVertical: 14,
+      paddingHorizontal: 12,
+      minHeight: 72,
+      justifyContent: 'center',
+      gap: 2,
+    },
+    metricValue: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: colors.primary,
     },
     metricLabel: {
       fontSize: 12,
       fontWeight: '700',
       color: colors.primaryDark,
-    },
-    metricCard: {
-      backgroundColor: '#FFFFFF',
-      borderRadius: 12,
-      borderWidth: 1.5,
-      borderColor: soft(colors.primary, '55'),
-      paddingVertical: 14,
-      paddingHorizontal: 12,
-      minHeight: 56,
-      justifyContent: 'center',
-    },
-    metricValue: {
-      fontSize: 22,
-      fontWeight: '800',
-      color: colors.primary,
     },
     newButton: {
       alignSelf: 'center',

@@ -13,6 +13,10 @@ export type Subscription = {
     analysisLimit: number;
     durationDays: number;
     price: string;
-    provider: { slug: string; name: string };
+    provider: {
+      slug: string;
+      name: string;
+      displayLabel?: string | null;
+    };
   };
 };

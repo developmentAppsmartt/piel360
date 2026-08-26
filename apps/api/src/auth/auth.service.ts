@@ -93,6 +93,10 @@ export class AuthService implements OnModuleDestroy {
     this.redis.disconnect();
   }
 
+  async registerDoctor(
+    dto: RegisterDoctorDto,
+    client: 'mobile' | 'web' = 'web',
+  ): Promise<AuthResult> {
   async registerDoctor(dto: RegisterDoctorDto): Promise<AuthResult> {
     if (dto.phoneTicket) {
       await this.consumePhoneTicket(dto.phoneTicket, dto.phone);
@@ -156,6 +160,7 @@ export class AuthService implements OnModuleDestroy {
       },
     });
 
+    return this.buildAuthResult(user, 'doctor', client);
     if (empresa) {
       const referralCode = empresaReferida
         ? this.generateReferralCode()
@@ -197,7 +202,10 @@ export class AuthService implements OnModuleDestroy {
     return `ALI-${randomBytes(4).toString('hex').toUpperCase()}`;
   }
 
-  async registerPatient(dto: RegisterPatientDto): Promise<AuthResult> {
+  async registerPatient(
+    dto: RegisterPatientDto,
+    client: 'mobile' | 'web' = 'web',
+  ): Promise<AuthResult> {
     const email = dto.email.trim().toLowerCase();
     const emailTicket = dto.emailTicket?.trim();
     if (emailTicket) {
@@ -231,10 +239,13 @@ export class AuthService implements OnModuleDestroy {
       include: { roles: { include: { permissions: true } }, patient: true },
     });
 
-    return this.buildAuthResult(user, 'patient');
+    return this.buildAuthResult(user, 'patient', client);
   }
 
-  async login(dto: LoginDto): Promise<AuthResult> {
+  async login(
+    dto: LoginDto,
+    client: 'mobile' | 'web' = 'web',
+  ): Promise<AuthResult> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
       include: {
@@ -255,7 +266,7 @@ export class AuthService implements OnModuleDestroy {
     }
 
     const role = this.resolveRole(user);
-    return this.buildAuthResult(user, role);
+    return this.buildAuthResult(user, role, client);
   }
 
   /**
@@ -264,7 +275,10 @@ export class AuthService implements OnModuleDestroy {
    * asigna en el registro inicial. `patient` sí puede agregarse a una cuenta
    * existente que aún no lo tenga (ej. un doctor que también quiere auto-analizarse).
    */
-  async loginOrRegisterWithGoogle(profile: GoogleProfile): Promise<AuthResult> {
+  async loginOrRegisterWithGoogle(
+    profile: GoogleProfile,
+    client: 'mobile' | 'web' = 'web',
+  ): Promise<AuthResult> {
     const existing = await this.prisma.user.findUnique({
       where: { email: profile.email },
       include: {
@@ -326,7 +340,7 @@ export class AuthService implements OnModuleDestroy {
         },
       });
 
-      return this.buildAuthResult(user, roleIntent);
+      return this.buildAuthResult(user, roleIntent, client);
     }
 
     const roleNames = existing.roles.map((r) => r.name);
@@ -375,7 +389,7 @@ export class AuthService implements OnModuleDestroy {
         : existing;
 
     const role = this.resolveRole(user);
-    return this.buildAuthResult(user, role);
+    return this.buildAuthResult(user, role, client);
   }
 
   /** Guarda el resultado de auth bajo un código de un solo uso (Redis, TTL
@@ -720,6 +734,11 @@ export class AuthService implements OnModuleDestroy {
     return Array.from(names);
   }
 
+  private buildAuthResult(
+    user: AuthUser,
+    role: Role,
+    client: 'mobile' | 'web' = 'web',
+  ): AuthResult {
   private buildAuthResult(user: AuthUser, role: Role): AuthResult {
     const empresa = user.doctor?.empresa ?? false;
     const empresaReferida = user.doctor?.empresaReferida ?? false;
@@ -740,7 +759,9 @@ export class AuthService implements OnModuleDestroy {
       ...doctorFlags,
     };
 
-    const accessToken = this.jwt.sign(payload, { expiresIn: '15m' });
+    // Mobile: 24h (sesión más larga en app). Web: 15m + refresh cookie.
+    const accessExpiresIn = client === 'mobile' ? '24h' : '15m';
+    const accessToken = this.jwt.sign(payload, { expiresIn: accessExpiresIn });
     const refreshToken = this.jwt.sign(
       { sub: payload.sub },
       {

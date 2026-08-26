@@ -47,6 +47,10 @@ export function createEditProfileStyles(colors: AppBranding['colors']) {
       fontSize: 16,
       color: colors.text,
     },
+    inputReadonly: {
+      backgroundColor: '#EEF0F3',
+      color: colors.muted,
+    },
     row: {
       flexDirection: 'row',
       gap: 10,

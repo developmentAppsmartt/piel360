@@ -41,7 +41,7 @@ export default function NuevoAnalisisFitzpatrickPage() {
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
             Este análisis captura una selfie del paciente para clasificar su fototipo de piel
-            (escala Fitzpatrick, tipo I a VI) mediante inteligencia artificial. La imagen se
+            (tipos I a VI) mediante inteligencia artificial. La imagen se
             procesa de forma segura y solo es visible para el equipo médico.
           </p>
           <label className="flex items-center gap-2 text-sm">

@@ -34,7 +34,15 @@ export function DoctorHeader({
             <AppIcon icon={Icons.back} size={28} color={onDark} />
           </Pressable>
         ) : null}
-        {title ? <Text style={styles.headerTitle}>{title}</Text> : null}
+        {title ? (
+          <Text
+            style={styles.headerTitle}
+            numberOfLines={2}
+            ellipsizeMode="tail"
+          >
+            {title}
+          </Text>
+        ) : null}
       </View>
       <View style={styles.headerActions}>
         <Pressable style={styles.headerIconBtn} accessibilityLabel="Premios">

@@ -36,8 +36,11 @@ export class AnalysesController {
     @UploadedFile() image: UploadedImage | undefined,
     @CurrentUser() user: JwtPayload,
   ) {
-    if (!image)
-      throw new BadRequestException('Falta la imagen (campo "image")');
+    if (!image?.buffer?.length) {
+      throw new BadRequestException(
+        'Falta la imagen (campo "image") o llegó vacía',
+      );
+    }
     return this.analysesService.performAnalysis(dto, image.buffer, user);
   }
 

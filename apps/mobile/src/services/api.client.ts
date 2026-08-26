@@ -47,7 +47,11 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     }
   }
 
-  const url = `${getApiBaseUrl()}${path.startsWith('/') ? path : `/${path}`}`;
+  // La API usa TTL de access token distinto para mobile (24h) vs web (15m).
+  headers['X-Client'] = 'mobile';
+
+  const baseUrl = getApiBaseUrl();
+  const url = `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
 
   let response: Response;
   try {
@@ -61,9 +65,10 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
             ? (body as FormData)
             : JSON.stringify(body),
     });
-  } catch {
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
     throw new ApiError(
-      'No se pudo conectar con el servidor. Revisa que la API esté en marcha y EXPO_PUBLIC_API_URL.',
+      `No se pudo conectar con ${baseUrl} (${detail}). Si usas un APK, recompílalo con EXPO_PUBLIC_API_URL de producción.`,
       0,
     );
   }

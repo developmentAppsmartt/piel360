@@ -50,44 +50,58 @@ export class YouCamService {
   }
 
   async uploadImage(image: Buffer): Promise<string> {
-    const declareResponse = await fetch(
-      `${this.baseUrl}/s2s/v2.1/file/skin-analysis`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
+    let declareResponse: Response;
+    try {
+      declareResponse = await fetch(
+        `${this.baseUrl}/s2s/v2.1/file/skin-analysis`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            files: [
+              {
+                content_type: 'image/jpeg',
+                file_name: 'photo.jpg',
+                file_size: image.length,
+              },
+            ],
+          }),
         },
-        body: JSON.stringify({
-          files: [
-            {
-              content_type: 'image/jpeg',
-              file_name: 'photo.jpg',
-              file_size: image.length,
-            },
-          ],
-        }),
-      },
-    );
+      );
+    } catch (err) {
+      throw new InternalServerErrorException(
+        `No se pudo contactar YouCam (file/skin-analysis): ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
     if (!declareResponse.ok) {
       await this.throwYouCamError(declareResponse, 'YouCam file/skin-analysis');
     }
 
     const json = (await declareResponse.json()) as UploadUrlResponse;
-    const uploadData = json.data.files[0];
+    const uploadData = json.data?.files?.[0];
     const fileId = uploadData?.file_id;
-    const uploadUrl = uploadData?.requests[0]?.url;
+    const uploadUrl = uploadData?.requests?.[0]?.url;
     if (!fileId || !uploadUrl) {
       throw new InternalServerErrorException(
         'El JSON de YouCam no contiene file_id o la URL de subida',
       );
     }
 
-    const uploadResponse = await fetch(uploadUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'image/jpeg' },
-      body: new Uint8Array(image),
-    });
+    let uploadResponse: Response;
+    try {
+      uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'image/jpeg' },
+        body: new Uint8Array(image),
+      });
+    } catch (err) {
+      throw new InternalServerErrorException(
+        `No se pudo subir la imagen al storage de YouCam: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
     if (!uploadResponse.ok) {
       const body = await uploadResponse.text();
       throw new InternalServerErrorException(
@@ -102,9 +116,9 @@ export class YouCamService {
     fileId: string,
     enableMaskOverlay = false,
   ): Promise<string> {
-    const response = await fetch(
-      `${this.baseUrl}/s2s/v2.1/task/skin-analysis`,
-      {
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl}/s2s/v2.1/task/skin-analysis`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
@@ -117,14 +131,24 @@ export class YouCamService {
           format: 'json',
           pf_camera_kit: true,
         }),
-      },
-    );
+      });
+    } catch (err) {
+      throw new InternalServerErrorException(
+        `No se pudo contactar YouCam (task/skin-analysis): ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
     if (!response.ok) {
       await this.throwYouCamError(response, 'YouCam task/skin-analysis');
     }
 
     const json = (await response.json()) as StartAnalysisResponse;
-    return json.data.task_id;
+    const taskId = json.data?.task_id;
+    if (!taskId) {
+      throw new InternalServerErrorException(
+        'YouCam no devolvió task_id al iniciar el análisis',
+      );
+    }
+    return taskId;
   }
 
   /** No lanza en `task_status: 'error'` — YouCam puede rechazar la tarea de

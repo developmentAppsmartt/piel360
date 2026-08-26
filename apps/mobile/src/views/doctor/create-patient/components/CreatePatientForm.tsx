@@ -245,7 +245,7 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Fototipo Fitzpatrick</Text>
+          <Text style={styles.label}>Fototipo</Text>
           <View style={styles.fitzRow}>
             {PATIENT_FITZ_OPTIONS.map((f) => {
               const active = fitzpatrickType === f.value;

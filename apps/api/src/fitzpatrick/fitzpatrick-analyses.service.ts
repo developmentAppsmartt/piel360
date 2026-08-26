@@ -50,7 +50,7 @@ export class FitzpatrickAnalysesService {
     );
     if (!subscription) {
       throw new BadRequestException(
-        'No tienes una suscripción activa de Fitzpatrick',
+        'No tienes una suscripción activa de análisis de fototipo',
       );
     }
 
@@ -91,6 +91,10 @@ export class FitzpatrickAnalysesService {
           isValid: true,
         },
       });
+      await tx.patient.update({
+        where: { id: BigInt(dto.patientId) },
+        data: { fitzpatrickType: result.fitzpatrick_scale },
+      });
       await this.subscriptions.consumeCredit(tx, subscription.id, created.id);
       return created;
     });
@@ -122,7 +126,7 @@ export class FitzpatrickAnalysesService {
         throw new BadRequestException(check.message);
       if (Date.now() >= deadline) {
         throw new BadRequestException(
-          'El análisis Fitzpatrick está tardando más de lo esperado — intenta de nuevo en unos minutos.',
+          'El análisis de fototipo está tardando más de lo esperado — intenta de nuevo en unos minutos.',
         );
       }
       await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));

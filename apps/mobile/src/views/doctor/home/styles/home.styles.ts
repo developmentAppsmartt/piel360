@@ -62,6 +62,15 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
       color: colors.text,
       letterSpacing: -0.3,
     },
+    pendingHint: {
+      marginTop: 6,
+      fontSize: 13,
+      fontWeight: '600',
+      color: '#B45309',
+    },
+    statsGrid: {
+      gap: 10,
+    },
     statsRow: {
       flexDirection: 'row',
       gap: 10,
@@ -71,30 +80,30 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
       backgroundColor: '#FFFFFF',
       borderRadius: 16,
       paddingVertical: 14,
-      paddingHorizontal: 10,
-      alignItems: 'center',
-      gap: 6,
+      paddingHorizontal: 12,
+      alignItems: 'flex-start',
+      gap: 4,
       ...appShadow({ opacity: 0.08, radius: 10, offsetY: 3, elevation: 2 }),
     },
     statIconWrap: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: 34,
+      height: 34,
+      borderRadius: 17,
       backgroundColor: soft(colors.primary, '22'),
       alignItems: 'center',
       justifyContent: 'center',
+      marginBottom: 4,
     },
     statValue: {
-      fontSize: 22,
+      fontSize: 24,
       fontWeight: '800',
-      color: colors.text,
+      color: colors.primary,
     },
     statLabel: {
-      fontSize: 11,
-      fontWeight: '600',
+      fontSize: 12,
+      fontWeight: '700',
       color: colors.muted,
-      textAlign: 'center',
-      lineHeight: 14,
+      lineHeight: 15,
     },
     actionsRow: {
       flexDirection: 'row',
@@ -177,6 +186,9 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
     badgeDone: {
       backgroundColor: '#DCFCE7',
     },
+    badgeInvalid: {
+      backgroundColor: '#FEE2E2',
+    },
     badgeText: {
       fontSize: 11,
       fontWeight: '700',
@@ -186,6 +198,9 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
     },
     badgeTextDone: {
       color: '#15803D',
+    },
+    badgeTextInvalid: {
+      color: '#B91C1C',
     },
     empty: {
       padding: 20,
