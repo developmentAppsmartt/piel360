@@ -1,6 +1,6 @@
 import type { Role } from "@piel360/shared";
 import { Logo } from "./logo";
-import type { NavItem } from "./nav-items";
+import { filterNavByFeatures, type NavItem } from "./nav-items";
 import { PanelHeader } from "./panel-header";
 import { SidebarNav } from "./sidebar-nav";
 
@@ -12,16 +12,63 @@ export function PanelShell({
   sidebarUser,
 }: {
   nav: NavItem[];
-  user: { email: string; role: Role };
+  user: {
+    email: string;
+    role: Role;
+    empresa?: boolean;
+    empresaReferida?: boolean;
+    verificationStatus?: string | null;
+  };
   children: React.ReactNode;
   notificationCount?: number;
   /** Card inferior del sidebar (p. ej. Super Admin). */
   sidebarUser?: { name: string; subtitle: string };
 }) {
-  const resolvedNav = nav.map(({ icon: Icon, ...item }) => ({
-    ...item,
-    icon: <Icon className="size-5 shrink-0" />,
-  }));
+  const visibleNav = filterNavByFeatures(nav, {
+    role: user.role,
+    empresa: user.empresa,
+    empresaReferida: user.empresaReferida,
+    verificationStatus: user.verificationStatus,
+  });
+
+  function resolveItems(
+    items: ReturnType<typeof filterNavByFeatures>,
+  ): Parameters<typeof SidebarNav>[0]["items"] {
+    return items.map(
+      ({
+        icon: Icon,
+        children,
+        roles: _roles,
+        requiresEmpresa: _e,
+        requiresEmpresaReferida: _er,
+        allowedWhilePending: _p,
+        ...item
+      }) => ({
+        label: item.label,
+        href: item.href,
+        icon: <Icon className="size-5 shrink-0" />,
+        children: children?.length
+          ? children.map(
+              ({
+                icon: ChildIcon,
+                roles: _r,
+                children: _c,
+                requiresEmpresa: _ce,
+                requiresEmpresaReferida: _cer,
+                allowedWhilePending: _cp,
+                ...child
+              }) => ({
+                label: child.label,
+                href: child.href,
+                icon: <ChildIcon className="size-4 shrink-0" />,
+              }),
+            )
+          : undefined,
+      }),
+    );
+  }
+
+  const resolvedNav = resolveItems(visibleNav);
 
   return (
     <div className="flex min-h-full flex-1 bg-[#F5F6FA] dark:bg-background">

@@ -30,21 +30,43 @@ model User {
   birthday           DateTime? @db.Date
   gender             String?
   phone              String?
+  phoneVerifiedAt    DateTime? @map("phone_verified_at")
   address            String?
   latitude           Decimal?  @db.Decimal(10, 7)
   longitude          Decimal?  @db.Decimal(10, 7)
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
-  doctor            Doctor?
-  patient           Patient?
-  analyses          Analysis[]     @relation("ExecutedAnalyses")
-  confirmedAnalyses Analysis[]     @relation("ConfirmedAnalyses")
-  subscriptions     Subscription[]
-  roles             Role[]
-  sentMessages      Message[]
+  doctor                 Doctor?
+  patient                Patient?
+  moderator              Moderator?
+  analyses               Analysis[]     @relation("ExecutedAnalyses")
+  confirmedAnalyses      Analysis[]     @relation("ConfirmedAnalyses")
+  subscriptions          Subscription[]
+  roles                  Role[]
+  sentMessages           Message[]
+  ownedOrganizations     Organization[]       @relation("OrganizationOwner")
+  organizationMembers    OrganizationMember[]
+  referredBy             Referral[]           @relation("ReferredUser")
 
   @@map("users")
+}
+
+/** Perfil de moderador (rol RBAC `monitor`) — validación de doctores. */
+model Moderator {
+  id         BigInt   @id @default(autoincrement())
+  userId     BigInt   @unique @map("user_id")
+  firstName  String   @map("first_name")
+  lastName   String   @map("last_name")
+  docType    String?  @map("doc_type")
+  docNumber  String?  @map("doc_number")
+  phone      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("moderators")
 }
 
 model Doctor {
@@ -54,6 +76,8 @@ model Doctor {
   lastName             String    @map("last_name")
   birthDate            DateTime? @map("birth_date") @db.Date
   gender               String?
+  docType              String?   @map("doc_type")
+  docNumber            String?   @map("doc_number")
   phone                String?
   lat                  Decimal?  @db.Decimal(10, 8)
   lng                  Decimal?  @db.Decimal(11, 8)
@@ -62,16 +86,94 @@ model Doctor {
   country              String?
   zip                  String?
   metadataGooglePlaces Json?     @map("metadata_google_places")
+  /** solo_doctor | empresa | empresa_aliada — intención de registro */
+  membershipType       String    @default("solo_doctor") @map("membership_type")
+  /** pending | in_review | verified | approved | active | rejected */
+  verificationStatus   String    @default("pending") @map("verification_status")
+  /** Activa módulo Equipo (no es un rol RBAC). */
+  empresa              Boolean   @default(false)
+  /** Activa módulo Referidos (no es un rol RBAC). */
+  empresaReferida      Boolean   @default(false) @map("empresa_referida")
+  specialty            String?
+  medicalRegistry      String?   @map("medical_registry")
+  licenseNumber        String?   @map("license_number")
+  educationEntity      String?   @map("education_entity")
+  graduationInstitution String?  @map("graduation_institution")
+  cedulaDocKey         String?   @map("cedula_doc_key")
+  medicalRegistryDocKey String?  @map("medical_registry_doc_key")
+  diplomaDocKey        String?   @map("diploma_doc_key")
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  patients          Patient[]
-  conversations     Conversation[]
-  productCategories ProductCategory[]
-  products          Product[]
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  patients            Patient[]
+  conversations       Conversation[]
+  productCategories   ProductCategory[]
+  products            Product[]
+  routines            Routine[]
+  treatmentCategories TreatmentCategory[]
+  treatments          Treatment[]
 
   @@map("doctors")
+}
+
+/** Organización / membresía empresa (planes de asientos, no créditos de análisis). */
+model Organization {
+  id           BigInt   @id @default(autoincrement())
+  /** empresa | empresa_aliada */
+  type         String
+  name         String
+  ownerUserId  BigInt   @map("owner_user_id")
+  /** two | five | ten | custom */
+  seatPlan     String   @default("two") @map("seat_plan")
+  seatLimit    Int      @default(2) @map("seat_limit")
+  referralCode String?  @unique @map("referral_code")
+  /** pending | active | suspended */
+  status       String   @default("pending")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  owner   User                 @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  members OrganizationMember[]
+  referrals Referral[]
+
+  @@index([ownerUserId])
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             BigInt   @id @default(autoincrement())
+  organizationId BigInt   @map("organization_id")
+  userId         BigInt   @map("user_id")
+  /** owner | member */
+  memberRole     String   @default("member") @map("member_role")
+  /** Permisos del equipo: string[] (TEAM_MEMBER_PERMISSIONS). Owner ignora este campo. */
+  permissions    Json     @default("[]")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+/** Stub de referidos para empresa aliada. */
+model Referral {
+  id             BigInt   @id @default(autoincrement())
+  organizationId BigInt   @map("organization_id")
+  code           String
+  referredUserId BigInt?  @map("referred_user_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  referredUser User?        @relation("ReferredUser", fields: [referredUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([code])
+  @@map("referrals")
 }
 
 model Patient {
@@ -401,6 +503,8 @@ model Product {
   productDescription String?  @map("product_description") @db.Text
   productUrl         String?  @map("product_url")
   imageUrl           String?  @map("image_url")
+  /** "product" | "supplement" — mismo CRUD/UI, solo cambia etiqueta y filtro. */
+  productType        String   @default("product") @map("product_type")
   enablePrice        Boolean  @default(false) @map("enable_price")
   /** "fixed" | "variable" */
   pricingType        String?  @map("pricing_type")
@@ -410,10 +514,149 @@ model Product {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  doctor   Doctor          @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  category ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  doctor         Doctor             @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  category       ProductCategory    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  routineSteps   RoutineStep[]
+  treatmentItems TreatmentProduct[]
 
   @@index([doctorId])
   @@index([categoryId])
+  @@index([productType])
   @@map("products")
+}
+
+model Routine {
+  id          BigInt   @id @default(autoincrement())
+  doctorId    BigInt   @map("doctor_id")
+  name        String
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  doctor     Doctor             @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  conditions RoutineCondition[]
+  steps      RoutineStep[]
+
+  @@index([doctorId])
+  @@map("routines")
+}
+
+/** Condiciones de una rutina — combinadas con lógica O (basta con que una se
+ * cumpla) contra AnalysisResult.{uiScore ?? score ?? rawScore} del mismo
+ * metricType+region. Solo aplica a análisis YouCam por ahora. */
+model RoutineCondition {
+  id         BigInt   @id @default(autoincrement())
+  routineId  BigInt   @map("routine_id")
+  /** Uno de YOUCAM_DST_ACTIONS (packages/shared/src/constants.ts), ej. "hd_wrinkle". */
+  metricType String   @map("metric_type")
+  /** null = sin región / "whole". */
+  region     String?
+  /** "lt" | "lte" | "eq" | "gte" | "gt" — validado en el DTO. */
+  operator   String
+  value      Float
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  routine Routine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+
+  @@index([routineId])
+  @@map("routine_conditions")
+}
+
+model RoutineStep {
+  id          BigInt   @id @default(autoincrement())
+  routineId   BigInt   @map("routine_id")
+  order       Int
+  title       String
+  /** Texto libre — incluye horario/frecuencia (ej. "Aplicar cada noche antes de dormir"). */
+  description String?  @db.Text
+  /** Key S3 cruda (no URL) — mismo patrón que Product.imageUrl, se firma al leer. */
+  mediaUrl    String?  @map("media_url")
+  /** "image" | "video" | "gif". */
+  mediaType   String?  @map("media_type")
+  productId   BigInt?  @map("product_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  routine Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([routineId])
+  @@index([productId])
+  @@map("routine_steps")
+}
+
+/** Categorías de tratamiento — scoped al doctor, texto libre (ej. "Invasivo",
+ * "No invasivo"). Mismo patrón que ProductCategory. */
+model TreatmentCategory {
+  id           BigInt   @id @default(autoincrement())
+  doctorId     BigInt   @map("doctor_id")
+  categoryName String   @map("category_name")
+  createdAt    DateTime @default(now()) @map("created_at")
+  lastModified DateTime @updatedAt @map("last_modified")
+
+  doctor     Doctor      @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  treatments Treatment[]
+
+  @@index([doctorId])
+  @@map("treatment_categories")
+}
+
+/** Entidad unificada: lista ordenada de productos recomendados, condicionada
+ * por puntaje. Si categoryId es null se presenta al doctor como "Producto
+ * sugerido"; con categoría, como "Tratamiento" — mismo backend en ambos casos. */
+model Treatment {
+  id          BigInt   @id @default(autoincrement())
+  doctorId    BigInt   @map("doctor_id")
+  categoryId  BigInt?  @map("category_id")
+  name        String
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  doctor     Doctor               @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  category   TreatmentCategory?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  conditions TreatmentCondition[]
+  items      TreatmentProduct[]
+
+  @@index([doctorId])
+  @@index([categoryId])
+  @@map("treatments")
+}
+
+/** Condiciones de un tratamiento — mismo shape/motor que RoutineCondition. */
+model TreatmentCondition {
+  id          BigInt   @id @default(autoincrement())
+  treatmentId BigInt   @map("treatment_id")
+  metricType  String   @map("metric_type")
+  region      String?
+  operator    String
+  value       Float
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  treatment Treatment @relation(fields: [treatmentId], references: [id], onDelete: Cascade)
+
+  @@index([treatmentId])
+  @@map("treatment_conditions")
+}
+
+/** Ítem ordenado dentro de un Treatment — lista plana de productos, sin pasos
+ * ni media (a diferencia de RoutineStep). onDelete: Cascade en product porque
+ * una fila sin su producto no tiene sentido (a diferencia de RoutineStep). */
+model TreatmentProduct {
+  id          BigInt   @id @default(autoincrement())
+  treatmentId BigInt   @map("treatment_id")
+  productId   BigInt   @map("product_id")
+  order       Int
+  /** Nota/uso específico dentro de este tratamiento. */
+  note        String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  treatment Treatment @relation(fields: [treatmentId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([treatmentId])
+  @@index([productId])
+  @@map("treatment_products")
 }

@@ -56,7 +56,7 @@ export class AnalysesController {
 
   @Patch(':id/confirm')
   @UseGuards(RolesGuard)
-  @Roles('doctor', 'admin')
+  @Roles('doctor', 'superadmin')
   confirm(
     @Param('id') id: string,
     @Body() dto: ConfirmAnalysisDto,
@@ -68,7 +68,7 @@ export class AnalysesController {
   /** Publica el análisis en el historial del paciente (app móvil). */
   @Patch(':id/share')
   @UseGuards(RolesGuard)
-  @Roles('doctor', 'admin')
+  @Roles('doctor', 'superadmin')
   share(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.analysesService.shareWithPatient(id, user);
   }

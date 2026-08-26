@@ -172,4 +172,64 @@ export class AdminService {
     if (granularity === 'year') return `${year}`;
     return `${year}-${month}`;
   }
+
+  /** Marcadores para el mapa de registros (doctores y pacientes con coords). */
+  async getMapMarkers(kind?: 'doctor' | 'patient') {
+    const includeDoctors = !kind || kind === 'doctor';
+    const includePatients = !kind || kind === 'patient';
+
+    const [doctors, patients] = await Promise.all([
+      includeDoctors
+        ? this.prisma.doctor.findMany({
+            where: { lat: { not: null }, lng: { not: null } },
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              specialty: true,
+              city: true,
+              lat: true,
+              lng: true,
+              membershipType: true,
+              verificationStatus: true,
+            },
+          })
+        : Promise.resolve([]),
+      includePatients
+        ? this.prisma.patient.findMany({
+            where: { lat: { not: null }, lng: { not: null } },
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              address: true,
+              lat: true,
+              lng: true,
+            },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    return {
+      doctors: doctors.map((d) => ({
+        id: d.id.toString(),
+        kind: 'doctor' as const,
+        name: `${d.firstName} ${d.lastName}`.trim(),
+        specialty: d.specialty,
+        city: d.city,
+        membershipType: d.membershipType,
+        verificationStatus: d.verificationStatus,
+        lat: Number(d.lat),
+        lng: Number(d.lng),
+      })),
+      patients: patients.map((p) => ({
+        id: p.id.toString(),
+        kind: 'patient' as const,
+        name: `${p.firstName} ${p.lastName}`.trim(),
+        city: p.address,
+        lat: Number(p.lat),
+        lng: Number(p.lng),
+      })),
+    };
+  }
 }

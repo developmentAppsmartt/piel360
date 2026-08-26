@@ -7,11 +7,16 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import type { Role } from '@piel360/shared';
+import {
+  SEAT_PLAN_LIMITS,
+  type MembershipType,
+  type Role,
+} from '@piel360/shared';
 import * as argon2 from 'argon2';
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { Redis } from 'ioredis';
 import { MailService } from '../mail/mail.service';
+import { SmsService } from '../sms/sms.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { ForgotPasswordDto } from './dto/forgot-password.dto';
 import type { LoginDto } from './dto/login.dto';
@@ -20,6 +25,8 @@ import type { RegisterPatientDto } from './dto/register-patient.dto';
 import type { ResetPasswordDto } from './dto/reset-password.dto';
 import type { SendOtpDto } from './dto/send-otp.dto';
 import type { VerifyOtpDto } from './dto/verify-otp.dto';
+import type { SendPhoneOtpDto } from './dto/send-phone-otp.dto';
+import type { VerifyPhoneOtpDto } from './dto/verify-phone-otp.dto';
 import type { GoogleProfile } from './google.strategy';
 import type { JwtPayload } from './types';
 
@@ -35,7 +42,7 @@ const OTP_TTL_SECONDS = 10 * 60;
 const OTP_TICKET_TTL_SECONDS = 15 * 60;
 const OTP_MAX_ATTEMPTS = 5;
 
-const ROLE_PRIORITY: Role[] = ['admin', 'doctor', 'patient'];
+const ROLE_PRIORITY: Role[] = ['superadmin', 'monitor', 'doctor', 'patient'];
 
 interface AuthUser {
   id: bigint;
@@ -43,6 +50,11 @@ interface AuthUser {
   name: string;
   roles: { name: string; permissions: { name: string }[] }[];
   patient?: { surveyCompletedAt: Date | null } | null;
+  doctor?: {
+    empresa: boolean;
+    empresaReferida: boolean;
+    verificationStatus: string;
+  } | null;
 }
 
 export interface AuthResult {
@@ -53,6 +65,9 @@ export interface AuthResult {
     email: string;
     name: string;
     role: Role;
+    empresa?: boolean;
+    empresaReferida?: boolean;
+    verificationStatus?: string;
   };
 }
 
@@ -65,6 +80,7 @@ export class AuthService implements OnModuleDestroy {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly mail: MailService,
+    private readonly sms: SmsService,
   ) {
     this.redis = new Redis(this.config.getOrThrow<string>('REDIS_URL'), {
       lazyConnect: true,
@@ -81,8 +97,17 @@ export class AuthService implements OnModuleDestroy {
     dto: RegisterDoctorDto,
     client: 'mobile' | 'web' = 'web',
   ): Promise<AuthResult> {
+  async registerDoctor(dto: RegisterDoctorDto): Promise<AuthResult> {
+    if (dto.phoneTicket) {
+      await this.consumePhoneTicket(dto.phoneTicket, dto.phone);
+    }
     await this.assertEmailAvailable(dto.email);
     const password = await argon2.hash(dto.password);
+    const membershipType: MembershipType =
+      dto.membershipType ?? 'solo_doctor';
+    const empresa =
+      membershipType === 'empresa' || membershipType === 'empresa_aliada';
+    const empresaReferida = membershipType === 'empresa_aliada';
 
     const user = await this.prisma.user.create({
       data: {
@@ -91,18 +116,90 @@ export class AuthService implements OnModuleDestroy {
         name: `${dto.firstName} ${dto.lastName}`,
         firstName: dto.firstName,
         lastName: dto.lastName,
+        phone: dto.phone,
+        phoneVerifiedAt: dto.phoneTicket ? new Date() : null,
         roles: { connect: { name: 'doctor' } },
         doctor: {
           create: {
             firstName: dto.firstName,
             lastName: dto.lastName,
+            phone: dto.phone,
+            membershipType,
+            empresa,
+            empresaReferida,
+            verificationStatus: 'pending',
+            docType: dto.docType?.trim() || null,
+            docNumber: dto.docNumber?.trim() || null,
+            gender: dto.gender?.trim() || null,
+            ...(dto.birthDate
+              ? { birthDate: new Date(dto.birthDate) }
+              : {}),
+            specialty: dto.specialty?.trim() || null,
+            medicalRegistry: dto.medicalRegistry?.trim() || null,
+            licenseNumber: dto.licenseNumber?.trim() || null,
+            educationEntity: dto.educationEntity?.trim() || null,
+            graduationInstitution: dto.graduationInstitution?.trim() || null,
+            address: dto.address?.trim() || null,
+            city: dto.city?.trim() || null,
+            country: dto.country?.trim() || null,
+            ...(dto.lat != null && dto.lng != null
+              ? { lat: dto.lat, lng: dto.lng }
+              : {}),
           },
         },
       },
-      include: { roles: { include: { permissions: true } } },
+      include: {
+        roles: { include: { permissions: true } },
+        doctor: {
+          select: {
+            empresa: true,
+            empresaReferida: true,
+            verificationStatus: true,
+          },
+        },
+      },
     });
 
     return this.buildAuthResult(user, 'doctor', client);
+    if (empresa) {
+      const referralCode = empresaReferida
+        ? this.generateReferralCode()
+        : null;
+      const orgName = `Clínica ${dto.firstName} ${dto.lastName}`.trim();
+      const orgType = empresaReferida ? 'empresa_aliada' : 'empresa';
+
+      await this.prisma.organization.create({
+        data: {
+          type: orgType,
+          name: orgName,
+          ownerUserId: user.id,
+          seatPlan: 'two',
+          seatLimit: SEAT_PLAN_LIMITS.two,
+          referralCode,
+          status: 'pending',
+          members: {
+            create: {
+              userId: user.id,
+              memberRole: 'owner',
+            },
+          },
+          ...(referralCode
+            ? {
+                referrals: {
+                  create: { code: referralCode },
+                },
+              }
+            : {}),
+        },
+      });
+    }
+
+    const role = this.resolveRole(user);
+    return this.buildAuthResult(user, role);
+  }
+
+  private generateReferralCode(): string {
+    return `ALI-${randomBytes(4).toString('hex').toUpperCase()}`;
   }
 
   async registerPatient(
@@ -110,10 +207,11 @@ export class AuthService implements OnModuleDestroy {
     client: 'mobile' | 'web' = 'web',
   ): Promise<AuthResult> {
     const email = dto.email.trim().toLowerCase();
-    const ticket = dto.emailTicket?.trim();
-    if (ticket) {
-      await this.consumeRegisterTicket(ticket, email);
+    const emailTicket = dto.emailTicket?.trim();
+    if (emailTicket) {
+      await this.consumeRegisterTicket(emailTicket, email);
     }
+    await this.consumePhoneTicket(dto.phoneTicket, dto.phone);
 
     await this.assertEmailAvailable(email);
     const password = await argon2.hash(dto.password);
@@ -126,7 +224,9 @@ export class AuthService implements OnModuleDestroy {
         firstName: dto.firstName,
         lastName: dto.lastName,
         // Solo se marca verificado si hubo ticket OTP.
-        emailVerifiedAt: ticket ? new Date() : null,
+        emailVerifiedAt: emailTicket ? new Date() : null,
+        phone: dto.phone,
+        phoneVerifiedAt: new Date(),
         roles: { connect: { name: 'patient' } },
         patient: {
           create: {
@@ -148,7 +248,17 @@ export class AuthService implements OnModuleDestroy {
   ): Promise<AuthResult> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
-      include: { roles: { include: { permissions: true } }, patient: true },
+      include: {
+        roles: { include: { permissions: true } },
+        patient: true,
+        doctor: {
+          select: {
+            empresa: true,
+            empresaReferida: true,
+            verificationStatus: true,
+          },
+        },
+      },
     });
 
     if (!user || !(await argon2.verify(user.password, dto.password))) {
@@ -171,7 +281,17 @@ export class AuthService implements OnModuleDestroy {
   ): Promise<AuthResult> {
     const existing = await this.prisma.user.findUnique({
       where: { email: profile.email },
-      include: { roles: { include: { permissions: true } }, patient: true },
+      include: {
+        roles: { include: { permissions: true } },
+        patient: true,
+        doctor: {
+          select: {
+            empresa: true,
+            empresaReferida: true,
+            verificationStatus: true,
+          },
+        },
+      },
     });
 
     if (!existing) {
@@ -207,7 +327,17 @@ export class AuthService implements OnModuleDestroy {
                 },
               }),
         },
-        include: { roles: { include: { permissions: true } }, patient: true },
+        include: {
+          roles: { include: { permissions: true } },
+          patient: true,
+          doctor: {
+            select: {
+              empresa: true,
+              empresaReferida: true,
+              verificationStatus: true,
+            },
+          },
+        },
       });
 
       return this.buildAuthResult(user, roleIntent, client);
@@ -247,6 +377,13 @@ export class AuthService implements OnModuleDestroy {
             include: {
               roles: { include: { permissions: true } },
               patient: true,
+              doctor: {
+                select: {
+                  empresa: true,
+                  empresaReferida: true,
+                  verificationStatus: true,
+                },
+              },
             },
           })
         : existing;
@@ -431,6 +568,104 @@ export class AuthService implements OnModuleDestroy {
     return { ok: true };
   }
 
+  /**
+   * OTP de teléfono por SMS — Altiria no tiene ningún recurso de OTP nativo
+   * (confirmado contra la spec oficial), solo envío de SMS. El código lo
+   * generamos y guardamos nosotros, mismo patrón exacto que el OTP de email
+   * (sendOtp/verifyOtp): 5 dígitos en Redis con intentos/expiración.
+   */
+  async sendPhoneOtp(dto: SendPhoneOtpDto): Promise<{ ok: true }> {
+    const phone = dto.phone.trim();
+    const existing = await this.prisma.user.findFirst({ where: { phone } });
+    if (existing) {
+      throw new ConflictException('Ya existe una cuenta con ese teléfono');
+    }
+
+    const code = String(randomInt(10000, 100000));
+    await this.ensureRedis();
+    await this.redis.set(
+      this.phoneOtpKey(phone),
+      JSON.stringify({ code, attempts: 0 }),
+      'EX',
+      OTP_TTL_SECONDS,
+    );
+
+    await this.sms.sendSms(
+      phone,
+      `Tu código de verificación Piel360 es: ${code}. Expira en 10 minutos.`,
+    );
+
+    if (!this.config.get<string>('ALTIRIA_API_KEY')) {
+      // Local/dev sin credenciales de Altiria: deja el código en logs del API.
+      console.warn(`[OTP phone] ${phone} → ${code}`);
+    }
+
+    return { ok: true };
+  }
+
+  async verifyPhoneOtp(
+    dto: VerifyPhoneOtpDto,
+  ): Promise<{ ok: true; ticket: string }> {
+    const phone = dto.phone.trim();
+    const key = this.phoneOtpKey(phone);
+    await this.ensureRedis();
+    const raw = await this.redis.get(key);
+    if (!raw) {
+      throw new BadRequestException('Código inválido o expirado');
+    }
+
+    const stored = JSON.parse(raw) as { code: string; attempts: number };
+    if (stored.attempts >= OTP_MAX_ATTEMPTS) {
+      await this.redis.del(key);
+      throw new BadRequestException(
+        'Demasiados intentos. Solicita un nuevo código.',
+      );
+    }
+
+    if (stored.code !== dto.code.trim()) {
+      stored.attempts += 1;
+      const ttl = await this.redis.ttl(key);
+      await this.redis.set(
+        key,
+        JSON.stringify(stored),
+        'EX',
+        ttl > 0 ? ttl : OTP_TTL_SECONDS,
+      );
+      throw new BadRequestException('Código incorrecto');
+    }
+
+    await this.redis.del(key);
+
+    const ticket = randomUUID();
+    await this.redis.set(
+      this.phoneTicketKey(ticket),
+      phone,
+      'EX',
+      OTP_TICKET_TTL_SECONDS,
+    );
+    return { ok: true, ticket };
+  }
+
+  private phoneOtpKey(phone: string) {
+    return `otp:phone:${phone}`;
+  }
+
+  private phoneTicketKey(ticket: string) {
+    return `otp-ticket:phone:${ticket}`;
+  }
+
+  private async consumePhoneTicket(ticket: string, phone: string) {
+    await this.ensureRedis();
+    const key = this.phoneTicketKey(ticket);
+    const storedPhone = await this.redis.get(key);
+    if (!storedPhone || storedPhone !== phone.trim()) {
+      throw new BadRequestException(
+        'Debes verificar tu teléfono con el código enviado por SMS antes de registrarte',
+      );
+    }
+    await this.redis.del(key);
+  }
+
   private otpKey(purpose: string, email: string) {
     return `otp:${purpose}:${email}`;
   }
@@ -477,22 +712,19 @@ export class AuthService implements OnModuleDestroy {
     }
   }
 
-  /** Un usuario recién registrado solo tiene un rol; se deja la prioridad
-   * admin > doctor > patient por si en el futuro un usuario acumula varios.
-   * Si ninguno de sus roles calza con esos 3 nombres pero tiene al menos un
-   * permiso (rol personalizado, ver /admin/roles), igual se le da acceso al
-   * panel admin — es la única forma de que un "admin limitado" pueda entrar,
-   * ya que el frontend rutea por este claim (apps/web/src/proxy.ts). */
+  /** Prioridad: superadmin > monitor > doctor > patient.
+   * Si ninguno calza pero tiene permisos (rol personalizado), se trata como
+   * superadmin para ruteo del panel (apps/web/src/proxy.ts). */
   private resolveRole(user: AuthUser): Role {
     const names = user.roles.map((r) => r.name);
     const match = ROLE_PRIORITY.find((role) => names.includes(role));
     if (match) return match;
-    if (this.resolvePermissions(user).length > 0) return 'admin';
+    if (this.resolvePermissions(user).length > 0) return 'superadmin';
     throw new UnauthorizedException('El usuario no tiene un rol asignado');
   }
 
   /** Unión de los permisos de todos los roles del usuario (no solo el de
-   * mayor prioridad) — un usuario puede tener el rol admin más un rol
+   * mayor prioridad) — un usuario puede tener superadmin más un rol
    * personalizado adicional. */
   private resolvePermissions(user: AuthUser): string[] {
     const names = new Set<string>();
@@ -507,6 +739,14 @@ export class AuthService implements OnModuleDestroy {
     role: Role,
     client: 'mobile' | 'web' = 'web',
   ): AuthResult {
+  private buildAuthResult(user: AuthUser, role: Role): AuthResult {
+    const empresa = user.doctor?.empresa ?? false;
+    const empresaReferida = user.doctor?.empresaReferida ?? false;
+    const verificationStatus = user.doctor?.verificationStatus ?? 'pending';
+    const doctorFlags =
+      role === 'doctor'
+        ? { empresa, empresaReferida, verificationStatus }
+        : {};
     const payload: JwtPayload = {
       sub: user.id.toString(),
       email: user.email,
@@ -516,6 +756,7 @@ export class AuthService implements OnModuleDestroy {
         role === 'patient'
           ? (user.patient?.surveyCompletedAt?.toISOString() ?? null)
           : undefined,
+      ...doctorFlags,
     };
 
     // Mobile: 24h (sesión más larga en app). Web: 15m + refresh cookie.
@@ -537,6 +778,7 @@ export class AuthService implements OnModuleDestroy {
         email: user.email,
         name: user.name,
         role,
+        ...doctorFlags,
       },
     };
   }

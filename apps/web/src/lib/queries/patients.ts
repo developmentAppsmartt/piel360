@@ -19,6 +19,8 @@ export interface Patient {
   address: string | null;
   birthDate: string | null;
   gender: string | null;
+  mascotType: string | null;
+  skinType: string | null;
   fitzpatrickType: string | null;
   createdAt: string;
   updatedAt: string;
@@ -70,9 +72,15 @@ export interface PatientInput {
   lastName: string;
   email?: string;
   phone?: string;
+  areaCode?: string;
   docType?: string;
   docNumber?: string;
   address?: string;
+  birthDate?: string;
+  gender?: string;
+  mascotType?: string;
+  skinType?: string;
+  fitzpatrickType?: string;
 }
 
 export function usePatients() {

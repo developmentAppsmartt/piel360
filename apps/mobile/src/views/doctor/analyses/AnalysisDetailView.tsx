@@ -148,6 +148,11 @@ export function AnalysisDetailView({
   const canManage =
     canShare ?? (user?.role === 'doctor' || user?.role === 'admin');
   const showShare = canManage;
+  const showShare =
+    canShare ??
+    (user?.role === 'doctor' ||
+      user?.role === 'superadmin' ||
+      user?.empresa === true);
 
   const [analysis, setAnalysis] = useState<AnalysisDetail | null>(null);
   const [loading, setLoading] = useState(true);
