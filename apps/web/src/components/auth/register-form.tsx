@@ -139,6 +139,57 @@ export function RegisterForm({
 
       <input type="hidden" name="phoneTicket" value={ticket ?? ""} />
 
+      {role === "doctor" && (
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+            Tipo de cuenta
+          </legend>
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="radio"
+              name="membershipType"
+              value="solo_doctor"
+              defaultChecked
+              className="mt-1"
+            />
+            <span>
+              <span className="font-medium">Solo doctor</span>
+              <span className="block text-zinc-500">
+                Consulta individual sin equipo.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="radio"
+              name="membershipType"
+              value="empresa"
+              className="mt-1"
+            />
+            <span>
+              <span className="font-medium">Membresía empresa</span>
+              <span className="block text-zinc-500">
+                Forma equipos según el plan de espacios.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="radio"
+              name="membershipType"
+              value="empresa_aliada"
+              className="mt-1"
+            />
+            <span>
+              <span className="font-medium">Empresa aliada</span>
+              <span className="block text-zinc-500">
+                Equipos con programa de referidos.
+              </span>
+            </span>
+          </label>
+        </fieldset>
+      )}
+
       {state.error && <p className="text-sm text-red-600">{state.error}</p>}
       <Button type="submit" disabled={isPending || ticket == null} className="w-full">
         {isPending ? "Creando cuenta..." : "Crear cuenta"}

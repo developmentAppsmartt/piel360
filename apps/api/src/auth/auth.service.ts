@@ -7,7 +7,11 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import type { Role } from '@piel360/shared';
+import {
+  SEAT_PLAN_LIMITS,
+  type MembershipType,
+  type Role,
+} from '@piel360/shared';
 import * as argon2 from 'argon2';
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { Redis } from 'ioredis';
@@ -38,7 +42,7 @@ const OTP_TTL_SECONDS = 10 * 60;
 const OTP_TICKET_TTL_SECONDS = 15 * 60;
 const OTP_MAX_ATTEMPTS = 5;
 
-const ROLE_PRIORITY: Role[] = ['admin', 'doctor', 'patient'];
+const ROLE_PRIORITY: Role[] = ['superadmin', 'monitor', 'doctor', 'patient'];
 
 interface AuthUser {
   id: bigint;
@@ -46,6 +50,11 @@ interface AuthUser {
   name: string;
   roles: { name: string; permissions: { name: string }[] }[];
   patient?: { surveyCompletedAt: Date | null } | null;
+  doctor?: {
+    empresa: boolean;
+    empresaReferida: boolean;
+    verificationStatus: string;
+  } | null;
 }
 
 export interface AuthResult {
@@ -56,6 +65,9 @@ export interface AuthResult {
     email: string;
     name: string;
     role: Role;
+    empresa?: boolean;
+    empresaReferida?: boolean;
+    verificationStatus?: string;
   };
 }
 
@@ -82,9 +94,16 @@ export class AuthService implements OnModuleDestroy {
   }
 
   async registerDoctor(dto: RegisterDoctorDto): Promise<AuthResult> {
-    await this.consumePhoneTicket(dto.phoneTicket, dto.phone);
+    if (dto.phoneTicket) {
+      await this.consumePhoneTicket(dto.phoneTicket, dto.phone);
+    }
     await this.assertEmailAvailable(dto.email);
     const password = await argon2.hash(dto.password);
+    const membershipType: MembershipType =
+      dto.membershipType ?? 'solo_doctor';
+    const empresa =
+      membershipType === 'empresa' || membershipType === 'empresa_aliada';
+    const empresaReferida = membershipType === 'empresa_aliada';
 
     const user = await this.prisma.user.create({
       data: {
@@ -94,19 +113,88 @@ export class AuthService implements OnModuleDestroy {
         firstName: dto.firstName,
         lastName: dto.lastName,
         phone: dto.phone,
-        phoneVerifiedAt: new Date(),
+        phoneVerifiedAt: dto.phoneTicket ? new Date() : null,
         roles: { connect: { name: 'doctor' } },
         doctor: {
           create: {
             firstName: dto.firstName,
             lastName: dto.lastName,
+            phone: dto.phone,
+            membershipType,
+            empresa,
+            empresaReferida,
+            verificationStatus: 'pending',
+            docType: dto.docType?.trim() || null,
+            docNumber: dto.docNumber?.trim() || null,
+            gender: dto.gender?.trim() || null,
+            ...(dto.birthDate
+              ? { birthDate: new Date(dto.birthDate) }
+              : {}),
+            specialty: dto.specialty?.trim() || null,
+            medicalRegistry: dto.medicalRegistry?.trim() || null,
+            licenseNumber: dto.licenseNumber?.trim() || null,
+            educationEntity: dto.educationEntity?.trim() || null,
+            graduationInstitution: dto.graduationInstitution?.trim() || null,
+            address: dto.address?.trim() || null,
+            city: dto.city?.trim() || null,
+            country: dto.country?.trim() || null,
+            ...(dto.lat != null && dto.lng != null
+              ? { lat: dto.lat, lng: dto.lng }
+              : {}),
           },
         },
       },
-      include: { roles: { include: { permissions: true } } },
+      include: {
+        roles: { include: { permissions: true } },
+        doctor: {
+          select: {
+            empresa: true,
+            empresaReferida: true,
+            verificationStatus: true,
+          },
+        },
+      },
     });
 
-    return this.buildAuthResult(user, 'doctor');
+    if (empresa) {
+      const referralCode = empresaReferida
+        ? this.generateReferralCode()
+        : null;
+      const orgName = `Clínica ${dto.firstName} ${dto.lastName}`.trim();
+      const orgType = empresaReferida ? 'empresa_aliada' : 'empresa';
+
+      await this.prisma.organization.create({
+        data: {
+          type: orgType,
+          name: orgName,
+          ownerUserId: user.id,
+          seatPlan: 'two',
+          seatLimit: SEAT_PLAN_LIMITS.two,
+          referralCode,
+          status: 'pending',
+          members: {
+            create: {
+              userId: user.id,
+              memberRole: 'owner',
+            },
+          },
+          ...(referralCode
+            ? {
+                referrals: {
+                  create: { code: referralCode },
+                },
+              }
+            : {}),
+        },
+      });
+    }
+
+    const role = this.resolveRole(user);
+    return this.buildAuthResult(user, role);
+  }
+
+  private generateReferralCode(): string {
+    return `ALI-${randomBytes(4).toString('hex').toUpperCase()}`;
   }
 
   async registerPatient(dto: RegisterPatientDto): Promise<AuthResult> {
@@ -149,7 +237,17 @@ export class AuthService implements OnModuleDestroy {
   async login(dto: LoginDto): Promise<AuthResult> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
-      include: { roles: { include: { permissions: true } }, patient: true },
+      include: {
+        roles: { include: { permissions: true } },
+        patient: true,
+        doctor: {
+          select: {
+            empresa: true,
+            empresaReferida: true,
+            verificationStatus: true,
+          },
+        },
+      },
     });
 
     if (!user || !(await argon2.verify(user.password, dto.password))) {
@@ -169,7 +267,17 @@ export class AuthService implements OnModuleDestroy {
   async loginOrRegisterWithGoogle(profile: GoogleProfile): Promise<AuthResult> {
     const existing = await this.prisma.user.findUnique({
       where: { email: profile.email },
-      include: { roles: { include: { permissions: true } }, patient: true },
+      include: {
+        roles: { include: { permissions: true } },
+        patient: true,
+        doctor: {
+          select: {
+            empresa: true,
+            empresaReferida: true,
+            verificationStatus: true,
+          },
+        },
+      },
     });
 
     if (!existing) {
@@ -205,7 +313,17 @@ export class AuthService implements OnModuleDestroy {
                 },
               }),
         },
-        include: { roles: { include: { permissions: true } }, patient: true },
+        include: {
+          roles: { include: { permissions: true } },
+          patient: true,
+          doctor: {
+            select: {
+              empresa: true,
+              empresaReferida: true,
+              verificationStatus: true,
+            },
+          },
+        },
       });
 
       return this.buildAuthResult(user, roleIntent);
@@ -245,6 +363,13 @@ export class AuthService implements OnModuleDestroy {
             include: {
               roles: { include: { permissions: true } },
               patient: true,
+              doctor: {
+                select: {
+                  empresa: true,
+                  empresaReferida: true,
+                  verificationStatus: true,
+                },
+              },
             },
           })
         : existing;
@@ -573,22 +698,19 @@ export class AuthService implements OnModuleDestroy {
     }
   }
 
-  /** Un usuario recién registrado solo tiene un rol; se deja la prioridad
-   * admin > doctor > patient por si en el futuro un usuario acumula varios.
-   * Si ninguno de sus roles calza con esos 3 nombres pero tiene al menos un
-   * permiso (rol personalizado, ver /admin/roles), igual se le da acceso al
-   * panel admin — es la única forma de que un "admin limitado" pueda entrar,
-   * ya que el frontend rutea por este claim (apps/web/src/proxy.ts). */
+  /** Prioridad: superadmin > monitor > doctor > patient.
+   * Si ninguno calza pero tiene permisos (rol personalizado), se trata como
+   * superadmin para ruteo del panel (apps/web/src/proxy.ts). */
   private resolveRole(user: AuthUser): Role {
     const names = user.roles.map((r) => r.name);
     const match = ROLE_PRIORITY.find((role) => names.includes(role));
     if (match) return match;
-    if (this.resolvePermissions(user).length > 0) return 'admin';
+    if (this.resolvePermissions(user).length > 0) return 'superadmin';
     throw new UnauthorizedException('El usuario no tiene un rol asignado');
   }
 
   /** Unión de los permisos de todos los roles del usuario (no solo el de
-   * mayor prioridad) — un usuario puede tener el rol admin más un rol
+   * mayor prioridad) — un usuario puede tener superadmin más un rol
    * personalizado adicional. */
   private resolvePermissions(user: AuthUser): string[] {
     const names = new Set<string>();
@@ -599,6 +721,13 @@ export class AuthService implements OnModuleDestroy {
   }
 
   private buildAuthResult(user: AuthUser, role: Role): AuthResult {
+    const empresa = user.doctor?.empresa ?? false;
+    const empresaReferida = user.doctor?.empresaReferida ?? false;
+    const verificationStatus = user.doctor?.verificationStatus ?? 'pending';
+    const doctorFlags =
+      role === 'doctor'
+        ? { empresa, empresaReferida, verificationStatus }
+        : {};
     const payload: JwtPayload = {
       sub: user.id.toString(),
       email: user.email,
@@ -608,6 +737,7 @@ export class AuthService implements OnModuleDestroy {
         role === 'patient'
           ? (user.patient?.surveyCompletedAt?.toISOString() ?? null)
           : undefined,
+      ...doctorFlags,
     };
 
     const accessToken = this.jwt.sign(payload, { expiresIn: '15m' });
@@ -627,6 +757,7 @@ export class AuthService implements OnModuleDestroy {
         email: user.email,
         name: user.name,
         role,
+        ...doctorFlags,
       },
     };
   }

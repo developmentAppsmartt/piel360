@@ -8,12 +8,17 @@ import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { DoctorsService } from '../doctors/doctors.service';
 import { StorageService } from '../storage/storage.service';
+import { DOCTOR_PANEL_ROLES, type Role } from '@piel360/shared';
 import type { JwtPayload } from '../auth/types';
 import type {
   CreateConversationDto,
   SendMessageDto,
   UpdateConversationDto,
 } from './dto/messages.dto';
+
+function isDoctorPanelRole(role: Role): boolean {
+  return (DOCTOR_PANEL_ROLES as readonly Role[]).includes(role);
+}
 
 type ConversationTab = 'recientes' | 'sin_leer' | 'archivados';
 
@@ -37,7 +42,7 @@ export class MessagesService {
 
   /** Contactos con los que el usuario puede chatear. */
   async listContacts(user: JwtPayload) {
-    if (user.role === 'doctor') {
+    if (isDoctorPanelRole(user.role)) {
       const doctor = await this.doctors.requireDoctorByUserId(user.sub);
       const patients = await this.prisma.patient.findMany({
         where: { doctorId: doctor.id },
@@ -429,7 +434,7 @@ export class MessagesService {
     | { role: 'doctor'; doctorId: bigint; patientId?: never }
     | { role: 'patient'; patientId: bigint; doctorId: bigint | null }
   > {
-    if (user.role === 'doctor') {
+    if (isDoctorPanelRole(user.role)) {
       const doctor = await this.doctors.requireDoctorByUserId(user.sub);
       return { role: 'doctor', doctorId: doctor.id };
     }

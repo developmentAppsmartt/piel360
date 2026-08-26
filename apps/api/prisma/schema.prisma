@@ -37,15 +37,36 @@ model User {
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
-  doctor            Doctor?
-  patient           Patient?
-  analyses          Analysis[]     @relation("ExecutedAnalyses")
-  confirmedAnalyses Analysis[]     @relation("ConfirmedAnalyses")
-  subscriptions     Subscription[]
-  roles             Role[]
-  sentMessages      Message[]
+  doctor                 Doctor?
+  patient                Patient?
+  moderator              Moderator?
+  analyses               Analysis[]     @relation("ExecutedAnalyses")
+  confirmedAnalyses      Analysis[]     @relation("ConfirmedAnalyses")
+  subscriptions          Subscription[]
+  roles                  Role[]
+  sentMessages           Message[]
+  ownedOrganizations     Organization[]       @relation("OrganizationOwner")
+  organizationMembers    OrganizationMember[]
+  referredBy             Referral[]           @relation("ReferredUser")
 
   @@map("users")
+}
+
+/** Perfil de moderador (rol RBAC `monitor`) — validación de doctores. */
+model Moderator {
+  id         BigInt   @id @default(autoincrement())
+  userId     BigInt   @unique @map("user_id")
+  firstName  String   @map("first_name")
+  lastName   String   @map("last_name")
+  docType    String?  @map("doc_type")
+  docNumber  String?  @map("doc_number")
+  phone      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("moderators")
 }
 
 model Doctor {
@@ -55,6 +76,8 @@ model Doctor {
   lastName             String    @map("last_name")
   birthDate            DateTime? @map("birth_date") @db.Date
   gender               String?
+  docType              String?   @map("doc_type")
+  docNumber            String?   @map("doc_number")
   phone                String?
   lat                  Decimal?  @db.Decimal(10, 8)
   lng                  Decimal?  @db.Decimal(11, 8)
@@ -63,12 +86,28 @@ model Doctor {
   country              String?
   zip                  String?
   metadataGooglePlaces Json?     @map("metadata_google_places")
+  /** solo_doctor | empresa | empresa_aliada — intención de registro */
+  membershipType       String    @default("solo_doctor") @map("membership_type")
+  /** pending | in_review | verified | approved | active | rejected */
+  verificationStatus   String    @default("pending") @map("verification_status")
+  /** Activa módulo Equipo (no es un rol RBAC). */
+  empresa              Boolean   @default(false)
+  /** Activa módulo Referidos (no es un rol RBAC). */
+  empresaReferida      Boolean   @default(false) @map("empresa_referida")
+  specialty            String?
+  medicalRegistry      String?   @map("medical_registry")
+  licenseNumber        String?   @map("license_number")
+  educationEntity      String?   @map("education_entity")
+  graduationInstitution String?  @map("graduation_institution")
+  cedulaDocKey         String?   @map("cedula_doc_key")
+  medicalRegistryDocKey String?  @map("medical_registry_doc_key")
+  diplomaDocKey        String?   @map("diploma_doc_key")
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  patients          Patient[]
-  conversations     Conversation[]
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  patients            Patient[]
+  conversations       Conversation[]
   productCategories   ProductCategory[]
   products            Product[]
   routines            Routine[]
@@ -76,6 +115,65 @@ model Doctor {
   treatments          Treatment[]
 
   @@map("doctors")
+}
+
+/** Organización / membresía empresa (planes de asientos, no créditos de análisis). */
+model Organization {
+  id           BigInt   @id @default(autoincrement())
+  /** empresa | empresa_aliada */
+  type         String
+  name         String
+  ownerUserId  BigInt   @map("owner_user_id")
+  /** two | five | ten | custom */
+  seatPlan     String   @default("two") @map("seat_plan")
+  seatLimit    Int      @default(2) @map("seat_limit")
+  referralCode String?  @unique @map("referral_code")
+  /** pending | active | suspended */
+  status       String   @default("pending")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  owner   User                 @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  members OrganizationMember[]
+  referrals Referral[]
+
+  @@index([ownerUserId])
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             BigInt   @id @default(autoincrement())
+  organizationId BigInt   @map("organization_id")
+  userId         BigInt   @map("user_id")
+  /** owner | member */
+  memberRole     String   @default("member") @map("member_role")
+  /** Permisos del equipo: string[] (TEAM_MEMBER_PERMISSIONS). Owner ignora este campo. */
+  permissions    Json     @default("[]")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+/** Stub de referidos para empresa aliada. */
+model Referral {
+  id             BigInt   @id @default(autoincrement())
+  organizationId BigInt   @map("organization_id")
+  code           String
+  referredUserId BigInt?  @map("referred_user_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  referredUser User?        @relation("ReferredUser", fields: [referredUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([code])
+  @@map("referrals")
 }
 
 model Patient {

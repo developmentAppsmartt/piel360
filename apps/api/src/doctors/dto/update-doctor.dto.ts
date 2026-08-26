@@ -1,4 +1,13 @@
-import { IsOptional, IsString } from 'class-validator';
+import {
+  IsDateString,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  Min,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class UpdateDoctorDto {
   @IsOptional()
@@ -10,8 +19,48 @@ export class UpdateDoctorDto {
   lastName?: string;
 
   @IsOptional()
-  @IsString()
+  @Matches(/^\d{10,15}$/, {
+    message:
+      'Teléfono inválido — usa solo dígitos, con indicativo de país (10 a 15 dígitos)',
+  })
   phone?: string;
+
+  @IsOptional()
+  @IsString()
+  docType?: string;
+
+  @IsOptional()
+  @IsString()
+  docNumber?: string;
+
+  /** ISO date `YYYY-MM-DD`. */
+  @IsOptional()
+  @IsDateString()
+  birthDate?: string;
+
+  @IsOptional()
+  @IsString()
+  gender?: string;
+
+  @IsOptional()
+  @IsString()
+  specialty?: string;
+
+  @IsOptional()
+  @IsString()
+  medicalRegistry?: string;
+
+  @IsOptional()
+  @IsString()
+  licenseNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  educationEntity?: string;
+
+  @IsOptional()
+  @IsString()
+  graduationInstitution?: string;
 
   @IsOptional()
   @IsString()
@@ -28,4 +77,18 @@ export class UpdateDoctorDto {
   @IsOptional()
   @IsString()
   zip?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  lat?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  lng?: number;
 }

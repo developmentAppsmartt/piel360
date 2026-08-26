@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import type { Prisma } from '@prisma/client';
+import { DOCTOR_PANEL_ROLES, type Role } from '@piel360/shared';
 import { DoctorsService } from '../doctors/doctors.service';
 import { PatientsService } from '../patients/patients.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -26,6 +27,10 @@ import {
 } from './queues';
 
 const SKINIVER_PROVIDER_SLUG = 'skiniver';
+
+function isDoctorPanelRole(role: Role): boolean {
+  return (DOCTOR_PANEL_ROLES as readonly Role[]).includes(role);
+}
 
 @Injectable()
 export class AnalysesService {
@@ -170,14 +175,14 @@ export class AnalysesService {
     // por youcamTaskId como respaldo.
     const providerSelect = { select: { displayLabel: true } };
 
-    if (currentUser.role === 'admin') {
+    if (currentUser.role === 'superadmin') {
       return this.prisma.analysis.findMany({
         include: { patient: true, provider: providerSelect },
         orderBy: { id: 'desc' },
       });
     }
 
-    if (currentUser.role === 'doctor') {
+    if (isDoctorPanelRole(currentUser.role)) {
       const doctor = await this.doctors.requireDoctorByUserId(currentUser.sub);
       return this.prisma.analysis.findMany({
         where: { patient: { doctorId: doctor.id } },
@@ -265,9 +270,9 @@ export class AnalysesService {
     },
     currentUser: JwtPayload,
   ) {
-    if (currentUser.role === 'admin') return;
+    if (currentUser.role === 'superadmin') return;
 
-    if (currentUser.role === 'doctor') {
+    if (isDoctorPanelRole(currentUser.role)) {
       const doctor = await this.doctors.requireDoctorByUserId(currentUser.sub);
       if (analysis.patient.doctorId === doctor.id) return;
       throw new ForbiddenException('Este análisis no pertenece a tu consulta');
