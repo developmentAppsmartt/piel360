@@ -97,7 +97,6 @@ export class AuthService implements OnModuleDestroy {
     dto: RegisterDoctorDto,
     client: 'mobile' | 'web' = 'web',
   ): Promise<AuthResult> {
-  async registerDoctor(dto: RegisterDoctorDto): Promise<AuthResult> {
     if (dto.phoneTicket) {
       await this.consumePhoneTicket(dto.phoneTicket, dto.phone);
     }
@@ -160,7 +159,6 @@ export class AuthService implements OnModuleDestroy {
       },
     });
 
-    return this.buildAuthResult(user, 'doctor', client);
     if (empresa) {
       const referralCode = empresaReferida
         ? this.generateReferralCode()
@@ -194,8 +192,7 @@ export class AuthService implements OnModuleDestroy {
       });
     }
 
-    const role = this.resolveRole(user);
-    return this.buildAuthResult(user, role);
+    return this.buildAuthResult(user, 'doctor', client);
   }
 
   private generateReferralCode(): string {
@@ -739,7 +736,6 @@ export class AuthService implements OnModuleDestroy {
     role: Role,
     client: 'mobile' | 'web' = 'web',
   ): AuthResult {
-  private buildAuthResult(user: AuthUser, role: Role): AuthResult {
     const empresa = user.doctor?.empresa ?? false;
     const empresaReferida = user.doctor?.empresaReferida ?? false;
     const verificationStatus = user.doctor?.verificationStatus ?? 'pending';
