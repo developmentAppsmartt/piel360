@@ -31,6 +31,7 @@
     "react-native-screens": "4.25.2",
     "react-native-svg": "15.15.4",
     "react-native-web": "^0.21.2",
+    "react-native-webview": "^14.0.1",
     "three": "^0.185.1"
   },
   "devDependencies": {
@@ -41,7 +42,8 @@
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
-    "android:release": "EXPO_NO_METRO_LAZY=1 NODE_ENV=production expo run:android --variant release",
+    "android:release": "bash scripts/run-android-release.sh",
+    "android:apk": "bash scripts/run-android-release.sh --apk-only",
     "ios": "expo run:ios",
     "web": "expo start --web"
   },

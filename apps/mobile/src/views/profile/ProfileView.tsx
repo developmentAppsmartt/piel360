@@ -25,13 +25,14 @@ import { usersService } from '../../services/users.service';
 import type { PatientProfile } from '../../types/patient';
 import { isDoctorVerificationActive } from '../../types/auth';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
-import { EditDoctorView } from '../doctor/profile/EditDoctorView';
 import { buildProfileContent } from './data/profileContent';
 import { EditProfileView } from './edit/EditProfileView';
 import { ProfileHeaderBar } from './components/ProfileHeaderBar';
 import { ProfileIdentity } from './components/ProfileIdentity';
 import { ProfileSection } from './components/ProfileSection';
 import { createProfileStyles } from './styles/profile.styles';
+
+type EditDoctorViewComponent = typeof import('../doctor/profile/EditDoctorView').EditDoctorView;
 
 type ProfileViewProps = {
   onBack?: () => void;
@@ -94,6 +95,29 @@ export function ProfileView({ onBack }: ProfileViewProps) {
   const [editing, setEditing] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
+  const [EditDoctorView, setEditDoctorView] =
+    useState<EditDoctorViewComponent | null>(null);
+
+  useEffect(() => {
+    if (!editing || !isDoctor) return;
+    let cancelled = false;
+    void import('../doctor/profile/EditDoctorView')
+      .then((mod) => {
+        if (!cancelled) setEditDoctorView(() => mod.EditDoctorView);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setEditing(false);
+          Alert.alert(
+            'No se pudo abrir el editor',
+            'Reinicia la app e inténtalo de nuevo.',
+          );
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [editing, isDoctor]);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -260,6 +284,18 @@ export function ProfileView({ onBack }: ProfileViewProps) {
   }
 
   if (editing && isDoctor && doctor) {
+    if (!EditDoctorView) {
+      return (
+        <View
+          style={[
+            styles.screen,
+            { alignItems: 'center', justifyContent: 'center' },
+          ]}
+        >
+          <ActivityIndicator size="large" color={branding.colors.primary} />
+        </View>
+      );
+    }
     return (
       <EditDoctorView
         doctor={doctor}
