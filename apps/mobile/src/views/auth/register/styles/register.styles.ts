@@ -20,6 +20,9 @@ export function createRegisterStyles(colors: AppBranding['colors']) {
       paddingBottom: 28,
       paddingTop: 12,
     },
+    logo: {
+      marginBottom: 10,
+    },
     brand: {
       fontSize: 36,
       fontWeight: '700',

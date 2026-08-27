@@ -2,13 +2,17 @@
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CloudUpload, LocateFixed, Search } from "lucide-react";
 import type { MembershipType } from "@piel360/shared";
 import { LocationPickerMap, type LatLng } from "@/components/maps";
 import {
-  registerDoctorExtendedAction,
+  establishSessionAction,
   type AuthActionState,
 } from "@/lib/actions/auth";
+import { homeForUser } from "@/lib/auth-redirect";
+import { ApiError } from "@/lib/api-error";
+import { registerDoctorWithDocuments } from "@/lib/doctor-register-client";
 
 const SPECIALTIES = [
   "Dermatólogo",
@@ -124,6 +128,7 @@ function DocUploadCard({
 }
 
 export function DoctorRegisterForm() {
+  const router = useRouter();
   const [state, setState] = useState<AuthActionState>({});
   const [isPending, setIsPending] = useState(false);
 
@@ -297,39 +302,47 @@ export function DoctorRegisterForm() {
     }
 
     setIsPending(true);
-    const formData = new FormData();
-    formData.set("firstName", firstName);
-    formData.set("lastName", lastName);
-    formData.set("email", email.trim());
-    formData.set("password", password);
-    formData.set("phone", phone);
-    formData.set("membershipType", membershipType);
-    formData.set("specialty", specialty);
-    formData.set("address", address || addressQuery);
-    formData.set("lat", String(location.lat));
-    formData.set("lng", String(location.lng));
-    formData.set("country", "CO");
-    if (docType) formData.set("docType", docType);
-    if (docNumber.trim()) formData.set("docNumber", docNumber.trim());
-    if (gender) formData.set("gender", gender);
-    if (birthDate) formData.set("birthDate", birthDate);
-    if (medicalRegistry.trim())
-      formData.set("medicalRegistry", medicalRegistry.trim());
-    if (licenseNumber.trim())
-      formData.set("licenseNumber", licenseNumber.trim());
-    if (educationEntity.trim())
-      formData.set("educationEntity", educationEntity.trim());
-    if (graduationInstitution.trim()) {
-      formData.set("graduationInstitution", graduationInstitution.trim());
-    }
-    if (cedula) formData.set("cedula", cedula);
-    if (medicalRegistryDoc)
-      formData.set("medicalRegistryDoc", medicalRegistryDoc);
-    if (diploma) formData.set("diploma", diploma);
+    try {
+      const { result, docUploadError } = await registerDoctorWithDocuments(
+        {
+          email: email.trim(),
+          password,
+          firstName,
+          lastName,
+          phone,
+          membershipType,
+          specialty,
+          address: address || addressQuery,
+          country: "CO",
+          lat: location.lat,
+          lng: location.lng,
+          docType: docType || undefined,
+          docNumber: docNumber.trim() || undefined,
+          gender: gender || undefined,
+          birthDate: birthDate || undefined,
+          medicalRegistry: medicalRegistry.trim() || undefined,
+          licenseNumber: licenseNumber.trim() || undefined,
+          educationEntity: educationEntity.trim() || undefined,
+          graduationInstitution: graduationInstitution.trim() || undefined,
+        },
+        { cedula, medicalRegistryDoc, diploma },
+      );
 
-    const result = await registerDoctorExtendedAction(formData);
-    setIsPending(false);
-    if (result?.error) setState(result);
+      await establishSessionAction(result.accessToken, result.refreshToken);
+      if (docUploadError) {
+        setState({ error: docUploadError });
+        setIsPending(false);
+        return;
+      }
+      router.push(homeForUser(result.user));
+    } catch (err) {
+      setIsPending(false);
+      if (err instanceof ApiError) {
+        setState({ error: err.message });
+        return;
+      }
+      setState({ error: "No se pudo conectar con el servidor." });
+    }
   }
 
   return (
