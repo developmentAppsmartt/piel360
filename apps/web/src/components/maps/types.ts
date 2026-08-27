@@ -7,4 +7,6 @@ export type MapMarker = {
   lat: number;
   lng: number;
   subtitle?: string | null;
+  /** Ciudad para agrupar en clusters cuando el zoom está lejos. */
+  city?: string | null;
 };

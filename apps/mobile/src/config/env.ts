@@ -62,3 +62,8 @@ export function getApiBaseUrl(): string {
 
   return 'http://localhost:3000/api';
 }
+
+/** Google Maps Platform (Places, Geocoding, Maps SDK). */
+export function getGoogleMapsApiKey(): string {
+  return process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() ?? '';
+}

@@ -10,6 +10,7 @@ export interface ResolvedNavItem {
   label: string;
   href: string;
   icon: React.ReactNode;
+  badge?: number | null;
   children?: ResolvedNavItem[];
 }
 
@@ -20,6 +21,10 @@ function isActivePath(pathname: string, href: string) {
     href === "/doctor/home" ||
     href === "/patient/dashboard";
   if (isPanelRoot) return pathname === href;
+  // Evita que /admin/verificacion marque activo también verificado/rechazados
+  if (href === "/admin/verificacion") {
+    return pathname === "/admin/verificacion";
+  }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -49,7 +54,19 @@ function NavLink({
         )}
       >
         {!nested ? item.icon : null}
-        {item.label}
+        <span className="flex-1 truncate text-left">{item.label}</span>
+        {typeof item.badge === "number" && item.badge > 0 ? (
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-[11px] font-bold",
+              active
+                ? "bg-white/20 text-white"
+                : "bg-primary text-primary-foreground",
+            )}
+          >
+            {item.badge > 99 ? "99+" : item.badge}
+          </span>
+        ) : null}
       </Link>
     );
   }

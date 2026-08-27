@@ -29,18 +29,19 @@ export function DoctorVerificationActions({
 
   const pending =
     verificationStatus === "pending" ||
-    verificationStatus === "in_review" ||
-    verificationStatus === "verified";
+    verificationStatus === "in_review";
 
-  async function decide(status: "active" | "rejected") {
+  async function decide(status: "active" | "rejected" | "in_review") {
     setError(null);
     setMessage(null);
     try {
-      await verify.mutateAsync(status);
+      await verify.mutateAsync({ status });
       setMessage(
         status === "active"
           ? "Doctor validado. Ya puede usar el panel completo."
-          : "Doctor rechazado.",
+          : status === "rejected"
+            ? "Doctor rechazado."
+            : "Se solicitaron ajustes.",
       );
       onDone?.();
     } catch (err) {
@@ -68,6 +69,14 @@ export function DoctorVerificationActions({
             onClick={() => void decide("active")}
           >
             Validar doctor
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={verify.isPending}
+            onClick={() => void decide("in_review")}
+          >
+            Solicitar ajustes
           </Button>
           <Button
             type="button"

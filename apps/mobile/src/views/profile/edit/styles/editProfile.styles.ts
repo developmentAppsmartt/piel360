@@ -20,6 +20,8 @@ export function createEditProfileStyles(colors: AppBranding['colors']) {
       borderRadius: 14,
       padding: 16,
       gap: 12,
+      overflow: 'visible',
+      zIndex: 1,
     },
     cardTitle: {
       fontSize: 13,

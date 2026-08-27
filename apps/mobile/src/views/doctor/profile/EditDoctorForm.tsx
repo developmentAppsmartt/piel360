@@ -6,6 +6,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { LocationPicker } from '../../../components/maps/LocationPicker';
 import { useBranding } from '../../../context/BrandingContext';
 import {
   DOCTOR_DOC_TYPES,
@@ -33,6 +34,12 @@ function optional(value: string): string | undefined {
 
 function digitsOnly(value: string): string {
   return value.replace(/\D/g, '');
+}
+
+function toCoord(value: string | number | null | undefined): number | null {
+  if (value == null || value === '') return null;
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
 }
 
 type EditDoctorFormProps = {
@@ -73,6 +80,8 @@ export function EditDoctorForm({ doctor, onSubmit }: EditDoctorFormProps) {
   const [city, setCity] = useState(doctor.city ?? '');
   const [country, setCountry] = useState(doctor.country ?? '');
   const [zip, setZip] = useState(doctor.zip ?? '');
+  const [lat, setLat] = useState<number | null>(() => toCoord(doctor.lat));
+  const [lng, setLng] = useState<number | null>(() => toCoord(doctor.lng));
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -113,6 +122,7 @@ export function EditDoctorForm({ doctor, onSubmit }: EditDoctorFormProps) {
       city: optional(city),
       country: optional(country),
       zip: optional(zip),
+      ...(lat != null && lng != null ? { lat, lng } : {}),
     };
 
     setSubmitting(true);
@@ -314,46 +324,20 @@ export function EditDoctorForm({ doctor, onSubmit }: EditDoctorFormProps) {
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Ubicación</Text>
-
-        <View style={styles.field}>
-          <Text style={styles.label}>Dirección</Text>
-          <TextInput
-            style={styles.input}
-            value={address}
-            onChangeText={setAddress}
-            editable={!submitting}
-          />
-        </View>
-        <View style={styles.row}>
-          <View style={[styles.field, styles.half]}>
-            <Text style={styles.label}>Ciudad</Text>
-            <TextInput
-              style={styles.input}
-              value={city}
-              onChangeText={setCity}
-              editable={!submitting}
-            />
-          </View>
-          <View style={[styles.field, styles.half]}>
-            <Text style={styles.label}>País</Text>
-            <TextInput
-              style={styles.input}
-              value={country}
-              onChangeText={setCountry}
-              editable={!submitting}
-            />
-          </View>
-        </View>
-        <View style={styles.field}>
-          <Text style={styles.label}>Código postal</Text>
-          <TextInput
-            style={styles.input}
-            value={zip}
-            onChangeText={setZip}
-            editable={!submitting}
-            keyboardType="number-pad"
-          />
-        </View>
+        <LocationPicker
+          disabled={submitting}
+          showAdminFields
+          showLabel={false}
+          value={{ address, city, country, zip, lat, lng }}
+          onChange={(next) => {
+            setAddress(next.address);
+            setCity(next.city ?? '');
+            setCountry(next.country ?? '');
+            setZip(next.zip ?? '');
+            setLat(next.lat);
+            setLng(next.lng);
+          }}
+        />
       </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}

@@ -43,13 +43,72 @@ export class DoctorsService {
 
   /** Doctores pendientes de validación (cola del moderador). */
   findPendingVerification() {
-    return this.prisma.doctor.findMany({
-      where: {
-        verificationStatus: { in: ['pending', 'in_review', 'verified'] },
-      },
-      include: { user: { select: { email: true, avatarKey: true } } },
-      orderBy: { createdAt: 'asc' },
-    });
+    return this.findForVerification('pending');
+  }
+
+  /**
+   * Cola/listados del panel de verificación (mutuamente excluyentes).
+   * - pending:   pending | in_review
+   * - active:    active | approved | verified   (aprobados / verificados)
+   * - rejected:  rejected
+   */
+  findForVerification(status: 'pending' | 'active' | 'rejected' = 'pending') {
+    const statuses =
+      status === 'pending'
+        ? (['pending', 'in_review'] as const)
+        : status === 'active'
+          ? (['active', 'approved', 'verified'] as const)
+          : (['rejected'] as const);
+
+    return this.prisma.doctor
+      .findMany({
+        where: { verificationStatus: { in: [...statuses] } },
+        include: { user: { select: { email: true, avatarKey: true } } },
+        orderBy: { createdAt: status === 'pending' ? 'asc' : 'desc' },
+      })
+      .then((rows) => Promise.all(rows.map((d) => this.withDocumentUrls(d))));
+  }
+
+  async verificationStats() {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const APPROVED = ['active', 'approved', 'verified'] as const;
+
+    const [grouped, verifiedToday, rejectedToday] = await Promise.all([
+      this.prisma.doctor.groupBy({
+        by: ['verificationStatus'],
+        _count: { _all: true },
+      }),
+      this.prisma.doctor.count({
+        where: {
+          verificationStatus: { in: [...APPROVED] },
+          updatedAt: { gte: startOfDay },
+        },
+      }),
+      this.prisma.doctor.count({
+        where: {
+          verificationStatus: 'rejected',
+          updatedAt: { gte: startOfDay },
+        },
+      }),
+    ]);
+
+    const countOf = (statuses: readonly string[]) =>
+      grouped
+        .filter((g) => statuses.includes(g.verificationStatus))
+        .reduce((sum, g) => sum + g._count._all, 0);
+
+    const approved = countOf(APPROVED);
+
+    return {
+      pending: countOf(['pending', 'in_review']),
+      approved,
+      rejected: countOf(['rejected']),
+      totalVerified: approved,
+      verifiedToday,
+      rejectedToday,
+    };
   }
 
   async updateVerification(

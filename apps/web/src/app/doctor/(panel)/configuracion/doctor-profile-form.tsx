@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ChangeEvent } from "react";
 import { CloudUpload } from "lucide-react";
-import { LocationPickerMap, type LatLng } from "@/components/maps";
+import { AddressLocationPicker } from "@/components/maps";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-error";
 import {
@@ -153,7 +153,8 @@ function profileToForm(p: MyDoctorProfile) {
     city: p.city ?? "",
     country: p.country ?? "",
     zip: p.zip ?? "",
-    location: lat != null && lng != null ? { lat, lng } : null,
+    lat,
+    lng,
   };
 }
 
@@ -214,8 +215,8 @@ export function DoctorProfileForm() {
       city: form.city.trim() || undefined,
       country: form.country.trim() || undefined,
       zip: form.zip.trim() || undefined,
-      ...(form.location
-        ? { lat: form.location.lat, lng: form.location.lng }
+      ...(form.lat != null && form.lng != null
+        ? { lat: form.lat, lng: form.lng }
         : {}),
     };
 
@@ -388,49 +389,34 @@ export function DoctorProfileForm() {
             onChange={(e) => set("graduationInstitution", e.target.value)}
           />
         </Field>
-        <Field label="Ciudad">
-          <input
-            className={inputClass}
-            value={form.city}
-            onChange={(e) => set("city", e.target.value)}
-          />
-        </Field>
-        <Field label="País">
-          <input
-            className={inputClass}
-            value={form.country}
-            onChange={(e) => set("country", e.target.value)}
-          />
-        </Field>
-        <Field label="Código postal">
-          <input
-            className={inputClass}
-            value={form.zip}
-            onChange={(e) => set("zip", e.target.value)}
-          />
-        </Field>
-        <div className="sm:col-span-2">
-          <Field label="Dirección">
-            <input
-              className={inputClass}
-              value={form.address}
-              onChange={(e) => set("address", e.target.value)}
-            />
-          </Field>
-        </div>
       </div>
 
-      <div className="space-y-2">
-        <h2 className="text-sm font-semibold">Ubicación de la consulta</h2>
-        <p className="text-xs text-muted-foreground">
-          Marca el punto exacto en el mapa.
-        </p>
-        <LocationPickerMap
-          value={form.location}
-          onChange={(pos: LatLng) => set("location", pos)}
-          className="h-64 w-full rounded-xl border border-border"
-        />
-      </div>
+      <AddressLocationPicker
+        showAdminFields
+        value={{
+          address: form.address,
+          lat: form.lat,
+          lng: form.lng,
+          city: form.city,
+          country: form.country,
+          zip: form.zip,
+        }}
+        onChange={(next) => {
+          setForm((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  address: next.address,
+                  lat: next.lat,
+                  lng: next.lng,
+                  city: next.city ?? "",
+                  country: next.country ?? "",
+                  zip: next.zip ?? "",
+                }
+              : prev,
+          );
+        }}
+      />
 
       <div className="space-y-2">
         <h2 className="text-sm font-semibold">Documentos</h2>

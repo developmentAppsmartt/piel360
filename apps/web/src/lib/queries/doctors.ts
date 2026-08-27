@@ -33,11 +33,29 @@ export interface Doctor {
   cedulaDocUrl?: string | null;
   medicalRegistryDocUrl?: string | null;
   diplomaDocUrl?: string | null;
+  avatarUrl?: string | null;
   createdAt: string;
   updatedAt: string;
   user: {
     email: string;
   };
+}
+
+/** Bandejas del panel de verificación (mutuamente excluyentes). */
+export const VERIFICATION_STATUS_GROUPS = {
+  pending: ["pending", "in_review"],
+  active: ["active", "approved", "verified"],
+  rejected: ["rejected"],
+} as const;
+
+export type VerificationListStatus = keyof typeof VERIFICATION_STATUS_GROUPS;
+
+export function matchesVerificationGroup(
+  verificationStatus: string | null | undefined,
+  group: VerificationListStatus,
+): boolean {
+  const s = (verificationStatus ?? "").trim().toLowerCase();
+  return (VERIFICATION_STATUS_GROUPS[group] as readonly string[]).includes(s);
 }
 
 export type MyDoctorProfile = Doctor;
@@ -50,6 +68,8 @@ export interface DoctorInput {
   city?: string;
   country?: string;
   zip?: string;
+  lat?: number;
+  lng?: number;
 }
 
 export type DoctorProfileInput = {
@@ -138,27 +158,56 @@ export function useUpdateDoctor(id: string) {
   });
 }
 
-export function usePendingVerificationDoctors() {
+export function usePendingVerificationDoctors(
+  status: VerificationListStatus = "pending",
+) {
   return useQuery({
-    queryKey: ["admin", "verification", "doctors"],
+    queryKey: ["admin", "verification", "doctors", status],
+    queryFn: async () => {
+      // Path param (no query) — cada bandeja es exclusiva
+      const rows = await apiClientFetch<Doctor[]>(
+        `/admin/verification/doctors/${encodeURIComponent(status)}`,
+      );
+      return rows.filter((d) =>
+        matchesVerificationGroup(d.verificationStatus, status),
+      );
+    },
+  });
+}
+
+export type VerificationStats = {
+  pending: number;
+  approved: number;
+  rejected: number;
+  totalVerified: number;
+  verifiedToday: number;
+  rejectedToday: number;
+};
+
+export function useVerificationStats() {
+  return useQuery({
+    queryKey: ["admin", "verification", "stats"],
     queryFn: () =>
-      apiClientFetch<Doctor[]>("/admin/verification/doctors"),
+      apiClientFetch<VerificationStats>("/admin/verification/stats"),
   });
 }
 
 export function useUpdateDoctorVerification(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (status: "active" | "rejected") =>
+    mutationFn: (input: {
+      status: "active" | "rejected" | "in_review" | "pending";
+      note?: string;
+    }) =>
       apiClientFetch<Doctor>(`/admin/doctors/${id}/verification`, {
         method: "PATCH",
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(input),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "doctors"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "doctors", id] });
       queryClient.invalidateQueries({
-        queryKey: ["admin", "verification", "doctors"],
+        queryKey: ["admin", "verification"],
       });
     },
   });

@@ -53,6 +53,7 @@ export function EditDoctorView({
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
           showsVerticalScrollIndicator={false}
         >
           <EditDoctorForm doctor={doctor} onSubmit={onSave} />

@@ -37,4 +37,7 @@ export function RegistryMap(props: ComponentProps<typeof RegistryMapInner>) {
   return <RegistryMapInner {...props} />;
 }
 
+export { AddressLocationPicker } from "./address-location-picker";
+export type { AddressLocationValue } from "./address-location-picker";
+
 export type { LatLng, MapMarker } from "./types";

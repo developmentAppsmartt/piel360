@@ -7,6 +7,7 @@ import {
   View,
 } from 'react-native';
 import { AppIcon } from '../../../../components/AppIcon';
+import { LocationPicker } from '../../../../components/maps/LocationPicker';
 import { useBranding } from '../../../../context/BrandingContext';
 import {
   PATIENT_DOC_TYPES,
@@ -39,6 +40,8 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
   const [docNumber, setDocNumber] = useState('');
   const [gender, setGender] = useState('');
   const [address, setAddress] = useState('');
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
   const [areaCode, setAreaCode] = useState('+57');
   const [phone, setPhone] = useState('');
   const [birthDate, setBirthDate] = useState('');
@@ -87,6 +90,7 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
       docNumber: opt(docNumber),
       gender: opt(gender),
       address: opt(address),
+      ...(lat != null && lng != null ? { lat, lng } : {}),
       areaCode: opt(areaCode),
       phone: opt(phone),
       birthDate: opt(birthDate),
@@ -199,11 +203,15 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Dirección</Text>
-          <TextInput
-            style={styles.input}
-            value={address}
-            onChangeText={setAddress}
+          <Text style={[styles.label, { marginBottom: 4 }]}>Ubicación</Text>
+          <LocationPicker
+            showLabel={false}
+            value={{ address, lat, lng }}
+            onChange={(next) => {
+              setAddress(next.address);
+              setLat(next.lat);
+              setLng(next.lng);
+            }}
           />
         </View>
 

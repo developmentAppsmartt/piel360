@@ -11,6 +11,8 @@ export type UpdatePatientInput = {
   docType?: string;
   docNumber?: string;
   address?: string;
+  lat?: number;
+  lng?: number;
   birthDate?: string;
   gender?: string;
   mascotType?: string;
@@ -28,6 +30,8 @@ export type CreatePatientInput = {
   docType?: string;
   docNumber?: string;
   address?: string;
+  lat?: number;
+  lng?: number;
   birthDate?: string;
   gender?: string;
   mascotType?: string;
