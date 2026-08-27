@@ -16,7 +16,7 @@ const LocationPickerMapInner = dynamic(
 );
 
 const RegistryMapInner = dynamic(
-  () => import("./map-views").then((m) => m.RegistryMap),
+  () => import("./google-registry-map").then((m) => m.RegistryMap),
   {
     ssr: false,
     loading: () => (

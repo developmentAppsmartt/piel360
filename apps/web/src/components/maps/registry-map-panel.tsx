@@ -87,8 +87,10 @@ export function RegistryMapPanel({
             {markers.length}{" "}
             {kind === "doctor" ? "médicos" : "pacientes"} con ubicación
             {uniquePoints > 0 && uniquePoints < markers.length
-              ? ` · ${uniquePoints} puntos distintos (los que coinciden se separan en el mapa)`
+              ? ` · ${uniquePoints} puntos distintos (agrupados con clusters al alejar el zoom)`
               : null}
+            {" · "}
+            Google Maps
           </p>
           <RegistryMap markers={markers} />
         </>
