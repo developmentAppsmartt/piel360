@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { AddressLocationPicker } from "@/components/maps";
+import type { AddressLocationValue } from "@/components/maps/address-location-picker";
 import { TextField } from "@/components/auth/text-field";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-error";
@@ -34,11 +35,12 @@ export function DoctorForm({
   onSubmit: (input: DoctorInput) => Promise<unknown>;
   submitLabel: string;
 }) {
-  const [location, setLocation] = useState({
+  const [location, setLocation] = useState<AddressLocationValue>({
     address: defaultValues?.address ?? "",
     lat: toCoord(defaultValues?.lat),
     lng: toCoord(defaultValues?.lng),
     city: defaultValues?.city ?? "",
+    department: defaultValues?.department ?? "",
     country: defaultValues?.country ?? "",
     zip: defaultValues?.zip ?? "",
   });
@@ -65,6 +67,7 @@ export function DoctorForm({
         phone: values.phone || undefined,
         address: location.address.trim() || undefined,
         city: location.city?.trim() || undefined,
+        department: location.department?.trim() || undefined,
         country: location.country?.trim() || undefined,
         zip: location.zip?.trim() || undefined,
         ...(location.lat != null && location.lng != null

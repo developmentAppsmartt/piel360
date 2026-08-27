@@ -1,0 +1,20 @@
+-- Perfil comercial de organización (membresía empresa / empresa aliada).
+ALTER TABLE "organizations"
+  ADD COLUMN IF NOT EXISTS "ciiu_code" TEXT,
+  ADD COLUMN IF NOT EXISTS "address" TEXT,
+  ADD COLUMN IF NOT EXISTS "city" TEXT,
+  ADD COLUMN IF NOT EXISTS "department" TEXT,
+  ADD COLUMN IF NOT EXISTS "country" TEXT,
+  ADD COLUMN IF NOT EXISTS "zip" TEXT,
+  ADD COLUMN IF NOT EXISTS "lat" DECIMAL(10, 8),
+  ADD COLUMN IF NOT EXISTS "lng" DECIMAL(11, 8),
+  ADD COLUMN IF NOT EXISTS "business_email" TEXT,
+  ADD COLUMN IF NOT EXISTS "business_phone" TEXT,
+  ADD COLUMN IF NOT EXISTS "website" TEXT,
+  ADD COLUMN IF NOT EXISTS "employee_count_range" TEXT,
+  ADD COLUMN IF NOT EXISTS "legal_rep_name" TEXT,
+  ADD COLUMN IF NOT EXISTS "legal_rep_doc_type" TEXT,
+  ADD COLUMN IF NOT EXISTS "legal_rep_doc_number" TEXT,
+  ADD COLUMN IF NOT EXISTS "legal_rep_cedula_doc_key" TEXT,
+  ADD COLUMN IF NOT EXISTS "rut_doc_key" TEXT,
+  ADD COLUMN IF NOT EXISTS "existence_cert_doc_key" TEXT;

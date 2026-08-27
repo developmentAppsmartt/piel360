@@ -22,6 +22,8 @@ import {
   useUpdateDoctorVerification,
   useVerificationStats,
   matchesVerificationGroup,
+  accountTypeLabel,
+  isEnterpriseDoctor,
   type Doctor,
   type VerificationListStatus,
 } from "@/lib/queries/doctors";
@@ -36,6 +38,27 @@ const STATUS_LABELS: Record<string, string> = {
   active: "Verificado",
   rejected: "Rechazado",
 };
+
+function TypeBadge({ doctor }: { doctor: Doctor }) {
+  const enterprise = isEnterpriseDoctor(doctor);
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+        enterprise
+          ? "bg-violet-50 text-violet-700"
+          : "bg-sky-50 text-sky-700",
+      )}
+    >
+      {enterprise ? (
+        <Building2 className="size-3" />
+      ) : (
+        <UserRound className="size-3" />
+      )}
+      {accountTypeLabel(doctor)}
+    </span>
+  );
+}
 
 function initials(first: string, last: string) {
   return `${first[0] ?? ""}${last[0] ?? ""}`.toUpperCase() || "?";
@@ -123,6 +146,7 @@ function DetailPanel({
   ) {
     setError(null);
     setMessage(null);
+    const isEnt = doctor.data ? isEnterpriseDoctor(doctor.data) : false;
     try {
       await verify.mutateAsync({
         status,
@@ -130,10 +154,12 @@ function DetailPanel({
       });
       setMessage(
         status === "active"
-          ? "Profesional verificado y aprobado."
+          ? isEnt
+            ? "Cuenta Enterprise verificada y aprobada."
+            : "Profesional verificado y aprobado."
           : status === "rejected"
             ? "Solicitud rechazada."
-            : "Se solicitaron ajustes al profesional.",
+            : "Se solicitaron ajustes.",
       );
       onDone();
     } catch (err) {
@@ -165,6 +191,8 @@ function DetailPanel({
   }
 
   const d = doctor.data;
+  const enterprise = isEnterpriseDoctor(d);
+  const org = d.organization ?? null;
   // Solo cola de revisión (no aprobados ni rechazados)
   const pending =
     d.verificationStatus === "pending" ||
@@ -208,9 +236,9 @@ function DetailPanel({
             <p className="truncate text-sm text-muted-foreground">
               {d.phone ?? "Sin teléfono"}
             </p>
-            <span className="mt-2 inline-flex rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
-              Profesional
-            </span>
+            <div className="mt-2">
+              <TypeBadge doctor={d} />
+            </div>
           </div>
         </div>
       </div>
@@ -223,13 +251,14 @@ function DetailPanel({
           <dl className="space-y-2 text-sm">
             {(
               [
-                ["Tipo de usuario", "Profesional"],
+                ["Tipo de usuario", accountTypeLabel(d)],
                 ["Especialidad", d.specialty],
                 ["N.° licencia", d.licenseNumber],
                 ["Registro médico", d.medicalRegistry],
                 ["Institución", d.graduationInstitution ?? d.educationEntity],
                 ["País", d.country],
                 ["Ciudad", d.city],
+                ["Departamento", d.department],
               ] as const
             ).map(([label, value]) => (
               <div key={label} className="flex justify-between gap-3">
@@ -244,7 +273,7 @@ function DetailPanel({
 
         <section className="space-y-2">
           <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            Documentos enviados
+            Documentos del profesional
           </h3>
           <DocRow
             title="Documento de identidad"
@@ -263,6 +292,75 @@ function DetailPanel({
           />
         </section>
 
+        {enterprise ? (
+          <section className="space-y-3">
+            <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Información de empresa
+            </h3>
+            {!org ? (
+              <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                Cuenta Enterprise sin organización asociada o sin datos
+                comerciales cargados.
+              </p>
+            ) : (
+              <>
+                <dl className="space-y-2 text-sm">
+                  {(
+                    [
+                      ["Nombre empresa", org.name],
+                      [
+                        "Subtipo",
+                        org.type === "empresa_aliada"
+                          ? "Empresa aliada"
+                          : "Membresía empresa",
+                      ],
+                      ["CIIU", org.ciiuCode],
+                      ["Correo empresarial", org.businessEmail],
+                      ["Teléfono empresarial", org.businessPhone],
+                      ["Sitio web", org.website],
+                      ["Empleados (aprox.)", org.employeeCountRange],
+                      ["Representante legal", org.legalRepName],
+                      [
+                        "Doc. representante",
+                        org.legalRepDocType || org.legalRepDocNumber
+                          ? `${org.legalRepDocType ?? ""} ${org.legalRepDocNumber ?? ""}`.trim()
+                          : null,
+                      ],
+                    ] as const
+                  ).map(([label, value]) => (
+                    <div key={label} className="flex justify-between gap-3">
+                      <dt className="text-muted-foreground">{label}</dt>
+                      <dd className="text-right font-medium">
+                        {(value ?? "").toString().trim() || "—"}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                    Documentos de empresa
+                  </p>
+                  <DocRow
+                    title="Cédula del representante legal"
+                    url={org.legalRepCedulaDocUrl}
+                    fileKey={org.legalRepCedulaDocKey}
+                  />
+                  <DocRow
+                    title="RUT de la empresa"
+                    url={org.rutDocUrl}
+                    fileKey={org.rutDocKey}
+                  />
+                  <DocRow
+                    title="Certificado de existencia y representación legal"
+                    url={org.existenceCertDocUrl}
+                    fileKey={org.existenceCertDocKey}
+                  />
+                </div>
+              </>
+            )}
+          </section>
+        ) : null}
+
         {pending ? (
           <section>
             <h3 className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
@@ -271,12 +369,26 @@ function DetailPanel({
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value.slice(0, 500))}
-              placeholder="Agrega un comentario para el profesional…"
+              placeholder={
+                enterprise
+                  ? "Indica qué debe corregir el profesional o la empresa…"
+                  : "Indica qué debe corregir el profesional…"
+              }
               className="min-h-24 w-full resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+              required
             />
             <p className="mt-1 text-right text-xs text-muted-foreground">
-              {note.length}/500
+              {note.length}/500 · Obligatoria al solicitar ajustes
             </p>
+          </section>
+        ) : null}
+
+        {d.verificationNote ? (
+          <section className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-950">
+            <p className="text-xs font-semibold tracking-wide uppercase">
+              Última observación enviada
+            </p>
+            <p className="mt-1 whitespace-pre-wrap">{d.verificationNote}</p>
           </section>
         ) : null}
 
@@ -298,7 +410,7 @@ function DetailPanel({
           <Button
             type="button"
             variant="outline"
-            disabled={verify.isPending}
+            disabled={verify.isPending || !note.trim()}
             onClick={() => void decide("in_review")}
           >
             Solicitar ajustes
@@ -548,10 +660,7 @@ export function VerificationDashboard({
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700">
-                            <Building2 className="size-3" />
-                            Profesional
-                          </span>
+                          <TypeBadge doctor={d} />
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
                           {d.specialty ?? "—"}
@@ -613,12 +722,12 @@ export function VerificationDashboard({
                 "Cédula, registro y diploma claros y vigentes.",
               ],
               [
-                "Especialidad relacionada",
-                "Perfil alineado al ejercicio dermatológico / estético.",
+                "Datos de empresa (Enterprise)",
+                "Razón social, CIIU, contacto y docs legales (RUT, certificado).",
               ],
               [
                 "Cumplimiento de requisitos",
-                "Licencia y formación acordes a la normativa.",
+                "Licencia, formación y representación legal acordes a la normativa.",
               ],
             ] as const
           ).map(([title, desc]) => (

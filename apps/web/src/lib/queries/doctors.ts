@@ -22,11 +22,17 @@ export interface Doctor {
   graduationInstitution: string | null;
   address: string | null;
   city: string | null;
+  department: string | null;
   country: string | null;
   zip: string | null;
   lat: string | number | null;
   lng: string | number | null;
   verificationStatus: string;
+  verificationNote?: string | null;
+  verificationNoteAt?: string | null;
+  membershipType?: string | null;
+  empresa?: boolean;
+  empresaReferida?: boolean;
   cedulaDocKey: string | null;
   medicalRegistryDocKey: string | null;
   diplomaDocKey: string | null;
@@ -39,6 +45,50 @@ export interface Doctor {
   user: {
     email: string;
   };
+  /** Presente en verificación admin cuando es cuenta empresa / aliada. */
+  organization?: DoctorOrganization | null;
+}
+
+export type DoctorOrganization = {
+  id: string;
+  type: string;
+  name: string;
+  status: string;
+  ciiuCode: string | null;
+  businessEmail: string | null;
+  businessPhone: string | null;
+  website: string | null;
+  employeeCountRange: string | null;
+  legalRepName: string | null;
+  legalRepDocType: string | null;
+  legalRepDocNumber: string | null;
+  legalRepCedulaDocKey: string | null;
+  rutDocKey: string | null;
+  existenceCertDocKey: string | null;
+  legalRepCedulaDocUrl?: string | null;
+  rutDocUrl?: string | null;
+  existenceCertDocUrl?: string | null;
+};
+
+export function isEnterpriseDoctor(
+  d: Pick<Doctor, "membershipType" | "empresa" | "empresaReferida">,
+) {
+  const type = (d.membershipType ?? "").trim().toLowerCase();
+  return (
+    type === "empresa" ||
+    type === "empresa_aliada" ||
+    Boolean(d.empresa) ||
+    Boolean(d.empresaReferida)
+  );
+}
+
+export function accountTypeLabel(
+  d: Pick<Doctor, "membershipType" | "empresa" | "empresaReferida">,
+) {
+  if (!isEnterpriseDoctor(d)) return "Profesional";
+  const type = (d.membershipType ?? "").trim().toLowerCase();
+  if (type === "empresa_aliada" || d.empresaReferida) return "Enterprise aliada";
+  return "Enterprise";
 }
 
 /** Bandejas del panel de verificación (mutuamente excluyentes). */
@@ -66,6 +116,7 @@ export interface DoctorInput {
   phone?: string;
   address?: string;
   city?: string;
+  department?: string;
   country?: string;
   zip?: string;
   lat?: number;
@@ -87,6 +138,7 @@ export type DoctorProfileInput = {
   graduationInstitution?: string;
   address?: string;
   city?: string;
+  department?: string;
   country?: string;
   zip?: string;
   lat?: number;

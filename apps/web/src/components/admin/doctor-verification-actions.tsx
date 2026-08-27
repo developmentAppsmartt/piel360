@@ -26,6 +26,7 @@ export function DoctorVerificationActions({
   const verify = useUpdateDoctorVerification(doctorId);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [note, setNote] = useState("");
 
   const pending =
     verificationStatus === "pending" ||
@@ -34,15 +35,23 @@ export function DoctorVerificationActions({
   async function decide(status: "active" | "rejected" | "in_review") {
     setError(null);
     setMessage(null);
+    if (status === "in_review" && !note.trim()) {
+      setError("Escribe una observación para solicitar ajustes.");
+      return;
+    }
     try {
-      await verify.mutateAsync({ status });
+      await verify.mutateAsync({
+        status,
+        note: note.trim() || undefined,
+      });
       setMessage(
         status === "active"
           ? "Doctor validado. Ya puede usar el panel completo."
           : status === "rejected"
             ? "Doctor rechazado."
-            : "Se solicitaron ajustes.",
+            : "Se solicitaron ajustes. El usuario verá la observación en su perfil.",
       );
+      setNote("");
       onDone?.();
     } catch (err) {
       setError(
@@ -54,7 +63,7 @@ export function DoctorVerificationActions({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <p className="text-sm">
         Estado:{" "}
         <span className="font-medium">
@@ -62,31 +71,39 @@ export function DoctorVerificationActions({
         </span>
       </p>
       {pending ? (
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            disabled={verify.isPending}
-            onClick={() => void decide("active")}
-          >
-            Validar doctor
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={verify.isPending}
-            onClick={() => void decide("in_review")}
-          >
-            Solicitar ajustes
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={verify.isPending}
-            onClick={() => void decide("rejected")}
-          >
-            Rechazar doctor
-          </Button>
-        </div>
+        <>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value.slice(0, 500))}
+            placeholder="Observación para el profesional (obligatoria al solicitar ajustes)…"
+            className="min-h-20 w-full resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              disabled={verify.isPending}
+              onClick={() => void decide("active")}
+            >
+              Validar doctor
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={verify.isPending}
+              onClick={() => void decide("in_review")}
+            >
+              Solicitar ajustes
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={verify.isPending}
+              onClick={() => void decide("rejected")}
+            >
+              Rechazar doctor
+            </Button>
+          </div>
+        </>
       ) : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       {message ? <p className="text-sm text-emerald-700">{message}</p> : null}

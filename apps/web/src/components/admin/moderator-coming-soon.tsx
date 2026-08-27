@@ -1,6 +1,6 @@
 import { Construction } from "lucide-react";
 
-export default function ModeratorComingSoonPage({
+export function ModeratorComingSoonPage({
   title,
   description,
 }: {
@@ -17,3 +17,5 @@ export default function ModeratorComingSoonPage({
     </div>
   );
 }
+
+export default ModeratorComingSoonPage;

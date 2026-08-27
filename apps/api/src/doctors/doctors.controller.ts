@@ -120,6 +120,6 @@ export class DoctorsController {
     @Param('id') id: string,
     @Body() dto: UpdateDoctorVerificationDto,
   ) {
-    return this.doctorsService.updateVerification(id, dto.status);
+    return this.doctorsService.updateVerification(id, dto.status, dto.note);
   }
 }

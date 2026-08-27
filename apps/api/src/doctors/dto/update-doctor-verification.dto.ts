@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import {
   VERIFICATION_STATUSES,
   type VerificationStatus,
@@ -13,6 +13,7 @@ export class UpdateDoctorVerificationDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   note?: string;
 }
 

@@ -30,7 +30,7 @@ export const adminNav: NavItem[] = [
     label: "Panel de control",
     href: "/admin",
     icon: Home,
-    roles: ["superadmin", "monitor"],
+    roles: ["superadmin"],
   },
   {
     label: "Usuarios",

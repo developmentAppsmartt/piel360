@@ -85,6 +85,7 @@ model Doctor {
   lng                  Decimal?  @db.Decimal(11, 8)
   address              String?
   city                 String?
+  department           String?
   country              String?
   zip                  String?
   metadataGooglePlaces Json?     @map("metadata_google_places")
@@ -92,6 +93,9 @@ model Doctor {
   membershipType       String    @default("solo_doctor") @map("membership_type")
   /** pending | in_review | verified | approved | active | rejected */
   verificationStatus   String    @default("pending") @map("verification_status")
+  /** Observación del moderador al solicitar ajustes / rechazar. */
+  verificationNote     String?   @map("verification_note") @db.Text
+  verificationNoteAt   DateTime? @map("verification_note_at")
   /** Activa módulo Equipo (no es un rol RBAC). */
   empresa              Boolean   @default(false)
   /** Activa módulo Referidos (no es un rol RBAC). */
@@ -133,6 +137,28 @@ model Organization {
   referralCode String?  @unique @map("referral_code")
   /** pending | active | suspended */
   status       String   @default("pending")
+
+  /** Perfil comercial (solo membresía empresa / empresa aliada). */
+  ciiuCode           String?  @map("ciiu_code")
+  address            String?
+  city               String?  /** municipio */
+  department         String?
+  country            String?
+  zip                String?
+  lat                Decimal? @db.Decimal(10, 8)
+  lng                Decimal? @db.Decimal(11, 8)
+  businessEmail      String?  @map("business_email")
+  businessPhone      String?  @map("business_phone")
+  website            String?
+  /** approx employee count bucket, e.g. "1-10" | "11-50" | … */
+  employeeCountRange String?  @map("employee_count_range")
+  legalRepName       String?  @map("legal_rep_name")
+  legalRepDocType    String?  @map("legal_rep_doc_type")
+  legalRepDocNumber  String?  @map("legal_rep_doc_number")
+  legalRepCedulaDocKey String? @map("legal_rep_cedula_doc_key")
+  rutDocKey          String?  @map("rut_doc_key")
+  existenceCertDocKey String? @map("existence_cert_doc_key")
+
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 

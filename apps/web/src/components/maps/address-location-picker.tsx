@@ -37,6 +37,8 @@ export type AddressLocationValue = {
   lat: number | null;
   lng: number | null;
   city?: string;
+  /** Departamento / estado (Nominatim `state`). */
+  department?: string;
   country?: string;
   zip?: string;
 };
@@ -99,6 +101,45 @@ function zipFromNominatim(
   return m?.[1];
 }
 
+/** Departamento / estado (Colombia: Valle del Cauca, Antioquia, …). */
+function departmentFromNominatim(
+  a: GeocodeResult["address"],
+  displayName?: string,
+): string | undefined {
+  const state = a?.state?.trim();
+  if (state && !/^colombia$/i.test(state) && !/^rap\b/i.test(state)) {
+    return state;
+  }
+
+  if (displayName) {
+    const parts = displayName
+      .split(",")
+      .map((p) => p.trim())
+      .filter(Boolean);
+    // …, municipio, departamento, región?, CP?, país
+    const withoutCountry = parts.filter(
+      (p) => !/^colombia$/i.test(p) && !/^\d{4,6}$/.test(p) && !/^rap\b/i.test(p),
+    );
+    // Prefer a known-looking department token near the end
+    for (let i = withoutCountry.length - 1; i >= 0; i--) {
+      const p = withoutCountry[i];
+      if (
+        /^(valle del cauca|antioquia|cundinamarca|atl[aá]ntico|bol[ií]var|boyac[aá]|caldas|caquet[aá]|casanare|cauca|cesar|choc[oó]|c[oó]rdoba|guain[ií]a|guaviare|huila|la guajira|magdalena|meta|nari[nñ]o|norte de santander|putumayo|quind[ií]o|risaralda|san andr[eé]s|santander|sucre|tolima|arauca|amazonas|vichada)$/i.test(
+          p,
+        )
+      ) {
+        return p;
+      }
+    }
+    // Fallback: penúltimo útil (antes del municipio a veces hay "Norte")
+    if (withoutCountry.length >= 2) {
+      return withoutCountry[withoutCountry.length - 1];
+    }
+  }
+
+  return undefined;
+}
+
 export function AddressLocationPicker({
   value,
   onChange,
@@ -108,13 +149,14 @@ export function AddressLocationPicker({
   mapClassName,
 }: AddressLocationPickerProps) {
   const [addressQuery, setAddressQuery] = useState(value.address);
+  /** Solo se actualiza al escribir en el input — evita buscar al pinchar el mapa. */
+  const [typedQuery, setTypedQuery] = useState("");
   const [suggestions, setSuggestions] = useState<GeocodeResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
   const searchAbort = useRef<AbortController | null>(null);
-  const suppressAddressSearch = useRef(false);
 
   const location: LatLng | null =
     value.lat != null &&
@@ -132,12 +174,7 @@ export function AddressLocationPicker({
   }, [value.address]);
 
   useEffect(() => {
-    if (suppressAddressSearch.current) {
-      suppressAddressSearch.current = false;
-      return;
-    }
-
-    const q = addressQuery.trim();
+    const q = typedQuery.trim();
     if (q.length < 3) {
       setSuggestions([]);
       return;
@@ -176,7 +213,7 @@ export function AddressLocationPicker({
       clearTimeout(timer);
       searchAbort.current?.abort();
     };
-  }, [addressQuery]);
+  }, [typedQuery]);
 
   async function reverseGeocode(lat: number, lng: number) {
     try {
@@ -193,8 +230,8 @@ export function AddressLocationPicker({
         display_name?: string;
       };
       if (!data.display_name) return;
-      suppressAddressSearch.current = true;
       setAddressQuery(data.display_name);
+      setTypedQuery("");
       setSuggestions([]);
       setSearchOpen(false);
       onChange({
@@ -202,6 +239,10 @@ export function AddressLocationPicker({
         lat,
         lng,
         city: cityFromNominatim(data.address, data.display_name) ?? "",
+        department:
+          departmentFromNominatim(data.address, data.display_name) ??
+          value.department ??
+          "",
         country: data.address?.country_code
           ? data.address.country_code.toUpperCase()
           : (value.country ?? "CO"),
@@ -215,8 +256,8 @@ export function AddressLocationPicker({
   function selectSuggestion(item: GeocodeResult) {
     const lat = Number(item.lat);
     const lng = Number(item.lon);
-    suppressAddressSearch.current = true;
     setAddressQuery(item.display_name);
+    setTypedQuery("");
     setSuggestions([]);
     setSearchOpen(false);
     setGeoError(null);
@@ -225,6 +266,8 @@ export function AddressLocationPicker({
       lat,
       lng,
       city: cityFromNominatim(item.address, item.display_name) ?? "",
+      department:
+        departmentFromNominatim(item.address, item.display_name) ?? "",
       country: item.address?.country_code
         ? item.address.country_code.toUpperCase()
         : (value.country ?? "CO"),
@@ -294,9 +337,10 @@ export function AddressLocationPicker({
               placeholder="Ej. Calle 100 #19-54, Bogotá"
               value={addressQuery}
               onChange={(e) => {
-                setAddressQuery(e.target.value);
-                setSearchOpen(true);
-                onChange({ ...value, address: e.target.value });
+                const next = e.target.value;
+                setAddressQuery(next);
+                setTypedQuery(next);
+                onChange({ ...value, address: next });
               }}
               onFocus={() => suggestions.length > 0 && setSearchOpen(true)}
               onBlur={() => {
@@ -347,13 +391,23 @@ export function AddressLocationPicker({
       {geoError ? <p className="text-sm text-destructive">{geoError}</p> : null}
 
       {showAdminFields ? (
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium">Ciudad</span>
+            <span className="font-medium">Municipio / ciudad</span>
             <input
               className={inputClass}
               value={value.city ?? ""}
               onChange={(e) => onChange({ ...value, city: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="font-medium">Departamento</span>
+            <input
+              className={inputClass}
+              value={value.department ?? ""}
+              onChange={(e) =>
+                onChange({ ...value, department: e.target.value })
+              }
             />
           </label>
           <label className="flex flex-col gap-1.5 text-sm">

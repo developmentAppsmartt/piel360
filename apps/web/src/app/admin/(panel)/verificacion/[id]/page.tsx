@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { DoctorVerificationActions } from "@/components/admin/doctor-verification-actions";
-import { useDoctor } from "@/lib/queries/doctors";
+import {
+  accountTypeLabel,
+  isEnterpriseDoctor,
+  useDoctor,
+} from "@/lib/queries/doctors";
 
 function DocBlock({
   title,
@@ -71,6 +75,8 @@ export default function VerificacionDoctorPage() {
   }
 
   const d = doctor.data;
+  const enterprise = isEnterpriseDoctor(d);
+  const org = d.organization ?? null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -86,6 +92,9 @@ export default function VerificacionDoctorPage() {
             {d.firstName} {d.lastName}
           </h1>
           <p className="text-sm text-muted-foreground">{d.user.email}</p>
+          <p className="mt-1 text-sm font-medium text-violet-700">
+            {accountTypeLabel(d)}
+          </p>
         </div>
         <DoctorVerificationActions
           doctorId={id}
@@ -99,6 +108,7 @@ export default function VerificacionDoctorPage() {
       <section className="rounded-xl border border-border bg-card p-4">
         <h2 className="mb-2 text-sm font-semibold">Datos personales</h2>
         <dl>
+          <Row label="Tipo" value={accountTypeLabel(d)} />
           <Row label="Teléfono" value={d.phone} />
           <Row
             label="Documento"
@@ -121,13 +131,14 @@ export default function VerificacionDoctorPage() {
           <Row label="Registro médico" value={d.medicalRegistry} />
           <Row label="Licencia" value={d.licenseNumber} />
           <Row label="Ciudad" value={d.city} />
+          <Row label="Departamento" value={d.department} />
           <Row label="País" value={d.country} />
           <Row label="Dirección" value={d.address} />
         </dl>
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold">Documentos</h2>
+        <h2 className="text-sm font-semibold">Documentos del profesional</h2>
         <div className="grid gap-4 sm:grid-cols-3">
           <DocBlock
             title="Cédula"
@@ -146,6 +157,62 @@ export default function VerificacionDoctorPage() {
           />
         </div>
       </section>
+
+      {enterprise ? (
+        <section className="rounded-xl border border-border bg-card p-4">
+          <h2 className="mb-2 text-sm font-semibold">Información de empresa</h2>
+          {!org ? (
+            <p className="text-sm text-amber-700">
+              Sin organización asociada o datos comerciales pendientes.
+            </p>
+          ) : (
+            <>
+              <dl>
+                <Row label="Nombre" value={org.name} />
+                <Row
+                  label="Subtipo"
+                  value={
+                    org.type === "empresa_aliada"
+                      ? "Empresa aliada"
+                      : "Membresía empresa"
+                  }
+                />
+                <Row label="CIIU" value={org.ciiuCode} />
+                <Row label="Correo" value={org.businessEmail} />
+                <Row label="Teléfono" value={org.businessPhone} />
+                <Row label="Sitio web" value={org.website} />
+                <Row label="Empleados" value={org.employeeCountRange} />
+                <Row label="Representante" value={org.legalRepName} />
+                <Row
+                  label="Doc. representante"
+                  value={
+                    org.legalRepDocType || org.legalRepDocNumber
+                      ? `${org.legalRepDocType ?? ""} ${org.legalRepDocNumber ?? ""}`.trim()
+                      : null
+                  }
+                />
+              </dl>
+              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                <DocBlock
+                  title="Cédula representante"
+                  url={org.legalRepCedulaDocUrl}
+                  fileKey={org.legalRepCedulaDocKey}
+                />
+                <DocBlock
+                  title="RUT"
+                  url={org.rutDocUrl}
+                  fileKey={org.rutDocKey}
+                />
+                <DocBlock
+                  title="Certificado existencia"
+                  url={org.existenceCertDocUrl}
+                  fileKey={org.existenceCertDocKey}
+                />
+              </div>
+            </>
+          )}
+        </section>
+      ) : null}
     </div>
   );
 }

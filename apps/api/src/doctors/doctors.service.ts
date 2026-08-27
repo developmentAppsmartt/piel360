@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { MailService } from '../mail/mail.service';
 import type { UpdateDoctorDto } from './dto/update-doctor.dto';
 
 const DOC_MIME = new Set([
@@ -20,6 +21,7 @@ export class DoctorsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly mail: MailService,
   ) {}
 
   /** Resuelve el `Doctor.id` a partir del `sub` (User.id) del JWT — usado
@@ -66,7 +68,9 @@ export class DoctorsService {
         include: { user: { select: { email: true, avatarKey: true } } },
         orderBy: { createdAt: status === 'pending' ? 'asc' : 'desc' },
       })
-      .then((rows) => Promise.all(rows.map((d) => this.withDocumentUrls(d))));
+      .then((rows) =>
+        Promise.all(rows.map((d) => this.withVerificationPayload(d))),
+      );
   }
 
   async verificationStats() {
@@ -114,14 +118,76 @@ export class DoctorsService {
   async updateVerification(
     id: string,
     status: 'active' | 'rejected' | 'approved' | 'pending' | 'in_review',
+    note?: string,
   ) {
-    await this.findOne(id);
+    if (!/^\d+$/.test(id)) {
+      throw new NotFoundException('Doctor no encontrado');
+    }
+    const trimmed = note?.trim() || null;
+
+    if (status === 'in_review' && !trimmed) {
+      throw new BadRequestException(
+        'Incluye una observación para que el profesional sepa qué corregir.',
+      );
+    }
+
+    const approved = status === 'active' || status === 'approved';
+
     const doctor = await this.prisma.doctor.update({
       where: { id: BigInt(id) },
-      data: { verificationStatus: status },
-      include: { user: { select: { email: true, avatarKey: true } } },
+      data: {
+        verificationStatus: status,
+        ...(approved
+          ? { verificationNote: null, verificationNoteAt: null }
+          : trimmed
+            ? {
+                verificationNote: trimmed,
+                verificationNoteAt: new Date(),
+              }
+            : {}),
+      },
+      include: {
+        user: { select: { email: true, avatarKey: true, name: true } },
+      },
     });
-    return this.withDocumentUrls(doctor);
+
+    if (
+      (status === 'in_review' || status === 'rejected') &&
+      trimmed &&
+      doctor.user?.email
+    ) {
+      const subject =
+        status === 'in_review'
+          ? 'Piel360 — Se solicitaron ajustes a tu cuenta'
+          : 'Piel360 — Tu solicitud de verificación fue rechazada';
+      const heading =
+        status === 'in_review'
+          ? 'Necesitamos que revises tu perfil'
+          : 'Tu solicitud fue rechazada';
+      const cta =
+        status === 'in_review'
+          ? 'Entra a tu perfil en Piel360, corrige lo indicado y guarda los cambios para que el equipo vuelva a revisar.'
+          : 'Puedes corregir tu información y contactar soporte si consideras que hubo un error.';
+
+      void this.mail
+        .send({
+          to: doctor.user.email,
+          subject,
+          html: `
+            <p>Hola ${doctor.firstName || doctor.user.name || ''},</p>
+            <p><strong>${heading}</strong></p>
+            <p>Observación del equipo de verificación:</p>
+            <blockquote style="border-left:3px solid #0ea5e9;padding-left:12px;color:#334155;">
+              ${trimmed.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+            </blockquote>
+            <p>${cta}</p>
+            <p>— Equipo Piel360</p>
+          `,
+        })
+        .catch(() => undefined);
+    }
+
+    return this.withVerificationPayload(doctor);
   }
 
   /** Perfil del doctor autenticado (incluye email y URLs firmadas de docs). */
@@ -145,7 +211,7 @@ export class DoctorsService {
       include: { user: { select: { email: true, avatarKey: true } } },
     });
     if (!doctor) throw new NotFoundException('Doctor no encontrado');
-    return this.withDocumentUrls(doctor);
+    return this.withVerificationPayload(doctor);
   }
 
   async update(id: string, dto: UpdateDoctorDto) {
@@ -177,6 +243,10 @@ export class DoctorsService {
         ...(phone !== undefined ? { phone } : {}),
         ...(birthDate !== undefined
           ? { birthDate: birthDate ? new Date(birthDate) : null }
+          : {}),
+        // Tras corregir datos, vuelve a la cola de pendientes.
+        ...(doctor.verificationStatus === 'in_review'
+          ? { verificationStatus: 'pending' }
           : {}),
       },
       include: { user: { select: { email: true, avatarKey: true } } },
@@ -213,6 +283,82 @@ export class DoctorsService {
     } catch {
       return null;
     }
+  }
+
+  private isEnterpriseDoctor(doctor: {
+    membershipType: string;
+    empresa: boolean;
+    empresaReferida: boolean;
+  }) {
+    const type = (doctor.membershipType ?? '').trim().toLowerCase();
+    return (
+      type === 'empresa' ||
+      type === 'empresa_aliada' ||
+      doctor.empresa ||
+      doctor.empresaReferida
+    );
+  }
+
+  private async loadOrganizationForUser(userId: bigint) {
+    const org = await this.prisma.organization.findFirst({
+      where: {
+        OR: [
+          { ownerUserId: userId },
+          { members: { some: { userId } } },
+        ],
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (!org) return null;
+
+    const [legalRepCedulaDocUrl, rutDocUrl, existenceCertDocUrl] =
+      await Promise.all([
+        this.signDoc(org.legalRepCedulaDocKey),
+        this.signDoc(org.rutDocKey),
+        this.signDoc(org.existenceCertDocKey),
+      ]);
+
+    return {
+      id: org.id.toString(),
+      type: org.type,
+      name: org.name,
+      status: org.status,
+      ciiuCode: org.ciiuCode,
+      businessEmail: org.businessEmail,
+      businessPhone: org.businessPhone,
+      website: org.website,
+      employeeCountRange: org.employeeCountRange,
+      legalRepName: org.legalRepName,
+      legalRepDocType: org.legalRepDocType,
+      legalRepDocNumber: org.legalRepDocNumber,
+      legalRepCedulaDocKey: org.legalRepCedulaDocKey,
+      rutDocKey: org.rutDocKey,
+      existenceCertDocKey: org.existenceCertDocKey,
+      legalRepCedulaDocUrl,
+      rutDocUrl,
+      existenceCertDocUrl,
+    };
+  }
+
+  /** Perfil + URLs de docs (+ organización si es cuenta empresa). */
+  private async withVerificationPayload<
+    T extends {
+      userId: bigint;
+      membershipType: string;
+      empresa: boolean;
+      empresaReferida: boolean;
+      cedulaDocKey: string | null;
+      medicalRegistryDocKey: string | null;
+      diplomaDocKey: string | null;
+      user?: { email: string; avatarKey?: string | null } | null;
+    },
+  >(doctor: T) {
+    const base = await this.withDocumentUrls(doctor);
+    if (!this.isEnterpriseDoctor(doctor)) {
+      return { ...base, organization: null };
+    }
+    const organization = await this.loadOrganizationForUser(doctor.userId);
+    return { ...base, organization };
   }
 
   private async withDocumentUrls<

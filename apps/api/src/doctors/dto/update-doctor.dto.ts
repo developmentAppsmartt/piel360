@@ -72,6 +72,10 @@ export class UpdateDoctorDto {
 
   @IsOptional()
   @IsString()
+  department?: string;
+
+  @IsOptional()
+  @IsString()
   country?: string;
 
   @IsOptional()

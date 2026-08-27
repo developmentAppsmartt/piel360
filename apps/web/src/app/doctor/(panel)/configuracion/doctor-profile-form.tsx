@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { CloudUpload } from "lucide-react";
 import { AddressLocationPicker } from "@/components/maps";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,16 @@ import {
   type DoctorProfileInput,
   type MyDoctorProfile,
 } from "@/lib/queries/doctors";
+import {
+  CompanyProfileSection,
+  type CompanyProfileHandle,
+} from "./company-profile-section";
+
+function isCompanyMembership(profile: MyDoctorProfile) {
+  const type = (profile.membershipType ?? "").trim().toLowerCase();
+  if (type === "empresa" || type === "empresa_aliada") return true;
+  return Boolean(profile.empresa || profile.empresaReferida);
+}
 
 const DOC_TYPES = ["CC", "CE", "TI", "PA"] as const;
 
@@ -151,6 +161,7 @@ function profileToForm(p: MyDoctorProfile) {
     graduationInstitution: p.graduationInstitution ?? "",
     address: p.address ?? "",
     city: p.city ?? "",
+    department: p.department ?? "",
     country: p.country ?? "",
     zip: p.zip ?? "",
     lat,
@@ -162,6 +173,7 @@ export function DoctorProfileForm() {
   const query = useMyDoctorProfile();
   const mutation = useUpdateMyDoctorProfile();
   const uploadDocs = useUploadDoctorDocuments();
+  const companyRef = useRef<CompanyProfileHandle>(null);
   const [form, setForm] = useState<ReturnType<typeof profileToForm> | null>(
     null,
   );
@@ -172,6 +184,7 @@ export function DoctorProfileForm() {
   const [diploma, setDiploma] = useState<File | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [savingAll, setSavingAll] = useState(false);
 
   useEffect(() => {
     if (query.data) setForm(profileToForm(query.data));
@@ -198,6 +211,9 @@ export function DoctorProfileForm() {
       return;
     }
 
+    const profile = query.data;
+    const showCompany = profile ? isCompanyMembership(profile) : false;
+
     const payload: DoctorProfileInput = {
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
@@ -213,6 +229,7 @@ export function DoctorProfileForm() {
       graduationInstitution: form.graduationInstitution.trim() || undefined,
       address: form.address.trim() || undefined,
       city: form.city.trim() || undefined,
+      department: form.department.trim() || undefined,
       country: form.country.trim() || undefined,
       zip: form.zip.trim() || undefined,
       ...(form.lat != null && form.lng != null
@@ -220,6 +237,7 @@ export function DoctorProfileForm() {
         : {}),
     };
 
+    setSavingAll(true);
     try {
       await mutation.mutateAsync(payload);
 
@@ -235,11 +253,22 @@ export function DoctorProfileForm() {
         setDiploma(null);
       }
 
-      setMessage("Perfil actualizado.");
+      if (showCompany && companyRef.current?.isReady()) {
+        await companyRef.current.save();
+        setMessage("Perfil y empresa actualizados.");
+      } else {
+        setMessage("Perfil actualizado.");
+      }
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "No se pudo guardar el perfil.",
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "No se pudo guardar.",
       );
+    } finally {
+      setSavingAll(false);
     }
   }
 
@@ -256,19 +285,64 @@ export function DoctorProfileForm() {
   }
 
   const profile = query.data!;
-  const saving = mutation.isPending || uploadDocs.isPending;
+  const saving =
+    savingAll || mutation.isPending || uploadDocs.isPending;
+  const showCompany = isCompanyMembership(profile);
 
   return (
-    <form onSubmit={onSubmit} className="max-w-3xl space-y-6">
+    <form onSubmit={onSubmit} className="max-w-3xl space-y-8">
+      <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Perfil de médico</h1>
         <p className="text-sm text-muted-foreground">
           Puedes actualizar tus datos. El correo no se puede cambiar.
           {profile.verificationStatus
-            ? ` Estado: ${profile.verificationStatus}.`
+            ? ` Estado: ${
+                profile.verificationStatus === "in_review"
+                  ? "ajustes solicitados"
+                  : profile.verificationStatus === "pending"
+                    ? "pendiente de verificación"
+                    : profile.verificationStatus === "rejected"
+                      ? "rechazado"
+                      : profile.verificationStatus === "active" ||
+                          profile.verificationStatus === "approved" ||
+                          profile.verificationStatus === "verified"
+                        ? "verificado"
+                        : profile.verificationStatus
+              }.`
             : null}
         </p>
       </div>
+
+      {profile.verificationNote &&
+      (profile.verificationStatus === "in_review" ||
+        profile.verificationStatus === "rejected" ||
+        profile.verificationStatus === "pending") ? (
+        <div
+          className={
+            profile.verificationStatus === "rejected"
+              ? "rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+              : "rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+          }
+          role="status"
+        >
+          <p className="font-semibold">
+            {profile.verificationStatus === "rejected"
+              ? "Tu solicitud fue rechazada"
+              : "El equipo de verificación solicitó ajustes"}
+          </p>
+          <p className="mt-1 whitespace-pre-wrap">{profile.verificationNote}</p>
+          {profile.verificationNoteAt ? (
+            <p className="mt-2 text-xs opacity-80">
+              {new Date(profile.verificationNoteAt).toLocaleString("es-CO")}
+            </p>
+          ) : null}
+          <p className="mt-2 text-xs">
+            Corrige la información indicada y guarda los cambios para que
+            vuelvan a revisar tu cuenta.
+          </p>
+        </div>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Nombre">
@@ -398,6 +472,7 @@ export function DoctorProfileForm() {
           lat: form.lat,
           lng: form.lng,
           city: form.city,
+          department: form.department,
           country: form.country,
           zip: form.zip,
         }}
@@ -410,6 +485,7 @@ export function DoctorProfileForm() {
                   lat: next.lat,
                   lng: next.lng,
                   city: next.city ?? "",
+                  department: next.department ?? "",
                   country: next.country ?? "",
                   zip: next.zip ?? "",
                 }
@@ -447,12 +523,19 @@ export function DoctorProfileForm() {
           />
         </div>
       </div>
+      </div>
+
+      {showCompany ? <CompanyProfileSection ref={companyRef} /> : null}
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
 
       <Button type="submit" disabled={saving}>
-        {saving ? "Guardando…" : "Guardar cambios"}
+        {saving
+          ? "Guardando…"
+          : showCompany
+            ? "Guardar perfil y empresa"
+            : "Guardar cambios"}
       </Button>
     </form>
   );

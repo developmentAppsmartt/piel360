@@ -140,6 +140,7 @@ export class AuthService implements OnModuleDestroy {
             graduationInstitution: dto.graduationInstitution?.trim() || null,
             address: dto.address?.trim() || null,
             city: dto.city?.trim() || null,
+            department: dto.department?.trim() || null,
             country: dto.country?.trim() || null,
             ...(dto.lat != null && dto.lng != null
               ? { lat: dto.lat, lng: dto.lng }
