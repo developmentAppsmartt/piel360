@@ -16,6 +16,8 @@ export interface NavItem {
    * Sin este flag, el ítem solo aparece con verificationStatus active|approved.
    */
   allowedWhilePending?: boolean;
+  /** Clave especial: el shell puede inyectar un contador (p. ej. pendientes). */
+  badgeKey?: "pending-verification";
   children?: NavItem[];
 }
 

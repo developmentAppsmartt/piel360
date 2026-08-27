@@ -18,10 +18,11 @@ import { DoctorHeader } from '../../doctor/patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../../doctor/patients/styles/patients.styles';
 import { YoucamConsentStep } from '../youcam-flow/YoucamConsentStep';
 import { createYoucamFlowStyles } from '../youcam-flow/styles/youcamFlow.styles';
+import { AnalysisModeStep } from '../AnalysisModeStep';
 import { BodySelector3D } from './BodySelector3D';
 import { SkiniverProcessingStep } from './SkiniverProcessingStep';
 
-type Step = 'consent' | 'region' | 'capture' | 'processing';
+type Step = 'mode' | 'consent' | 'region' | 'capture' | 'processing';
 
 type SkiniverAnalysisFlowProps = {
   patientId: string;
@@ -30,6 +31,7 @@ type SkiniverAnalysisFlowProps = {
   onAnalysisCreated: (analysisId: string) => void;
   onOpenMenu?: () => void;
   onOpenMessages?: () => void;
+  skipModeChoice?: boolean;
 };
 
 async function pickCloseUp(source: 'camera' | 'library'): Promise<string | null> {
@@ -78,6 +80,7 @@ export function SkiniverAnalysisFlow({
   onAnalysisCreated,
   onOpenMenu,
   onOpenMessages,
+  skipModeChoice = false,
 }: SkiniverAnalysisFlowProps) {
   const branding = useBranding();
   const headerStyles = useMemo(
@@ -88,7 +91,9 @@ export function SkiniverAnalysisFlow({
     () => createYoucamFlowStyles(branding.colors),
     [branding.colors],
   );
-  const [step, setStep] = useState<Step>('consent');
+  const [step, setStep] = useState<Step>(
+    skipModeChoice ? 'consent' : 'mode',
+  );
   const [selection, setSelection] = useState<BodySelection | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
@@ -146,11 +151,23 @@ export function SkiniverAnalysisFlow({
         onBack={() => {
           if (step === 'capture') setStep('region');
           else if (step === 'region') setStep('consent');
+          else if (step === 'consent' && !skipModeChoice) setStep('mode');
           else onClose();
         }}
         onOpenMenu={onOpenMenu ?? (() => undefined)}
         onOpenMessages={onOpenMessages}
       />
+
+      {step === 'mode' ? (
+        <AnalysisModeStep
+          patientId={patientId}
+          providerSlug="skiniver"
+          providerLabel={label}
+          onContinueOnDevice={() => setStep('consent')}
+          onRequested={onClose}
+          onCancel={onClose}
+        />
+      ) : null}
 
       {step === 'consent' ? (
         <YoucamConsentStep

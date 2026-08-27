@@ -4,12 +4,13 @@ import { StatusBar } from 'expo-status-bar';
 import { useBranding } from '../../../context/BrandingContext';
 import { DoctorHeader } from '../../doctor/patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../../doctor/patients/styles/patients.styles';
+import { AnalysisModeStep } from '../AnalysisModeStep';
 import { YoucamConsentStep } from './YoucamConsentStep';
 import { YoucamInstructionsStep } from './YoucamInstructionsStep';
 import { YoucamProcessingStep } from './YoucamProcessingStep';
 import { createYoucamFlowStyles } from './styles/youcamFlow.styles';
 
-type Step = 'consent' | 'instructions' | 'processing';
+type Step = 'mode' | 'consent' | 'instructions' | 'processing';
 
 type YoucamAnalysisFlowProps = {
   patientId: string;
@@ -18,6 +19,8 @@ type YoucamAnalysisFlowProps = {
   onOpenMenu?: () => void;
   onOpenMessages?: () => void;
   patientName?: string;
+  /** Si true (flujo paciente tras solicitud), salta la elección Seguir/Solicitar. */
+  skipModeChoice?: boolean;
 };
 
 export function YoucamAnalysisFlow({
@@ -27,6 +30,7 @@ export function YoucamAnalysisFlow({
   onOpenMenu,
   onOpenMessages,
   patientName,
+  skipModeChoice = false,
 }: YoucamAnalysisFlowProps) {
   const branding = useBranding();
   const headerStyles = useMemo(
@@ -37,7 +41,9 @@ export function YoucamAnalysisFlow({
     () => createYoucamFlowStyles(branding.colors),
     [branding.colors],
   );
-  const [step, setStep] = useState<Step>('consent');
+  const [step, setStep] = useState<Step>(
+    skipModeChoice ? 'consent' : 'mode',
+  );
   const [imageUri, setImageUri] = useState<string | null>(null);
 
   const handleDone = useCallback(
@@ -70,10 +76,22 @@ export function YoucamAnalysisFlow({
           showBack
           onBack={() => {
             if (step === 'instructions') setStep('consent');
+            else if (step === 'consent' && !skipModeChoice) setStep('mode');
             else onClose();
           }}
           onOpenMenu={onOpenMenu ?? (() => undefined)}
           onOpenMessages={onOpenMessages}
+        />
+      ) : null}
+
+      {step === 'mode' ? (
+        <AnalysisModeStep
+          patientId={patientId}
+          providerSlug="youcam"
+          providerLabel="Análisis estético"
+          onContinueOnDevice={() => setStep('consent')}
+          onRequested={onClose}
+          onCancel={onClose}
         />
       ) : null}
 

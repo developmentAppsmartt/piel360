@@ -90,6 +90,10 @@ export class RegisterDoctorDto {
 
   @IsOptional()
   @IsString()
+  department?: string;
+
+  @IsOptional()
+  @IsString()
   country?: string;
 
   @IsOptional()

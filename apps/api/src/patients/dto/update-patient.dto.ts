@@ -1,4 +1,13 @@
-import { IsDateString, IsEmail, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsDateString,
+  IsEmail,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class UpdatePatientDto {
   @IsOptional()
@@ -32,6 +41,20 @@ export class UpdatePatientDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  lat?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  lng?: number;
 
   /** ISO date `YYYY-MM-DD` o datetime; se guarda como `@db.Date`. */
   @IsOptional()

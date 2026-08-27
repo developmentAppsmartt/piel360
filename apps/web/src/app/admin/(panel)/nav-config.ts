@@ -1,5 +1,6 @@
 import {
   Building2,
+  CheckCircle2,
   ClipboardCheck,
   CreditCard,
   FileBarChart2,
@@ -19,22 +20,60 @@ import {
   Stethoscope,
   UserRound,
   UserCog,
+  XCircle,
 } from "lucide-react";
 import type { NavItem } from "@/components/layout/nav-items";
 
 /** Nav alineada al mockup PIEL360 backoffice (rutas reales + stubs UI). */
 export const adminNav: NavItem[] = [
   {
-    label: "Inicio",
+    label: "Panel de control",
     href: "/admin",
     icon: Home,
-    roles: ["superadmin", "monitor"],
+    roles: ["superadmin"],
   },
   {
-    label: "Verificación",
+    label: "Usuarios",
+    href: "/admin/verificacion/usuarios",
+    icon: Users,
+    roles: ["monitor"],
+  },
+  {
+    label: "Verificación (Pendientes)",
     href: "/admin/verificacion",
     icon: ClipboardCheck,
     roles: ["superadmin", "monitor"],
+    badgeKey: "pending-verification",
+  },
+  {
+    label: "Verificados",
+    href: "/admin/verificacion/verificados",
+    icon: CheckCircle2,
+    roles: ["superadmin", "monitor"],
+  },
+  {
+    label: "Rechazados",
+    href: "/admin/verificacion/rechazados",
+    icon: XCircle,
+    roles: ["superadmin", "monitor"],
+  },
+  {
+    label: "Empresas aliadas",
+    href: "/admin/verificacion/empresas-aliadas",
+    icon: Building2,
+    roles: ["monitor"],
+  },
+  {
+    label: "Reportes",
+    href: "/admin/verificacion/reportes",
+    icon: FileBarChart2,
+    roles: ["monitor"],
+  },
+  {
+    label: "Configuración",
+    href: "/admin/verificacion/configuracion",
+    icon: Settings,
+    roles: ["monitor"],
   },
   {
     label: "Moderadores",

@@ -55,7 +55,12 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 8,
+      overflow: 'hidden',
       ...appShadow({ opacity: 0.08, radius: 8, offsetY: 2, elevation: 2 }),
+    },
+    avatarImage: {
+      width: '100%',
+      height: '100%',
     },
     avatarText: {
       fontSize: 28,
@@ -141,6 +146,23 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
       fontWeight: '600',
       lineHeight: 18,
     },
+    pendingCancelBtn: {
+      minHeight: 40,
+      minWidth: 84,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      borderColor: '#EF4444',
+      backgroundColor: '#FEF2F2',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pendingCancelText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#EF4444',
+    },
     historyHeader: {
       marginTop: 18,
       paddingHorizontal: 16,
@@ -170,13 +192,15 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
       fontWeight: '600',
       color: colors.primary,
     },
+    list: {
+      flex: 1,
+    },
     listContent: {
-      paddingHorizontal: 16,
-      paddingTop: 12,
       paddingBottom: 28,
-      gap: 10,
+      flexGrow: 1,
     },
     analysisRow: {
+      marginHorizontal: 16,
       backgroundColor: '#FFFFFF',
       borderRadius: 14,
       borderWidth: 1,

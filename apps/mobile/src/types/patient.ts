@@ -24,6 +24,7 @@ export type PatientProfile = {
   regions: unknown | null;
   surveyCompletedAt: string | null;
   surveyResponses: unknown | null;
+  avatarUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 };

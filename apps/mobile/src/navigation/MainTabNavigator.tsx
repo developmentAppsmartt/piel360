@@ -1,10 +1,15 @@
-import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppIcon } from '../components/AppIcon';
 import { Icons, type AppIconName } from '../components/icons';
 import { useAuth } from '../context/AuthContext';
 import { useBranding } from '../context/BrandingContext';
+import {
+  patientsService,
+  type AnalysisRequest,
+} from '../services/patients.service';
+import { isDoctorVerificationActive } from '../types/auth';
 import { DoctorHomeView } from '../views/doctor/home/DoctorHomeView';
 import { DoctorPatientsView } from '../views/doctor/patients/DoctorPatientsView';
 import { HomeView } from '../views/home/HomeView';
@@ -28,6 +33,9 @@ const DOCTOR_TABS: { key: TabKey; label: string; icon: AppIconName }[] = [
   { key: 'profile', label: 'Perfil', icon: Icons.account },
 ];
 
+const DOCTOR_PENDING_TABS: { key: TabKey; label: string; icon: AppIconName }[] =
+  [{ key: 'profile', label: 'Perfil', icon: Icons.account }];
+
 /** Tabs paciente: Inicio | Agenda | Nuevo Análisis | Chat | Perfil */
 const PATIENT_TABS: {
   key: TabKey;
@@ -50,26 +58,88 @@ const PATIENT_TABS: {
 export function MainTabNavigator() {
   const insets = useSafeAreaInsets();
   const branding = useBranding();
-  const { user } = useAuth();
+  const { user, refreshDoctorVerification } = useAuth();
   const isDoctor = user?.role === 'doctor';
-  const tabs = useMemo(
-    () => (isDoctor ? DOCTOR_TABS : PATIENT_TABS),
-    [isDoctor],
+  const doctorActive =
+    !isDoctor || isDoctorVerificationActive(user?.verificationStatus);
+  const tabs = useMemo(() => {
+    if (!isDoctor) return PATIENT_TABS;
+    return doctorActive ? DOCTOR_TABS : DOCTOR_PENDING_TABS;
+  }, [isDoctor, doctorActive]);
+  const [activeTab, setActiveTab] = useState<TabKey>(
+    isDoctor && !doctorActive ? 'profile' : 'home',
   );
-  const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [chatThreadOpen, setChatThreadOpen] = useState(false);
   const [creatingPatient, setCreatingPatient] = useState(false);
   const [consentRequestId, setConsentRequestId] = useState(0);
+  const [pendingRequests, setPendingRequests] = useState<AnalysisRequest[]>(
+    [],
+  );
   const activeColor = branding.colors.primary;
   const inactiveColor = '#9CA3AF';
+  const analysisUnlocked = pendingRequests.length > 0;
   const hideTabBar =
     (activeTab === 'chat' && chatThreadOpen) ||
     (isDoctor && activeTab === 'patients' && creatingPatient);
 
-  function onPatientTabPress(key: TabKey) {
+  useEffect(() => {
+    if (!isDoctor) return;
+    void refreshDoctorVerification();
+  }, [isDoctor, refreshDoctorVerification]);
+
+  useEffect(() => {
+    if (isDoctor && !doctorActive && activeTab !== 'profile') {
+      setActiveTab('profile');
+    }
+  }, [isDoctor, doctorActive, activeTab]);
+
+  const refreshPendingRequests = useCallback(async () => {
+    if (isDoctor) {
+      setPendingRequests([]);
+      return;
+    }
+    try {
+      const pending = await patientsService.getMyPendingAnalysisRequests();
+      setPendingRequests(pending);
+    } catch {
+      setPendingRequests([]);
+    }
+  }, [isDoctor]);
+
+  useEffect(() => {
+    void refreshPendingRequests();
+  }, [refreshPendingRequests, activeTab]);
+
+  async function onPatientTabPress(key: TabKey) {
     if (key === 'analysis') {
+      let pending: AnalysisRequest[] = [];
+      try {
+        pending = await patientsService.getMyPendingAnalysisRequests();
+        setPendingRequests(pending);
+      } catch {
+        setPendingRequests([]);
+      }
+      if (pending.length === 0) {
+        Alert.alert(
+          'Nuevo Análisis',
+          'Tu médico debe solicitarte un análisis desde su consulta para desbloquear esta opción.',
+        );
+        return;
+      }
       setActiveTab('home');
       setConsentRequestId((n) => n + 1);
+      return;
+    }
+    setActiveTab(key);
+  }
+
+  function onDoctorTabPress(key: TabKey) {
+    if (!doctorActive && key !== 'profile') {
+      Alert.alert(
+        'Verificación pendiente',
+        'Tu cuenta está en revisión. Solo puedes acceder a tu perfil hasta que un administrador active tu cuenta.',
+      );
+      setActiveTab('profile');
       return;
     }
     setActiveTab(key);
@@ -78,7 +148,8 @@ export function MainTabNavigator() {
   return (
     <View style={styles.shell}>
       <View style={styles.content}>
-        {activeTab === 'home' || (!isDoctor && activeTab === 'analysis') ? (
+        {doctorActive &&
+        (activeTab === 'home' || (!isDoctor && activeTab === 'analysis')) ? (
           isDoctor ? (
             <DoctorHomeView
               onOpenPatients={() => setActiveTab('patients')}
@@ -91,10 +162,12 @@ export function MainTabNavigator() {
               onOpenAgenda={() => setActiveTab('agenda')}
               onOpenMessages={() => setActiveTab('chat')}
               consentRequestId={consentRequestId}
+              pendingAnalysisRequests={pendingRequests}
+              onPendingRequestConsumed={() => void refreshPendingRequests()}
             />
           )
         ) : null}
-        {activeTab === 'patients' ? (
+        {doctorActive && activeTab === 'patients' ? (
           <DoctorPatientsView
             onOpenMessages={() => setActiveTab('chat')}
             onOpenProfile={() => setActiveTab('profile')}
@@ -107,10 +180,12 @@ export function MainTabNavigator() {
             description="Aquí verás citas y disponibilidad (mock). Se conectará al servicio de agenda."
           />
         ) : null}
-        {activeTab === 'chat' ? (
+        {doctorActive && activeTab === 'chat' ? (
           <MessagesView onThreadOpenChange={setChatThreadOpen} />
         ) : null}
-        {activeTab === 'profile' ? <ProfileView /> : null}
+        {activeTab === 'profile' || (isDoctor && !doctorActive) ? (
+          <ProfileView />
+        ) : null}
       </View>
 
       {!hideTabBar ? (
@@ -123,22 +198,28 @@ export function MainTabNavigator() {
           {tabs.map((tab) => {
             const active = tab.key === activeTab;
             const isCenter = 'center' in tab && tab.center;
-            const color = isCenter
-              ? activeColor
-              : active
+            const lockedCenter = isCenter && !isDoctor && !analysisUnlocked;
+            const color = lockedCenter
+              ? '#C4C4C4'
+              : isCenter
                 ? activeColor
-                : inactiveColor;
+                : active
+                  ? activeColor
+                  : inactiveColor;
             return (
               <Pressable
                 key={tab.key}
                 style={[styles.tabItem, isCenter && styles.tabItemCenter]}
                 onPress={() =>
                   isDoctor
-                    ? setActiveTab(tab.key)
-                    : onPatientTabPress(tab.key)
+                    ? onDoctorTabPress(tab.key)
+                    : void onPatientTabPress(tab.key)
                 }
                 accessibilityRole="tab"
-                accessibilityState={{ selected: active }}
+                accessibilityState={{
+                  selected: active,
+                  disabled: lockedCenter,
+                }}
                 accessibilityLabel={tab.label}
               >
                 <View
@@ -146,7 +227,11 @@ export function MainTabNavigator() {
                     isCenter
                       ? [
                           styles.centerIconWrap,
-                          { backgroundColor: branding.colors.primary },
+                          {
+                            backgroundColor: lockedCenter
+                              ? '#D1D5DB'
+                              : branding.colors.primary,
+                          },
                         ]
                       : undefined
                   }
@@ -160,7 +245,7 @@ export function MainTabNavigator() {
                 <Text
                   style={[
                     styles.tabLabel,
-                    { color: isCenter ? activeColor : color },
+                    { color },
                     isCenter && styles.tabLabelCenter,
                   ]}
                   numberOfLines={isCenter ? 2 : 1}

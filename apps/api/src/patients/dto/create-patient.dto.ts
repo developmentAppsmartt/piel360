@@ -1,4 +1,14 @@
-import { IsDateString, IsEmail, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsDateString,
+  IsEmail,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+  MinLength,
+} from 'class-validator';
 
 export class CreatePatientDto {
   @IsString()
@@ -10,6 +20,12 @@ export class CreatePatientDto {
   @IsOptional()
   @IsEmail()
   email?: string;
+
+  /** Crea cuenta de acceso (User) vinculada. Si hay email, debe enviarse (≥8). */
+  @IsOptional()
+  @IsString()
+  @MinLength(8)
+  password?: string;
 
   @IsOptional()
   @IsString()
@@ -30,6 +46,20 @@ export class CreatePatientDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  lat?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  lng?: number;
 
   @IsOptional()
   @IsDateString()

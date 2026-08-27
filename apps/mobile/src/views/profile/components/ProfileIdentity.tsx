@@ -1,4 +1,4 @@
-import { Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 import type { ProfileStyles } from '../styles/profile.styles';
 
 type ProfileIdentityProps = {
@@ -7,6 +7,9 @@ type ProfileIdentityProps = {
   subtitle: string;
   secondarySubtitle?: string;
   avatarInitials: string;
+  avatarUrl?: string | null;
+  avatarBusy?: boolean;
+  onPressAvatar?: () => void;
 };
 
 export function ProfileIdentity({
@@ -15,12 +18,37 @@ export function ProfileIdentity({
   subtitle,
   secondarySubtitle,
   avatarInitials,
+  avatarUrl,
+  avatarBusy,
+  onPressAvatar,
 }: ProfileIdentityProps) {
   return (
     <View style={styles.identity}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{avatarInitials || '?'}</Text>
-      </View>
+      <Pressable
+        style={styles.avatar}
+        onPress={onPressAvatar}
+        disabled={!onPressAvatar || avatarBusy}
+        accessibilityRole="button"
+        accessibilityLabel="Cambiar foto de perfil"
+      >
+        {avatarUrl ? (
+          <Image
+            source={{ uri: avatarUrl }}
+            style={styles.avatarImage}
+            accessibilityIgnoresInvertColors
+          />
+        ) : (
+          <Text style={styles.avatarText}>{avatarInitials || '?'}</Text>
+        )}
+        {avatarBusy ? (
+          <View style={styles.avatarOverlay}>
+            <ActivityIndicator color="#FFFFFF" />
+          </View>
+        ) : null}
+      </Pressable>
+      {onPressAvatar ? (
+        <Text style={styles.avatarHint}>Toca la foto para cambiarla</Text>
+      ) : null}
       <Text style={styles.displayName}>{displayName}</Text>
       <Text style={styles.subtitle}>{subtitle}</Text>
       {secondarySubtitle ? (

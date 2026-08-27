@@ -1,15 +1,20 @@
 import {
+  BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
+import * as argon2 from 'argon2';
 import { DOCTOR_PANEL_ROLES, type Role } from '@piel360/shared';
 import { AnalysisImageUrlsService } from '../analyses/analysis-image-urls.service';
 import type { JwtPayload } from '../auth/types';
 import { DoctorsService } from '../doctors/doctors.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import type { CreatePatientDto } from './dto/create-patient.dto';
+import type { CreateAnalysisRequestDto } from './dto/create-analysis-request.dto';
 import type { SurveyDto } from './dto/survey.dto';
 import type { UpdatePatientDto } from './dto/update-patient.dto';
 
@@ -23,34 +28,46 @@ export class PatientsService {
     private readonly prisma: PrismaService,
     private readonly doctors: DoctorsService,
     private readonly imageUrls: AnalysisImageUrlsService,
+    private readonly storage: StorageService,
   ) {}
 
   /** Scoping (MIGRACION.md §2.5/§2.6): doctor/empresa solo ve los suyos,
    * patient solo se ve a sí mismo, superadmin ve todos. */
   async findAll(currentUser: JwtPayload) {
     if (currentUser.role === 'superadmin') {
-      return this.prisma.patient.findMany({ orderBy: { id: 'asc' } });
+      const rows = await this.prisma.patient.findMany({
+        include: { user: { select: { avatarKey: true } } },
+        orderBy: { id: 'asc' },
+      });
+      return Promise.all(rows.map((row) => this.withAvatarUrl(row)));
     }
 
     if (isDoctorPanelRole(currentUser.role)) {
       const doctor = await this.doctors.requireDoctorByUserId(currentUser.sub);
-      return this.prisma.patient.findMany({
+      const rows = await this.prisma.patient.findMany({
         where: { doctorId: doctor.id },
+        include: { user: { select: { avatarKey: true } } },
         orderBy: { id: 'asc' },
       });
+      return Promise.all(rows.map((row) => this.withAvatarUrl(row)));
     }
 
     const own = await this.requireOwnPatient(currentUser.sub);
-    return [own];
+    const withUser = await this.prisma.patient.findUnique({
+      where: { id: own.id },
+      include: { user: { select: { avatarKey: true } } },
+    });
+    return withUser ? [await this.withAvatarUrl(withUser)] : [];
   }
 
   async findOne(id: string, currentUser: JwtPayload) {
     const patient = await this.prisma.patient.findUnique({
       where: { id: BigInt(id) },
+      include: { user: { select: { avatarKey: true } } },
     });
     if (!patient) throw new NotFoundException('Paciente no encontrado');
     await this.assertCanAccess(patient, currentUser);
-    return patient;
+    return this.withAvatarUrl(patient);
   }
 
   async create(dto: CreatePatientDto, currentUser: JwtPayload) {
@@ -64,10 +81,60 @@ export class PatientsService {
       );
     }
 
-    const { birthDate, ...rest } = dto;
+    const { birthDate, password, email, ...rest } = dto;
+    const emailNorm = email?.trim().toLowerCase() || undefined;
+    const wantsLogin = !!(emailNorm || password);
+
+    if (wantsLogin) {
+      if (!emailNorm) {
+        throw new BadRequestException(
+          'El correo es obligatorio para crear acceso del paciente',
+        );
+      }
+      if (!password || password.length < 8) {
+        throw new BadRequestException(
+          'La contraseña es obligatoria (mínimo 8 caracteres) para crear acceso',
+        );
+      }
+
+      const existing = await this.prisma.user.findUnique({
+        where: { email: emailNorm },
+      });
+      if (existing) {
+        throw new ConflictException('Ya existe una cuenta con ese email');
+      }
+
+      const hashed = await argon2.hash(password);
+      const user = await this.prisma.user.create({
+        data: {
+          email: emailNorm,
+          password: hashed,
+          name: `${dto.firstName} ${dto.lastName}`.trim(),
+          firstName: dto.firstName.trim(),
+          lastName: dto.lastName.trim(),
+          phone: dto.phone?.trim() || null,
+          roles: { connect: { name: 'patient' } },
+          patient: {
+            create: {
+              ...rest,
+              email: emailNorm,
+              doctorId,
+              ...(birthDate !== undefined
+                ? { birthDate: birthDate ? new Date(birthDate) : null }
+                : {}),
+            },
+          },
+        },
+        include: { patient: true },
+      });
+
+      return user.patient!;
+    }
+
     return this.prisma.patient.create({
       data: {
         ...rest,
+        email: emailNorm ?? null,
         doctorId,
         ...(birthDate !== undefined
           ? { birthDate: birthDate ? new Date(birthDate) : null }
@@ -79,7 +146,7 @@ export class PatientsService {
   async update(id: string, dto: UpdatePatientDto, currentUser: JwtPayload) {
     const patient = await this.findOne(id, currentUser);
     const { birthDate, ...rest } = dto;
-    return this.prisma.patient.update({
+    const updated = await this.prisma.patient.update({
       where: { id: patient.id },
       data: {
         ...rest,
@@ -87,7 +154,9 @@ export class PatientsService {
           ? { birthDate: birthDate ? new Date(birthDate) : null }
           : {}),
       },
+      include: { user: { select: { avatarKey: true } } },
     });
+    return this.withAvatarUrl(updated);
   }
 
   /** `GET /api/me/survey` — el propio paciente. */
@@ -164,6 +233,154 @@ export class PatientsService {
       orderBy: { createdAt: 'asc' },
       include: { provider: { select: { displayLabel: true } } },
     });
+  }
+
+  private serializeAnalysisRequest(row: {
+    id: bigint;
+    patientId: bigint;
+    doctorId: bigint;
+    providerSlug: string;
+    status: string;
+    createdAt: Date;
+    updatedAt: Date;
+  }) {
+    return {
+      id: row.id.toString(),
+      patientId: row.patientId.toString(),
+      doctorId: row.doctorId.toString(),
+      providerSlug: row.providerSlug,
+      status: row.status,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  /** Doctor solicita al paciente que realice un análisis en su dispositivo. */
+  async createAnalysisRequest(
+    patientId: string,
+    dto: CreateAnalysisRequestDto,
+    currentUser: JwtPayload,
+  ) {
+    if (!isDoctorPanelRole(currentUser.role) && currentUser.role !== 'superadmin') {
+      throw new ForbiddenException('Solo el médico puede solicitar un análisis');
+    }
+    const patient = await this.findOne(patientId, currentUser);
+    if (!patient.userId) {
+      throw new BadRequestException(
+        'Este paciente no tiene cuenta de acceso; no puede recibir la solicitud en la app',
+      );
+    }
+
+    const doctor = await this.doctors.requireDoctorByUserId(currentUser.sub);
+
+    const existing = await this.prisma.analysisRequest.findFirst({
+      where: {
+        patientId: patient.id,
+        status: 'pending',
+        providerSlug: dto.providerSlug,
+      },
+      orderBy: { id: 'desc' },
+    });
+    if (existing) {
+      return this.serializeAnalysisRequest(existing);
+    }
+
+    const row = await this.prisma.analysisRequest.create({
+      data: {
+        patientId: patient.id,
+        doctorId: doctor.id,
+        providerSlug: dto.providerSlug,
+        status: 'pending',
+      },
+    });
+    return this.serializeAnalysisRequest(row);
+  }
+
+  /** Paciente: solicitudes pendientes (desbloquean Nuevo Análisis). */
+  async getMyPendingAnalysisRequests(userId: string) {
+    const patient = await this.requireOwnPatient(userId);
+    const rows = await this.prisma.analysisRequest.findMany({
+      where: { patientId: patient.id, status: 'pending' },
+      orderBy: { id: 'asc' },
+    });
+    return rows.map((row) => this.serializeAnalysisRequest(row));
+  }
+
+  /** Doctor: solicitudes pendientes de un paciente. */
+  async listPendingAnalysisRequests(
+    patientId: string,
+    currentUser: JwtPayload,
+  ) {
+    if (!isDoctorPanelRole(currentUser.role) && currentUser.role !== 'superadmin') {
+      throw new ForbiddenException('Solo el médico puede ver estas solicitudes');
+    }
+    const patient = await this.findOne(patientId, currentUser);
+    const rows = await this.prisma.analysisRequest.findMany({
+      where: { patientId: patient.id, status: 'pending' },
+      orderBy: { id: 'asc' },
+    });
+    return rows.map((row) => this.serializeAnalysisRequest(row));
+  }
+
+  /** Doctor elimina una solicitud pendiente. */
+  async cancelAnalysisRequest(
+    patientId: string,
+    requestId: string,
+    currentUser: JwtPayload,
+  ) {
+    if (!isDoctorPanelRole(currentUser.role) && currentUser.role !== 'superadmin') {
+      throw new ForbiddenException('Solo el médico puede cancelar una solicitud');
+    }
+    const patient = await this.findOne(patientId, currentUser);
+    const row = await this.prisma.analysisRequest.findFirst({
+      where: {
+        id: BigInt(requestId),
+        patientId: patient.id,
+        status: 'pending',
+      },
+    });
+    if (!row) {
+      throw new NotFoundException('Solicitud no encontrada o ya no está pendiente');
+    }
+    const deleted = await this.prisma.analysisRequest.delete({
+      where: { id: row.id },
+    });
+    return this.serializeAnalysisRequest(deleted);
+  }
+
+  /** Paciente marca la solicitud como completada tras crear el análisis. */
+  async completeMyAnalysisRequest(requestId: string, userId: string) {
+    const patient = await this.requireOwnPatient(userId);
+    const row = await this.prisma.analysisRequest.findFirst({
+      where: {
+        id: BigInt(requestId),
+        patientId: patient.id,
+        status: 'pending',
+      },
+    });
+    if (!row) {
+      throw new NotFoundException('Solicitud no encontrada o ya no está pendiente');
+    }
+    const updated = await this.prisma.analysisRequest.update({
+      where: { id: row.id },
+      data: { status: 'completed' },
+    });
+    return this.serializeAnalysisRequest(updated);
+  }
+
+  private async withAvatarUrl<
+    T extends { user?: { avatarKey: string | null } | null },
+  >(row: T) {
+    const { user, ...patient } = row;
+    let avatarUrl: string | null = null;
+    if (user?.avatarKey) {
+      try {
+        avatarUrl = await this.storage.getSignedUrl(user.avatarKey);
+      } catch {
+        avatarUrl = null;
+      }
+    }
+    return { ...patient, avatarUrl };
   }
 
   private async requireOwnPatient(userId: string) {

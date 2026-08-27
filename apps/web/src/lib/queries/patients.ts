@@ -71,6 +71,7 @@ export interface PatientInput {
   firstName: string;
   lastName: string;
   email?: string;
+  password?: string;
   phone?: string;
   areaCode?: string;
   docType?: string;

@@ -67,14 +67,12 @@ function roleAllowedForPanel(panel: Panel, role: Role | undefined): boolean {
 }
 
 /** Rutas del panel admin permitidas para el rol monitor (moderador). */
-const MONITOR_ALLOWED_PREFIXES = ["/admin", "/admin/verificacion"];
+const MONITOR_ALLOWED_PREFIXES = ["/admin/verificacion"];
 
 function monitorPathAllowed(pathname: string): boolean {
-  if (pathname === "/admin") return true;
   return MONITOR_ALLOWED_PREFIXES.some(
     (prefix) =>
-      prefix !== "/admin" &&
-      (pathname === prefix || pathname.startsWith(`${prefix}/`)),
+      pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
 }
 

@@ -1,4 +1,16 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
@@ -16,6 +28,21 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   updateMe(@CurrentUser() user: JwtPayload, @Body() dto: UpdateMeDto) {
     return this.usersService.updateMe(user.sub, dto);
+  }
+
+  @Post('me/avatar')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('avatar', {
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  uploadAvatar(
+    @CurrentUser() user: JwtPayload,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.usersService.uploadAvatar(user.sub, file);
   }
 
   @Get('admin/users')

@@ -68,7 +68,7 @@ export function DoctorPatientsView({
   const handleMenuSelect = (id: string) => {
     setMenuOpen(false);
     if (id === 'salir') void logout();
-    else if (id === 'perfil') onOpenProfile?.();
+    else if (id === 'perfil' || id === 'config') onOpenProfile?.();
     else if (id === 'suscripcion') setShowingPayments(true);
     else
       Alert.alert(

@@ -7,6 +7,7 @@ import {
   View,
 } from 'react-native';
 import { AppIcon } from '../../../../components/AppIcon';
+import { LocationPicker } from '../../../../components/maps/LocationPicker';
 import { useBranding } from '../../../../context/BrandingContext';
 import { resolveLatestFitzpatrickType } from '../../../../data/fitzpatrickLabels';
 import {
@@ -35,6 +36,12 @@ function toDateInput(iso: string | null | undefined): string {
 function optional(value: string): string | undefined {
   const trimmed = value.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function toCoord(value: number | string | null | undefined): number | null {
+  if (value == null || value === '') return null;
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
 }
 
 type EditProfileFormProps = {
@@ -68,6 +75,8 @@ export function EditProfileForm({
   const [birthDate, setBirthDate] = useState(toDateInput(patient.birthDate));
   const [gender, setGender] = useState(patient.gender ?? '');
   const [address, setAddress] = useState(patient.address ?? '');
+  const [lat, setLat] = useState<number | null>(() => toCoord(patient.lat));
+  const [lng, setLng] = useState<number | null>(() => toCoord(patient.lng));
   const [mascotType, setMascotType] = useState(patient.mascotType ?? '');
   const [skinType, setSkinType] = useState(patient.skinType ?? '');
   const [fitzpatrickType, setFitzpatrickType] = useState(() =>
@@ -125,6 +134,7 @@ export function EditProfileForm({
       docType: optional(docType),
       docNumber: optional(docNumber),
       address: optional(address),
+      ...(lat != null && lng != null ? { lat, lng } : {}),
       birthDate: optional(birthDate),
       gender: optional(gender),
       mascotType: optional(mascotType),
@@ -229,16 +239,6 @@ export function EditProfileForm({
           </View>
         </View>
 
-        <View style={styles.field}>
-          <Text style={styles.label}>Dirección</Text>
-          <TextInput
-            style={styles.input}
-            value={address}
-            onChangeText={setAddress}
-            editable={!submitting}
-          />
-        </View>
-
         <View style={styles.row}>
           <View style={[styles.field, { width: 90 }]}>
             <Text style={styles.label}>Cód. área</Text>
@@ -287,6 +287,20 @@ export function EditProfileForm({
             <Text style={styles.hint}>El correo no se puede modificar.</Text>
           ) : null}
         </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Ubicación</Text>
+        <LocationPicker
+          disabled={submitting}
+          showLabel={false}
+          value={{ address, lat, lng }}
+          onChange={(next) => {
+            setAddress(next.address);
+            setLat(next.lat);
+            setLng(next.lng);
+          }}
+        />
       </View>
 
       <View style={styles.card}>

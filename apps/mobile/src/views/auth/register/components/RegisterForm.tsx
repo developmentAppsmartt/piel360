@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { AppIcon } from '../../../../components/AppIcon';
 import { Icons } from '../../../../components/icons';
+import { LocationPicker } from '../../../../components/maps/LocationPicker';
 import { useAuth } from '../../../../context/AuthContext';
 import { useBranding } from '../../../../context/BrandingContext';
 import { PATIENT_FITZ_OPTIONS } from '../../../../data/patientFormOptions';
@@ -79,6 +80,8 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
   const [areaCode, setAreaCode] = useState('');
   const [phone, setPhone] = useState('');
   const [location, setLocation] = useState('');
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
   const [surveyIndex, setSurveyIndex] = useState(0);
   const [surveyAnswers, setSurveyAnswers] = useState<Record<string, string>>(
     {},
@@ -162,6 +165,7 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
           areaCode: areaCode.trim() || undefined,
           phone: phone.trim() || undefined,
           address: location.trim() || undefined,
+          ...(lat != null && lng != null ? { lat, lng } : {}),
           skinType: surveyAnswers.skin_type || undefined,
           fitzpatrickType: surveyAnswers.fitzpatrick_type || undefined,
           mascotType: surveyAnswers.mascot_type || undefined,
@@ -182,28 +186,6 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
     } finally {
       setSubmitting(false);
     }
-  }
-
-  function onAllowLocation() {
-    if (typeof navigator !== 'undefined' && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        () => {
-          setLocation((prev) => prev || 'Ubicación actual permitida');
-        },
-        () => {
-          Alert.alert(
-            'Ubicación',
-            'No se pudo obtener GPS. Escribe tu ciudad o dirección.',
-          );
-        },
-        { timeout: 8000 },
-      );
-      return;
-    }
-    Alert.alert(
-      'Ubicación',
-      'Escribe tu ciudad o dirección en el campo Localización.',
-    );
   }
 
   function selectSurveyOption(value: string) {
@@ -458,25 +440,21 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
         </View>
 
         <View style={styles.field}>
-          <View style={styles.labelRow}>
-            <Text style={styles.labelInlineDark}>Localización</Text>
-            <Pressable onPress={onAllowLocation}>
-              <Text style={styles.allowLinkDark}>Permitir</Text>
-            </Pressable>
-          </View>
-          <TextInput
-            style={styles.inputCard}
-            value={location}
-            onChangeText={setLocation}
-            placeholder="Ciudad o dirección"
-            placeholderTextColor="#9CA3AF"
-            editable={!submitting}
+          <LocationPicker
+            variant="auth"
+            disabled={submitting}
+            value={{ address: location, lat, lng }}
+            onChange={(next) => {
+              setLocation(next.address);
+              setLat(next.lat);
+              setLng(next.lng);
+            }}
           />
           <Pressable
             onPress={() =>
               Alert.alert(
                 '¿Por qué es esto importante?',
-                'La localización ayuda a contextualizar recomendaciones y citas cercanas. Puedes escribirla manualmente.',
+                'La localización ayuda a contextualizar recomendaciones y citas cercanas. Puedes buscarla o marcarla en el mapa.',
               )
             }
           >

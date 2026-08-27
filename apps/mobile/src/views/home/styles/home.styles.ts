@@ -100,6 +100,11 @@ export function createHomeStyles(colors: AppBranding['colors']) {
       backgroundColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    avatarImage: {
+      width: '100%',
+      height: '100%',
     },
     avatarText: {
       color: colors.textOnDark,
@@ -114,6 +119,12 @@ export function createHomeStyles(colors: AppBranding['colors']) {
       fontSize: 18,
       fontWeight: '700',
       color: colors.text,
+    },
+    profileRole: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 2,
     },
     profileMeta: {
       fontSize: 13,

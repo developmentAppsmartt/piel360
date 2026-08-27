@@ -52,6 +52,7 @@ export function RegistryMapPanel({
           lat: d.lat,
           lng: d.lng,
           subtitle: d.specialty ?? d.city,
+          city: d.city,
         })) ?? [])
       : (query.data?.patients.map((p) => ({
           id: p.id,
@@ -60,7 +61,12 @@ export function RegistryMapPanel({
           lat: p.lat,
           lng: p.lng,
           subtitle: p.city,
+          city: p.city,
         })) ?? []);
+
+  const uniquePoints = new Set(
+    markers.map((m) => `${m.lat.toFixed(5)},${m.lng.toFixed(5)}`),
+  ).size;
 
   return (
     <div className="space-y-4">
@@ -78,7 +84,11 @@ export function RegistryMapPanel({
       ) : (
         <>
           <p className="text-sm text-muted-foreground">
-            {markers.length} ubicaciones
+            {markers.length}{" "}
+            {kind === "doctor" ? "médicos" : "pacientes"} con ubicación
+            {uniquePoints > 0 && uniquePoints < markers.length
+              ? ` · ${uniquePoints} puntos distintos (los que coinciden se separan en el mapa)`
+              : null}
           </p>
           <RegistryMap markers={markers} />
         </>

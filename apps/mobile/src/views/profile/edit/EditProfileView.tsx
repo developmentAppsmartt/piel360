@@ -58,6 +58,7 @@ export function EditProfileView({
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
           showsVerticalScrollIndicator={false}
         >
           <EditProfileForm

@@ -1,37 +1,29 @@
 "use client";
 
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { AddressLocationPicker } from "@/components/maps";
+import type { AddressLocationValue } from "@/components/maps/address-location-picker";
 import { TextField } from "@/components/auth/text-field";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-error";
 import type { Doctor, DoctorInput } from "@/lib/queries/doctors";
 
-// Espejo de UpdateDoctorDto (apps/api/src/doctors/dto/update-doctor.dto.ts) —
-// birthDate/gender no están en el DTO todavía, así que no se editan acá.
+// Espejo de UpdateDoctorDto (apps/api/src/doctors/dto/update-doctor.dto.ts)
 const doctorSchema = z.object({
   firstName: z.string().min(1, "Requerido"),
   lastName: z.string().min(1, "Requerido"),
   phone: z.string(),
-  address: z.string(),
-  city: z.string(),
-  country: z.string(),
-  zip: z.string(),
 });
 
 type DoctorFormValues = z.infer<typeof doctorSchema>;
 
-function toInput(values: DoctorFormValues): DoctorInput {
-  return {
-    firstName: values.firstName,
-    lastName: values.lastName,
-    phone: values.phone || undefined,
-    address: values.address || undefined,
-    city: values.city || undefined,
-    country: values.country || undefined,
-    zip: values.zip || undefined,
-  };
+function toCoord(value: string | number | null | undefined): number | null {
+  if (value == null || value === "") return null;
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
 }
 
 export function DoctorForm({
@@ -43,6 +35,16 @@ export function DoctorForm({
   onSubmit: (input: DoctorInput) => Promise<unknown>;
   submitLabel: string;
 }) {
+  const [location, setLocation] = useState<AddressLocationValue>({
+    address: defaultValues?.address ?? "",
+    lat: toCoord(defaultValues?.lat),
+    lng: toCoord(defaultValues?.lng),
+    city: defaultValues?.city ?? "",
+    department: defaultValues?.department ?? "",
+    country: defaultValues?.country ?? "",
+    zip: defaultValues?.zip ?? "",
+  });
+
   const {
     register,
     handleSubmit,
@@ -54,25 +56,36 @@ export function DoctorForm({
       firstName: defaultValues?.firstName ?? "",
       lastName: defaultValues?.lastName ?? "",
       phone: defaultValues?.phone ?? "",
-      address: defaultValues?.address ?? "",
-      city: defaultValues?.city ?? "",
-      country: defaultValues?.country ?? "",
-      zip: defaultValues?.zip ?? "",
     },
   });
 
   const submit = handleSubmit(async (values) => {
     try {
-      await onSubmit(toInput(values));
+      await onSubmit({
+        firstName: values.firstName,
+        lastName: values.lastName,
+        phone: values.phone || undefined,
+        address: location.address.trim() || undefined,
+        city: location.city?.trim() || undefined,
+        department: location.department?.trim() || undefined,
+        country: location.country?.trim() || undefined,
+        zip: location.zip?.trim() || undefined,
+        ...(location.lat != null && location.lng != null
+          ? { lat: location.lat, lng: location.lng }
+          : {}),
+      });
     } catch (err) {
       setError("root", {
-        message: err instanceof ApiError ? err.message : "No se pudo guardar el doctor.",
+        message:
+          err instanceof ApiError
+            ? err.message
+            : "No se pudo guardar el doctor.",
       });
     }
   });
 
   return (
-    <form onSubmit={submit} className="max-w-lg space-y-4">
+    <form onSubmit={submit} className="max-w-2xl space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <TextField label="Nombre" id="firstName" {...register("firstName")} />
         <TextField label="Apellidos" id="lastName" {...register("lastName")} />
@@ -85,17 +98,16 @@ export function DoctorForm({
 
       <TextField label="Teléfono" id="phone" {...register("phone")} />
 
-      <div className="grid grid-cols-2 gap-4">
-        <TextField label="Ciudad" id="city" {...register("city")} />
-        <TextField label="País" id="country" {...register("country")} />
-      </div>
+      <AddressLocationPicker
+        showAdminFields
+        value={location}
+        onChange={setLocation}
+        mapClassName="h-64 w-full"
+      />
 
-      <div className="grid grid-cols-2 gap-4">
-        <TextField label="Dirección" id="address" {...register("address")} />
-        <TextField label="Código postal" id="zip" {...register("zip")} />
-      </div>
-
-      {errors.root && <p className="text-sm text-destructive">{errors.root.message}</p>}
+      {errors.root && (
+        <p className="text-sm text-destructive">{errors.root.message}</p>
+      )}
 
       <Button type="submit" disabled={isSubmitting}>
         {isSubmitting ? "Guardando..." : submitLabel}

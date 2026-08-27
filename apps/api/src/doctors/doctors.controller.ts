@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
@@ -72,12 +73,30 @@ export class DoctorsController {
     return this.doctorsService.findAll();
   }
 
-  /** Cola de verificación — ruta fuera de `admin/doctors/:id` para no colisionar. */
-  @Get('admin/verification/doctors')
+  /**
+   * Cola de verificación por bandeja.
+   * Path param (no query) para no perder el filtro: pending | active | rejected.
+   */
+  @Get('admin/verification/doctors/:status')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermission('validate_doctor')
-  findPendingVerification() {
-    return this.doctorsService.findPendingVerification();
+  findPendingVerification(
+    @Param('status') status?: string,
+    @Query('status') statusQuery?: string,
+  ) {
+    const raw = status ?? (Array.isArray(statusQuery) ? statusQuery[0] : statusQuery);
+    const normalized =
+      raw === 'active' || raw === 'rejected' || raw === 'pending'
+        ? raw
+        : 'pending';
+    return this.doctorsService.findForVerification(normalized);
+  }
+
+  @Get('admin/verification/stats')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('validate_doctor')
+  verificationStats() {
+    return this.doctorsService.verificationStats();
   }
 
   @Get('admin/doctors/:id')
@@ -101,6 +120,6 @@ export class DoctorsController {
     @Param('id') id: string,
     @Body() dto: UpdateDoctorVerificationDto,
   ) {
-    return this.doctorsService.updateVerification(id, dto.status);
+    return this.doctorsService.updateVerification(id, dto.status, dto.note);
   }
 }

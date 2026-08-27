@@ -151,6 +151,11 @@ export function createDoctorPatientsStyles(colors: AppBranding['colors']) {
       backgroundColor: soft(colors.primary),
       alignItems: 'center',
       justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    avatarImage: {
+      width: '100%',
+      height: '100%',
     },
     avatarText: {
       color: colors.primary,

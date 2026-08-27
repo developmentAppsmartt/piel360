@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   ScrollView,
   Text,
@@ -17,6 +18,7 @@ import { ApiError } from '../../services/api.client';
 import { analysesService } from '../../services/analyses.service';
 import {
   patientsService,
+  type AnalysisRequest,
   type UpdatePatientInput,
 } from '../../services/patients.service';
 import type { PatientAnalysisSummary, YoucamRawResponse } from '../../types/analysis';
@@ -25,6 +27,10 @@ import {
   youcamOverallScore,
 } from '../../types/analysis';
 import type { PatientProfile } from '../../types/patient';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
+import { FitzpatrickAnalysisFlow } from '../analyses/fitzpatrick-flow/FitzpatrickAnalysisFlow';
+import { PendingAnalysesPicker } from '../analyses/PendingAnalysesPicker';
+import { SkiniverAnalysisFlow } from '../analyses/skiniver-flow/SkiniverAnalysisFlow';
 import { YoucamAnalysisFlow } from '../analyses/youcam-flow/YoucamAnalysisFlow';
 import { AccountInfoView } from '../account/AccountInfoView';
 import { AnalysisDetailView } from '../doctor/analyses/AnalysisDetailView';
@@ -39,12 +45,16 @@ import {
 } from '../profile/data/patient';
 import { createHomeStyles } from './styles/home.styles';
 
+type PatientFlowKind = 'youcam' | 'skiniver' | 'fitzpatrick';
+
 type HomeViewProps = {
   onOpenProfile?: () => void;
   onOpenAgenda?: () => void;
   onOpenMessages?: () => void;
-  /** Abre el flujo YouCam (también desde tab Nuevo Análisis). */
+  /** Incrementa desde el tab Nuevo Análisis para abrir el listado / flujo. */
   consentRequestId?: number;
+  pendingAnalysisRequests?: AnalysisRequest[];
+  onPendingRequestConsumed?: () => void;
   onConsentContinue?: () => void;
 };
 
@@ -178,11 +188,20 @@ const TONE_COLOR = {
   success: '#16A34A',
 } as const;
 
+function flowKindFromProvider(slug: string): PatientFlowKind | null {
+  if (slug === 'youcam' || slug === 'skiniver' || slug === 'fitzpatrick') {
+    return slug;
+  }
+  return null;
+}
+
 export function HomeView({
   onOpenProfile,
   onOpenAgenda,
   onOpenMessages,
   consentRequestId = 0,
+  pendingAnalysisRequests = [],
+  onPendingRequestConsumed,
   onConsentContinue,
 }: HomeViewProps) {
   const insets = useSafeAreaInsets();
@@ -192,7 +211,10 @@ export function HomeView({
   const onDark = branding.colors.textOnDark;
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [youcamFlowOpen, setYoucamFlowOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [localPending, setLocalPending] = useState<AnalysisRequest[]>([]);
+  const [activeFlow, setActiveFlow] = useState<PatientFlowKind | null>(null);
+  const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [patient, setPatient] = useState<PatientProfile | null>(null);
   const [analyses, setAnalyses] = useState<PatientAnalysisSummary[]>([]);
@@ -202,8 +224,21 @@ export function HomeView({
   );
 
   useEffect(() => {
-    if (consentRequestId > 0) setYoucamFlowOpen(true);
-  }, [consentRequestId]);
+    setLocalPending(pendingAnalysisRequests);
+  }, [pendingAnalysisRequests]);
+
+  useEffect(() => {
+    if (consentRequestId <= 0) return;
+    if (pendingAnalysisRequests.length === 0) {
+      Alert.alert(
+        'Nuevo Análisis',
+        'Tu médico debe solicitarte un análisis desde su consulta para desbloquear esta opción.',
+      );
+      return;
+    }
+    setLocalPending(pendingAnalysisRequests);
+    setPickerOpen(true);
+  }, [consentRequestId, pendingAnalysisRequests]);
 
   const loadHome = useCallback(async () => {
     setLoading(true);
@@ -232,6 +267,15 @@ export function HomeView({
     void loadHome();
   }, [loadHome]);
 
+  async function openProfileConfig() {
+    if (!patient) await loadHome();
+    const current = patient ?? (await patientsService.getMyPatient());
+    if (current) {
+      setPatient(current);
+      setOverlay('config');
+    }
+  }
+
   async function handleMenuSelect(id: AccountMenuId) {
     setMenuOpen(false);
     if (id === 'salir') {
@@ -243,10 +287,7 @@ export function HomeView({
       return;
     }
     if (id === 'config') {
-      if (!patient) await loadHome();
-      if (patient || (await patientsService.getMyPatient())) {
-        setOverlay('config');
-      }
+      await openProfileConfig();
       return;
     }
     if (id === 'seguridad') return;
@@ -269,21 +310,104 @@ export function HomeView({
     Alert.alert('Listo', 'Tu perfil se actualizó correctamente.');
   }
 
-  if (youcamFlowOpen) {
+  function startRequest(request: AnalysisRequest) {
+    const kind = flowKindFromProvider(request.providerSlug);
+    if (!kind) {
+      Alert.alert('Análisis', 'Tipo de análisis no disponible.');
+      return;
+    }
+    setPickerOpen(false);
+    setActiveRequestId(request.id);
+    setActiveFlow(kind);
+  }
+
+  function closeAnalysisFlow() {
+    setActiveFlow(null);
+    setActiveRequestId(null);
+    if (localPending.length > 0) {
+      setPickerOpen(true);
+      return;
+    }
+    setPickerOpen(false);
+    onConsentContinue?.();
+  }
+
+  function closePicker() {
+    setPickerOpen(false);
+    onConsentContinue?.();
+  }
+
+  async function handlePatientAnalysisCreated(analysisId: string) {
+    if (activeRequestId) {
+      try {
+        await patientsService.completeMyAnalysisRequest(activeRequestId);
+      } catch {
+        // El análisis ya se creó; el médico podrá verlo aunque falle el complete.
+      }
+    }
+    const remaining = localPending.filter((r) => r.id !== activeRequestId);
+    setLocalPending(remaining);
+    setActiveFlow(null);
+    setActiveRequestId(null);
+    onPendingRequestConsumed?.();
+    void loadHome();
+    if (remaining.length > 0) {
+      setPickerOpen(true);
+      return;
+    }
+    setPickerOpen(false);
+    setSelectedAnalysisId(analysisId);
+  }
+
+  if (activeFlow) {
+    if (!patient) {
+      return (
+        <View style={styles.centered}>
+          <ActivityIndicator color={branding.colors.primary} />
+        </View>
+      );
+    }
+    const common = {
+      patientId: patient.id,
+      patientName: patientDisplayName(patient),
+      skipModeChoice: true as const,
+      onClose: closeAnalysisFlow,
+      onAnalysisCreated: (analysisId: string) => {
+        void handlePatientAnalysisCreated(analysisId);
+      },
+      onOpenMenu: () => setMenuOpen(true),
+      onOpenMessages,
+    };
     return (
       <>
-        <YoucamAnalysisFlow
-          patientId={patient?.id ?? ''}
-          onClose={() => {
-            setYoucamFlowOpen(false);
-            onConsentContinue?.();
-          }}
-          onAnalysisCreated={(analysisId) => {
-            setYoucamFlowOpen(false);
-            setSelectedAnalysisId(analysisId);
-            void loadHome();
-          }}
+        {activeFlow === 'youcam' ? (
+          <YoucamAnalysisFlow {...common} />
+        ) : null}
+        {activeFlow === 'skiniver' ? (
+          <SkiniverAnalysisFlow {...common} />
+        ) : null}
+        {activeFlow === 'fitzpatrick' ? (
+          <FitzpatrickAnalysisFlow {...common} />
+        ) : null}
+        <AccountDrawer
+          visible={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          onSelect={handleMenuSelect}
+          variant="patient"
+        />
+      </>
+    );
+  }
+
+  if (pickerOpen && localPending.length > 0) {
+    return (
+      <>
+        <PendingAnalysesPicker
+          requests={localPending}
+          onSelect={startRequest}
+          onClose={closePicker}
           onOpenMenu={() => setMenuOpen(true)}
+          onOpenMessages={onOpenMessages}
         />
         <AccountDrawer
           visible={menuOpen}
@@ -405,12 +529,26 @@ export function HomeView({
             </Text>
           </View>
 
-          <View style={styles.profileRow}>
+          <Pressable
+            style={styles.profileRow}
+            onPress={() => void openProfileConfig()}
+            accessibilityRole="button"
+            accessibilityLabel="Configuración de perfil"
+          >
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initials}</Text>
+              {patient?.avatarUrl ? (
+                <Image
+                  source={{ uri: resolveMediaUrl(patient.avatarUrl)! }}
+                  style={styles.avatarImage}
+                  accessibilityIgnoresInvertColors
+                />
+              ) : (
+                <Text style={styles.avatarText}>{initials}</Text>
+              )}
             </View>
             <View style={styles.profileInfo}>
               <Text style={styles.profileName}>{name}</Text>
+              <Text style={styles.profileRole}>paciente</Text>
               <Text style={styles.profileMeta}>
                 Última actualización:{' '}
                 {patient ? formatUpdate(patient.updatedAt) : '—'}
@@ -420,7 +558,7 @@ export function HomeView({
                 Edad: {ageFromBirth(patient?.birthDate ?? null)}
               </Text>
             </View>
-          </View>
+          </Pressable>
 
           <Pressable
             style={styles.linkCard}
