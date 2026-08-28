@@ -22,6 +22,7 @@ import type { JwtPayload } from '../auth/types';
 import { DoctorsService } from './doctors.service';
 import { UpdateDoctorDto } from './dto/update-doctor.dto';
 import { UpdateDoctorVerificationDto } from './dto/update-doctor-verification.dto';
+import { UpdateDoctorAddressVerificationDto } from './dto/update-doctor-address-verification.dto';
 
 @Controller()
 export class DoctorsController {
@@ -121,5 +122,15 @@ export class DoctorsController {
     @Body() dto: UpdateDoctorVerificationDto,
   ) {
     return this.doctorsService.updateVerification(id, dto.status, dto.note);
+  }
+
+  @Patch('admin/doctors/:id/address-verification')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('validate_doctor')
+  updateAddressVerification(
+    @Param('id') id: string,
+    @Body() dto: UpdateDoctorAddressVerificationDto,
+  ) {
+    return this.doctorsService.updateAddressVerification(id, dto);
   }
 }

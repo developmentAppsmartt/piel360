@@ -11,6 +11,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppIcon } from '../../components/AppIcon';
+import { BrandLogo } from '../../components/BrandLogo';
 import { Icons } from '../../components/icons';
 import { useAuth } from '../../context/AuthContext';
 import { useBranding } from '../../context/BrandingContext';
@@ -472,9 +473,7 @@ export function HomeView({
     <View style={styles.screen}>
       <StatusBar style="light" />
       <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 10) }]}>
-        <View style={styles.logoDot}>
-          <Text style={styles.logoText}>P360</Text>
-        </View>
+        <BrandLogo height={32} />
         <View style={styles.topActions}>
           <Pressable
             hitSlop={8}

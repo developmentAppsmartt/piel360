@@ -20,10 +20,11 @@ export interface Subscription {
   };
 }
 
-export function useMySubscriptions() {
+export function useMySubscriptions(enabled = true) {
   return useQuery({
     queryKey: ["me", "subscriptions"],
     queryFn: () => apiClientFetch<Subscription[]>("/me/subscriptions"),
+    enabled,
   });
 }
 

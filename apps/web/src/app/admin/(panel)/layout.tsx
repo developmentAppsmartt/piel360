@@ -25,7 +25,11 @@ export default async function AdminPanelLayout({
       sidebarUser={{
         name: isMonitor ? "Moderador" : "Super Admin",
         subtitle: isMonitor ? "Verificación de doctores" : "Acceso total",
+        monitorHint: isMonitor
+          ? "Validar profesionales mantiene la confianza de la plataforma."
+          : undefined,
       }}
+      hideHeaderLogout
     >
       {children}
     </PanelShell>

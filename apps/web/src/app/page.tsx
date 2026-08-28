@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { Logo } from "@/components/layout/logo";
 
 // Landing pública (MIGRACION.md §2.1: GET / → home).
 export default function Home() {
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 p-16 text-center">
-      <h1 className="text-3xl font-semibold tracking-tight">Piel360</h1>
+      <Logo className="h-16" />
       <p className="max-w-md text-zinc-600 dark:text-zinc-400">
         Plataforma de diagnóstico dermatológico asistido por IA.
       </p>

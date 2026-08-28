@@ -24,6 +24,8 @@ export type AppBranding = {
   };
   /** Imagen full-bleed del login (asset local o URI remota en el futuro). */
   loginHeroImage: ImageSourcePropType;
+  /** Logo horizontal (PNG con fondo transparente). */
+  logoImage: ImageSourcePropType;
 };
 
 export const DEFAULT_BRANDING: AppBranding = {
@@ -41,4 +43,5 @@ export const DEFAULT_BRANDING: AppBranding = {
     overlay: 'rgba(11, 10, 18, 0.55)',
   },
   loginHeroImage: require('../../assets/login-hero.png'),
+  logoImage: require('../../assets/logo-piel360.png'),
 };

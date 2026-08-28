@@ -3,12 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Building2,
+  Check,
   CheckCircle2,
   ChevronRight,
   ClipboardCheck,
   Eye,
   FileText,
   Filter,
+  MapPin,
+  MessageSquare,
   Search,
   ShieldCheck,
   UserRound,
@@ -19,6 +22,7 @@ import { ApiError } from "@/lib/api-error";
 import {
   useDoctor,
   usePendingVerificationDoctors,
+  useUpdateDoctorAddressVerification,
   useUpdateDoctorVerification,
   useVerificationStats,
   matchesVerificationGroup,
@@ -27,6 +31,15 @@ import {
   type Doctor,
   type VerificationListStatus,
 } from "@/lib/queries/doctors";
+import {
+  ACCEPTED_LOCATION_TYPES,
+  addressVerificationMethodLabel,
+  computeVerificationCriteria,
+  formatFullAddress,
+  googleMapsUrl,
+  locationTypeLabel,
+  type CriterionStatus,
+} from "@/lib/verification-criteria";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
@@ -72,6 +85,75 @@ function formatDate(iso: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatDateShort(iso: string | null | undefined) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("es-CO", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function CriterionStatusBadge({ status }: { status: CriterionStatus }) {
+  if (status === "fulfilled") {
+    return (
+      <span className="mt-2 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+        Cumplido
+      </span>
+    );
+  }
+  if (status === "in_review") {
+    return (
+      <span className="mt-2 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+        En revisión
+      </span>
+    );
+  }
+  return (
+    <span className="mt-2 inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+      Pendiente
+    </span>
+  );
+}
+
+function AddressVerifiedCell({ doctor }: { doctor: Doctor }) {
+  const fullAddress = formatFullAddress(doctor, doctor.organization);
+  const verified = doctor.addressVerificationStatus === "verified";
+  const locLabel = locationTypeLabel(doctor.locationType);
+
+  if (!fullAddress) {
+    return <span className="text-muted-foreground">Sin dirección</span>;
+  }
+
+  return (
+    <div className="max-w-[220px]">
+      {verified ? (
+        <div className="flex items-center gap-1.5 text-emerald-700">
+          <span className="flex size-5 items-center justify-center rounded-full bg-emerald-100">
+            <Check className="size-3" />
+          </span>
+          <span className="text-xs font-semibold">Verificada</span>
+        </div>
+      ) : (
+        <span className="text-xs font-medium text-amber-700">
+          {doctor.addressVerificationStatus === "in_review"
+            ? "En revisión"
+            : "Pendiente"}
+        </span>
+      )}
+      <p className="mt-1 text-xs leading-snug text-muted-foreground">
+        {fullAddress}
+        {locLabel !== "—" ? (
+          <>
+            {" "}
+            / <span className="font-medium text-foreground">{locLabel}</span>
+          </>
+        ) : null}
+      </p>
+    </div>
+  );
 }
 
 function DocRow({
@@ -131,7 +213,11 @@ function DetailPanel({
 }) {
   const doctor = useDoctor(doctorId);
   const verify = useUpdateDoctorVerification(doctorId);
+  const addressVerify = useUpdateDoctorAddressVerification(doctorId);
   const [note, setNote] = useState("");
+  const [addressMethod, setAddressMethod] = useState<
+    "visit" | "google_maps" | "photo_evidence"
+  >("google_maps");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -171,6 +257,24 @@ function DetailPanel({
     }
   }
 
+  async function markAddressVerified() {
+    setError(null);
+    setMessage(null);
+    try {
+      await addressVerify.mutateAsync({
+        status: "verified",
+        method: addressMethod,
+      });
+      setMessage("Dirección marcada como verificada.");
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudo verificar la dirección.",
+      );
+    }
+  }
+
   if (doctor.isLoading) {
     return (
       <aside className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -197,6 +301,10 @@ function DetailPanel({
   const pending =
     d.verificationStatus === "pending" ||
     d.verificationStatus === "in_review";
+
+  const fullAddress = formatFullAddress(d, org);
+  const mapsUrl = googleMapsUrl(d.lat ?? org?.lat ?? null, d.lng ?? org?.lng ?? null);
+  const addressVerified = d.addressVerificationStatus === "verified";
 
   return (
     <aside className="flex max-h-[calc(100vh-8rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
@@ -269,6 +377,121 @@ function DetailPanel({
               </div>
             ))}
           </dl>
+        </section>
+
+        <section className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Dirección registrada y verificada
+            </h3>
+            {addressVerified ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+                <Check className="size-3" />
+                Verificada
+              </span>
+            ) : d.addressVerificationStatus === "in_review" ? (
+              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
+                En revisión
+              </span>
+            ) : (
+              <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700">
+                Pendiente
+              </span>
+            )}
+          </div>
+
+          {fullAddress ? (
+            <>
+              <p className="flex items-start gap-2 text-sm font-medium">
+                <MapPin className="mt-0.5 size-4 shrink-0 text-primary" />
+                <span>{fullAddress}</span>
+              </p>
+              <dl className="space-y-2 text-sm">
+                {(
+                  [
+                    ["Tipo de locación", locationTypeLabel(d.locationType)],
+                    [
+                      "Fecha de verificación",
+                      formatDateShort(d.addressVerifiedAt),
+                    ],
+                    [
+                      "Método de verificación",
+                      addressVerificationMethodLabel(
+                        d.addressVerificationMethod,
+                      ),
+                    ],
+                  ] as const
+                ).map(([label, value]) => (
+                  <div key={label} className="flex justify-between gap-3">
+                    <dt className="text-muted-foreground">{label}</dt>
+                    <dd className="text-right font-medium">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {d.addressVerificationEvidenceUrl ? (
+                  <a
+                    href={d.addressVerificationEvidenceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted/50"
+                  >
+                    <MessageSquare className="size-4 text-primary" />
+                    Ver evidencia
+                  </a>
+                ) : (
+                  <span className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card px-3 py-2 text-sm text-muted-foreground">
+                    <MessageSquare className="size-4" />
+                    Sin evidencia cargada
+                  </span>
+                )}
+                {mapsUrl ? (
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/10"
+                  >
+                    <MapPin className="size-4" />
+                    Google Maps
+                  </a>
+                ) : null}
+              </div>
+              {!addressVerified ? (
+                <div className="space-y-2 border-t border-border pt-3">
+                  <p className="text-xs text-muted-foreground">
+                    Confirma la existencia real de la locación física.
+                  </p>
+                  <select
+                    value={addressMethod}
+                    onChange={(e) =>
+                      setAddressMethod(
+                        e.target.value as typeof addressMethod,
+                      )
+                    }
+                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                  >
+                    <option value="google_maps">Google Maps</option>
+                    <option value="visit">Visita presencial</option>
+                    <option value="photo_evidence">Evidencia fotográfica</option>
+                  </select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={addressVerify.isPending}
+                    onClick={() => void markAddressVerified()}
+                  >
+                    Marcar dirección verificada
+                  </Button>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              El profesional no ha registrado una dirección con coordenadas.
+            </p>
+          )}
         </section>
 
         <section className="space-y-2">
@@ -437,6 +660,7 @@ export function VerificationDashboard({
   const list = usePendingVerificationDoctors(status);
   const stats = useVerificationStats();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selectedDoctorQuery = useDoctor(selectedId ?? "");
   const [search, setSearch] = useState("");
   const [specialtyFilter, setSpecialtyFilter] = useState("all");
 
@@ -477,8 +701,17 @@ export function VerificationDashboard({
     status === "pending"
       ? "Solicitudes pendientes de verificación"
       : status === "active"
-        ? "Profesionales verificados"
+        ? "Profesionales y empresas verificadas"
         : "Solicitudes rechazadas";
+
+  const criteriaDoctor =
+    selectedDoctorQuery.data ??
+    (selectedId ? doctors.find((d) => d.id === selectedId) : null) ??
+    filtered[0] ??
+    null;
+  const criteria = criteriaDoctor
+    ? computeVerificationCriteria(criteriaDoctor)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -612,13 +845,18 @@ export function VerificationDashboard({
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-sm">
+              <table className="w-full min-w-[960px] text-left text-sm">
                 <thead className="bg-muted/40 text-xs tracking-wide text-muted-foreground uppercase">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Usuario</th>
                     <th className="px-4 py-3 font-semibold">Tipo</th>
-                    <th className="px-4 py-3 font-semibold">Especialidad</th>
+                    <th className="px-4 py-3 font-semibold">
+                      Especialidad / tipo de empresa
+                    </th>
                     <th className="px-4 py-3 font-semibold">Registro</th>
+                    <th className="px-4 py-3 font-semibold">
+                      Dirección verificada
+                    </th>
                     <th className="px-4 py-3 font-semibold">Estado</th>
                     <th className="px-4 py-3 font-semibold" />
                   </tr>
@@ -663,10 +901,13 @@ export function VerificationDashboard({
                           <TypeBadge doctor={d} />
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
-                          {d.specialty ?? "—"}
+                          {d.specialty ?? d.organization?.name ?? "—"}
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
                           {formatDate(d.createdAt)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <AddressVerifiedCell doctor={d} />
                         </td>
                         <td className="px-4 py-3">
                           <span
@@ -713,34 +954,90 @@ export function VerificationDashboard({
 
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <h3 className="text-sm font-semibold">Criterios de verificación</h3>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <p className="mt-1 text-xs text-muted-foreground">
+          Se valida que la información sea coherente, esté completa y que la
+          dirección registrada tenga existencia real.
+          {criteriaDoctor ? (
+            <>
+              {" "}
+              Mostrando estado de{" "}
+              <span className="font-medium text-foreground">
+                {criteriaDoctor.firstName} {criteriaDoctor.lastName}
+              </span>
+              .
+            </>
+          ) : null}
+        </p>
+        <div className="mt-4 grid gap-4 lg:grid-cols-5">
           {(
             [
-              ["Información coherente", "Datos personales y profesionales consistentes."],
-              [
-                "Documentos legibles y válidos",
-                "Cédula, registro y diploma claros y vigentes.",
-              ],
-              [
-                "Datos de empresa (Enterprise)",
-                "Razón social, CIIU, contacto y docs legales (RUT, certificado).",
-              ],
-              [
-                "Cumplimiento de requisitos",
-                "Licencia, formación y representación legal acordes a la normativa.",
-              ],
+              {
+                title: "Información coherente",
+                desc: "Datos personales y profesionales consistentes y válidos.",
+                status: criteria?.coherentInfo ?? "pending",
+                icon: ShieldCheck,
+                highlight: false,
+              },
+              {
+                title: "Documentos legibles y válidos",
+                desc: "Cédula, registro y diploma claros y vigentes.",
+                status: criteria?.validDocs ?? "pending",
+                icon: ShieldCheck,
+                highlight: false,
+              },
+              {
+                title: "Datos de empresa (Enterprise)",
+                desc: "Razón social, NIT, CIIU y documentos legales verificados.",
+                status:
+                  criteria && !criteria.enterprise
+                    ? "fulfilled"
+                    : (criteria?.enterpriseData ?? "pending"),
+                icon: ShieldCheck,
+                highlight: false,
+              },
+              {
+                title: "Dirección verificada",
+                desc: "Existencia real de locación física confirmada.",
+                status: criteria?.addressVerified ?? "pending",
+                icon: MapPin,
+                highlight: criteria?.addressVerified === "in_review",
+              },
             ] as const
-          ).map(([title, desc]) => (
-            <div key={title} className="flex gap-3">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <ShieldCheck className="size-4" />
+          ).map(({ title, desc, status, icon: Icon, highlight }) => (
+              <div
+                key={title}
+                className={cn(
+                  "flex flex-col rounded-xl border bg-card p-4",
+                  highlight
+                    ? "border-primary shadow-sm ring-1 ring-primary/20"
+                    : "border-border",
+                )}
+              >
+                <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Icon className="size-4" />
+                </div>
+                <p className="mt-3 text-sm font-medium">{title}</p>
+                <p className="mt-1 flex-1 text-xs text-muted-foreground">
+                  {desc}
+                </p>
+                <CriterionStatusBadge status={status} />
               </div>
-              <div>
-                <p className="text-sm font-medium">{title}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{desc}</p>
-              </div>
-            </div>
-          ))}
+            ))}
+
+          <div className="flex flex-col rounded-xl border border-border bg-card p-4">
+            <p className="text-sm font-medium">Tipos de locación aceptados</p>
+            <ul className="mt-3 flex-1 space-y-2 text-xs text-muted-foreground">
+              {ACCEPTED_LOCATION_TYPES.map((item) => (
+                <li key={item.id} className="flex items-start gap-2">
+                  <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
+                  <span>{item.label}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-[11px] leading-snug text-muted-foreground">
+              Se verifica mediante visita, evidencia fotográfica o Google Maps.
+            </p>
+          </div>
         </div>
       </section>
     </div>

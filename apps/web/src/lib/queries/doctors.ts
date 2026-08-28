@@ -27,6 +27,12 @@ export interface Doctor {
   zip: string | null;
   lat: string | number | null;
   lng: string | number | null;
+  locationType?: string | null;
+  addressVerificationStatus?: string | null;
+  addressVerifiedAt?: string | null;
+  addressVerificationMethod?: string | null;
+  addressVerificationEvidenceKey?: string | null;
+  addressVerificationEvidenceUrl?: string | null;
   verificationStatus: string;
   verificationNote?: string | null;
   verificationNoteAt?: string | null;
@@ -55,6 +61,13 @@ export type DoctorOrganization = {
   name: string;
   status: string;
   ciiuCode: string | null;
+  address?: string | null;
+  city?: string | null;
+  department?: string | null;
+  country?: string | null;
+  zip?: string | null;
+  lat?: string | number | null;
+  lng?: string | number | null;
   businessEmail: string | null;
   businessPhone: string | null;
   website: string | null;
@@ -192,6 +205,7 @@ export function useDoctor(id: string) {
   return useQuery({
     queryKey: ["admin", "doctors", id],
     queryFn: () => apiClientFetch<Doctor>(`/admin/doctors/${id}`),
+    enabled: Boolean(id),
   });
 }
 
@@ -252,6 +266,27 @@ export function useUpdateDoctorVerification(id: string) {
       note?: string;
     }) =>
       apiClientFetch<Doctor>(`/admin/doctors/${id}/verification`, {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "doctors"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "doctors", id] });
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "verification"],
+      });
+    },
+  });
+}
+
+export function useUpdateDoctorAddressVerification(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      status: "pending" | "in_review" | "verified";
+      method?: "visit" | "google_maps" | "photo_evidence";
+    }) =>
+      apiClientFetch<Doctor>(`/admin/doctors/${id}/address-verification`, {
         method: "PATCH",
         body: JSON.stringify(input),
       }),

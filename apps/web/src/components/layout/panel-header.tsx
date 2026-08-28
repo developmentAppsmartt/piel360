@@ -26,10 +26,12 @@ export function PanelHeader({
   email,
   role,
   notificationCount = 0,
+  showLogout = true,
 }: {
   email: string;
   role: Role;
   notificationCount?: number;
+  showLogout?: boolean;
 }) {
   return (
     <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-card/95 px-6 backdrop-blur">
@@ -67,7 +69,7 @@ export function PanelHeader({
           </div>
         </div>
 
-        <LogoutButton />
+        {showLogout ? <LogoutButton /> : null}
       </div>
     </header>
   );

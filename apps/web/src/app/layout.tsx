@@ -22,7 +22,7 @@ const fontMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Piel360",
   description: "Plataforma de diagnóstico dermatológico asistido por IA",
-  icons: { icon: "/logo-piel360.webp" },
+  icons: { icon: "/logo-piel360.png" },
 };
 
 export default function RootLayout({

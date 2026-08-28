@@ -37,13 +37,16 @@ export default async function DoctorPanelLayout({
       sidebarUser={{
         name: session.email,
         subtitle,
+        enrichFromDoctorProfile: true,
       }}
+      hideHeaderLogout
     >
       {!active ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Tu cuenta está en verificación. Mientras tanto solo puedes gestionar{" "}
-          <strong>planes</strong>, <strong>compras y facturación</strong> y tu{" "}
-          <strong>perfil de médico</strong>.
+          Tu cuenta está en verificación. Revisa el <strong>inicio</strong> para
+          completar el registro y descargar la app. Mientras tanto puedes
+          gestionar <strong>planes</strong>,{" "}
+          <strong>compras y facturación</strong> y tu <strong>perfil</strong>.
         </div>
       ) : null}
       {children}

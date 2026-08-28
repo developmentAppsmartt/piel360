@@ -10,6 +10,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import type { AuthStackParamList } from '../../../navigation/RootNavigator';
 import { useBranding } from '../../../context/BrandingContext';
+import { BrandLogo } from '../../../components/BrandLogo';
 import { AuthBackground } from '../login/components/AuthBackground';
 import {
   RegisterForm,
@@ -56,7 +57,7 @@ export function RegisterView({ navigation }: Props) {
           >
             {!isCard ? (
               <>
-                <Text style={styles.brand}>{branding.appName}</Text>
+                <BrandLogo height={44} style={styles.logo} />
                 <Text style={styles.subtitle}>
                   Registro de paciente. Completa los pasos para crear tu cuenta.
                 </Text>

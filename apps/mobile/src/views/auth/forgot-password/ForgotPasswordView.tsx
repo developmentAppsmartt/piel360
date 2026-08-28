@@ -21,6 +21,7 @@ import { authService } from '../../../services/auth.service';
 import { AuthFeedbackModal } from '../components/AuthFeedbackModal';
 import { OtpInput } from '../components/OtpInput';
 import { AuthBackground } from '../login/components/AuthBackground';
+import { BrandLogo } from '../../../components/BrandLogo';
 import { createLoginStyles } from '../login/styles/login.styles';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
@@ -149,7 +150,7 @@ export function ForgotPasswordView({ navigation }: Props) {
               <Text style={styles.backLink}>← Volver</Text>
             </Pressable>
 
-            <Text style={styles.brand}>{branding.appName}</Text>
+            <BrandLogo height={44} style={styles.logo} />
             <Text style={styles.subtitle}>
               {step === 'email'
                 ? 'Introduce tu correo electrónico y haz clic en “Enviar código”. Recibirás un código en tu correo.'

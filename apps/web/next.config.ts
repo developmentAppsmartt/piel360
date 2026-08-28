@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Server Actions (login, etc.): subir el límite por si algún formulario lleva adjuntos.
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "32mb",
+    },
+  },
   // El navegador solo le habla a su propio origen (/api/*); Next.js reenvía
   // server-side al backend de Railway. Necesario porque la cookie httpOnly de
   // sesión (lib/session.ts) no lleva `domain` — en producción, web (Vercel) y

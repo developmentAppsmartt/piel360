@@ -105,7 +105,7 @@ function NavLink({
 
 export function SidebarNav({ items }: { items: ResolvedNavItem[] }) {
   return (
-    <nav className="flex flex-1 flex-col gap-1.5 overflow-y-auto p-3">
+    <nav className="flex flex-1 flex-col gap-1.5 overflow-y-auto px-3 pt-1 pb-3">
       {items.map((item) => (
         <NavLink key={item.href} item={item} />
       ))}

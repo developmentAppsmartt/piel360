@@ -46,6 +46,7 @@ const SURVEY_EXEMPT_PATHS = ["/patient/encuesta"];
 
 /** Rutas permitidas mientras el doctor no está active/approved. */
 const DOCTOR_PENDING_ALLOWED_PREFIXES = [
+  "/doctor/home",
   "/doctor/planes",
   "/doctor/facturacion",
   "/doctor/configuracion",
@@ -133,7 +134,7 @@ export async function proxy(request: NextRequest) {
   ) {
     const dest = pathname.startsWith("/doctor/configuracion/")
       ? "/doctor/configuracion"
-      : "/doctor/planes";
+      : "/doctor/home";
     return NextResponse.redirect(new URL(dest, request.url));
   }
 

@@ -12,6 +12,9 @@ export function createLoginStyles(colors: AppBranding['colors']) {
       paddingHorizontal: 24,
       paddingBottom: 28,
     },
+    logo: {
+      marginBottom: 10,
+    },
     brand: {
       fontSize: 40,
       fontWeight: '700',

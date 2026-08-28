@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { MailService } from '../mail/mail.service';
 import type { UpdateDoctorDto } from './dto/update-doctor.dto';
+import type { UpdateDoctorAddressVerificationDto } from './dto/update-doctor-address-verification.dto';
 
 const DOC_MIME = new Set([
   'application/pdf',
@@ -133,6 +134,24 @@ export class DoctorsService {
 
     const approved = status === 'active' || status === 'approved';
 
+    const existing = await this.prisma.doctor.findUnique({
+      where: { id: BigInt(id) },
+      select: {
+        address: true,
+        lat: true,
+        lng: true,
+        addressVerificationStatus: true,
+      },
+    });
+    if (!existing) {
+      throw new NotFoundException('Doctor no encontrado');
+    }
+
+    const hasGeo =
+      Boolean(existing.address?.trim()) &&
+      existing.lat != null &&
+      existing.lng != null;
+
     const doctor = await this.prisma.doctor.update({
       where: { id: BigInt(id) },
       data: {
@@ -145,6 +164,15 @@ export class DoctorsService {
                 verificationNoteAt: new Date(),
               }
             : {}),
+        ...(approved &&
+        hasGeo &&
+        existing.addressVerificationStatus !== 'verified'
+          ? {
+              addressVerificationStatus: 'verified',
+              addressVerifiedAt: new Date(),
+              addressVerificationMethod: 'google_maps',
+            }
+          : {}),
       },
       include: {
         user: { select: { email: true, avatarKey: true, name: true } },
@@ -186,6 +214,42 @@ export class DoctorsService {
         })
         .catch(() => undefined);
     }
+
+    return this.withVerificationPayload(doctor);
+  }
+
+  async updateAddressVerification(
+    id: string,
+    dto: UpdateDoctorAddressVerificationDto,
+  ) {
+    if (!/^\d+$/.test(id)) {
+      throw new NotFoundException('Doctor no encontrado');
+    }
+
+    if (dto.status === 'verified' && !dto.method) {
+      throw new BadRequestException(
+        'Indica el método de verificación (visit, google_maps o photo_evidence).',
+      );
+    }
+
+    const doctor = await this.prisma.doctor.update({
+      where: { id: BigInt(id) },
+      data: {
+        addressVerificationStatus: dto.status,
+        ...(dto.status === 'verified'
+          ? {
+              addressVerifiedAt: new Date(),
+              addressVerificationMethod: dto.method ?? 'google_maps',
+            }
+          : {
+              addressVerifiedAt: null,
+              addressVerificationMethod: null,
+            }),
+      },
+      include: {
+        user: { select: { email: true, avatarKey: true, name: true } },
+      },
+    });
 
     return this.withVerificationPayload(doctor);
   }
@@ -234,6 +298,15 @@ export class DoctorsService {
     const doctor = await this.requireDoctorByUserId(userId);
     const { birthDate, firstName, lastName, phone, ...rest } = dto;
 
+    const addressFieldsTouched =
+      rest.address !== undefined ||
+      rest.city !== undefined ||
+      rest.department !== undefined ||
+      rest.country !== undefined ||
+      rest.lat !== undefined ||
+      rest.lng !== undefined ||
+      rest.locationType !== undefined;
+
     const updated = await this.prisma.doctor.update({
       where: { id: doctor.id },
       data: {
@@ -243,6 +316,21 @@ export class DoctorsService {
         ...(phone !== undefined ? { phone } : {}),
         ...(birthDate !== undefined
           ? { birthDate: birthDate ? new Date(birthDate) : null }
+          : {}),
+        ...(addressFieldsTouched &&
+        doctor.addressVerificationStatus === 'verified'
+          ? {
+              addressVerificationStatus: 'in_review',
+              addressVerifiedAt: null,
+              addressVerificationMethod: null,
+            }
+          : {}),
+        ...(addressFieldsTouched &&
+        doctor.addressVerificationStatus === 'pending' &&
+        (rest.address?.trim() || doctor.address?.trim()) &&
+        (rest.lat ?? doctor.lat) != null &&
+        (rest.lng ?? doctor.lng) != null
+          ? { addressVerificationStatus: 'in_review' }
           : {}),
         // Tras corregir datos, vuelve a la cola de pendientes.
         ...(doctor.verificationStatus === 'in_review'
@@ -331,6 +419,13 @@ export class DoctorsService {
       legalRepName: org.legalRepName,
       legalRepDocType: org.legalRepDocType,
       legalRepDocNumber: org.legalRepDocNumber,
+      address: org.address,
+      city: org.city,
+      department: org.department,
+      country: org.country,
+      zip: org.zip,
+      lat: org.lat != null ? Number(org.lat) : null,
+      lng: org.lng != null ? Number(org.lng) : null,
       legalRepCedulaDocKey: org.legalRepCedulaDocKey,
       rutDocKey: org.rutDocKey,
       existenceCertDocKey: org.existenceCertDocKey,
@@ -350,6 +445,7 @@ export class DoctorsService {
       cedulaDocKey: string | null;
       medicalRegistryDocKey: string | null;
       diplomaDocKey: string | null;
+      addressVerificationEvidenceKey?: string | null;
       user?: { email: string; avatarKey?: string | null } | null;
     },
   >(doctor: T) {
@@ -366,16 +462,23 @@ export class DoctorsService {
       cedulaDocKey: string | null;
       medicalRegistryDocKey: string | null;
       diplomaDocKey: string | null;
+      addressVerificationEvidenceKey?: string | null;
       user?: { email: string; avatarKey?: string | null } | null;
     },
   >(doctor: T) {
-    const [cedulaDocUrl, medicalRegistryDocUrl, diplomaDocUrl, avatarUrl] =
-      await Promise.all([
-        this.signDoc(doctor.cedulaDocKey),
-        this.signDoc(doctor.medicalRegistryDocKey),
-        this.signDoc(doctor.diplomaDocKey),
-        this.signDoc(doctor.user?.avatarKey),
-      ]);
+    const [
+      cedulaDocUrl,
+      medicalRegistryDocUrl,
+      diplomaDocUrl,
+      avatarUrl,
+      addressVerificationEvidenceUrl,
+    ] = await Promise.all([
+      this.signDoc(doctor.cedulaDocKey),
+      this.signDoc(doctor.medicalRegistryDocKey),
+      this.signDoc(doctor.diplomaDocKey),
+      this.signDoc(doctor.user?.avatarKey),
+      this.signDoc(doctor.addressVerificationEvidenceKey),
+    ]);
     const { user, ...rest } = doctor;
     return {
       ...rest,
@@ -384,6 +487,7 @@ export class DoctorsService {
       cedulaDocUrl,
       medicalRegistryDocUrl,
       diplomaDocUrl,
+      addressVerificationEvidenceUrl,
     };
   }
 

@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { AppIcon } from '../../../components/AppIcon';
+import { BrandLogo } from '../../../components/BrandLogo';
 import { Icons } from '../../../components/icons';
 import { useBranding } from '../../../context/BrandingContext';
 import { requireGuidedFaceCapture } from '../../../native/guidedCapture';
@@ -113,7 +114,7 @@ export function YoucamInstructionsStep({
       </Pressable>
 
       <View style={styles.footerLogo}>
-        <Text style={styles.footerLogoText}>PIEL 360</Text>
+        <BrandLogo height={28} />
       </View>
     </View>
   );

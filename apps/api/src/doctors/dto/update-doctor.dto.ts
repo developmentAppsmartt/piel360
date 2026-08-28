@@ -1,5 +1,6 @@
 import {
   IsDateString,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -8,6 +9,7 @@ import {
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { LOCATION_TYPES, type LocationType } from '@piel360/shared';
 
 export class UpdateDoctorDto {
   @IsOptional()
@@ -95,4 +97,8 @@ export class UpdateDoctorDto {
   @Min(-180)
   @Max(180)
   lng?: number;
+
+  @IsOptional()
+  @IsIn([...LOCATION_TYPES])
+  locationType?: LocationType;
 }

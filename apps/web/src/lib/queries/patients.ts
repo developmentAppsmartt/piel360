@@ -84,10 +84,11 @@ export interface PatientInput {
   fitzpatrickType?: string;
 }
 
-export function usePatients() {
+export function usePatients(enabled = true) {
   return useQuery({
     queryKey: ["patients"],
     queryFn: () => apiClientFetch<Patient[]>("/patients"),
+    enabled,
   });
 }
 

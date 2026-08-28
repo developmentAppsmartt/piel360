@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../../navigation/RootNavigator';
 import { useBranding } from '../../../context/BrandingContext';
+import { BrandLogo } from '../../../components/BrandLogo';
 import { AuthBackground } from './components/AuthBackground';
 import { LoginForm } from './components/LoginForm';
 import { createLoginStyles } from './styles/login.styles';
@@ -24,7 +25,7 @@ export function LoginView({ navigation }: Props) {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={styles.content}>
-            <Text style={styles.brand}>{branding.appName}</Text>
+            <BrandLogo height={48} style={styles.logo} />
             <Text style={styles.subtitle}>
               Explora tu piel, entiende tu salud. Inicia sesión para continuar.
             </Text>

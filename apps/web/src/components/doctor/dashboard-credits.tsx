@@ -8,9 +8,9 @@ export function DashboardCredits({ subscriptions }: { subscriptions: Subscriptio
   const active = subscriptions.filter((s) => s.status === "active");
 
   return (
-    <div className="space-y-3 rounded-lg border border-border p-4">
+    <div className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium text-muted-foreground">Créditos de análisis</h2>
+        <h2 className="text-sm font-medium text-zinc-700">Créditos de análisis</h2>
         <Link href="/doctor/consumo" className="text-xs text-primary hover:underline">
           Ver consumo
         </Link>
