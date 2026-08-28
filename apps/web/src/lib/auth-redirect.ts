@@ -6,6 +6,8 @@ export interface AuthUser {
   name: string;
   role: Role;
   verificationStatus?: string;
+  empresa?: boolean;
+  empresaReferida?: boolean;
 }
 
 const PANEL_HOME: Record<Role, string> = {
@@ -21,7 +23,7 @@ export function homeForUser(user: AuthUser): string {
     user.role === "doctor" &&
     !isDoctorVerificationActive(user.verificationStatus)
   ) {
-    return "/doctor/planes";
+    return "/doctor/home";
   }
   return PANEL_HOME[user.role] ?? PANEL_HOME.doctor;
 }

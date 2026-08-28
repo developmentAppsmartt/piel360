@@ -4,6 +4,7 @@ import { AdminSidebarNav } from "@/components/admin/admin-sidebar-nav";
 import { Logo } from "./logo";
 import { filterNavByFeatures, type NavItem } from "./nav-items";
 import { PanelHeader } from "./panel-header";
+import { SidebarFooter } from "./sidebar-footer";
 import { SidebarNav } from "./sidebar-nav";
 
 export function PanelShell({
@@ -12,6 +13,7 @@ export function PanelShell({
   children,
   notificationCount = 0,
   sidebarUser,
+  hideHeaderLogout = false,
 }: {
   nav: NavItem[];
   user: {
@@ -23,8 +25,16 @@ export function PanelShell({
   };
   children: React.ReactNode;
   notificationCount?: number;
-  /** Card inferior del sidebar (p. ej. Super Admin). */
-  sidebarUser?: { name: string; subtitle: string };
+  /** Perfil inferior del sidebar + cerrar sesión. */
+  sidebarUser?: {
+    name: string;
+    subtitle: string;
+    avatarUrl?: string | null;
+    enrichFromDoctorProfile?: boolean;
+    monitorHint?: string;
+  };
+  /** Oculta «Cerrar sesión» del header si ya está en el sidebar. */
+  hideHeaderLogout?: boolean;
 }) {
   const visibleNav = filterNavByFeatures(nav, {
     role: user.role,
@@ -77,9 +87,9 @@ export function PanelShell({
 
   return (
     <div className="flex min-h-full flex-1 bg-[#F5F6FA] dark:bg-background">
-      <aside className="hidden w-72 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
-        <div className="flex h-16 shrink-0 items-center px-5">
-          <Logo />
+      <aside className="hidden min-h-full w-72 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
+        <div className="shrink-0 overflow-hidden border-b border-sidebar-border px-4 pt-0 pb-0">
+          <Logo fullWidth />
         </div>
         {isMonitor ? (
           <div className="px-3 pb-2">
@@ -95,40 +105,20 @@ export function PanelShell({
           <SidebarNav items={resolvedNav} />
         )}
         {sidebarUser ? (
-          <div className="mt-auto border-t border-sidebar-border p-3">
-            {isMonitor ? (
-              <div className="rounded-xl bg-sidebar-accent/80 p-3">
-                <div className="mb-2 flex size-9 items-center justify-center rounded-lg bg-primary/20 text-primary">
-                  <Shield className="size-4" />
-                </div>
-                <p className="text-sm font-semibold text-sidebar-foreground">
-                  Tu rol es clave
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Validar profesionales mantiene la confianza de la plataforma.
-                </p>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3 rounded-xl bg-sidebar-accent/60 px-3 py-2.5">
-                <div className="flex size-9 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                  {sidebarUser.name
-                    .split(/\s+/)
-                    .slice(0, 2)
-                    .map((p) => p[0])
-                    .join("")
-                    .toUpperCase()}
-                </div>
-                <div className="min-w-0 leading-tight">
-                  <p className="truncate text-sm font-semibold text-sidebar-foreground">
-                    {sidebarUser.name}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {sidebarUser.subtitle}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
+          <SidebarFooter
+            name={sidebarUser.name}
+            subtitle={sidebarUser.subtitle}
+            avatarUrl={sidebarUser.avatarUrl}
+            enrichFromDoctorProfile={
+              sidebarUser.enrichFromDoctorProfile ?? user.role === "doctor"
+            }
+            monitorHint={
+              isMonitor
+                ? (sidebarUser.monitorHint ??
+                  "Validar profesionales mantiene la confianza de la plataforma.")
+                : sidebarUser.monitorHint
+            }
+          />
         ) : null}
       </aside>
 
@@ -137,6 +127,7 @@ export function PanelShell({
           email={user.email}
           role={user.role}
           notificationCount={notificationCount}
+          showLogout={!hideHeaderLogout && !sidebarUser}
         />
         <main className="flex-1 space-y-6 p-6 md:p-8">{children}</main>
       </div>

@@ -11,7 +11,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { MEMBERSHIP_TYPES, type MembershipType } from '@piel360/shared';
+import { LOCATION_TYPES, MEMBERSHIP_TYPES, type LocationType, type MembershipType } from '@piel360/shared';
 
 export class RegisterDoctorDto {
   @IsEmail()
@@ -109,4 +109,9 @@ export class RegisterDoctorDto {
   @Min(-180)
   @Max(180)
   lng?: number;
+
+  /** consultorio | spa | clinica | empresa_aliada | laboratorio */
+  @IsOptional()
+  @IsIn([...LOCATION_TYPES])
+  locationType?: LocationType;
 }

@@ -95,5 +95,49 @@ export const TEAM_MEMBER_PERMISSION_LABELS: Record<
 export const DEFAULT_TEAM_MEMBER_PERMISSIONS: readonly TeamMemberPermission[] =
   [...TEAM_MEMBER_PERMISSIONS];
 
+/** Tipo de locación física registrada por el profesional o empresa. */
+export const LOCATION_TYPES = [
+  "consultorio",
+  "spa",
+  "clinica",
+  "empresa_aliada",
+  "laboratorio",
+] as const;
+export type LocationType = (typeof LOCATION_TYPES)[number];
+
+export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
+  consultorio: "Consultorio",
+  spa: "Spa / Estética",
+  clinica: "Clínica",
+  empresa_aliada: "Empresa aliada",
+  laboratorio: "Laboratorio",
+};
+
+/** Estado de verificación de la dirección geográfica. */
+export const ADDRESS_VERIFICATION_STATUSES = [
+  "pending",
+  "in_review",
+  "verified",
+] as const;
+export type AddressVerificationStatus =
+  (typeof ADDRESS_VERIFICATION_STATUSES)[number];
+
+export const ADDRESS_VERIFICATION_METHODS = [
+  "visit",
+  "google_maps",
+  "photo_evidence",
+] as const;
+export type AddressVerificationMethod =
+  (typeof ADDRESS_VERIFICATION_METHODS)[number];
+
+export const ADDRESS_VERIFICATION_METHOD_LABELS: Record<
+  AddressVerificationMethod,
+  string
+> = {
+  visit: "Visita",
+  google_maps: "Google Maps",
+  photo_evidence: "Evidencia fotográfica",
+};
+
 /** Roles con acceso al panel clínico `/doctor` (web y mobile). */
 export const DOCTOR_PANEL_ROLES: readonly Role[] = ["doctor"];

@@ -144,10 +144,11 @@ export function useAnalysis(id: string) {
   });
 }
 
-export function useAnalyses() {
+export function useAnalyses(enabled = true) {
   return useQuery({
     queryKey: ["analyses"],
     queryFn: () => apiClientFetch<AnalysisListItem[]>("/analyses"),
+    enabled,
   });
 }
 

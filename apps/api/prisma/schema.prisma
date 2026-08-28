@@ -89,6 +89,14 @@ model Doctor {
   country              String?
   zip                  String?
   metadataGooglePlaces Json?     @map("metadata_google_places")
+  /** consultorio | spa | clinica | empresa_aliada | laboratorio */
+  locationType              String?   @map("location_type")
+  /** pending | in_review | verified */
+  addressVerificationStatus String    @default("pending") @map("address_verification_status")
+  addressVerifiedAt         DateTime? @map("address_verified_at")
+  /** visit | google_maps | photo_evidence */
+  addressVerificationMethod String?   @map("address_verification_method")
+  addressVerificationEvidenceKey String? @map("address_verification_evidence_key")
   /** solo_doctor | empresa | empresa_aliada — intención de registro */
   membershipType       String    @default("solo_doctor") @map("membership_type")
   /** pending | in_review | verified | approved | active | rejected */

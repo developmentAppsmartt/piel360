@@ -18,7 +18,7 @@ import {
 import type { NavItem } from "@/components/layout/nav-items";
 
 export const doctorNav: NavItem[] = [
-  { label: "Inicio", href: "/doctor/home", icon: Home },
+  { label: "Inicio", href: "/doctor/home", icon: Home, allowedWhilePending: true },
   {
     label: "Mapas",
     href: "/doctor/mapas",

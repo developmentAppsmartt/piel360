@@ -55,10 +55,11 @@ export interface CreateRoutineStepInput {
 
 // ─── Rutinas ────────────────────────────────────────────────────────────────────
 
-export function useRoutines() {
+export function useRoutines(enabled = true) {
   return useQuery({
     queryKey: ["routines"],
     queryFn: () => apiClientFetch<Routine[]>("/routines"),
+    enabled,
   });
 }
 
