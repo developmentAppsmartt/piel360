@@ -340,6 +340,8 @@ model AnalysisResult {
   uiScore    Float?   @map("ui_score")
   rawScore   Float?   @map("raw_score")
   score      Float?
+  /** Solo `hd_skin_type` — valor categórico ("oily", "dry"...), en minúsculas. */
+  skinType   String?  @map("skin_type")
   createdAt  DateTime @default(now()) @map("created_at")
 
   analysis Analysis          @relation(fields: [analysisId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_analysis_results_analysis")
@@ -612,7 +614,11 @@ model RoutineCondition {
   region     String?
   /** "lt" | "lte" | "eq" | "gte" | "gt" — validado en el DTO. */
   operator   String
-  value      Float
+  /** Numérica — null cuando la condición es categórica (ver textValue). */
+  value      Float?
+  /** Categórica — solo `hd_skin_type` (uno de YOUCAM_SKIN_TYPE_VALUES). Una
+   * condición usa `value` O `textValue`, nunca ambos. */
+  textValue  String?  @map("text_value")
   createdAt  DateTime @default(now()) @map("created_at")
 
   routine Routine @relation(fields: [routineId], references: [id], onDelete: Cascade)
@@ -690,7 +696,11 @@ model TreatmentCondition {
   metricType  String   @map("metric_type")
   region      String?
   operator    String
-  value       Float
+  /** Numérica — null cuando la condición es categórica (ver textValue). */
+  value       Float?
+  /** Categórica — solo `hd_skin_type` (uno de YOUCAM_SKIN_TYPE_VALUES). Una
+   * condición usa `value` O `textValue`, nunca ambos. */
+  textValue   String?  @map("text_value")
   createdAt   DateTime @default(now()) @map("created_at")
 
   treatment Treatment @relation(fields: [treatmentId], references: [id], onDelete: Cascade)

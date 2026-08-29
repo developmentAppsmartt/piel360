@@ -31,6 +31,36 @@ export const YOUCAM_DST_ACTIONS = [
 export type YouCamAction = (typeof YOUCAM_DST_ACTIONS)[number];
 
 /**
+ * Métricas condicionables en Rutinas/Tratamientos (AnalysisConditionsService)
+ * — las 16 de `YOUCAM_DST_ACTIONS` más dos salidas *derivadas* que YouCam
+ * también entrega pero que no son un `dst_action` pedido: `all` (puntaje
+ * global, "Salud de la piel") y `skin_age` ("Salud de la piel (años)").
+ */
+export const CONDITIONABLE_METRIC_TYPES = [
+  ...YOUCAM_DST_ACTIONS,
+  "all",
+  "skin_age",
+] as const;
+
+/**
+ * Los 8 valores posibles de `hd_skin_type[].skin_type` según la doc de
+ * YouCam (en minúsculas — la API no garantiza la misma capitalización byte a
+ * byte, ver `youcamSkinTypeLabel`). Única fuente de verdad: valida el DTO de
+ * condiciones en el backend y alimenta el selector de valor en el frontend
+ * (que solo tenía las etiquetas, en apps/web/src/lib/youcam-metric-labels.ts).
+ */
+export const YOUCAM_SKIN_TYPE_VALUES = [
+  "normal",
+  "oily",
+  "dry",
+  "combination",
+  "redness",
+  "dry & redness",
+  "oily & redness",
+  "combination & redness",
+] as const;
+
+/**
  * Requisito de resolución de YouCam para HD Skincare (docs/AI-Skin-Analysis.MD
  * "File Specs & Errors"): el lado corto debe ser de al menos 1080px, o YouCam
  * rechaza la tarea con `error_below_min_image_size`. Compartido entre backend

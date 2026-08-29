@@ -12,7 +12,10 @@ export interface TreatmentCondition {
   metricType: string;
   region?: string | null;
   operator: ConditionOperator;
-  value: number;
+  /** Numérica — null cuando la condición es categórica (ver textValue). */
+  value: number | null;
+  /** Categórica — solo `hd_skin_type`. */
+  textValue?: string | null;
 }
 
 export interface TreatmentItem {

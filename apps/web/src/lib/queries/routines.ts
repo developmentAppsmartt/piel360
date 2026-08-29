@@ -13,7 +13,10 @@ export interface RoutineCondition {
   metricType: string;
   region?: string | null;
   operator: RoutineConditionOperator;
-  value: number;
+  /** Numérica — null cuando la condición es categórica (ver textValue). */
+  value: number | null;
+  /** Categórica — solo `hd_skin_type`. */
+  textValue?: string | null;
 }
 
 export interface RoutineStep {

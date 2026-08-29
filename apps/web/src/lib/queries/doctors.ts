@@ -158,10 +158,11 @@ export type DoctorProfileInput = {
   lng?: number;
 };
 
-export function useMyDoctorProfile() {
+export function useMyDoctorProfile(enabled = true) {
   return useQuery({
     queryKey: ["doctors", "me"],
     queryFn: () => apiClientFetch<MyDoctorProfile>("/doctors/me"),
+    enabled,
   });
 }
 

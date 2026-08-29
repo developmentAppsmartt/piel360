@@ -252,17 +252,7 @@ export class AuthService implements OnModuleDestroy {
   ): Promise<AuthResult> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
-      include: {
-        roles: { include: { permissions: true } },
-        patient: true,
-        doctor: {
-          select: {
-            empresa: true,
-            empresaReferida: true,
-            verificationStatus: true,
-          },
-        },
-      },
+      include: this.authUserInclude,
     });
 
     if (!user || !(await argon2.verify(user.password, dto.password))) {
@@ -272,6 +262,49 @@ export class AuthService implements OnModuleDestroy {
     const role = this.resolveRole(user);
     return this.buildAuthResult(user, role, client);
   }
+
+  /** Canjea el refresh token (cookie `piel360_refresh` en web, body en móvil)
+   * por un access token nuevo — el mecanismo de "sesión larga" del que solo
+   * existía la mitad (se emitía el refresh token pero nada lo consumía). */
+  async refreshTokens(
+    refreshToken: string,
+    client: 'mobile' | 'web' = 'web',
+  ): Promise<AuthResult> {
+    let sub: string;
+    try {
+      const payload = await this.jwt.verifyAsync<{ sub: string }>(
+        refreshToken,
+        { secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET') },
+      );
+      sub = payload.sub;
+    } catch {
+      throw new UnauthorizedException('Sesión expirada, inicia sesión de nuevo');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: BigInt(sub) },
+      include: this.authUserInclude,
+    });
+    if (!user) throw new UnauthorizedException();
+
+    const role = this.resolveRole(user);
+    return this.buildAuthResult(user, role, client);
+  }
+
+  /** Include común para construir `AuthUser` (login/refresh) — roles+permisos
+   * para `resolvePermissions`, y los campos de doctor/paciente que necesita
+   * `buildAuthResult`. */
+  private readonly authUserInclude = {
+    roles: { include: { permissions: true } },
+    patient: true,
+    doctor: {
+      select: {
+        empresa: true,
+        empresaReferida: true,
+        verificationStatus: true,
+      },
+    },
+  } as const;
 
   /**
    * Crea o loguea un usuario vía Google. Regla de seguridad (MIGRACION.md §2.2):
