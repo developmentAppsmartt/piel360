@@ -13,6 +13,7 @@ import { PatientsService } from '../patients/patients.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
 import type { CreateYoucamAnalysisDto } from './dto/create-youcam-analysis.dto';
 import { YOUCAM_POLL_QUEUE, type YoucamPollJobData } from './queues';
 import { YouCamService } from './youcam.service';
@@ -38,6 +39,7 @@ export class YoucamAnalysesService {
     private readonly storage: StorageService,
     @InjectQueue(YOUCAM_POLL_QUEUE)
     private readonly pollQueue: Queue<YoucamPollJobData>,
+    private readonly specialtyAccess: SpecialtyAccessService,
   ) {}
 
   /** `POST /youcam/analyses` — MIGRACION.md §2.5/§4.2. */
@@ -66,6 +68,7 @@ export class YoucamAnalysesService {
     await this.patients.findOne(dto.patientId, currentUser); // scoping, igual que Skiniver
 
     const userId = BigInt(currentUser.sub);
+    await this.specialtyAccess.assertCanUseProvider(userId, YOUCAM_PROVIDER_SLUG);
     const subscription = await this.subscriptions.findActiveForUser(
       this.prisma,
       userId,

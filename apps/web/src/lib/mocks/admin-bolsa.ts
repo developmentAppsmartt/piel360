@@ -1,13 +1,35 @@
 /** Mocks UI backoffice — Bolsa de unidades / consumo (hasta conectar API B2B). */
 
 export type UnitPool = {
-  id: string;
+  id: "aesthetic" | "derm";
   name: string;
   accent: "aesthetic" | "derm";
   available: number;
   total: number;
   used: number;
   reserved: number;
+  expiringSoon: number;
+  /** Etiqueta de unidad en la tarjeta (unidades vs créditos). */
+  unitLabel: "unidades" | "créditos";
+};
+
+export type RechargeRow = {
+  id: string;
+  unitType: "aesthetic" | "derm";
+  unitLabel: string;
+  rechargedAt: string;
+  quantity: number;
+  expiresAt: string;
+  addedBy: string;
+  status: "Activa" | "Vencida";
+};
+
+export type ClientUsageRow = {
+  id: string;
+  name: string;
+  plan: string;
+  consumed: number;
+  accent: "aesthetic" | "derm";
 };
 
 export type ActivityItem = {
@@ -43,26 +65,153 @@ export type DailyConsumption = {
   professional: string;
 };
 
+/** Estético + Fitzpatrick comparten la misma bolsa de unidades. */
 export const MOCK_UNIT_POOLS: UnitPool[] = [
   {
     id: "aesthetic",
-    name: "Análisis de piel estéticos",
+    name: "Análisis estéticos / Fitzpatrick",
     accent: "aesthetic",
-    available: 12458,
-    total: 20000,
-    used: 7542,
+    available: 20694,
+    total: 35000,
+    used: 14306,
     reserved: 0,
+    expiringSoon: 1184,
+    unitLabel: "unidades",
   },
   {
     id: "derm",
-    name: "Análisis de imágenes dermatológicas",
+    name: "Análisis dermatológico (créditos)",
     accent: "derm",
-    available: 8236,
-    total: 15000,
-    used: 6764,
+    available: 22375,
+    total: 30000,
+    used: 7625,
     reserved: 0,
+    expiringSoon: 1120,
+    unitLabel: "créditos",
   },
 ];
+
+export const MOCK_RECHARGES: RechargeRow[] = [
+  {
+    id: "1",
+    unitType: "aesthetic",
+    unitLabel: "Análisis estéticos / Fitzpatrick",
+    rechargedAt: "20/05/2026, 10:30 a. m.",
+    quantity: 5000,
+    expiresAt: "20/05/2027",
+    addedBy: "Super Admin",
+    status: "Activa",
+  },
+  {
+    id: "2",
+    unitType: "derm",
+    unitLabel: "Análisis dermatológico",
+    rechargedAt: "18/05/2026, 03:15 p. m.",
+    quantity: 3000,
+    expiresAt: "18/05/2027",
+    addedBy: "Super Admin",
+    status: "Activa",
+  },
+  {
+    id: "3",
+    unitType: "aesthetic",
+    unitLabel: "Análisis estéticos / Fitzpatrick",
+    rechargedAt: "15/05/2026, 09:00 a. m.",
+    quantity: 2500,
+    expiresAt: "15/05/2027",
+    addedBy: "Super Admin",
+    status: "Activa",
+  },
+  {
+    id: "4",
+    unitType: "derm",
+    unitLabel: "Análisis dermatológico",
+    rechargedAt: "10/05/2026, 11:45 a. m.",
+    quantity: 4000,
+    expiresAt: "10/05/2027",
+    addedBy: "Super Admin",
+    status: "Activa",
+  },
+  {
+    id: "5",
+    unitType: "aesthetic",
+    unitLabel: "Análisis estéticos / Fitzpatrick",
+    rechargedAt: "05/05/2026, 02:20 p. m.",
+    quantity: 1500,
+    expiresAt: "05/05/2027",
+    addedBy: "Super Admin",
+    status: "Activa",
+  },
+  {
+    id: "6",
+    unitType: "derm",
+    unitLabel: "Análisis dermatológico",
+    rechargedAt: "01/05/2026, 08:00 a. m.",
+    quantity: 2000,
+    expiresAt: "01/05/2027",
+    addedBy: "Super Admin",
+    status: "Activa",
+  },
+  {
+    id: "7",
+    unitType: "aesthetic",
+    unitLabel: "Análisis estéticos / Fitzpatrick",
+    rechargedAt: "28/04/2026, 04:50 p. m.",
+    quantity: 1000,
+    expiresAt: "28/04/2027",
+    addedBy: "Super Admin",
+    status: "Activa",
+  },
+];
+
+export const MOCK_CLIENT_USAGE: ClientUsageRow[] = [
+  {
+    id: "1",
+    name: "Clínica Piel Sana",
+    plan: "Plan Estético Pro",
+    consumed: 1250,
+    accent: "aesthetic",
+  },
+  {
+    id: "2",
+    name: "DermaCenter Bogotá",
+    plan: "Plan Dermatológico",
+    consumed: 980,
+    accent: "derm",
+  },
+  {
+    id: "3",
+    name: "Perfect Clinic",
+    plan: "Plan Mixto",
+    consumed: 850,
+    accent: "aesthetic",
+  },
+  {
+    id: "4",
+    name: "SkinLab Medellín",
+    plan: "Plan Estético Pro",
+    consumed: 620,
+    accent: "aesthetic",
+  },
+  {
+    id: "5",
+    name: "Nova Derma",
+    plan: "Plan Dermatológico",
+    consumed: 540,
+    accent: "derm",
+  },
+];
+
+export function unitDistribution() {
+  const total = MOCK_UNIT_POOLS.reduce((sum, p) => sum + p.available, 0);
+  return MOCK_UNIT_POOLS.map((p) => ({
+    id: p.id,
+    label: p.name,
+    value: p.available,
+    percent: total > 0 ? (p.available / total) * 100 : 0,
+    accent: p.accent,
+  }));
+}
 
 export const MOCK_USAGE_SERIES = {
   aesthetic: [120, 180, 210, 260, 310, 380, 420, 480, 520, 610],
@@ -75,7 +224,7 @@ export const MOCK_ACTIVITY: ActivityItem[] = [
     id: "1",
     clinic: "Clínica Piel Sana",
     plan: "Plan Estético Pro",
-    deltaLabel: "-500 unidades estéticas",
+    deltaLabel: "-500 unidades estéticas / Fitzpatrick",
     when: "Hace 12 min",
     kind: "purchase",
   },
@@ -83,7 +232,7 @@ export const MOCK_ACTIVITY: ActivityItem[] = [
     id: "2",
     clinic: "DermaCenter Bogotá",
     plan: "Plan Dermatológico",
-    deltaLabel: "-200 unidades derm.",
+    deltaLabel: "-200 créditos derm.",
     when: "Hace 45 min",
     kind: "clinic",
   },
@@ -91,7 +240,7 @@ export const MOCK_ACTIVITY: ActivityItem[] = [
     id: "3",
     clinic: "Perfect Clinic",
     plan: "Plan Mixto",
-    deltaLabel: "-150 unidades estéticas",
+    deltaLabel: "-150 unidades estéticas / Fitzpatrick",
     when: "Hace 2 h",
     kind: "purchase",
   },
@@ -99,7 +248,7 @@ export const MOCK_ACTIVITY: ActivityItem[] = [
     id: "4",
     clinic: "SkinLab Medellín",
     plan: "Plan Estético Pro",
-    deltaLabel: "-80 unidades estéticas",
+    deltaLabel: "-80 unidades estéticas / Fitzpatrick",
     when: "Hace 5 h",
     kind: "clinic",
   },

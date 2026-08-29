@@ -12,6 +12,7 @@ import {
   type DoctorProfileInput,
   type MyDoctorProfile,
 } from "@/lib/queries/doctors";
+import { useSpecialties } from "@/lib/queries/specialties";
 import {
   CompanyProfileSection,
   type CompanyProfileHandle,
@@ -29,14 +30,6 @@ const GENDER_OPTIONS = [
   { value: "female", label: "Femenino" },
   { value: "male", label: "Masculino" },
   { value: "other", label: "Otro" },
-] as const;
-
-const SPECIALTIES = [
-  "Dermatólogo",
-  "Médico general",
-  "Cirujano plástico",
-  "Estética médica",
-  "Otra",
 ] as const;
 
 const inputClass =
@@ -154,7 +147,7 @@ function profileToForm(p: MyDoctorProfile) {
     docNumber: p.docNumber ?? "",
     gender: p.gender ?? "",
     birthDate: toDateInput(p.birthDate),
-    specialty: p.specialty ?? SPECIALTIES[0],
+    specialty: p.specialty ?? "",
     medicalRegistry: p.medicalRegistry ?? "",
     licenseNumber: p.licenseNumber ?? "",
     educationEntity: p.educationEntity ?? "",
@@ -171,6 +164,8 @@ function profileToForm(p: MyDoctorProfile) {
 
 export function DoctorProfileForm() {
   const query = useMyDoctorProfile();
+  const specialtiesQuery = useSpecialties();
+  const specialties = specialtiesQuery.data?.map((item) => item.name) ?? [];
   const mutation = useUpdateMyDoctorProfile();
   const uploadDocs = useUploadDoctorDocuments();
   const companyRef = useRef<CompanyProfileHandle>(null);
@@ -419,16 +414,17 @@ export function DoctorProfileForm() {
         <Field label="Especialidad">
           <select
             className={inputClass}
-            value={
-              SPECIALTIES.includes(
-                form.specialty as (typeof SPECIALTIES)[number],
-              )
-                ? form.specialty
-                : "Otra"
-            }
+            value={form.specialty}
             onChange={(e) => set("specialty", e.target.value)}
+            disabled={specialtiesQuery.isLoading || specialties.length === 0}
           >
-            {SPECIALTIES.map((s) => (
+            {specialtiesQuery.isLoading ? (
+              <option value="">Cargando especialidades…</option>
+            ) : null}
+            {!specialties.includes(form.specialty) && form.specialty ? (
+              <option value={form.specialty}>{form.specialty}</option>
+            ) : null}
+            {specialties.map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>

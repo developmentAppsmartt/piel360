@@ -514,8 +514,24 @@ model Role {
   name        String       @unique
   permissions Permission[]
   users       User[]
+  specialty   DoctorSpecialty?
 
   @@map("roles")
+}
+
+/** Especialidad médica del registro de doctor — cada una tiene un rol RBAC asociado. */
+model DoctorSpecialty {
+  id        BigInt   @id @default(autoincrement())
+  name      String   @unique
+  slug      String   @unique
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  roleId    BigInt   @unique @map("role_id")
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("doctor_specialties")
 }
 
 model Permission {

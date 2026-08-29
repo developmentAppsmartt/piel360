@@ -18,7 +18,7 @@ export function Logo({
       priority
       className={cn(
         fullWidth
-          ? "h-auto w-full object-contain object-top -mt-6 -mb-6"
+          ? "h-auto w-full object-contain object-top -mt-8 -mb-6"
           : "h-14 w-auto object-contain",
         className,
       )}

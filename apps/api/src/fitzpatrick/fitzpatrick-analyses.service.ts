@@ -6,6 +6,7 @@ import { PatientsService } from '../patients/patients.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
 import type { CreateFitzpatrickAnalysisDto } from './dto/create-fitzpatrick-analysis.dto';
 import { FitzpatrickService } from './fitzpatrick.service';
 
@@ -30,6 +31,7 @@ export class FitzpatrickAnalysesService {
     private readonly subscriptions: SubscriptionsService,
     private readonly patients: PatientsService,
     private readonly storage: StorageService,
+    private readonly specialtyAccess: SpecialtyAccessService,
   ) {}
 
   /** `POST /fitzpatrick/analyses` — polling síncrono (ver plan de sesión):
@@ -43,6 +45,10 @@ export class FitzpatrickAnalysesService {
     await this.patients.findOne(dto.patientId, currentUser);
 
     const userId = BigInt(currentUser.sub);
+    await this.specialtyAccess.assertCanUseProvider(
+      userId,
+      FITZPATRICK_PROVIDER_SLUG,
+    );
     const subscription = await this.subscriptions.findActiveForUser(
       this.prisma,
       userId,

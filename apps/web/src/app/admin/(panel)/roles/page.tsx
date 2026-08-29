@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { RoleForm } from "@/components/admin/role-form";
 import { RolesTable } from "@/components/admin/roles-table";
 import { Button } from "@/components/ui/button";
@@ -95,11 +96,19 @@ export default function RolesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Roles y permisos</h1>
-        <Button type="button" onClick={() => setCreating(true)}>
-          Nuevo rol
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" nativeButton={false} render={<Link href="/admin/especialidades" />}>
+            Especialidades
+          </Button>
+          <Button type="button" variant="outline" nativeButton={false} render={<Link href="/admin/roles/permisos-planes" />}>
+            Permisos de planes
+          </Button>
+          <Button type="button" onClick={() => setCreating(true)}>
+            Nuevo rol
+          </Button>
+        </div>
       </div>
 
       <p className="text-sm text-muted-foreground">

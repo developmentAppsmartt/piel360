@@ -117,10 +117,11 @@ const YOUCAM_MAX_ATTEMPTS = 40; // ~40 * 5s = 200s de polling activo en cliente
 const SKINIVER_POLL_MS = 3000;
 const SKINIVER_MAX_ATTEMPTS = 10;
 
-export function useAnalysis(id: string) {
+export function useAnalysis(id: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["analyses", id],
     queryFn: () => apiClientFetch<AnalysisDetail>(`/analyses/${id}`),
+    enabled: options?.enabled !== false && !!id,
     refetchInterval: (query) => {
       const data = query.state.data;
       if (!data) return false;

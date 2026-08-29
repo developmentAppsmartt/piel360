@@ -112,12 +112,19 @@ async function main() {
     where: { name: { in: ['empresa', 'empresa_aliada', 'admin'] } },
   });
 
+  const providerUsagePermissions = [
+    'use_provider_skiniver',
+    'use_provider_youcam',
+    'use_provider_fitzpatrick',
+  ] as const;
+
   // --- Permissions: view_any_user, create_doctor, ... + validate_doctor ---
   const permissionNames = [
     ...RESOURCES.flatMap((resource) =>
       ACTIONS.map((action) => `${action}_${resource}`),
     ),
     'validate_doctor',
+    ...providerUsagePermissions,
   ];
 
   await prisma.$transaction(
@@ -162,6 +169,114 @@ async function main() {
   void doctorRole;
   void patientRole;
   void ORG_OWNER_PERMS;
+
+  // --- Roles de especialidad (registro doctor) ---
+  const legacySpecialtyRoleRenames: Record<string, string> = {
+    specialty_dermatologo: 'dermatologo',
+    specialty_medico_general: 'medico_general',
+    specialty_cirujano_plastico: 'cirujano_plastico',
+    specialty_estetica_medica: 'estetica_medica',
+    specialty_otra: 'otra',
+  };
+
+  for (const [oldName, newName] of Object.entries(legacySpecialtyRoleRenames)) {
+    const legacy = await prisma.role.findUnique({ where: { name: oldName } });
+    if (!legacy) continue;
+    const target = await prisma.role.findUnique({ where: { name: newName } });
+    if (target) {
+      const users = await prisma.user.findMany({
+        where: { roles: { some: { id: legacy.id } } },
+        select: { id: true },
+      });
+      for (const user of users) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            roles: {
+              disconnect: [{ id: legacy.id }],
+              connect: [{ id: target.id }],
+            },
+          },
+        });
+      }
+      await prisma.role.delete({ where: { id: legacy.id } });
+    } else {
+      await prisma.role.update({
+        where: { id: legacy.id },
+        data: { name: newName },
+      });
+    }
+  }
+
+  const specialtyDefinitions = [
+    { slug: 'dermatologo', name: 'Dermatólogo', sortOrder: 0, perms: ['use_provider_skiniver'] as const },
+    { slug: 'medico_general', name: 'Médico general', sortOrder: 1, perms: ['use_provider_skiniver', 'use_provider_youcam'] as const },
+    { slug: 'cirujano_plastico', name: 'Cirujano plástico', sortOrder: 2, perms: ['use_provider_youcam', 'use_provider_fitzpatrick'] as const },
+    { slug: 'estetica_medica', name: 'Estética médica', sortOrder: 3, perms: ['use_provider_youcam', 'use_provider_fitzpatrick'] as const },
+    { slug: 'otra', name: 'Otra', sortOrder: 4, perms: [] as const },
+  ] as const;
+
+  const specialtyRoles = await Promise.all(
+    specialtyDefinitions.map((item) =>
+      prisma.role.upsert({
+        where: { name: item.slug },
+        update: {},
+        create: { name: item.slug },
+      }),
+    ),
+  );
+
+  for (const [index, role] of specialtyRoles.entries()) {
+    const item = specialtyDefinitions[index];
+    await prisma.role.update({
+      where: { id: role.id },
+      data: {
+        permissions: {
+          set: [],
+          connect: item.perms.map((name) => ({ name })),
+        },
+      },
+    });
+
+    await prisma.doctorSpecialty.upsert({
+      where: { slug: item.slug },
+      update: {
+        name: item.name,
+        sortOrder: item.sortOrder,
+        roleId: role.id,
+      },
+      create: {
+        name: item.name,
+        slug: item.slug,
+        sortOrder: item.sortOrder,
+        roleId: role.id,
+      },
+    });
+  }
+
+  const specialtyRoleNames = specialtyDefinitions.map((item) => item.slug);
+  const specialtyLabelToRole = Object.fromEntries(
+    specialtyDefinitions.map((item) => [item.name, item.slug]),
+  );
+
+  const existingDoctors = await prisma.doctor.findMany({
+    select: { userId: true, specialty: true },
+  });
+  for (const doctor of existingDoctors) {
+    const roleName = doctor.specialty
+      ? specialtyLabelToRole[doctor.specialty.trim()]
+      : undefined;
+    if (!roleName) continue;
+    await prisma.user.update({
+      where: { id: doctor.userId },
+      data: {
+        roles: {
+          disconnect: specialtyRoleNames.map((name) => ({ name })),
+          connect: [{ name: roleName }],
+        },
+      },
+    });
+  }
 
   // --- Planes semilla (uno por proveedor) ---
   await prisma.plan.upsert({
@@ -245,7 +360,7 @@ async function main() {
     `  - Providers: ${skiniver.slug}, ${youcam.slug}, ${fitzpatrick.slug}`,
   );
   console.log(
-    '  - Roles: superadmin, monitor, doctor, patient',
+    '  - Roles: superadmin, monitor, doctor, patient + especialidades',
   );
   console.log(`  - Permisos: ${permissionNames.length}`);
   console.log(`  - Superadmin: ${adminUser.email} (password: ${adminPassword})`);

@@ -9,6 +9,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { JwtPayload } from '../auth/types';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { RequirePermission } from '../auth/permissions.decorator';
 import { CreatePlanDto } from './dto/create-plan.dto';
@@ -21,8 +23,8 @@ export class PlansController {
 
   @Get('plans')
   @UseGuards(JwtAuthGuard)
-  findAll() {
-    return this.plansService.findAll();
+  findAll(@CurrentUser() user: JwtPayload) {
+    return this.plansService.findAll(user);
   }
 
   @Get('admin/plans')

@@ -15,6 +15,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SkiniverService } from '../skiniver/skiniver.service';
 import { StorageService } from '../storage/storage.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
 import type { JwtPayload } from '../auth/types';
 import { AnalysisImageUrlsService } from './analysis-image-urls.service';
 import type { ConfirmAnalysisDto } from './dto/confirm-analysis.dto';
@@ -43,6 +44,7 @@ export class AnalysesService {
     private readonly patients: PatientsService,
     private readonly doctors: DoctorsService,
     private readonly storage: StorageService,
+    private readonly specialtyAccess: SpecialtyAccessService,
     private readonly imageUrls: AnalysisImageUrlsService,
     @InjectQueue(ANALYSIS_IMAGES_QUEUE)
     private readonly analysisImagesQueue: Queue<AnalysisImagesJobData>,
@@ -83,6 +85,7 @@ export class AnalysesService {
     await this.patients.findOne(dto.patientId, currentUser);
 
     const userId = BigInt(currentUser.sub);
+    await this.specialtyAccess.assertCanUseProvider(userId, SKINIVER_PROVIDER_SLUG);
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
     });

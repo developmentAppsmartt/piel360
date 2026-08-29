@@ -33,7 +33,9 @@ import { TreatmentsModule } from './treatments/treatments.module';
 import { AnalysisConditionsModule } from './analysis-conditions/analysis-conditions.module';
 import { AppConfigModule } from './app-config/app-config.module';
 import { OrganizationsModule } from './organizations/organizations.module';
+import { SpecialtyAccessModule } from './specialty-access/specialty-access.module';
 import { ModeratorsModule } from './moderators/moderators.module';
+import { SpecialtiesModule } from './specialties/specialties.module';
 
 @Module({
   imports: [
@@ -56,6 +58,7 @@ import { ModeratorsModule } from './moderators/moderators.module';
       }),
     }),
     PrismaModule,
+    SpecialtyAccessModule,
     CommonModule,
     MailModule,
     SmsModule,
@@ -83,6 +86,7 @@ import { ModeratorsModule } from './moderators/moderators.module';
     AppConfigModule,
     OrganizationsModule,
     ModeratorsModule,
+    SpecialtiesModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ModuleCard } from "@/components/ui/module-card";
 import {
   Table,
   TableBody,
@@ -13,15 +14,30 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ANALYSIS_PROVIDER_STATIC_LABELS, analysisProviderLabel } from "@/lib/analysis-provider-label";
+import { PatientProfileShell } from "@/components/patients/patient-profile-shell";
+import {
+  ANALYSIS_PROVIDER_STATIC_LABELS,
+  analysisProviderLabel,
+} from "@/lib/analysis-provider-label";
 import { ApiError } from "@/lib/api-error";
 import { usePatient, usePatientAnalyses } from "@/lib/queries/patients";
+import { useMyDoctorProfile } from "@/lib/queries/doctors";
+import type { AnalysisProviderSlug } from "@piel360/shared";
 
 export default function PacienteDetallePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const patient = usePatient(id);
   const analyses = usePatientAnalyses(id);
+  const doctorProfile = useMyDoctorProfile();
+
+  const allowedProviders = new Set(
+    (doctorProfile.data?.allowedProviderSlugs ?? [
+      "skiniver",
+      "youcam",
+      "fitzpatrick",
+    ]) as AnalysisProviderSlug[],
+  );
 
   const authError =
     (patient.error instanceof ApiError && patient.error.status === 401) ||
@@ -31,106 +47,118 @@ export default function PacienteDetallePage() {
     if (authError) router.push("/doctor/login");
   }, [authError, router]);
 
-  if (patient.isLoading) return <p className="text-muted-foreground">Cargando paciente...</p>;
-  if (!authError && patient.error) return <p className="text-destructive">No se pudo cargar el paciente.</p>;
+  if (patient.isLoading) {
+    return <p className="text-muted-foreground">Cargando paciente…</p>;
+  }
+  if (!authError && patient.error) {
+    return <p className="text-destructive">No se pudo cargar el paciente.</p>;
+  }
   if (!patient.data) return null;
 
   const p = patient.data;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">
-            {p.firstName} {p.lastName}
-          </h1>
-          <p className="text-muted-foreground">{p.email ?? "Sin email"}</p>
-        </div>
-        <div className="flex gap-2">
+    <PatientProfileShell patient={p} panel="doctor">
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          nativeButton={false}
+          render={<Link href={`/doctor/pacientes/${p.id}/editar`} />}
+        >
+          Editar
+        </Button>
+        {allowedProviders.has("skiniver") ? (
           <Button
             variant="outline"
-            nativeButton={false}
-            render={<Link href={`/doctor/pacientes/${p.id}/editar`} />}
-          >
-            Editar
-          </Button>
-          <Button
             nativeButton={false}
             render={<Link href={`/doctor/pacientes/${p.id}/nuevo-analisis`} />}
           >
             {ANALYSIS_PROVIDER_STATIC_LABELS.skiniver}
           </Button>
-          <Button
-            nativeButton={false}
-            render={<Link href={`/doctor/pacientes/${p.id}/nuevo-analisis-youcam`} />}
-          >
-            {ANALYSIS_PROVIDER_STATIC_LABELS.youcam}
-          </Button>
-          <Button
-            nativeButton={false}
-            render={<Link href={`/doctor/pacientes/${p.id}/nuevo-analisis-fitzpatrick`} />}
-          >
-            {ANALYSIS_PROVIDER_STATIC_LABELS.fitzpatrick}
-          </Button>
+        ) : null}
+        {allowedProviders.has("youcam") ? (
           <Button
             variant="outline"
             nativeButton={false}
-            render={<Link href={`/doctor/pacientes/${p.id}/historial-3d`} />}
+            render={
+              <Link href={`/doctor/pacientes/${p.id}/nuevo-analisis-youcam`} />
+            }
           >
-            Historial 3D
+            {ANALYSIS_PROVIDER_STATIC_LABELS.youcam}
           </Button>
-        </div>
+        ) : null}
+        {allowedProviders.has("fitzpatrick") ? (
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={
+              <Link
+                href={`/doctor/pacientes/${p.id}/nuevo-analisis-fitzpatrick`}
+              />
+            }
+          >
+            {ANALYSIS_PROVIDER_STATIC_LABELS.fitzpatrick}
+          </Button>
+        ) : null}
+        <Button
+          variant="outline"
+          nativeButton={false}
+          render={<Link href={`/doctor/pacientes/${p.id}/historial-3d`} />}
+        >
+          Historial 3D
+        </Button>
       </div>
 
-      <dl className="grid grid-cols-2 gap-4 rounded-lg border border-border p-4 sm:grid-cols-4">
-        <div>
-          <dt className="text-xs text-muted-foreground">Teléfono</dt>
-          <dd>{p.phone ?? "—"}</dd>
+      <ModuleCard className="overflow-hidden p-0">
+        <div className="border-b border-border px-4 py-4">
+          <h2 className="text-base font-semibold">Historial de análisis</h2>
         </div>
-        <div>
-          <dt className="text-xs text-muted-foreground">Documento</dt>
-          <dd>{p.docType ? `${p.docType} ${p.docNumber ?? ""}` : (p.docNumber ?? "—")}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-muted-foreground">Dirección</dt>
-          <dd>{p.address ?? "—"}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-muted-foreground">Paciente desde</dt>
-          <dd>{new Date(p.createdAt).toLocaleDateString("es-CO")}</dd>
-        </div>
-      </dl>
 
-      <div className="space-y-2">
-        <h2 className="text-lg font-medium">Historial de análisis</h2>
-
-        {analyses.isLoading && <p className="text-muted-foreground">Cargando historial...</p>}
+        {analyses.isLoading && (
+          <p className="p-4 text-sm text-muted-foreground">Cargando historial…</p>
+        )}
         {!authError && analyses.error && (
-          <p className="text-destructive">No se pudo cargar el historial.</p>
+          <p className="p-4 text-sm text-destructive">
+            No se pudo cargar el historial.
+          </p>
         )}
 
         {analyses.data && analyses.data.length === 0 && (
-          <p className="text-muted-foreground">Este paciente aún no tiene análisis.</p>
+          <p className="p-4 text-sm text-muted-foreground">
+            Este paciente aún no tiene análisis.
+          </p>
         )}
 
         {analyses.data && analyses.data.length > 0 && (
-          <div className="rounded-lg border border-border">
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Tipo de análisis</TableHead>
-                  <TableHead>Región</TableHead>
-                  <TableHead>Diagnóstico</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Fecha</TableHead>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead className="text-xs font-semibold tracking-wide uppercase">
+                    Tipo de análisis
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold tracking-wide uppercase">
+                    Región
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold tracking-wide uppercase">
+                    Diagnóstico
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold tracking-wide uppercase">
+                    Estado
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold tracking-wide uppercase">
+                    Fecha
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {analyses.data.map((a) => (
                   <TableRow
                     key={a.id}
-                    className="cursor-pointer"
-                    onClick={() => router.push(`/doctor/pacientes/${id}/analisis/${a.id}`)}
+                    className="cursor-pointer hover:bg-muted/30"
+                    onClick={() =>
+                      router.push(`/doctor/pacientes/${id}/analisis/${a.id}`)
+                    }
                   >
                     <TableCell>
                       <Badge variant="outline">{analysisProviderLabel(a)}</Badge>
@@ -146,14 +174,16 @@ export default function PacienteDetallePage() {
                         <Badge variant="secondary">Pendiente</Badge>
                       )}
                     </TableCell>
-                    <TableCell>{new Date(a.createdAt).toLocaleDateString("es-CO")}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {new Date(a.createdAt).toLocaleDateString("es-CO")}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </div>
         )}
-      </div>
-    </div>
+      </ModuleCard>
+    </PatientProfileShell>
   );
 }

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { WompiCheckoutButton } from "@/components/payments/wompi-checkout-button";
 import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
+import { useMyDoctorProfile } from "@/lib/queries/doctors";
 import { usePlans } from "@/lib/queries/plans";
 import { useMySubscriptions } from "@/lib/queries/subscriptions";
 
@@ -23,12 +24,16 @@ function formatCOP(price: string) {
 export function PlansBrowser() {
   const plans = usePlans();
   const subscriptions = useMySubscriptions();
+  const doctorProfile = useMyDoctorProfile();
   const [providerSlug, setProviderSlug] = useState<string | null>(null);
 
   const providers = useMemo(() => {
     const slugs = new Set(plans.data?.map((p) => p.provider.slug));
-    return Array.from(slugs);
-  }, [plans.data]);
+    const list = Array.from(slugs);
+    const allowed = doctorProfile.data?.allowedProviderSlugs;
+    if (!allowed) return list;
+    return list.filter((slug) => allowed.includes(slug));
+  }, [plans.data, doctorProfile.data?.allowedProviderSlugs]);
 
   const activeProvider = providerSlug ?? providers[0] ?? null;
   const visiblePlans = plans.data?.filter((p) => p.provider.slug === activeProvider) ?? [];
