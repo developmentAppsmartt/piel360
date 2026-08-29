@@ -7,6 +7,7 @@ import {
   Post,
   Req,
   Res,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -17,6 +18,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDoctorDto } from './dto/register-doctor.dto';
 import { RegisterPatientDto } from './dto/register-patient.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -59,6 +61,23 @@ export class AuthController {
   @HttpCode(200)
   login(@Body() dto: LoginDto, @Headers('x-client') clientHeader?: string) {
     return this.authService.login(dto, authClient(clientHeader));
+  }
+
+  /** Canjea el refresh token por un access token nuevo. Sin JwtAuthGuard a
+   * propósito: el access token ya está vencido, es lo que se va a renovar. */
+  @Post('refresh')
+  @HttpCode(200)
+  refresh(
+    @Body() dto: RefreshTokenDto,
+    @Req() req: Request,
+    @Headers('x-client') clientHeader?: string,
+  ) {
+    const cookies = req.cookies as Record<string, string> | undefined;
+    const refreshToken = dto.refreshToken ?? cookies?.piel360_refresh;
+    if (!refreshToken) {
+      throw new UnauthorizedException('Falta el refresh token');
+    }
+    return this.authService.refreshTokens(refreshToken, authClient(clientHeader));
   }
 
   @Post('otp/send')

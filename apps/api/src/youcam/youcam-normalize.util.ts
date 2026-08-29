@@ -6,6 +6,7 @@ interface RawOutputItem {
   ui_score?: unknown;
   raw_score?: unknown;
   score?: unknown;
+  skin_type?: unknown;
   mask_urls?: unknown;
 }
 
@@ -54,6 +55,7 @@ export async function normalizeYoucamResults(
     if (!type) continue;
 
     const region = toStringOrNull(item.region);
+    const skinType = toStringOrNull(item.skin_type)?.toLowerCase() ?? null;
 
     const result = await tx.analysisResult.create({
       data: {
@@ -64,6 +66,7 @@ export async function normalizeYoucamResults(
         uiScore: toNumberOrNull(item.ui_score),
         rawScore: toNumberOrNull(item.raw_score),
         score: toNumberOrNull(item.score),
+        skinType,
       },
     });
     results += 1;

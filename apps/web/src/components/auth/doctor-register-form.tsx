@@ -10,6 +10,7 @@ import {
   establishSessionAction,
   type AuthActionState,
 } from "@/lib/actions/auth";
+import { sendPhoneOtpAction, verifyPhoneOtpAction } from "@/lib/actions/phone-otp";
 import { homeForUser } from "@/lib/auth-redirect";
 import { ApiError } from "@/lib/api-error";
 import { registerDoctorWithDocuments } from "@/lib/doctor-register-client";
@@ -169,6 +170,44 @@ export function DoctorRegisterForm() {
   const phone = digitsOnly(phoneDisplay);
   const phoneValid = /^\d{10,15}$/.test(phone);
 
+  const [otpCode, setOtpCode] = useState("");
+  const [phoneTicket, setPhoneTicket] = useState<string | null>(null);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+
+  function resetPhoneVerification() {
+    setOtpSent(false);
+    setOtpCode("");
+    setPhoneTicket(null);
+    setOtpError(null);
+  }
+
+  async function handleSendOtp() {
+    setOtpError(null);
+    setIsSendingOtp(true);
+    const result = await sendPhoneOtpAction(phone);
+    setIsSendingOtp(false);
+    if (!result.ok) {
+      setOtpError(result.error ?? "No se pudo enviar el código.");
+      return;
+    }
+    setOtpSent(true);
+  }
+
+  async function handleVerifyOtp() {
+    setOtpError(null);
+    setIsVerifyingOtp(true);
+    const result = await verifyPhoneOtpAction(phone, otpCode);
+    setIsVerifyingOtp(false);
+    if (!result.ok || !result.ticket) {
+      setOtpError(result.error ?? "No se pudo verificar el código.");
+      return;
+    }
+    setPhoneTicket(result.ticket);
+  }
+
   useEffect(() => {
     if (suppressAddressSearch.current) {
       suppressAddressSearch.current = false;
@@ -285,6 +324,10 @@ export function DoctorRegisterForm() {
       });
       return;
     }
+    if (!phoneTicket) {
+      setState({ error: "Verifica tu celular antes de continuar." });
+      return;
+    }
     if (!location) {
       setState({
         error: "Busca o marca la ubicación exacta de tu consulta.",
@@ -311,6 +354,7 @@ export function DoctorRegisterForm() {
           firstName,
           lastName,
           phone,
+          phoneTicket,
           membershipType,
           specialty,
           address: address || addressQuery,
@@ -384,15 +428,62 @@ export function DoctorRegisterForm() {
           />
         </Field>
         <Field label="Celular" required>
-          <input
-            className={inputClass}
-            type="tel"
-            placeholder="+57 300 000 0000"
-            value={phoneDisplay}
-            onChange={(e) => setPhoneDisplay(e.target.value)}
-            required
-            autoComplete="tel"
-          />
+          <div className="space-y-2">
+            <input
+              className={inputClass}
+              type="tel"
+              placeholder="+57 300 000 0000"
+              value={phoneDisplay}
+              disabled={phoneTicket != null}
+              onChange={(e) => {
+                setPhoneDisplay(e.target.value);
+                if (otpSent) resetPhoneVerification();
+              }}
+              required
+              autoComplete="tel"
+            />
+            {phoneTicket == null && (
+              <button
+                type="button"
+                disabled={!phoneValid || isSendingOtp}
+                onClick={handleSendOtp}
+                className="h-9 w-full rounded-lg border border-zinc-300 bg-white text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-40"
+              >
+                {isSendingOtp
+                  ? "Enviando…"
+                  : otpSent
+                    ? "Reenviar código"
+                    : "Enviar código"}
+              </button>
+            )}
+            {otpSent && phoneTicket == null && (
+              <div className="space-y-2 rounded-lg border border-zinc-200 p-2.5">
+                <p className="text-xs text-zinc-500">
+                  Te enviamos un código por SMS a {phone}.
+                </p>
+                <input
+                  className={inputClass}
+                  placeholder="Código de verificación"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                />
+                <button
+                  type="button"
+                  disabled={!otpCode || isVerifyingOtp}
+                  onClick={handleVerifyOtp}
+                  className="h-9 w-full rounded-lg bg-sky-500 text-sm font-medium text-white hover:bg-sky-400 disabled:opacity-40"
+                >
+                  {isVerifyingOtp ? "Verificando…" : "Verificar"}
+                </button>
+              </div>
+            )}
+            {phoneTicket != null && (
+              <p className="text-xs text-green-600">Teléfono verificado.</p>
+            )}
+            {otpError && <p className="text-xs text-red-600">{otpError}</p>}
+          </div>
         </Field>
         <Field label="Tipo de documento" required>
           <select
@@ -642,7 +733,7 @@ export function DoctorRegisterForm() {
 
       <button
         type="submit"
-        disabled={isPending}
+        disabled={isPending || phoneTicket == null}
         className="h-12 w-full rounded-xl bg-sky-500 text-sm font-semibold text-white hover:bg-sky-400 disabled:opacity-40 sm:w-auto sm:px-10"
       >
         {isPending ? "Creando cuenta…" : "Crear cuenta"}

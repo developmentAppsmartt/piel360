@@ -11,7 +11,10 @@ interface Condition {
   metricType: string;
   region: string | null;
   operator: string;
-  value: number;
+  /** Numérica — null cuando la condición es categórica (ver textValue). */
+  value: number | null;
+  /** Categórica — solo `hd_skin_type`. */
+  textValue?: string | null;
 }
 
 /** "lt" | "lte" | "eq" | "gte" | "gt" (ver dto/condition.dto.ts). */
@@ -80,8 +83,18 @@ export class AnalysisConditionsService {
     return conditions.some((condition) => {
       const result = findResultForCondition(results, condition);
       if (!result) return false;
+
+      // hd_skin_type es categórico ("oily", "dry"...) — igualdad de texto,
+      // no tiene sentido "mayor/menor que" un tipo de piel.
+      if (condition.metricType === 'hd_skin_type') {
+        if (!condition.textValue || !result.skinType) return false;
+        return (
+          result.skinType.toLowerCase() === condition.textValue.toLowerCase()
+        );
+      }
+
       const score = resolveScore(result);
-      if (score == null) return false;
+      if (score == null || condition.value == null) return false;
       return operatorMatches(condition.operator, score, condition.value);
     });
   }
