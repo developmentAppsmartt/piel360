@@ -1,5 +1,9 @@
-import { YOUCAM_DST_ACTIONS } from "@piel360/shared";
-import { YOUCAM_METRIC_LABELS, youcamRegionLabel } from "@/lib/youcam-metric-labels";
+import { CONDITIONABLE_METRIC_TYPES } from "@piel360/shared";
+import {
+  YOUCAM_METRIC_LABELS,
+  youcamRegionLabel,
+  youcamSkinTypeLabel,
+} from "@/lib/youcam-metric-labels";
 
 export type ConditionOperator = "lt" | "lte" | "eq" | "gte" | "gt";
 
@@ -7,14 +11,37 @@ export interface ConditionLike {
   metricType: string;
   region?: string | null;
   operator: string;
-  value: number;
+  value: number | null;
+  /** Solo `hd_skin_type` — categórica, alternativa a `value`. */
+  textValue?: string | null;
 }
 
-/** Métricas disponibles para condicionar — todas las de YouCam salvo
- * hd_skin_type (da una categoría de texto, no un puntaje numérico). */
-export const CONDITION_METRICS = YOUCAM_DST_ACTIONS.filter(
-  (type) => type !== "hd_skin_type",
-);
+/** Métricas disponibles para condicionar — las 16 de YouCam más `all`
+ * ("Salud de la piel") y `skin_age` ("Salud de la piel (años)"). Incluye
+ * `hd_skin_type`, categórica — ver `isSkinTypeMetric`. */
+export const CONDITION_METRICS = CONDITIONABLE_METRIC_TYPES;
+
+/** Métricas con sub-regiones seleccionables en el formulario — sin entrada
+ * acá, la condición aplica al puntaje/valor general ("whole") sin selector.
+ * Refleja las regiones reales que YouCam devuelve para cada tipo (ver
+ * docs/anallisis42prod.json). */
+export const CONDITION_METRIC_REGIONS: Record<string, string[]> = {
+  hd_wrinkle: [
+    "whole",
+    "forehead",
+    "glabellar",
+    "crowfeet",
+    "periocular",
+    "nasolabial",
+    "marionette",
+  ],
+  hd_pore: ["whole", "forehead", "nose", "cheek"],
+  hd_skin_type: ["whole", "t_zone", "u_zone"],
+};
+
+export function isSkinTypeMetric(metricType: string): boolean {
+  return metricType === "hd_skin_type";
+}
 
 export const CONDITION_OPERATORS: {
   value: ConditionOperator;
@@ -43,6 +70,12 @@ export function conditionOperatorLabel(operator: string): string {
 export function conditionSentence(condition: ConditionLike, subjectPhrase: string): string {
   const metric = conditionMetricLabel(condition.metricType);
   const region = condition.region ? ` (${youcamRegionLabel(condition.region)})` : "";
+
+  if (isSkinTypeMetric(condition.metricType)) {
+    const value = condition.textValue ? youcamSkinTypeLabel(condition.textValue) : "—";
+    return `Se recomienda ${subjectPhrase} cuando ${metric}${region} sea ${value}`;
+  }
+
   const operator = conditionOperatorLabel(condition.operator).toLowerCase();
   return `Se recomienda ${subjectPhrase} cuando ${metric}${region} sea ${operator} ${condition.value}`;
 }

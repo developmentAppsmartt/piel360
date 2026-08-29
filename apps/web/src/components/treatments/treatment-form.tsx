@@ -3,26 +3,32 @@
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-error";
-import {
-  CONDITION_METRICS,
-  CONDITION_OPERATORS,
-  conditionMetricLabel,
-  conditionSentence,
-} from "@/lib/condition-labels";
+import { ConditionRow, defaultConditionRow } from "@/components/conditions/condition-row";
+import { isSkinTypeMetric } from "@/lib/condition-labels";
 import { useTreatmentCategories } from "@/lib/queries/treatments";
 import type { CreateTreatmentInput, Treatment } from "@/lib/queries/treatments";
 
-const conditionSchema = z.object({
-  metricType: z.string().min(1, "Selecciona una métrica"),
-  operator: z.enum(["lt", "lte", "eq", "gte", "gt"]),
-  value: z
-    .string()
-    .min(1, "Requerido")
-    .refine((v) => !Number.isNaN(parseFloat(v)), "Ingresa un número"),
-});
+const conditionSchema = z
+  .object({
+    metricType: z.string().min(1, "Selecciona una métrica"),
+    region: z.string().optional(),
+    operator: z.enum(["lt", "lte", "eq", "gte", "gt"]),
+    value: z.string().optional(),
+    textValue: z.string().optional(),
+  })
+  .refine(
+    (c) =>
+      isSkinTypeMetric(c.metricType)
+        ? !!c.textValue
+        : !!c.value && !Number.isNaN(parseFloat(c.value)),
+    {
+      message: "Selecciona un valor",
+      path: ["value"],
+    },
+  );
 
 const schema = z.object({
   name: z.string().min(1, "Requerido").max(200),
@@ -69,8 +75,10 @@ export function TreatmentForm({
       conditions:
         defaultValues?.conditions.map((c) => ({
           metricType: c.metricType,
+          region: c.region ?? "",
           operator: c.operator,
-          value: String(c.value),
+          value: c.value != null ? String(c.value) : "",
+          textValue: c.textValue ?? "",
         })) ?? [],
     },
   });
@@ -87,11 +95,22 @@ export function TreatmentForm({
         description: values.description || undefined,
         categoryId: forceCategoryPicker ? values.categoryId || undefined : null,
         isActive: values.isActive,
-        conditions: values.conditions.map((c) => ({
-          metricType: c.metricType,
-          operator: c.operator,
-          value: parseFloat(c.value),
-        })),
+        conditions: values.conditions.map((c) =>
+          isSkinTypeMetric(c.metricType)
+            ? {
+                metricType: c.metricType,
+                region: c.region || undefined,
+                operator: "eq" as const,
+                value: null,
+                textValue: c.textValue,
+              }
+            : {
+                metricType: c.metricType,
+                region: c.region || undefined,
+                operator: c.operator,
+                value: parseFloat(c.value ?? ""),
+              },
+        ),
       });
     } catch (err) {
       setError("root", {
@@ -158,9 +177,7 @@ export function TreatmentForm({
             type="button"
             variant="outline"
             size="sm"
-            onClick={() =>
-              append({ metricType: CONDITION_METRICS[0], operator: "lte", value: "" })
-            }
+            onClick={() => append(defaultConditionRow())}
           >
             <Plus className="mr-1 size-4" />
             Agregar condición
@@ -182,59 +199,18 @@ export function TreatmentForm({
         )}
 
         {fields.map((field, index) => (
-          <div key={field.id} className="space-y-2 rounded-lg border border-border bg-card p-3">
-            <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-2">
-              <select className={inputCls} {...register(`conditions.${index}.metricType`)}>
-                {CONDITION_METRICS.map((type) => (
-                  <option key={type} value={type}>
-                    {conditionMetricLabel(type)}
-                  </option>
-                ))}
-              </select>
-              <select className={inputCls} {...register(`conditions.${index}.operator`)}>
-                {CONDITION_OPERATORS.map((op) => (
-                  <option key={op.value} value={op.value}>
-                    {op.symbol} {op.label}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="number"
-                step="0.01"
-                className={inputCls}
-                placeholder="Ej: 70"
-                {...register(`conditions.${index}.value`)}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="text-destructive hover:text-destructive"
-                onClick={() => remove(index)}
-              >
-                <Trash2 className="size-4" />
-                <span className="sr-only">Eliminar condición</span>
-              </Button>
-            </div>
-            {errors.conditions?.[index] && (
-              <p className="text-sm text-destructive">
-                {errors.conditions[index]?.value?.message ??
-                  errors.conditions[index]?.metricType?.message}
-              </p>
-            )}
-            {watchedConditions[index]?.value && !errors.conditions?.[index] && (
-              <p className="text-xs text-muted-foreground">
-                {conditionSentence(
-                  {
-                    metricType: watchedConditions[index].metricType,
-                    operator: watchedConditions[index].operator,
-                    value: parseFloat(watchedConditions[index].value) || 0,
-                  },
-                  subjectPhrase,
-                )}
-              </p>
-            )}
-          </div>
+          <ConditionRow
+            key={field.id}
+            index={index}
+            register={register}
+            watched={watchedConditions[index]}
+            error={
+              errors.conditions?.[index]?.value?.message ??
+              errors.conditions?.[index]?.metricType?.message
+            }
+            subjectPhrase={subjectPhrase}
+            onRemove={() => remove(index)}
+          />
         ))}
       </div>
 

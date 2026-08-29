@@ -119,6 +119,7 @@ export class RoutinesService {
                 region: c.region,
                 operator: c.operator,
                 value: c.value,
+                textValue: c.textValue,
               })),
             }
           : undefined,
@@ -159,6 +160,7 @@ export class RoutinesService {
               region: c.region,
               operator: c.operator,
               value: c.value,
+              textValue: c.textValue,
             })),
           });
         }

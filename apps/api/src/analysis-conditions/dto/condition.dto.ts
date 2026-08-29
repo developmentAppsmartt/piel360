@@ -1,12 +1,14 @@
-import { IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
-import { YOUCAM_DST_ACTIONS } from '@piel360/shared';
+import { IsIn, IsNumber, IsOptional, IsString, ValidateIf } from 'class-validator';
+import { CONDITIONABLE_METRIC_TYPES, YOUCAM_SKIN_TYPE_VALUES } from '@piel360/shared';
 
 export const CONDITION_OPERATORS = ['lt', 'lte', 'eq', 'gte', 'gt'] as const;
 
-/** Condición sobre un puntaje de análisis YouCam — mismo shape reusado por
- * RoutineCondition y TreatmentCondition. */
+/** Condición sobre un análisis YouCam — mismo shape reusado por
+ * RoutineCondition y TreatmentCondition. La mayoría de métricas son
+ * numéricas (`value`); `hd_skin_type` es categórica (`textValue`), nunca
+ * ambas. */
 export class ConditionDto {
-  @IsIn(YOUCAM_DST_ACTIONS)
+  @IsIn(CONDITIONABLE_METRIC_TYPES)
   metricType: string;
 
   @IsString()
@@ -16,6 +18,11 @@ export class ConditionDto {
   @IsIn(CONDITION_OPERATORS)
   operator: string;
 
+  @ValidateIf((o: ConditionDto) => o.metricType !== 'hd_skin_type')
   @IsNumber()
-  value: number;
+  value?: number;
+
+  @ValidateIf((o: ConditionDto) => o.metricType === 'hd_skin_type')
+  @IsIn(YOUCAM_SKIN_TYPE_VALUES)
+  textValue?: string;
 }
