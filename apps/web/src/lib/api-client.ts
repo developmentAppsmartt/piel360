@@ -4,17 +4,30 @@ import { ApiError } from "./api-error";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api";
 
-/**
- * Fetch desde el navegador contra la API NestJS. `credentials:"include"` envía
- * la cookie httpOnly `piel360_token` sola — el backend ya la acepta
- * (`apps/api/src/auth/jwt.strategy.ts`), no hace falta exponer el token a JS.
- */
-export async function apiClientFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  // FormData (multipart) necesita que el navegador fije su propio boundary —
-  // si forzamos Content-Type:application/json aquí, el backend no puede parsear el body.
-  const isFormData = init?.body instanceof FormData;
+/** Evita que varias queries que fallan casi al mismo tiempo (React Query)
+ * disparen cada una su propio refresh — todas esperan la misma promesa. */
+let refreshInFlight: Promise<boolean> | null = null;
 
-  const res = await fetch(`${API_URL}${path}`, {
+/** POST same-origin a nuestro propio Next (no al backend) — es el único que
+ * puede reescribir las cookies httpOnly de sesión. Ver app/api/auth/refresh/route.ts. */
+function refreshSession(): Promise<boolean> {
+  if (!refreshInFlight) {
+    refreshInFlight = fetch("/api/auth/refresh", {
+      method: "POST",
+      credentials: "include",
+    })
+      .then((res) => res.ok)
+      .catch(() => false)
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
+}
+
+async function doFetch(path: string, init?: RequestInit): Promise<Response> {
+  const isFormData = init?.body instanceof FormData;
+  return fetch(`${API_URL}${path}`, {
     ...init,
     headers: {
       ...(isFormData ? {} : { "Content-Type": "application/json" }),
@@ -22,6 +35,27 @@ export async function apiClientFetch<T>(path: string, init?: RequestInit): Promi
     },
     credentials: "include",
   });
+}
+
+/**
+ * Fetch desde el navegador contra la API NestJS. `credentials:"include"` envía
+ * la cookie httpOnly `piel360_token` sola — el backend ya la acepta
+ * (`apps/api/src/auth/jwt.strategy.ts`), no hace falta exponer el token a JS.
+ *
+ * Si el access token venció (401), intenta renovarlo una vez vía
+ * `piel360_refresh` (cookie de 7 días — ver auth.service.ts#refreshTokens) y
+ * reintenta la petición original antes de darla por fallida.
+ */
+export async function apiClientFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  let res = await doFetch(path, init);
+
+  // /auth/* nunca dispara refresh: un 401 ahí es login inválido, no sesión vencida.
+  if (res.status === 401 && !path.startsWith("/auth/")) {
+    const refreshed = await refreshSession();
+    if (refreshed) {
+      res = await doFetch(path, init);
+    }
+  }
 
   const body = await res.json().catch(() => null);
 
