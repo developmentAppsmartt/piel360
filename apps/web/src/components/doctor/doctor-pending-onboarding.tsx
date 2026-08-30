@@ -20,7 +20,7 @@ import {
 
 function StepBadge({ n }: { n: number }) {
   return (
-    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#2B59C3] text-sm font-bold text-white">
+    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
       {n}
     </span>
   );
@@ -63,27 +63,34 @@ export function DoctorPendingOnboarding({
     <section className="space-y-5">
       {/* Encabezado + progreso */}
       <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-        <h1 className="text-xl font-bold text-zinc-900 sm:text-2xl">
-          ¡Hola, {firstName.toUpperCase()}!
-        </h1>
-        <p className="mt-1 text-sm text-zinc-600 sm:text-base">
-          Completa tu registro para comenzar a usar PIEL360
-        </p>
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-zinc-900 sm:text-2xl">
+              ¡Hola,{" "}
+              <span className="text-primary">{firstName.toUpperCase()}</span>!
+            </h1>
+            <p className="mt-1 text-sm text-zinc-600 sm:text-base">
+              Completa tu registro para comenzar a usar PIEL360
+            </p>
+          </div>
 
-        <div className="mt-5">
-          <div className="mb-1.5 flex items-center justify-between text-sm">
-            <span className="font-medium text-zinc-700">Progreso de registro</span>
-            <span className="font-semibold text-[#2B59C3]">{percent}%</span>
+          <div className="w-full shrink-0 lg:max-w-md xl:max-w-lg">
+            <div className="mb-1.5 flex items-center justify-between text-sm">
+              <span className="font-medium text-zinc-700">
+                Progreso de registro
+              </span>
+              <span className="font-semibold text-primary">{percent}%</span>
+            </div>
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-zinc-100">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-chart-2 to-primary transition-all"
+                style={{ width: `${percent}%` }}
+              />
+            </div>
+            <p className="mt-1.5 text-right text-xs text-zinc-500">
+              {completed} de {total} pasos completados
+            </p>
           </div>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-zinc-100">
-            <div
-              className="h-full rounded-full bg-[#2B59C3] transition-all"
-              style={{ width: `${percent}%` }}
-            />
-          </div>
-          <p className="mt-1.5 text-right text-xs text-zinc-500">
-            {completed} de {total} pasos completados
-          </p>
         </div>
       </div>
 
@@ -116,7 +123,7 @@ export function DoctorPendingOnboarding({
 
           <div className="mt-5 rounded-xl border border-sky-100 bg-sky-50/80 px-4 py-3">
             <p className="text-sm text-zinc-700">
-              <span className="font-semibold text-[#2B59C3]">PIEL360</span> está
+              <span className="font-semibold text-primary">PIEL360</span> está
               disponible para Android e iOS. La app es necesaria para realizar
               análisis de piel.
             </p>
@@ -208,7 +215,7 @@ export function DoctorPendingOnboarding({
               Completa tu perfil y documentos en{" "}
               <Link
                 href="/doctor/configuracion"
-                className="font-medium text-[#2B59C3] underline-offset-2 hover:underline"
+                className="font-medium text-primary underline-offset-2 hover:underline"
               >
                 Configuración
               </Link>
@@ -254,12 +261,12 @@ export function DoctorPendingOnboarding({
                   <Eye className="size-4 text-zinc-400" />
                 </div>
               </label>
-              <p className="text-right text-xs text-[#2B59C3]">
+              <p className="text-right text-xs text-primary">
                 ¿Olvidaste tu contraseña?
               </p>
               <Button
                 type="button"
-                className="h-10 w-full bg-[#2B59C3] text-white hover:bg-[#2349a8]"
+                className="h-10 w-full"
                 disabled
               >
                 Iniciar sesión

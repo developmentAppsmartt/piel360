@@ -29,6 +29,7 @@ export interface Patient {
 export interface Analysis {
   id: string;
   youcamTaskId: string | null;
+  fitzpatrickTaskId?: string | null;
   bodyRegion: string | null;
   imagePath: string | null;
   coloredS3Url: string | null;

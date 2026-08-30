@@ -18,6 +18,7 @@ import { Redis } from 'ioredis';
 import { MailService } from '../mail/mail.service';
 import { SmsService } from '../sms/sms.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { SpecialtiesService } from '../specialties/specialties.service';
 import type { ForgotPasswordDto } from './dto/forgot-password.dto';
 import type { LoginDto } from './dto/login.dto';
 import type { RegisterDoctorDto } from './dto/register-doctor.dto';
@@ -81,6 +82,7 @@ export class AuthService implements OnModuleDestroy {
     private readonly config: ConfigService,
     private readonly mail: MailService,
     private readonly sms: SmsService,
+    private readonly specialtiesService: SpecialtiesService,
   ) {
     this.redis = new Redis(this.config.getOrThrow<string>('REDIS_URL'), {
       lazyConnect: true,
@@ -108,6 +110,10 @@ export class AuthService implements OnModuleDestroy {
       membershipType === 'empresa' || membershipType === 'empresa_aliada';
     const empresaReferida = membershipType === 'empresa_aliada';
 
+    const specialtyRoleSlug = await this.specialtiesService.resolveRoleSlugByLabel(
+      dto.specialty,
+    );
+
     const user = await this.prisma.user.create({
       data: {
         email: dto.email,
@@ -117,7 +123,12 @@ export class AuthService implements OnModuleDestroy {
         lastName: dto.lastName,
         phone: dto.phone,
         phoneVerifiedAt: dto.phoneTicket ? new Date() : null,
-        roles: { connect: { name: 'doctor' } },
+        roles: {
+          connect: [
+            { name: 'doctor' },
+            ...(specialtyRoleSlug ? [{ name: specialtyRoleSlug }] : []),
+          ],
+        },
         doctor: {
           create: {
             firstName: dto.firstName,

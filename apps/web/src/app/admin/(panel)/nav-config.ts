@@ -21,6 +21,7 @@ import {
   UserRound,
   UserCog,
   XCircle,
+  GraduationCap,
 } from "lucide-react";
 import type { NavItem } from "@/components/layout/nav-items";
 
@@ -161,6 +162,16 @@ export const adminNav: NavItem[] = [
         label: "Roles y permisos",
         href: "/admin/roles",
         icon: Shield,
+      },
+      {
+        label: "Especialidades",
+        href: "/admin/especialidades",
+        icon: GraduationCap,
+      },
+      {
+        label: "Permisos de planes",
+        href: "/admin/roles/permisos-planes",
+        icon: Layers,
       },
       {
         label: "Equipos",

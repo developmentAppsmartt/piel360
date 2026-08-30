@@ -1,18 +1,35 @@
 "use client";
 
-import { PatientsAdminTable } from "@/components/admin/patients-admin-table";
 import { usePatients } from "@/lib/queries/patients";
+import {
+  PatientsListHeader,
+  PatientsTable,
+} from "@/components/patients/patients-table";
 
-export default function PacientesPage() {
+export default function AdminPacientesPage() {
   const patients = usePatients();
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Pacientes</h1>
+      <PatientsListHeader
+        description="Consulta el listado global de pacientes registrados en la plataforma. Haz clic en una fila para ver el detalle y comparaciones."
+      />
 
-      {patients.isLoading && <p className="text-muted-foreground">Cargando...</p>}
-      {patients.error && <p className="text-destructive">No se pudo cargar la lista de pacientes.</p>}
-      {patients.data && <PatientsAdminTable patients={patients.data} />}
+      {patients.isLoading && (
+        <p className="text-sm text-muted-foreground">Cargando pacientes…</p>
+      )}
+      {patients.error && (
+        <p className="text-sm text-destructive">
+          No se pudo cargar la lista de pacientes.
+        </p>
+      )}
+      {patients.data && (
+        <PatientsTable
+          patients={patients.data}
+          panel="admin"
+          showNewButton={false}
+        />
+      )}
     </div>
   );
 }

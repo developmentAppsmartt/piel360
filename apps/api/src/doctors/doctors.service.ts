@@ -9,6 +9,7 @@ import { StorageService } from '../storage/storage.service';
 import { MailService } from '../mail/mail.service';
 import type { UpdateDoctorDto } from './dto/update-doctor.dto';
 import type { UpdateDoctorAddressVerificationDto } from './dto/update-doctor-address-verification.dto';
+import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
 
 const DOC_MIME = new Set([
   'application/pdf',
@@ -23,6 +24,7 @@ export class DoctorsService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly mail: MailService,
+    private readonly specialtyAccess: SpecialtyAccessService,
   ) {}
 
   /** Resuelve el `Doctor.id` a partir del `sub` (User.id) del JWT — usado
@@ -263,7 +265,12 @@ export class DoctorsService {
     if (!doctor) {
       throw new ForbiddenException('El usuario no tiene un perfil de doctor');
     }
-    return this.withDocumentUrls(doctor);
+    const allowedProviderSlugs =
+      await this.specialtyAccess.getAllowedProviderSlugs(BigInt(userId));
+    return {
+      ...(await this.withDocumentUrls(doctor)),
+      allowedProviderSlugs,
+    };
   }
 
   async findOne(id: string) {
@@ -279,18 +286,25 @@ export class DoctorsService {
   }
 
   async update(id: string, dto: UpdateDoctorDto) {
-    await this.findOne(id);
-    const { birthDate, ...rest } = dto;
+    const existing = await this.findOne(id);
+    const { birthDate, specialty, ...rest } = dto;
     const doctor = await this.prisma.doctor.update({
       where: { id: BigInt(id) },
       data: {
         ...rest,
+        ...(specialty !== undefined ? { specialty } : {}),
         ...(birthDate !== undefined
           ? { birthDate: birthDate ? new Date(birthDate) : null }
           : {}),
       },
       include: { user: { select: { email: true, avatarKey: true } } },
     });
+    if (specialty !== undefined) {
+      await this.specialtyAccess.assignSpecialtyRole(
+        BigInt(existing.userId),
+        specialty,
+      );
+    }
     return this.withDocumentUrls(doctor);
   }
 
@@ -359,6 +373,13 @@ export class DoctorsService {
         where: { id: BigInt(userId) },
         data: userPatch,
       });
+    }
+
+    if (rest.specialty !== undefined) {
+      await this.specialtyAccess.assignSpecialtyRole(
+        BigInt(userId),
+        rest.specialty,
+      );
     }
 
     return this.withDocumentUrls(updated);

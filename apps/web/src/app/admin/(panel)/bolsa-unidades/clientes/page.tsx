@@ -73,7 +73,7 @@ export default function BolsaClientesPage() {
               : "border-border bg-card hover:bg-muted",
           )}
         >
-          Análisis de piel estéticos
+          Análisis estéticos / Fitzpatrick
         </button>
         <button
           type="button"
@@ -85,7 +85,7 @@ export default function BolsaClientesPage() {
               : "border-border bg-card hover:bg-muted",
           )}
         >
-          Análisis de imágenes dermatológicas
+          Análisis dermatológico (créditos)
         </button>
       </div>
 
@@ -132,8 +132,8 @@ export default function BolsaClientesPage() {
           <h2 className="text-sm font-semibold">
             Clientes con planes activos –{" "}
             {tab === "aesthetic"
-              ? "Análisis de piel estéticos"
-              : "Análisis dermatológicos"}
+              ? "Análisis estéticos / Fitzpatrick"
+              : "Análisis dermatológico (créditos)"}
           </h2>
           <div className="flex flex-wrap gap-2">
             <label className="relative">

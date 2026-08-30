@@ -1,19 +1,30 @@
 import { Injectable } from '@nestjs/common';
+import type { JwtPayload } from '../auth/types';
 import { PrismaService } from '../prisma/prisma.service';
+import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
 import type { CreatePlanDto } from './dto/create-plan.dto';
 import type { UpdatePlanDto } from './dto/update-plan.dto';
 
 @Injectable()
 export class PlansService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly specialtyAccess: SpecialtyAccessService,
+  ) {}
 
   /** `GET /plans` — catálogo para el selector de planes (checkout Wompi). */
-  findAll() {
-    return this.prisma.plan.findMany({
+  async findAll(user?: JwtPayload) {
+    const plans = await this.prisma.plan.findMany({
       where: { isActive: true },
       include: { provider: true },
       orderBy: { price: 'asc' },
     });
+    if (!user || user.role !== 'doctor') return plans;
+
+    const allowed = await this.specialtyAccess.getAllowedProviderSlugs(
+      BigInt(user.sub),
+    );
+    return plans.filter((plan) => allowed.includes(plan.provider.slug as never));
   }
 
   /** `GET /admin/plans` — a diferencia del catálogo público, incluye los

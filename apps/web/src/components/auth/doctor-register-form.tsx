@@ -14,14 +14,7 @@ import { sendPhoneOtpAction, verifyPhoneOtpAction } from "@/lib/actions/phone-ot
 import { homeForUser } from "@/lib/auth-redirect";
 import { ApiError } from "@/lib/api-error";
 import { registerDoctorWithDocuments } from "@/lib/doctor-register-client";
-
-const SPECIALTIES = [
-  "Dermatólogo",
-  "Médico general",
-  "Cirujano plástico",
-  "Estética médica",
-  "Otra",
-] as const;
+import { useSpecialties } from "@/lib/queries/specialties";
 
 const DOC_TYPES = ["CC", "CE", "TI", "PA"] as const;
 
@@ -130,6 +123,8 @@ function DocUploadCard({
 
 export function DoctorRegisterForm() {
   const router = useRouter();
+  const specialtiesQuery = useSpecialties();
+  const specialties = specialtiesQuery.data?.map((item) => item.name) ?? [];
   const [state, setState] = useState<AuthActionState>({});
   const [isPending, setIsPending] = useState(false);
 
@@ -141,7 +136,7 @@ export function DoctorRegisterForm() {
   const [docNumber, setDocNumber] = useState("");
   const [gender, setGender] = useState("");
   const [birthDate, setBirthDate] = useState("");
-  const [specialty, setSpecialty] = useState<string>(SPECIALTIES[0]);
+  const [specialty, setSpecialty] = useState("");
   const [medicalRegistry, setMedicalRegistry] = useState("");
   const [licenseNumber, setLicenseNumber] = useState("");
   const [educationEntity, setEducationEntity] = useState("");
@@ -159,6 +154,12 @@ export function DoctorRegisterForm() {
   const searchAbort = useRef<AbortController | null>(null);
   /** Evita re-buscar en Nominatim cuando el texto viene del mapa / GPS. */
   const suppressAddressSearch = useRef(false);
+
+  useEffect(() => {
+    if (!specialty && specialties[0]) {
+      setSpecialty(specialties[0]);
+    }
+  }, [specialties, specialty]);
 
   const [cedula, setCedula] = useState<File | null>(null);
   const [medicalRegistryDoc, setMedicalRegistryDoc] = useState<File | null>(
@@ -537,8 +538,12 @@ export function DoctorRegisterForm() {
             value={specialty}
             onChange={(e) => setSpecialty(e.target.value)}
             required
+            disabled={specialtiesQuery.isLoading || specialties.length === 0}
           >
-            {SPECIALTIES.map((s) => (
+            {specialtiesQuery.isLoading ? (
+              <option value="">Cargando especialidades…</option>
+            ) : null}
+            {specialties.map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>

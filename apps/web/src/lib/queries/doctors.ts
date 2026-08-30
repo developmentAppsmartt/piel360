@@ -121,7 +121,9 @@ export function matchesVerificationGroup(
   return (VERIFICATION_STATUS_GROUPS[group] as readonly string[]).includes(s);
 }
 
-export type MyDoctorProfile = Doctor;
+export type MyDoctorProfile = Doctor & {
+  allowedProviderSlugs?: string[];
+};
 
 export interface DoctorInput {
   firstName?: string;
@@ -163,6 +165,7 @@ export function useMyDoctorProfile(enabled = true) {
     queryKey: ["doctors", "me"],
     queryFn: () => apiClientFetch<MyDoctorProfile>("/doctors/me"),
     enabled,
+    retry: false,
   });
 }
 
