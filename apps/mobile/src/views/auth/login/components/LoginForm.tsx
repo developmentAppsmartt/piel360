@@ -53,7 +53,10 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
 
     setSubmitting(true);
     try {
-      await login({ email: email.trim().toLowerCase(), password });
+      await login({
+        email: email.trim().toLowerCase(),
+        password,
+      });
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -73,10 +76,9 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
     }
     setSubmitting(true);
     try {
-      await loginWithGoogle('patient');
+      await loginWithGoogle();
     } catch (err) {
       if (err instanceof ApiError && err.status === 499) {
-        // Usuario canceló el sheet de Google — sin mensaje de error.
         return;
       }
       setError(

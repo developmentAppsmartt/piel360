@@ -18,16 +18,14 @@ import type {
   AuthUser,
   LoginPayload,
   RegisterPatientPayload,
-  Role,
 } from '../types/auth';
+import { isClinicalPanelUser } from '../types/auth';
 
 type AuthContextValue = {
   user: AuthUser | null;
   isLoading: boolean;
   login: (payload: LoginPayload) => Promise<void>;
-  loginWithGoogle: (
-    role?: Extract<Role, 'patient' | 'doctor'>,
-  ) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   registerPatient: (payload: RegisterPatientPayload) => Promise<void>;
   logout: () => Promise<void>;
   /** Actualiza campos del usuario en memoria y SecureStore. */
@@ -68,13 +66,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(result.user);
   }, []);
 
-  const loginWithGoogle = useCallback(
-    async (role: Extract<Role, 'patient' | 'doctor'> = 'patient') => {
-      const result = await googleLogin(role);
-      setUser(result.user);
-    },
-    [],
-  );
+  const loginWithGoogle = useCallback(async () => {
+    const result = await googleLogin();
+    setUser(result.user);
+  }, []);
 
   const registerPatient = useCallback(
     async (payload: RegisterPatientPayload) => {
@@ -99,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshDoctorVerification = useCallback(async () => {
     const current = await storageService.getUser();
-    if (!current || current.role !== 'doctor') return null;
+    if (!current || !isClinicalPanelUser(current)) return null;
     try {
       const doctor = await doctorsService.getMe();
       const verificationStatus = doctor.verificationStatus;

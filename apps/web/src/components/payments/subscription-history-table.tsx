@@ -9,24 +9,26 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  formatAdminDate,
+  formatCOP,
+  providerLabel,
+  SUBSCRIPTION_STATUS_LABELS,
+} from "@/components/payments/subscription-utils";
+import type { Subscription } from "@/lib/queries/subscriptions";
 import { useMySubscriptions } from "@/lib/queries/subscriptions";
-
-const STATUS_LABELS: Record<string, string> = {
-  active: "Activa",
-  pending: "Pendiente",
-  cancelled: "Cancelada",
-};
-
-function formatCOP(price: string) {
-  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(
-    Number(price),
-  );
-}
+import { cn } from "@/lib/utils";
 
 /** Historial de compras/facturación — mismos datos (`GET /me/subscriptions`)
  * usados tanto en /doctor/facturacion (página completa) como en
  * /patient/planes (versión compacta bajo el selector de planes). */
-export function SubscriptionHistoryTable({ limit }: { limit?: number }) {
+export function SubscriptionHistoryTable({
+  limit,
+  onSelect,
+}: {
+  limit?: number;
+  onSelect?: (subscription: Subscription) => void;
+}) {
   const subscriptions = useMySubscriptions();
   const rows = limit ? subscriptions.data?.slice(0, limit) : subscriptions.data;
 
@@ -36,10 +38,10 @@ export function SubscriptionHistoryTable({ limit }: { limit?: number }) {
   }
 
   return (
-    <div className="rounded-lg border border-border">
+    <div className="overflow-hidden rounded-xl border border-border bg-card">
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="bg-muted/30 hover:bg-muted/30">
             <TableHead>Fecha</TableHead>
             <TableHead>Plan</TableHead>
             <TableHead>Tipo de análisis</TableHead>
@@ -50,21 +52,42 @@ export function SubscriptionHistoryTable({ limit }: { limit?: number }) {
         </TableHeader>
         <TableBody>
           {rows.map((sub) => (
-            <TableRow key={sub.id}>
-              <TableCell>{new Date(sub.createdAt).toLocaleDateString("es-CO")}</TableCell>
-              <TableCell>{sub.plan.name}</TableCell>
-              <TableCell>{sub.plan.provider.name}</TableCell>
+            <TableRow
+              key={sub.id}
+              className={cn(onSelect && "cursor-pointer hover:bg-muted/40")}
+              onClick={onSelect ? () => onSelect(sub) : undefined}
+            >
+              <TableCell>{formatAdminDate(sub.createdAt)}</TableCell>
+              <TableCell className="font-medium">{sub.plan.name}</TableCell>
+              <TableCell>
+                {providerLabel(sub.plan.provider.slug, sub.plan.provider.name)}
+              </TableCell>
               <TableCell>{formatCOP(sub.plan.price)}</TableCell>
               <TableCell>
-                <Badge variant={sub.status === "active" ? "default" : sub.status === "pending" ? "secondary" : "destructive"}>
-                  {STATUS_LABELS[sub.status] ?? sub.status}
+                <Badge
+                  variant={
+                    sub.status === "active"
+                      ? "default"
+                      : sub.status === "pending"
+                        ? "secondary"
+                        : "destructive"
+                  }
+                >
+                  {SUBSCRIPTION_STATUS_LABELS[sub.status] ?? sub.status}
                 </Badge>
               </TableCell>
-              <TableCell className="font-mono text-xs">{sub.wompiTransactionId ?? "—"}</TableCell>
+              <TableCell className="max-w-[140px] truncate font-mono text-xs">
+                {sub.wompiTransactionId ?? "—"}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+      {onSelect ? (
+        <p className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
+          Haz clic en una fila para ver el detalle de la compra.
+        </p>
+      ) : null}
     </div>
   );
 }

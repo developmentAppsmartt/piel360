@@ -9,13 +9,14 @@ const DEFAULT_CENTER = { lat: 4.711, lng: -74.0721 }; // Bogotá
 
 const mapContainerStyle = { width: "100%", height: "100%" };
 
+const MAP_PLACEHOLDER_CLASS =
+  "flex h-[70vh] w-full items-center justify-center rounded-xl border border-border bg-muted text-sm text-muted-foreground";
+
 function mapsApiKey() {
   return (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "").trim();
 }
 
-function markerIcon(
-  kind: "doctor" | "patient",
-): google.maps.Symbol {
+function markerIcon(kind: "doctor" | "patient"): google.maps.Symbol {
   return {
     path: google.maps.SymbolPath.CIRCLE,
     scale: 8,
@@ -26,22 +27,70 @@ function markerIcon(
   };
 }
 
+function MissingApiKeyMessage({ className }: { className?: string }) {
+  return (
+    <div className={className ?? MAP_PLACEHOLDER_CLASS}>
+      <div className="max-w-md space-y-2 px-4 text-center">
+        <p className="font-medium text-foreground">Google Maps no configurado</p>
+        <p>
+          Añade <code className="text-xs">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> en{" "}
+          <code className="text-xs">apps/web/.env.local</code> y reinicia el servidor de
+          desarrollo.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function MapLoadErrorMessage({ className }: { className?: string }) {
+  return (
+    <div
+      className={
+        className ??
+        "flex h-[70vh] w-full items-center justify-center rounded-xl border border-destructive/30 bg-destructive/5 text-sm text-destructive"
+      }
+    >
+      <div className="max-w-md space-y-2 px-4 text-center">
+        <p className="font-medium">No se pudo cargar Google Maps</p>
+        <p className="text-muted-foreground">
+          La API key es inválida o no tiene habilitada <strong>Maps JavaScript API</strong>.
+          Revisa restricciones de referrer (<code className="text-xs">http://localhost:3001/*</code>).
+        </p>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Mapa de registro (médicos / pacientes) con Google Maps +
  * MarkerClusterer oficial (@googlemaps/markerclusterer).
  */
-export function RegistryMap({
+function RegistryMapLoaded({
+  apiKey,
   markers,
   className,
 }: {
+  apiKey: string;
   markers: MapMarker[];
   className?: string;
 }) {
-  const apiKey = mapsApiKey();
+  const [authFailure, setAuthFailure] = useState(false);
   const { isLoaded, loadError } = useJsApiLoader({
     id: "piel360-google-maps",
-    googleMapsApiKey: apiKey || " ",
+    googleMapsApiKey: apiKey,
   });
+
+  useEffect(() => {
+    const win = window as Window & { gm_authFailure?: () => void };
+    const previous = win.gm_authFailure;
+    win.gm_authFailure = () => {
+      setAuthFailure(true);
+      previous?.();
+    };
+    return () => {
+      win.gm_authFailure = previous;
+    };
+  }, []);
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [selected, setSelected] = useState<MapMarker | null>(null);
@@ -52,7 +101,7 @@ export function RegistryMap({
   }, [markers]);
 
   useEffect(() => {
-    if (!map || !isLoaded || !apiKey) return;
+    if (!map || !isLoaded) return;
 
     const gMarkers: google.maps.Marker[] = markers.map((m) => {
       const marker = new google.maps.Marker({
@@ -99,45 +148,15 @@ export function RegistryMap({
         marker.setMap(null);
       }
     };
-  }, [map, isLoaded, apiKey, markers]);
+  }, [map, isLoaded, markers]);
 
-  if (!apiKey) {
-    return (
-      <div
-        className={
-          className ??
-          "flex h-[70vh] w-full items-center justify-center rounded-xl border border-border bg-muted text-sm text-muted-foreground"
-        }
-      >
-        Falta NEXT_PUBLIC_GOOGLE_MAPS_API_KEY en apps/web/.env.local
-      </div>
-    );
-  }
-
-  if (loadError) {
-    return (
-      <div
-        className={
-          className ??
-          "flex h-[70vh] w-full items-center justify-center rounded-xl border border-destructive/30 bg-destructive/5 text-sm text-destructive"
-        }
-      >
-        No se pudo cargar Google Maps. Revisa la API key y que Maps JavaScript
-        API esté habilitada.
-      </div>
-    );
+  if (loadError || authFailure) {
+    return <MapLoadErrorMessage className={className} />;
   }
 
   if (!isLoaded) {
     return (
-      <div
-        className={
-          className ??
-          "flex h-[70vh] w-full items-center justify-center rounded-xl border border-border bg-muted text-sm text-muted-foreground"
-        }
-      >
-        Cargando Google Maps…
-      </div>
+      <div className={className ?? MAP_PLACEHOLDER_CLASS}>Cargando Google Maps…</div>
     );
   }
 
@@ -180,4 +199,20 @@ export function RegistryMap({
       </GoogleMap>
     </div>
   );
+}
+
+export function RegistryMap({
+  markers,
+  className,
+}: {
+  markers: MapMarker[];
+  className?: string;
+}) {
+  const apiKey = mapsApiKey();
+
+  if (!apiKey) {
+    return <MissingApiKeyMessage className={className} />;
+  }
+
+  return <RegistryMapLoaded apiKey={apiKey} markers={markers} className={className} />;
 }

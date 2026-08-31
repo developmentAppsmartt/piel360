@@ -3,8 +3,18 @@ import type { AnalysisProviderSlug } from '@piel360/shared';
 import type { Prisma } from '@prisma/client';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  parsePlanProviderIds,
+  planIncludesProviderId,
+} from '../plans/plan-providers.util';
 import type { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import type { UpdateSubscriptionDto } from './dto/update-subscription.dto';
+import { syncOrganizationSeatLimitForUser } from '../organizations/org-seat-limit.util';
+import {
+  assertUserMatchesPlanType,
+  loadAdminSubscriptionById,
+  serializeAdminSubscription,
+} from './subscription-admin.util';
 
 type Db = PrismaService | Prisma.TransactionClient;
 
@@ -26,20 +36,54 @@ export class SubscriptionsService {
     private readonly mail: MailService,
   ) {}
 
+  private readonly adminSubscriptionInclude = {
+    user: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        doctor: {
+          select: {
+            empresa: true,
+            empresaReferida: true,
+            membershipType: true,
+          },
+        },
+        patient: { select: { id: true } },
+      },
+    },
+    plan: { include: { provider: true } },
+  } as const;
+
+  private async listAllProviders() {
+    return this.prisma.analysisProvider.findMany({ orderBy: { id: 'asc' } });
+  }
+
   async findActiveForUser(
     db: Db,
     userId: bigint,
     providerSlug: AnalysisProviderSlug,
   ) {
-    return db.subscription.findFirst({
+    const provider = await db.analysisProvider.findUnique({
+      where: { slug: providerSlug },
+    });
+    if (!provider) return null;
+
+    const subscriptions = await db.subscription.findMany({
       where: {
         userId,
         status: 'active',
         endsAt: { gt: new Date() },
-        plan: { provider: { slug: providerSlug } },
       },
-      include: { plan: true },
+      include: { plan: { include: { provider: true } } },
+      orderBy: { id: 'desc' },
     });
+
+    return (
+      subscriptions.find((subscription) =>
+        planIncludesProviderId(subscription.plan, provider.id),
+      ) ?? null
+    );
   }
 
   async remainingCredits(
@@ -70,6 +114,22 @@ export class SubscriptionsService {
     });
     if (!plan) throw new BadRequestException('Plan no encontrado');
 
+    const user = await this.prisma.user.findUnique({
+      where: { id: BigInt(dto.userId) },
+      include: {
+        doctor: {
+          select: {
+            empresa: true,
+            empresaReferida: true,
+            membershipType: true,
+          },
+        },
+        patient: { select: { id: true } },
+      },
+    });
+    if (!user) throw new BadRequestException('Usuario no encontrado');
+    assertUserMatchesPlanType(user, plan);
+
     let endsAt: Date | undefined;
     if (dto.endsAt) {
       endsAt = new Date(dto.endsAt);
@@ -78,42 +138,115 @@ export class SubscriptionsService {
       endsAt.setDate(endsAt.getDate() + plan.durationDays);
     }
 
-    return this.prisma.subscription.create({
+    const subscription = await this.prisma.subscription.create({
       data: {
-        userId: BigInt(dto.userId),
+        userId: user.id,
         planId: plan.id,
         status: dto.status ?? 'active',
         endsAt,
       },
     });
+
+    if (subscription.status === 'active' && plan.planType === 'business') {
+      await syncOrganizationSeatLimitForUser(
+        this.prisma,
+        subscription.userId,
+      );
+    }
+
+    const providers = await this.listAllProviders();
+    return loadAdminSubscriptionById(
+      this.prisma,
+      subscription.id,
+      providers,
+    );
   }
 
   /** `GET /admin/subscriptions` — lista completa para el CRUD admin. `select`
    * explícito en `user` (no `include: true`) para no filtrar el hash de la
    * contraseña, mismo cuidado que en `doctors.service.ts`. */
-  findAllAdmin() {
-    return this.prisma.subscription.findMany({
-      include: {
-        user: { select: { id: true, name: true, email: true } },
-        plan: { include: { provider: true } },
-      },
-      orderBy: { id: 'desc' },
-    });
+  async findAllAdmin() {
+    const [rows, providers] = await Promise.all([
+      this.prisma.subscription.findMany({
+        include: this.adminSubscriptionInclude,
+        orderBy: { id: 'desc' },
+      }),
+      this.listAllProviders(),
+    ]);
+    return rows.map((row) => serializeAdminSubscription(row, providers));
   }
 
   /** Edición manual (admin) — bypass del flujo Wompi, igual que el
    * `SubscriptionForm` del Laravel viejo permitía fijar cualquier campo
    * directamente. */
-  update(id: string, dto: UpdateSubscriptionDto) {
-    return this.prisma.subscription.update({
+  async update(id: string, dto: UpdateSubscriptionDto) {
+    const existing = await this.prisma.subscription.findUnique({
+      where: { id: BigInt(id) },
+      include: {
+        plan: true,
+        user: {
+          include: {
+            doctor: {
+              select: {
+                empresa: true,
+                empresaReferida: true,
+                membershipType: true,
+              },
+            },
+            patient: { select: { id: true } },
+          },
+        },
+      },
+    });
+    if (!existing) {
+      throw new BadRequestException('Suscripción no encontrada');
+    }
+
+    const nextUserId = dto.userId ? BigInt(dto.userId) : existing.userId;
+    const nextPlanId = dto.planId ? BigInt(dto.planId) : existing.planId;
+
+    const [nextUser, nextPlan] = await Promise.all([
+      nextUserId === existing.userId
+        ? Promise.resolve(existing.user)
+        : this.prisma.user.findUnique({
+            where: { id: nextUserId },
+            include: {
+              doctor: {
+                select: {
+                  empresa: true,
+                  empresaReferida: true,
+                  membershipType: true,
+                },
+              },
+              patient: { select: { id: true } },
+            },
+          }),
+      nextPlanId === existing.planId
+        ? Promise.resolve(existing.plan)
+        : this.prisma.plan.findUnique({ where: { id: nextPlanId } }),
+    ]);
+
+    if (!nextUser) throw new BadRequestException('Usuario no encontrado');
+    if (!nextPlan) throw new BadRequestException('Plan no encontrado');
+    assertUserMatchesPlanType(nextUser, nextPlan);
+
+    const updated = await this.prisma.subscription.update({
       where: { id: BigInt(id) },
       data: {
-        userId: dto.userId ? BigInt(dto.userId) : undefined,
-        planId: dto.planId ? BigInt(dto.planId) : undefined,
+        userId: dto.userId ? nextUserId : undefined,
+        planId: dto.planId ? nextPlanId : undefined,
         status: dto.status,
         endsAt: dto.endsAt ? new Date(dto.endsAt) : undefined,
       },
+      include: { plan: { select: { planType: true } } },
     });
+
+    if (updated.status === 'active' && updated.plan.planType === 'business') {
+      await syncOrganizationSeatLimitForUser(this.prisma, updated.userId);
+    }
+
+    const providers = await this.listAllProviders();
+    return loadAdminSubscriptionById(this.prisma, updated.id, providers);
   }
 
   /** Borra la suscripción — cascada solo sobre su propio `SubscriptionUsage`
@@ -172,19 +305,35 @@ export class SubscriptionsService {
       endsAt.setDate(endsAt.getDate() + subscription.plan.durationDays);
 
       await this.prisma.$transaction(async (tx) => {
-        await tx.subscription.updateMany({
+        const activeSubs = await tx.subscription.findMany({
           where: {
             userId: subscription.userId,
             status: 'active',
-            plan: { analysisProviderId: subscription.plan.analysisProviderId },
           },
-          data: { status: 'cancelled' },
+          include: { plan: true },
         });
+        const newProviderIds = new Set(
+          parsePlanProviderIds(subscription.plan),
+        );
+        for (const active of activeSubs) {
+          const activeIds = parsePlanProviderIds(active.plan);
+          const overlaps = activeIds.some((id) => newProviderIds.has(id));
+          if (overlaps) {
+            await tx.subscription.update({
+              where: { id: active.id },
+              data: { status: 'cancelled' },
+            });
+          }
+        }
 
         await tx.subscription.update({
           where: { id: subscription.id },
           data: { status: 'active', wompiTransactionId, endsAt },
         });
+
+        if (subscription.plan.planType === 'business') {
+          await syncOrganizationSeatLimitForUser(tx, subscription.userId);
+        }
       });
 
       await this.mail.send({

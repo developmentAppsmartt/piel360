@@ -2,22 +2,12 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 import { getApiBaseUrl } from '../config/env';
-import type { AuthResult, Role } from '../types/auth';
-import { MOBILE_ROLES } from '../types/auth';
+import type { AuthResult } from '../types/auth';
 import { ApiError, apiRequest } from './api.client';
+import { assertMobileLoginAllowed } from '../lib/mobile-auth-access';
 import { storageService } from './storage.service';
 
 WebBrowser.maybeCompleteAuthSession();
-
-const MOBILE_ROLES_MESSAGE =
-  'Esta aplicación es para pacientes y doctores. El panel admin está en la web.';
-
-function assertMobileRole(result: AuthResult): AuthResult {
-  if (!MOBILE_ROLES.includes(result.user.role)) {
-    throw new ApiError(MOBILE_ROLES_MESSAGE, 403, result);
-  }
-  return result;
-}
 
 function extractCodeFromUrl(url: string): string | null {
   try {
@@ -37,19 +27,15 @@ async function exchangeCode(code: string): Promise<AuthResult> {
     method: 'POST',
     body: { code },
   });
-  const allowed = assertMobileRole(exchanged);
+  const allowed = assertMobileLoginAllowed(exchanged);
   await storageService.saveSession(allowed);
   return allowed;
 }
 
-function buildAuthUrl(
-  role: Extract<Role, 'patient' | 'doctor'>,
-  redirectUri: string,
-  platform: 'mobile' | 'web',
-): string {
+function buildAuthUrl(redirectUri: string, platform: 'mobile' | 'web'): string {
   return (
     `${getApiBaseUrl()}/auth/google` +
-    `?role=${encodeURIComponent(role)}` +
+    `?role=${encodeURIComponent('patient')}` +
     `&platform=${platform}` +
     `&redirect_uri=${encodeURIComponent(redirectUri)}`
   );
@@ -59,16 +45,13 @@ function buildAuthUrl(
  * En Expo Web el popup de openAuthSessionAsync choca con COOP.
  * Usamos redirect en la misma ventana; al volver, `completeGoogleLoginFromUrl`.
  */
-function loginWithGoogleOnWeb(
-  role: Extract<Role, 'patient' | 'doctor'>,
-): Promise<AuthResult> {
+function loginWithGoogleOnWeb(): Promise<AuthResult> {
   if (typeof window === 'undefined') {
     return Promise.reject(new ApiError('Google OAuth no disponible', 400));
   }
   const redirectUri = `${window.location.origin}/`;
-  const authUrl = buildAuthUrl(role, redirectUri, 'web');
+  const authUrl = buildAuthUrl(redirectUri, 'web');
   window.location.assign(authUrl);
-  // La página navega fuera; no resolvemos.
   return new Promise(() => {});
 }
 
@@ -99,19 +82,14 @@ export async function completeGoogleLoginFromUrl(
   return result;
 }
 
-/**
- * Abre el OAuth de Google y canjea el código por JWT.
- * `role` solo aplica a cuentas nuevas (default patient).
- */
-export async function loginWithGoogle(
-  role: Extract<Role, 'patient' | 'doctor'> = 'patient',
-): Promise<AuthResult> {
+/** Abre OAuth de Google y canjea el código por JWT. */
+export async function loginWithGoogle(): Promise<AuthResult> {
   if (Platform.OS === 'web') {
-    return loginWithGoogleOnWeb(role);
+    return loginWithGoogleOnWeb();
   }
 
   const redirectUri = Linking.createURL('auth/google/callback');
-  const authUrl = buildAuthUrl(role, redirectUri, 'mobile');
+  const authUrl = buildAuthUrl(redirectUri, 'mobile');
   const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
 
   if (result.type !== 'success' || !('url' in result) || !result.url) {

@@ -11,7 +11,7 @@ import {
 const DOC_TYPES = ["CC", "CE", "TI", "PA"] as const;
 
 const inputClass =
-  "h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-sky-500";
+  "h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20";
 
 function Field({
   label,
@@ -38,7 +38,7 @@ export function CreateModeratorForm() {
   );
 
   return (
-    <form action={formAction} className="max-w-xl space-y-4">
+    <form action={formAction} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Nombre">
           <input

@@ -11,6 +11,7 @@ import { StatusBar } from 'expo-status-bar';
 import { AppIcon } from '../../../components/AppIcon';
 import { Icons } from '../../../components/icons';
 import { useAuth } from '../../../context/AuthContext';
+import { isClinicalPanelUser } from '../../../types/auth';
 import { useBranding } from '../../../context/BrandingContext';
 import { ApiError } from '../../../services/api.client';
 import { analysesService } from '../../../services/analyses.service';
@@ -147,9 +148,7 @@ export function AnalysisDetailView({
 
   const canManage =
     canShare ??
-    (user?.role === 'doctor' ||
-      user?.role === 'superadmin' ||
-      user?.empresa === true);
+    (isClinicalPanelUser(user) || user?.role === 'superadmin');
   const showShare = canManage;
 
   const [analysis, setAnalysis] = useState<AnalysisDetail | null>(null);

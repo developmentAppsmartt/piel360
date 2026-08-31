@@ -36,6 +36,7 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { SpecialtyAccessModule } from './specialty-access/specialty-access.module';
 import { ModeratorsModule } from './moderators/moderators.module';
 import { SpecialtiesModule } from './specialties/specialties.module';
+import { LaborTechnicianProfilesModule } from './labor-technician-profiles/labor-technician-profiles.module';
 
 @Module({
   imports: [
@@ -87,6 +88,7 @@ import { SpecialtiesModule } from './specialties/specialties.module';
     OrganizationsModule,
     ModeratorsModule,
     SpecialtiesModule,
+    LaborTechnicianProfilesModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

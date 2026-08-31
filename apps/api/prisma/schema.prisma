@@ -368,12 +368,19 @@ model AnalysisMask {
 }
 
 model Plan {
-  id                 BigInt   @id @default(autoincrement())
-  analysisProviderId BigInt   @default(1) @map("analysis_provider_id")
-  name               String
+  id                   BigInt   @id @default(autoincrement())
+  analysisProviderId   BigInt   @default(1) @map("analysis_provider_id")
+  /** IDs de proveedores incluidos en el paquete (string[] en JSON). */
+  analysisProviderIds  Json     @default("[]") @map("analysis_provider_ids")
+  name                 String
+  /** individual | business */
+  planType           String   @default("business") @map("plan_type")
   analysisLimit      Int      @default(0) @map("analysis_limit")
   price              Decimal  @default(0) @db.Decimal(10, 2)
   durationDays       Int      @default(30) @map("duration_days")
+  maxUsers           Int      @default(1) @map("max_users")
+  modules            Json     @default("[]")
+  roleLimits         Json     @default("{}") @map("role_limits")
   isActive           Boolean  @default(true) @map("is_active")
   description        String?  @db.Text
   createdAt          DateTime @default(now()) @map("created_at")
@@ -512,35 +519,79 @@ model Message {
 }
 
 model Role {
-  id          BigInt       @id @default(autoincrement())
-  name        String       @unique
-  permissions Permission[]
-  users       User[]
-  specialty   DoctorSpecialty?
+  id                       BigInt                @id @default(autoincrement())
+  name                     String                @unique
+  label                    String?
+  description              String?               @db.Text
+  color                    String?               @default("#6C4FFB")
+  isActive                 Boolean               @default(true) @map("is_active")
+  permissions              Permission[]
+  users                    User[]
+  specialty                DoctorSpecialty?
+  laborTechnicianProfileId BigInt?               @unique @map("labor_technician_profile_id")
+  laborTechnicianProfile   LaborTechnicianProfile? @relation(fields: [laborTechnicianProfileId], references: [id], onDelete: SetNull)
+  specialtyLinks           RoleSpecialtyLink[]
 
   @@map("roles")
 }
 
 /** Especialidad médica del registro de doctor — cada una tiene un rol RBAC asociado. */
 model DoctorSpecialty {
-  id        BigInt   @id @default(autoincrement())
-  name      String   @unique
-  slug      String   @unique
-  sortOrder Int      @default(0) @map("sort_order")
-  isActive  Boolean  @default(true) @map("is_active")
+  id          BigInt   @id @default(autoincrement())
+  name        String   @unique
+  slug        String   @unique
+  description String?  @db.Text
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
   roleId    BigInt   @unique @map("role_id")
   role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  roleLinks RoleSpecialtyLink[]
 
   @@map("doctor_specialties")
 }
 
-model Permission {
-  id    BigInt @id @default(autoincrement())
-  name  String @unique
-  roles Role[]
+/** Perfil de técnico laboral (cosmetología, estética, etc.) — carrera técnica por competencias. */
+model LaborTechnicianProfile {
+  id          BigInt   @id @default(autoincrement())
+  name        String   @unique
+  slug        String   @unique
+  description String?  @db.Text
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  role        Role?
 
+  @@map("labor_technician_profiles")
+}
+
+model RoleSpecialtyLink {
+  roleId            BigInt          @map("role_id")
+  doctorSpecialtyId BigInt          @map("doctor_specialty_id")
+  role              Role            @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  doctorSpecialty   DoctorSpecialty @relation(fields: [doctorSpecialtyId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, doctorSpecialtyId])
+  @@map("role_specialty_links")
+}
+
+model Permission {
+  id          BigInt   @id @default(autoincrement())
+  name        String   @unique
+  slug        String   @unique
+  label       String?
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  kind        String   @default("action")
+  panel       String?
+  href        String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  parentSlug  String?  @map("parent_slug")
+  roles       Role[]
+
+  @@index([panel, kind, isActive])
   @@map("permissions")
 }
 

@@ -177,9 +177,21 @@ export class DoctorsService {
           : {}),
       },
       include: {
-        user: { select: { email: true, avatarKey: true, name: true } },
+        user: { select: { id: true, email: true, avatarKey: true, name: true } },
       },
     });
+
+    if (approved && doctor.user?.id) {
+      await this.prisma.organization.updateMany({
+        where: { ownerUserId: doctor.user.id, status: 'pending' },
+        data: { status: 'active' },
+      });
+    } else if (status === 'rejected' && doctor.user?.id) {
+      await this.prisma.organization.updateMany({
+        where: { ownerUserId: doctor.user.id, status: 'active' },
+        data: { status: 'pending' },
+      });
+    }
 
     if (
       (status === 'in_review' || status === 'rejected') &&

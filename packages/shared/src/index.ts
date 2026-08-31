@@ -5,3 +5,5 @@ export * from "./skiniver.js";
 export * from "./youcam.js";
 export * from "./wompi.js";
 export * from "./fitzpatrick.js";
+export * from "./admin-components.js";
+export * from "./empresa-role.js";

@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
-import { isDoctorVerificationActive, type Role } from "@piel360/shared";
+import { isClinicalPanelRole, isDoctorVerificationActive, type Role } from "@piel360/shared";
+import { hasAnyPermission } from "@/lib/doctor-panel-permissions";
 
 export interface NavItem {
   label: string;
@@ -7,6 +8,8 @@ export interface NavItem {
   icon: LucideIcon;
   /** Si se define, el ítem solo aparece para estos roles. */
   roles?: readonly Role[];
+  /** Al menos uno de estos permisos RBAC (JWT). Sin definir = visible sin chequeo de permiso. */
+  permissionsAny?: readonly string[];
   /** Requiere Doctor.empresa = true (módulo Equipo). */
   requiresEmpresa?: boolean;
   /** Requiere Doctor.empresaReferida = true (módulo Referidos). */
@@ -26,19 +29,29 @@ export type NavFeatures = {
   empresa?: boolean;
   empresaReferida?: boolean;
   verificationStatus?: string | null;
+  /** Permisos RBAC del JWT (unión de roles del usuario). */
+  permissions?: string[];
 };
 
 export function filterNavByFeatures(
   items: NavItem[],
   features: NavFeatures,
 ): NavItem[] {
+  const clinicalPanel = isClinicalPanelRole(features.role);
   const doctorActive =
-    features.role !== "doctor" ||
+    !clinicalPanel ||
     isDoctorVerificationActive(features.verificationStatus);
 
   return items
     .filter((item) => {
       if (item.roles && !item.roles.includes(features.role)) return false;
+      const skipPermissionCheck =
+        clinicalPanel &&
+        !doctorActive &&
+        item.allowedWhilePending;
+      if (item.permissionsAny?.length && !skipPermissionCheck) {
+        if (!hasAnyPermission(features.permissions, item.permissionsAny)) return false;
+      }
       if (item.requiresEmpresa && !features.empresa) return false;
       if (item.requiresEmpresaReferida && !features.empresaReferida)
         return false;
@@ -53,9 +66,7 @@ export function filterNavByFeatures(
       };
     })
     .filter((item) => {
-      // Si el padre solo existía por hijos y todos se filtraron, ocultarlo
-      // salvo que el padre tenga destino útil (p. ej. Configuración → perfil).
-      if (item.children && item.children.length === 0 && !item.href) {
+      if (item.children && item.children.length === 0) {
         return false;
       }
       return true;

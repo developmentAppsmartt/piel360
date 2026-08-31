@@ -16,6 +16,16 @@ type OrgAdmin = {
   referralsCount: number;
 };
 
+const ORG_STATUS_LABELS: Record<string, string> = {
+  active: "Activa",
+  pending: "Pendiente",
+  suspended: "Suspendida",
+};
+
+function orgStatusLabel(status: string) {
+  return ORG_STATUS_LABELS[status] ?? status;
+}
+
 export default function AdminEquiposPage() {
   const query = useQuery({
     queryKey: ["admin", "organizations"],
@@ -70,7 +80,7 @@ export default function AdminEquiposPage() {
                     <td className="px-4 py-3">
                       {org.seatUsed}/{org.seatLimit} ({org.seatPlan})
                     </td>
-                    <td className="px-4 py-3 capitalize">{org.status}</td>
+                    <td className="px-4 py-3">{orgStatusLabel(org.status)}</td>
                   </tr>
                 ))
               )}

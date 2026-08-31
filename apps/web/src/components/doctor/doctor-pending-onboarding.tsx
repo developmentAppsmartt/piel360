@@ -60,9 +60,8 @@ export function DoctorPendingOnboarding({
   const allVerified = checklist.every((i) => i.done);
 
   return (
-    <section className="space-y-5">
-      {/* Encabezado + progreso */}
-      <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+    <section className="space-y-6">
+      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <h1 className="text-xl font-bold text-zinc-900 sm:text-2xl">
@@ -95,7 +94,7 @@ export function DoctorPendingOnboarding({
       </div>
 
       {/* 3 columnas */}
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {/* Paso 1 — Descarga app */}
         <article className="flex flex-col rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           <div className="flex items-start gap-3">

@@ -80,7 +80,12 @@ export function RegistryMapPanel({
           Cargando marcadores…
         </div>
       ) : query.isError ? (
-        <p className="text-sm text-destructive">No se pudo cargar el mapa.</p>
+        <p className="text-sm text-destructive">
+          No se pudo cargar el mapa.
+          {query.error instanceof Error && query.error.message
+            ? ` ${query.error.message}`
+            : null}
+        </p>
       ) : (
         <>
           <p className="text-sm text-muted-foreground">

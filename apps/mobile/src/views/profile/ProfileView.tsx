@@ -23,7 +23,7 @@ import {
 } from '../../services/patients.service';
 import { usersService } from '../../services/users.service';
 import type { PatientProfile } from '../../types/patient';
-import { isDoctorVerificationActive } from '../../types/auth';
+import { isClinicalPanelRole, isDoctorVerificationActive } from '../../types/auth';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { buildProfileContent } from './data/profileContent';
 import { EditProfileView } from './edit/EditProfileView';
@@ -84,7 +84,7 @@ export function ProfileView({ onBack }: ProfileViewProps) {
     [branding.colors],
   );
   const role = user?.role ?? 'patient';
-  const isDoctor = role === 'doctor';
+  const isDoctor = isClinicalPanelRole(role);
   const doctorPending =
     isDoctor && !isDoctorVerificationActive(user?.verificationStatus);
 

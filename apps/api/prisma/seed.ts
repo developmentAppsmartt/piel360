@@ -1,6 +1,7 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
+import { ADMIN_COMPONENTS, MONITOR_COMPONENT_SLUGS, EMPRESA_ROLE_PERMISSIONS } from '@piel360/shared';
 
 // Prisma 7: el cliente necesita un driver adapter explícito (ver src/prisma/prisma.service.ts).
 const adapter = new PrismaPg({
@@ -22,6 +23,7 @@ const RESOURCES = [
   'gateway_config',
   'role',
   'analysis',
+  'analysis_consumption',
   'encyclopedia_entry',
   'organization',
 ] as const;
@@ -84,6 +86,7 @@ async function main() {
     doctorRole,
     patientRole,
     monitorRole,
+    empresaRole,
   ] = await Promise.all([
     prisma.role.upsert({
       where: { name: 'superadmin' },
@@ -105,11 +108,28 @@ async function main() {
       update: {},
       create: { name: 'monitor' },
     }),
+    prisma.role.upsert({
+      where: { name: 'empresa' },
+      update: {
+        label: 'Empresa',
+        description:
+          'Cuenta empresarial con equipo, planes business y gestión de organización.',
+        color: '#0EA5E9',
+        isActive: true,
+      },
+      create: {
+        name: 'empresa',
+        label: 'Empresa',
+        description:
+          'Cuenta empresarial con equipo, planes business y gestión de organización.',
+        color: '#0EA5E9',
+      },
+    }),
   ]);
 
-  // Compat: eliminar roles legacy empresa* si aún existen
+  // Compat: eliminar roles legacy si aún existen (no el rol `empresa` actual).
   await prisma.role.deleteMany({
-    where: { name: { in: ['empresa', 'empresa_aliada', 'admin'] } },
+    where: { name: { in: ['empresa_aliada', 'admin'] } },
   });
 
   const providerUsagePermissions = [
@@ -131,24 +151,57 @@ async function main() {
     permissionNames.map((name) =>
       prisma.permission.upsert({
         where: { name },
-        update: {},
-        create: { name },
+        update: { slug: name, isActive: true, kind: 'action' },
+        create: { name, slug: name, isActive: true, kind: 'action' },
       }),
     ),
   );
 
-  // Superadmin: todos los permisos
+  await prisma.$transaction(
+    ADMIN_COMPONENTS.map((component) =>
+      prisma.permission.upsert({
+        where: { slug: component.slug },
+        update: {
+          label: component.label,
+          href: component.href,
+          sortOrder: component.sortOrder,
+          parentSlug: component.parentSlug ?? null,
+          panel: 'admin',
+          kind: 'component',
+          isActive: component.isActive ?? true,
+        },
+        create: {
+          name: component.slug,
+          slug: component.slug,
+          label: component.label,
+          href: component.href,
+          sortOrder: component.sortOrder,
+          parentSlug: component.parentSlug ?? null,
+          panel: 'admin',
+          kind: 'component',
+          isActive: component.isActive ?? true,
+        },
+      }),
+    ),
+  );
+
+  const allActivePermissions = await prisma.permission.findMany({
+    where: { isActive: true },
+    select: { id: true },
+  });
+
+  // Superadmin: todos los permisos (acciones + componentes)
   await prisma.role.update({
     where: { id: superadminRole.id },
     data: {
       permissions: {
         set: [],
-        connect: permissionNames.map((name) => ({ name })),
+        connect: allActivePermissions.map((permission) => ({ id: permission.id })),
       },
     },
   });
 
-  // Monitor: doctores + validación
+  // Monitor: doctores + validación + componentes de verificación
   await prisma.role.update({
     where: { id: monitorRole.id },
     data: {
@@ -159,13 +212,24 @@ async function main() {
           { name: 'view_doctor' },
           { name: 'update_doctor' },
           { name: 'validate_doctor' },
+          ...MONITOR_COMPONENT_SLUGS.map((slug) => ({ slug })),
         ],
       },
     },
   });
 
-  // Permisos de organization quedan en catálogo; el acceso se controla por
-  // flags Doctor.empresa / Doctor.empresaReferida (no por rol RBAC).
+  // Empresa: permisos de panel clínico + organización
+  await prisma.role.update({
+    where: { id: empresaRole.id },
+    data: {
+      permissions: {
+        set: [],
+        connect: EMPRESA_ROLE_PERMISSIONS.map((name) => ({ name })),
+      },
+    },
+  });
+
+  // Permisos de organization en catálogo; flags Doctor.empresa activan módulos UI.
   void doctorRole;
   void patientRole;
   void ORG_OWNER_PERMS;
@@ -209,11 +273,39 @@ async function main() {
   }
 
   const specialtyDefinitions = [
-    { slug: 'dermatologo', name: 'Dermatólogo', sortOrder: 0, perms: ['use_provider_skiniver'] as const },
-    { slug: 'medico_general', name: 'Médico general', sortOrder: 1, perms: ['use_provider_skiniver', 'use_provider_youcam'] as const },
-    { slug: 'cirujano_plastico', name: 'Cirujano plástico', sortOrder: 2, perms: ['use_provider_youcam', 'use_provider_fitzpatrick'] as const },
-    { slug: 'estetica_medica', name: 'Estética médica', sortOrder: 3, perms: ['use_provider_youcam', 'use_provider_fitzpatrick'] as const },
-    { slug: 'otra', name: 'Otra', sortOrder: 4, perms: [] as const },
+    {
+      slug: 'dermatologo',
+      name: 'Dermatólogo',
+      description:
+        'Especialista en el diagnóstico y tratamiento de enfermedades de la piel, cabello y uñas.',
+      sortOrder: 0,
+      perms: ['use_provider_skiniver'] as const,
+    },
+    {
+      slug: 'medico_general',
+      name: 'Médico general',
+      description:
+        'Profesional de medicina general con enfoque en salud integral y derivación a especialistas.',
+      sortOrder: 1,
+      perms: ['use_provider_skiniver', 'use_provider_youcam'] as const,
+    },
+    {
+      slug: 'cirujano_plastico',
+      name: 'Cirujano plástico',
+      description:
+        'Especialista en procedimientos quirúrgicos y reconstructivos estéticos.',
+      sortOrder: 2,
+      perms: ['use_provider_youcam', 'use_provider_fitzpatrick'] as const,
+    },
+    {
+      slug: 'estetica_medica',
+      name: 'Estética médica',
+      description:
+        'Especialista en procedimientos estéticos no invasivos y mejora de la apariencia facial y corporal.',
+      sortOrder: 3,
+      perms: ['use_provider_youcam', 'use_provider_fitzpatrick'] as const,
+    },
+    { slug: 'otra', name: 'Otra', description: null, sortOrder: 4, perms: [] as const },
   ] as const;
 
   const specialtyRoles = await Promise.all(
@@ -242,12 +334,14 @@ async function main() {
       where: { slug: item.slug },
       update: {
         name: item.name,
+        description: item.description,
         sortOrder: item.sortOrder,
         roleId: role.id,
       },
       create: {
         name: item.name,
         slug: item.slug,
+        description: item.description,
         sortOrder: item.sortOrder,
         roleId: role.id,
       },
@@ -281,14 +375,16 @@ async function main() {
   // --- Planes semilla (uno por proveedor) ---
   await prisma.plan.upsert({
     where: { id: 1n },
-    update: {},
+    update: { planType: 'individual', maxUsers: 1 },
     create: {
       id: 1n,
       analysisProviderId: skiniver.id,
       name: 'Skiniver Básico',
+      planType: 'individual',
       analysisLimit: 10,
       price: 29900,
       durationDays: 30,
+      maxUsers: 1,
       isActive: true,
       description:
         'Plan mensual de diagnóstico dermatológico por imagen (Skiniver).',
@@ -297,14 +393,16 @@ async function main() {
 
   await prisma.plan.upsert({
     where: { id: 2n },
-    update: {},
+    update: { planType: 'individual', maxUsers: 1 },
     create: {
       id: 2n,
       analysisProviderId: youcam.id,
       name: 'YouCam Básico',
+      planType: 'individual',
       analysisLimit: 10,
       price: 29900,
       durationDays: 30,
+      maxUsers: 1,
       isActive: true,
       description:
         'Plan mensual de análisis facial de estado de piel (YouCam).',
@@ -315,6 +413,8 @@ async function main() {
     where: { id: 3n },
     update: {
       name: 'Fototipo Básico',
+      planType: 'individual',
+      maxUsers: 1,
       description:
         'Plan mensual de clasificación de fototipo de piel (tipos I a VI).',
     },
@@ -322,9 +422,11 @@ async function main() {
       id: 3n,
       analysisProviderId: fitzpatrick.id,
       name: 'Fototipo Básico',
+      planType: 'individual',
       analysisLimit: 10,
       price: 29900,
       durationDays: 30,
+      maxUsers: 1,
       isActive: true,
       description:
         'Plan mensual de clasificación de fototipo de piel (tipos I a VI).',

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import type { GatewayConfig } from '@prisma/client';
 import type { JwtPayload } from '../auth/types';
+import { isEnterpriseDoctor } from '../doctors/doctor-account.util';
 import { EncryptionService } from '../common/encryption.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
@@ -96,6 +97,19 @@ export class PaymentsService {
     });
     if (!plan || !plan.isActive) {
       throw new BadRequestException('Plan no disponible');
+    }
+
+    if (currentUser.role === 'doctor') {
+      const doctor = await this.prisma.doctor.findUnique({
+        where: { userId: BigInt(currentUser.sub) },
+        select: { membershipType: true, empresa: true, empresaReferida: true },
+      });
+      if (doctor) {
+        const expectedPlanType = isEnterpriseDoctor(doctor) ? 'business' : 'individual';
+        if (plan.planType !== expectedPlanType) {
+          throw new BadRequestException('Este plan no está disponible para tu tipo de cuenta');
+        }
+      }
     }
 
     const user = await this.prisma.user.findUniqueOrThrow({

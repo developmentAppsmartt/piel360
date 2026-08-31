@@ -30,4 +30,8 @@ export class UpdateSpecialtyDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
 }

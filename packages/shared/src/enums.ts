@@ -9,9 +9,17 @@ export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
 export const RISK_LEVELS = ["low", "medium", "high"] as const;
 export type RiskLevel = (typeof RISK_LEVELS)[number];
 
-/** Roles del sistema (RBAC). Empresa / empresa referida son flags en Doctor, no roles. */
-export const ROLES = ["superadmin", "monitor", "doctor", "patient"] as const;
+/** Roles del sistema (RBAC). */
+export const ROLES = ["superadmin", "monitor", "empresa", "doctor", "patient"] as const;
 export type Role = (typeof ROLES)[number];
+
+/** Roles de panel admin que no pueden usar la app móvil. */
+export const MOBILE_BLOCKED_ROLES = ["superadmin", "monitor"] as const;
+
+export function isMobileLoginAllowed(role: Role | undefined): boolean {
+  if (!role) return false;
+  return !(MOBILE_BLOCKED_ROLES as readonly Role[]).includes(role);
+}
 
 /** Intención de membresía al registrarse como doctor (activa flags en Doctor). */
 export const MEMBERSHIP_TYPES = [
@@ -30,6 +38,14 @@ export const SEAT_PLAN_LIMITS: Record<Exclude<SeatPlan, "custom">, number> = {
   five: 5,
   ten: 10,
 };
+
+/** Mapea un cupo numérico al slug de plan de asientos (`two` | `five` | `ten` | `custom`). */
+export function seatPlanFromLimit(limit: number): SeatPlan {
+  const match = (
+    Object.entries(SEAT_PLAN_LIMITS) as [Exclude<SeatPlan, "custom">, number][]
+  ).find(([, value]) => value === limit);
+  return match?.[0] ?? "custom";
+}
 
 /** Estado de validación del doctor (persistencia; flujo UI en fases posteriores). */
 export const VERIFICATION_STATUSES = [
@@ -140,4 +156,8 @@ export const ADDRESS_VERIFICATION_METHOD_LABELS: Record<
 };
 
 /** Roles con acceso al panel clínico `/doctor` (web y mobile). */
-export const DOCTOR_PANEL_ROLES: readonly Role[] = ["doctor"];
+export const DOCTOR_PANEL_ROLES: readonly Role[] = ["doctor", "empresa"];
+
+export function isClinicalPanelRole(role: Role | undefined): boolean {
+  return role != null && (DOCTOR_PANEL_ROLES as readonly Role[]).includes(role);
+}

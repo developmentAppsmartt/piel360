@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import type { SubscriptionAdmin } from "@/lib/queries/subscriptions";
+import { subscriptionPackageSummary } from "@/lib/subscription-admin-display";
 
 const STATUS_BADGE: Record<SubscriptionAdmin["status"], { label: string; variant: "default" | "secondary" | "destructive" }> = {
   active: { label: "Activo", variant: "default" },
@@ -23,7 +24,7 @@ function buildColumns(
       id: "user",
       header: "Usuario",
     }),
-    columnHelper.accessor((row) => `${row.plan.name} (${row.plan.provider.name})`, {
+    columnHelper.accessor((row) => subscriptionPackageSummary(row.plan), {
       id: "plan",
       header: "Plan",
     }),

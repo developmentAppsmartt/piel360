@@ -13,6 +13,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { ClinicalPanelRoles } from '../auth/clinical-panel.roles.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -25,7 +26,7 @@ import { UpdateRoutineStepDto } from './dto/update-routine-step.dto';
 
 @Controller('routines')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('doctor')
+@ClinicalPanelRoles()
 export class RoutinesController {
   constructor(private readonly routinesService: RoutinesService) {}
 

@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
+import { getAnalysisProviderIdBySlug } from '../plans/plan-providers.util';
 import type { CreateFitzpatrickAnalysisDto } from './dto/create-fitzpatrick-analysis.dto';
 import { FitzpatrickService } from './fitzpatrick.service';
 
@@ -84,12 +85,17 @@ export class FitzpatrickAnalysesService {
     const taskId = await this.fitzpatrick.startTask(fileId);
     const result = await this.pollUntilDone(taskId);
 
+    const fitzpatrickProviderId = await getAnalysisProviderIdBySlug(
+      this.prisma,
+      FITZPATRICK_PROVIDER_SLUG,
+    );
+
     const analysis = await this.prisma.$transaction(async (tx) => {
       const created = await tx.analysis.create({
         data: {
           patientId: BigInt(dto.patientId),
           userId,
-          providerId: subscription.plan.analysisProviderId,
+          providerId: fitzpatrickProviderId,
           fitzpatrickTaskId: taskId,
           imagePath: `analyses/pending/original.jpg`,
           aiDiagnosis: `Tipo ${result.fitzpatrick_scale}`,

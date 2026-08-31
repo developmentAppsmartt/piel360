@@ -1,22 +1,11 @@
-import { Bell, Crown } from "lucide-react";
+"use client";
+
+import { Bell, Crown, Menu } from "lucide-react";
 import type { Role } from "@piel360/shared";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { useUserRoleDisplay } from "@/lib/hooks/use-user-role-display";
 import { Logo } from "./logo";
-
-const ROLE_LABELS: Record<Role, string> = {
-  superadmin: "Super Admin",
-  monitor: "Moderador",
-  doctor: "Doctor",
-  patient: "Paciente",
-};
-
-const ROLE_SCOPE: Record<Role, string> = {
-  superadmin: "Global",
-  monitor: "Verificación",
-  doctor: "Consulta",
-  patient: "Paciente",
-};
 
 function initialsFromEmail(email: string) {
   return email.slice(0, 2).toUpperCase();
@@ -27,16 +16,42 @@ export function PanelHeader({
   role,
   notificationCount = 0,
   showLogout = true,
+  onMenuClick,
+  empresa,
+  empresaReferida,
+  verificationStatus,
 }: {
   email: string;
   role: Role;
   notificationCount?: number;
   showLogout?: boolean;
+  onMenuClick?: () => void;
+  empresa?: boolean;
+  empresaReferida?: boolean;
+  verificationStatus?: string | null;
 }) {
+  const { label: roleLabel, scope: roleScope } = useUserRoleDisplay(role, {
+    empresa,
+    empresaReferida,
+    verificationStatus,
+  });
+
   return (
-    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-card/95 px-6 backdrop-blur">
-      <div className="md:hidden">
-        <Logo className="h-8" />
+    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-card/95 px-4 backdrop-blur sm:px-6">
+      <div className="flex items-center gap-3">
+        {onMenuClick ? (
+          <button
+            type="button"
+            onClick={onMenuClick}
+            aria-label="Abrir menú"
+            className="flex size-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
+          >
+            <Menu className="size-5" />
+          </button>
+        ) : null}
+        <div className="md:hidden">
+          <Logo className="h-8" />
+        </div>
       </div>
 
       <div className="ml-auto flex items-center gap-3">
@@ -64,8 +79,8 @@ export function PanelHeader({
             </AvatarFallback>
           </Avatar>
           <div className="hidden text-sm leading-tight sm:block">
-            <p className="font-medium">{ROLE_LABELS[role]}</p>
-            <p className="text-xs text-muted-foreground">{ROLE_SCOPE[role]}</p>
+            <p className="font-medium">{roleLabel}</p>
+            <p className="text-xs text-muted-foreground">{roleScope}</p>
           </div>
         </div>
 

@@ -2,6 +2,7 @@ import {
   IsArray,
   IsEmail,
   IsIn,
+  IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
@@ -32,9 +33,9 @@ export class AddTeamDoctorDto {
   })
   phone!: string;
 
-  @IsOptional()
   @IsString()
-  specialty?: string;
+  @IsNotEmpty()
+  specialty!: string;
 
   @IsOptional()
   @IsArray()

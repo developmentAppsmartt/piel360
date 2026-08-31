@@ -51,6 +51,22 @@ export async function loginAction(
   }
 
   await setSessionCookies(result.accessToken, result.refreshToken);
+
+  if (_role === "empresa" && result.user.role !== "empresa") {
+    await clearSessionCookies();
+    return {
+      error:
+        "Esta cuenta no es empresarial. Usa el inicio de sesión profesional.",
+    };
+  }
+  if (_role === "doctor" && result.user.role === "empresa") {
+    await clearSessionCookies();
+    return {
+      error:
+        "Esta cuenta es empresarial. Usa el inicio de sesión para empresas.",
+    };
+  }
+
   redirect(homeForUser(result.user));
 }
 

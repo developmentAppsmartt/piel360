@@ -1,7 +1,10 @@
-export type Role = 'superadmin' | 'monitor' | 'doctor' | 'patient';
+export type Role = 'superadmin' | 'monitor' | 'empresa' | 'doctor' | 'patient';
 
-/** Roles que pueden usar la app móvil. */
-export const MOBILE_ROLES: Role[] = ['patient', 'doctor'];
+/** @deprecated Usar isMobileLoginAllowed de mobile-auth-access */
+export const MOBILE_ROLES: Role[] = ['patient', 'doctor', 'empresa'];
+
+/** Roles de panel clínico en JWT (no confundir con slugs RBAC de especialidad). */
+export type ClinicalPanelRole = 'doctor' | 'empresa';
 
 export type AuthUser = {
   id: string;
@@ -10,9 +13,22 @@ export type AuthUser = {
   role: Role;
   empresa?: boolean;
   empresaReferida?: boolean;
-  /** Solo doctores: pending | in_review | active | approved | … */
+  /** Profesionales y empresas: pending | in_review | active | approved | … */
   verificationStatus?: string;
 };
+
+/** JWT con acceso al panel clínico (profesional o empresa). */
+export function isClinicalPanelRole(
+  role: Role | undefined,
+): role is ClinicalPanelRole {
+  return role === 'doctor' || role === 'empresa';
+}
+
+export function isClinicalPanelUser(
+  user: Pick<AuthUser, 'role'> | null | undefined,
+): boolean {
+  return isClinicalPanelRole(user?.role);
+}
 
 /** Cuenta doctor con panel clínico completo (no solo perfil). */
 export function isDoctorVerificationActive(
@@ -32,7 +48,7 @@ export type LoginPayload = {
   password: string;
 };
 
-/** Registro móvil: solo pacientes. `emailTicket` opcional (OTP no integrado). */
+/** Registro móvil: solo pacientes. */
 export type RegisterPatientPayload = {
   email: string;
   password: string;

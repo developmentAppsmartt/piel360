@@ -14,9 +14,11 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { DoctorsService } from '../doctors/doctors.service';
+import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
 import { StorageService } from '../storage/storage.service';
 import type { AddTeamDoctorDto } from './dto/add-team-doctor.dto';
 import type { UpdateOrganizationProfileDto } from './dto/update-organization-profile.dto';
+import { syncOrganizationSeatLimitForUser } from './org-seat-limit.util';
 
 const DOC_MIME = new Set([
   'application/pdf',
@@ -24,10 +26,6 @@ const DOC_MIME = new Set([
   'image/jpg',
   'image/png',
 ]);
-
-function isDoctorPanelRole(role: Role): boolean {
-  return role === 'doctor' || role === 'superadmin';
-}
 
 function parsePermissions(raw: unknown): TeamMemberPermission[] {
   if (!Array.isArray(raw)) return [];
@@ -46,6 +44,7 @@ export class OrganizationsService {
     private readonly prisma: PrismaService,
     private readonly doctors: DoctorsService,
     private readonly storage: StorageService,
+    private readonly specialtyAccess: SpecialtyAccessService,
   ) {}
 
   private async signDoc(key: string | null | undefined) {
@@ -91,6 +90,7 @@ export class OrganizationsService {
                     name: true,
                     firstName: true,
                     lastName: true,
+                    updatedAt: true,
                     doctor: {
                       select: {
                         id: true,
@@ -99,6 +99,7 @@ export class OrganizationsService {
                         lat: true,
                         lng: true,
                         membershipType: true,
+                        verificationStatus: true,
                       },
                     },
                   },
@@ -123,6 +124,15 @@ export class OrganizationsService {
     }
 
     const org = membership.organization;
+    const seatSync = await syncOrganizationSeatLimitForUser(
+      this.prisma,
+      org.ownerUserId,
+    );
+    if (seatSync) {
+      org.seatLimit = seatSync.seatLimit;
+      org.seatPlan = seatSync.seatPlan;
+    }
+
     const [
       legalRepCedulaDocUrl,
       rutDocUrl,
@@ -172,6 +182,8 @@ export class OrganizationsService {
         name: m.user.name,
         specialty: m.user.doctor?.specialty ?? null,
         city: m.user.doctor?.city ?? null,
+        verificationStatus: m.user.doctor?.verificationStatus ?? null,
+        lastAccessAt: m.user.updatedAt.toISOString(),
         permissions: parsePermissions(m.permissions),
       })),
       referrals: org.referrals.map((r) => ({
@@ -312,44 +324,61 @@ export class OrganizationsService {
         ? dto.permissions
         : [...DEFAULT_TEAM_MEMBER_PERMISSIONS];
 
+    const specialty = dto.specialty.trim();
+    const professionalRoleSlug =
+      await this.specialtyAccess.assertProfessionalRoleSlug(specialty);
+
     const password = await argon2.hash(dto.password);
 
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        password,
-        name: `${dto.firstName} ${dto.lastName}`.trim(),
-        firstName: dto.firstName.trim(),
-        lastName: dto.lastName.trim(),
-        phone: dto.phone,
-        roles: { connect: { name: 'doctor' } },
-        doctor: {
-          create: {
-            firstName: dto.firstName.trim(),
-            lastName: dto.lastName.trim(),
-            phone: dto.phone,
-            specialty: dto.specialty?.trim() || null,
-            membershipType: 'solo_doctor',
-            empresa: false,
-            empresaReferida: false,
-            verificationStatus: 'pending',
+    let user;
+    try {
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          password,
+          name: `${dto.firstName} ${dto.lastName}`.trim(),
+          firstName: dto.firstName.trim(),
+          lastName: dto.lastName.trim(),
+          phone: dto.phone,
+          roles: { connect: [{ name: professionalRoleSlug }] },
+          doctor: {
+            create: {
+              firstName: dto.firstName.trim(),
+              lastName: dto.lastName.trim(),
+              phone: dto.phone,
+              specialty,
+              membershipType: 'solo_doctor',
+              empresa: false,
+              empresaReferida: false,
+              verificationStatus: 'pending',
+            },
+          },
+          organizationMembers: {
+            create: {
+              organizationId: org.id,
+              memberRole: 'member',
+              permissions: permissions as unknown as Prisma.InputJsonValue,
+            },
           },
         },
-        organizationMembers: {
-          create: {
-            organizationId: org.id,
-            memberRole: 'member',
-            permissions: permissions as unknown as Prisma.InputJsonValue,
+        include: {
+          doctor: { select: { id: true, specialty: true } },
+          organizationMembers: {
+            where: { organizationId: org.id },
           },
         },
-      },
-      include: {
-        doctor: { select: { id: true, specialty: true } },
-        organizationMembers: {
-          where: { organizationId: org.id },
-        },
-      },
-    });
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new BadRequestException(
+          'El perfil profesional seleccionado no está configurado correctamente. Contacta al administrador.',
+        );
+      }
+      throw error;
+    }
 
     const member = user.organizationMembers[0];
     return {
@@ -430,6 +459,71 @@ export class OrganizationsService {
     return { ok: true };
   }
 
+  async listCompanyRegistrationsForAdmin() {
+    const doctors = await this.prisma.doctor.findMany({
+      where: {
+        OR: [
+          { membershipType: { in: ['empresa', 'empresa_aliada'] } },
+          { empresa: true },
+          { empresaReferida: true },
+        ],
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            phone: true,
+            createdAt: true,
+            ownedOrganizations: {
+              include: {
+                members: { select: { id: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return doctors.map((doctor) => {
+      const org = doctor.user.ownedOrganizations[0] ?? null;
+      const membershipType =
+        doctor.membershipType === 'empresa_aliada' || doctor.empresaReferida
+          ? 'empresa_aliada'
+          : 'empresa';
+
+      return {
+        doctorId: doctor.id.toString(),
+        userId: doctor.user.id.toString(),
+        name: doctor.user.name,
+        email: doctor.user.email,
+        phone: doctor.user.phone ?? doctor.phone,
+        membershipType,
+        verificationStatus: doctor.verificationStatus,
+        city: doctor.city ?? org?.city ?? null,
+        department: doctor.department ?? org?.department ?? null,
+        registeredAt: doctor.user.createdAt.toISOString(),
+        organization: org
+          ? {
+              id: org.id.toString(),
+              name: org.name,
+              type: org.type,
+              status: org.status,
+              seatUsed: org.members.length,
+              seatLimit: org.seatLimit,
+              seatPlan: org.seatPlan,
+              referralCode: org.referralCode,
+              businessEmail: org.businessEmail,
+              businessPhone: org.businessPhone,
+              city: org.city,
+            }
+          : null,
+      };
+    });
+  }
+
   async listAllForAdmin() {
     const orgs = await this.prisma.organization.findMany({
       include: {
@@ -494,17 +588,24 @@ export class OrganizationsService {
   /** Marcadores de mapa scoped al doctor (equipo + pacientes propios). */
   async getMapMarkersForDoctor(
     userId: string,
-    role: Role,
+    _role: Role,
     kind?: 'doctor' | 'patient',
   ) {
-    if (!isDoctorPanelRole(role) && role !== 'superadmin') {
-      throw new ForbiddenException();
-    }
-
     const doctor = await this.doctors.requireDoctorByUserId(userId);
     const membership = await this.prisma.organizationMember.findFirst({
       where: { userId: BigInt(userId) },
-      select: { organizationId: true },
+      select: {
+        organizationId: true,
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            city: true,
+            lat: true,
+            lng: true,
+          },
+        },
+      },
     });
 
     let doctors: Array<{
@@ -554,6 +655,28 @@ export class OrganizationsService {
             lat: Number(d.lat),
             lng: Number(d.lng),
           }));
+
+        const org = membership.organization;
+        if (org?.lat != null && org.lng != null) {
+          const orgLat = Number(org.lat);
+          const orgLng = Number(org.lng);
+          const hasOrgPoint = doctors.some(
+            (d) =>
+              Math.abs(d.lat - orgLat) < 0.00001 &&
+              Math.abs(d.lng - orgLng) < 0.00001,
+          );
+          if (!hasOrgPoint) {
+            doctors.unshift({
+              id: `org-${org.id.toString()}`,
+              kind: 'doctor',
+              name: org.name,
+              specialty: 'Sede empresa',
+              city: org.city,
+              lat: orgLat,
+              lng: orgLng,
+            });
+          }
+        }
       } else if (doctor.lat != null && doctor.lng != null) {
         doctors = [
           {

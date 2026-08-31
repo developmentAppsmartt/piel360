@@ -4,29 +4,23 @@ import type {
   LoginPayload,
   RegisterPatientPayload,
 } from '../types/auth';
-import { MOBILE_ROLES } from '../types/auth';
-import { ApiError, apiRequest } from './api.client';
+import {
+  assertMobileLoginAllowed,
+  isStoredMobileSessionUser,
+} from '../lib/mobile-auth-access';
+import { apiRequest } from './api.client';
 import { storageService } from './storage.service';
-
-const MOBILE_ROLES_MESSAGE =
-  'Esta aplicación es para pacientes y doctores. El panel admin está en la web.';
 
 export type OtpPurpose = 'register' | 'reset';
 
-function assertMobileRole(result: AuthResult): AuthResult {
-  if (!MOBILE_ROLES.includes(result.user.role)) {
-    throw new ApiError(MOBILE_ROLES_MESSAGE, 403, result);
-  }
-  return result;
-}
-
 export const authService = {
   async login(payload: LoginPayload): Promise<AuthResult> {
+    const { email, password } = payload;
     const result = await apiRequest<AuthResult>('/auth/login', {
       method: 'POST',
-      body: payload,
+      body: { email, password },
     });
-    const allowed = assertMobileRole(result);
+    const allowed = assertMobileLoginAllowed(result);
     await storageService.saveSession(allowed);
     return allowed;
   },
@@ -36,7 +30,7 @@ export const authService = {
       method: 'POST',
       body: payload,
     });
-    const allowed = assertMobileRole(result);
+    const allowed = assertMobileLoginAllowed(result);
     await storageService.saveSession(allowed);
     return allowed;
   },
@@ -90,7 +84,7 @@ export const authService = {
       await storageService.clearSession();
       return null;
     }
-    if (!MOBILE_ROLES.includes(user.role)) {
+    if (!isStoredMobileSessionUser(user)) {
       await storageService.clearSession();
       return null;
     }

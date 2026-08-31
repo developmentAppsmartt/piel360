@@ -17,6 +17,7 @@ import { CurrentUser } from './current-user.decorator';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDoctorDto } from './dto/register-doctor.dto';
+import { RegisterEmpresaDto } from './dto/register-empresa.dto';
 import { RegisterPatientDto } from './dto/register-patient.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
@@ -47,6 +48,14 @@ export class AuthController {
     @Headers('x-client') clientHeader?: string,
   ) {
     return this.authService.registerDoctor(dto, authClient(clientHeader));
+  }
+
+  @Post('register/empresa')
+  registerEmpresa(
+    @Body() dto: RegisterEmpresaDto,
+    @Headers('x-client') clientHeader?: string,
+  ) {
+    return this.authService.registerEmpresa(dto, authClient(clientHeader));
   }
 
   @Post('register/patient')
@@ -120,6 +129,13 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   me(@CurrentUser() user: JwtPayload) {
     return this.authService.me(user.sub);
+  }
+
+  @Get('me/permissions')
+  @UseGuards(JwtAuthGuard)
+  async mePermissions(@CurrentUser() user: JwtPayload) {
+    const permissions = await this.authService.getPermissionsForUser(user.sub);
+    return { permissions };
   }
 
   /**

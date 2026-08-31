@@ -14,6 +14,10 @@ import {
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { CurrentUser } from '../auth/current-user.decorator';
+import {
+  ClinicalPanelOrSuperadminRoles,
+  ClinicalPanelRoles,
+} from '../auth/clinical-panel.roles.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
@@ -29,14 +33,14 @@ export class OrganizationsController {
 
   @Get('organizations/me')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('doctor', 'superadmin')
+  @ClinicalPanelOrSuperadminRoles()
   getMine(@CurrentUser() user: JwtPayload) {
     return this.organizations.getMine(user.sub);
   }
 
   @Patch('organizations/me')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('doctor')
+  @ClinicalPanelRoles()
   updateProfile(
     @CurrentUser() user: JwtPayload,
     @Body() dto: UpdateOrganizationProfileDto,
@@ -46,7 +50,7 @@ export class OrganizationsController {
 
   @Post('organizations/me/documents')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('doctor')
+  @ClinicalPanelRoles()
   @UseInterceptors(
     FileFieldsInterceptor(
       [
@@ -71,7 +75,7 @@ export class OrganizationsController {
 
   @Post('organizations/me/members')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('doctor')
+  @ClinicalPanelRoles()
   addDoctor(
     @CurrentUser() user: JwtPayload,
     @Body() dto: AddTeamDoctorDto,
@@ -81,7 +85,7 @@ export class OrganizationsController {
 
   @Patch('organizations/me/members/:memberId/permissions')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('doctor')
+  @ClinicalPanelRoles()
   updateMemberPermissions(
     @CurrentUser() user: JwtPayload,
     @Param('memberId') memberId: string,
@@ -96,7 +100,7 @@ export class OrganizationsController {
 
   @Delete('organizations/me/members/:memberId')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('doctor')
+  @ClinicalPanelRoles()
   removeMember(
     @CurrentUser() user: JwtPayload,
     @Param('memberId') memberId: string,
@@ -106,7 +110,7 @@ export class OrganizationsController {
 
   @Get('organizations/me/map-markers')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('doctor', 'superadmin')
+  @ClinicalPanelOrSuperadminRoles()
   getMyMapMarkers(
     @CurrentUser() user: JwtPayload,
     @Query('kind') kind?: 'doctor' | 'patient',
@@ -119,6 +123,13 @@ export class OrganizationsController {
   @Roles('superadmin')
   listAll() {
     return this.organizations.listAllForAdmin();
+  }
+
+  @Get('admin/empresas')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('superadmin')
+  listCompanies() {
+    return this.organizations.listCompanyRegistrationsForAdmin();
   }
 
   @Get('admin/referrals')

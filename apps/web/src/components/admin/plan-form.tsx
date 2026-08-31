@@ -15,6 +15,7 @@ const planSchema = z.object({
   analysisLimit: z.number().int().min(0),
   price: z.number().min(0),
   durationDays: z.number().int().min(1),
+  maxUsers: z.number().int().min(1),
   isActive: z.boolean(),
   description: z.string(),
 });
@@ -28,6 +29,7 @@ function toInput(values: PlanFormValues): PlanInput {
     analysisLimit: values.analysisLimit,
     price: values.price,
     durationDays: values.durationDays,
+    maxUsers: values.maxUsers,
     isActive: values.isActive,
     description: values.description || undefined,
   };
@@ -56,6 +58,7 @@ export function PlanForm({
       analysisLimit: defaultValues?.analysisLimit ?? 0,
       price: defaultValues ? Number(defaultValues.price) : 0,
       durationDays: defaultValues?.durationDays ?? 30,
+      maxUsers: defaultValues?.maxUsers ?? 1,
       isActive: defaultValues?.isActive ?? true,
       description: defaultValues?.description ?? "",
     },
@@ -113,6 +116,13 @@ export function PlanForm({
         id="durationDays"
         type="number"
         {...register("durationDays", { valueAsNumber: true })}
+      />
+
+      <TextField
+        label="Usuarios permitidos"
+        id="maxUsers"
+        type="number"
+        {...register("maxUsers", { valueAsNumber: true })}
       />
 
       <label className="flex items-center gap-2 text-sm">

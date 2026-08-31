@@ -1,14 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import {
+  Baby,
+  HelpCircle,
+  Pencil,
+  Plus,
+  Scissors,
+  Search,
+  Sparkles,
+  Stethoscope,
+  type LucideIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import { TextField } from "@/components/auth/text-field";
 import { ApiError } from "@/lib/api-error";
 import {
   useAdminSpecialties,
   useCreateSpecialty,
-  useDeleteSpecialty,
   useUpdateSpecialty,
   type Specialty,
   type SpecialtyInput,
@@ -25,6 +37,40 @@ function slugifyName(name: string) {
     .replace(/_+/g, "_");
 }
 
+const SPECIALTY_ICONS: Record<string, LucideIcon> = {
+  dermatologo: Sparkles,
+  medico_general: Stethoscope,
+  cirujano_plastico: Scissors,
+  estetica_medica: Sparkles,
+  tricologo: Sparkles,
+  dermatologo_pediatra: Baby,
+  otra: HelpCircle,
+};
+
+function SpecialtyIcon({ slug }: { slug: string }) {
+  const Icon = SPECIALTY_ICONS[slug] ?? Stethoscope;
+  return (
+    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
+      <Icon className="size-4" aria-hidden />
+    </span>
+  );
+}
+
+function StatusBadge({ active }: { active: boolean }) {
+  if (active) {
+    return (
+      <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+        Activa
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-600">
+      Inactiva
+    </span>
+  );
+}
+
 function SpecialtyForm({
   defaultValues,
   submitLabel,
@@ -36,6 +82,7 @@ function SpecialtyForm({
 }) {
   const [name, setName] = useState(defaultValues?.name ?? "");
   const [slug, setSlug] = useState(defaultValues?.slug ?? "");
+  const [description, setDescription] = useState(defaultValues?.description ?? "");
   const [sortOrder, setSortOrder] = useState(
     String(defaultValues?.sortOrder ?? 0),
   );
@@ -54,6 +101,7 @@ function SpecialtyForm({
           await onSubmit({
             name: name.trim(),
             slug: slug.trim() || undefined,
+            description: description.trim() || undefined,
             sortOrder: Number(sortOrder) || 0,
             isActive,
           });
@@ -75,15 +123,26 @@ function SpecialtyForm({
             setSlug(slugifyName(e.target.value));
           }
         }}
-        placeholder="Ej. Cardiólogo"
+        placeholder="Ej. Dermatólogo"
         required
       />
+
+      <label className="flex flex-col gap-1.5 text-sm">
+        <span className="font-medium">Descripción</span>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={4}
+          placeholder="Describe el alcance y enfoque de la especialidad…"
+          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-ring"
+        />
+      </label>
 
       <TextField
         label="Slug (rol RBAC)"
         value={slug}
         onChange={(e) => setSlug(e.target.value)}
-        placeholder="cardiologo"
+        placeholder="dermatologo"
         pattern="^[a-z][a-z0-9_]*$"
       />
       <p className="-mt-2 text-xs text-muted-foreground">
@@ -121,80 +180,125 @@ function SpecialtyForm({
 export function SpecialtiesAdminPanel() {
   const query = useAdminSpecialties();
   const create = useCreateSpecialty();
+  const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Specialty | null>(null);
-  const [deleting, setDeleting] = useState<Specialty | null>(null);
+
+  const rows = useMemo(() => {
+    const list = query.data ?? [];
+    const q = search.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter(
+      (item) =>
+        item.name.toLowerCase().includes(q) ||
+        item.description?.toLowerCase().includes(q),
+    );
+  }, [query.data, search]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button type="button" onClick={() => setCreating(true)}>
-          Nueva especialidad
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs text-muted-foreground">
+            <Link href="/admin/configuracion" className="hover:text-foreground">
+              Configuración
+            </Link>{" "}
+            › <span className="text-foreground">Especialidades</span>
+          </p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
+            Especialidades
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Gestiona las especialidades disponibles para clasificar a los
+            profesionales. Para eliminar una especialidad, hazlo desde Roles y
+            permisos (se elimina en cascada con su rol).
+          </p>
+        </div>
+        <Button type="button" className="shrink-0" onClick={() => setCreating(true)}>
+          <Plus className="size-4" />
+          Agregar especialidad
         </Button>
       </div>
 
-      {query.isLoading ? (
-        <p className="text-sm text-muted-foreground">Cargando…</p>
-      ) : null}
-      {query.error ? (
-        <p className="text-sm text-destructive">
-          No se pudieron cargar las especialidades.
-        </p>
-      ) : null}
-
-      {query.data ? (
-        <div className="overflow-x-auto rounded-xl border border-border">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="bg-muted/40 text-xs tracking-wide text-muted-foreground uppercase">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Nombre</th>
-                <th className="px-4 py-3 font-semibold">Slug</th>
-                <th className="px-4 py-3 font-semibold">Orden</th>
-                <th className="px-4 py-3 font-semibold">Doctores</th>
-                <th className="px-4 py-3 font-semibold">Estado</th>
-                <th className="px-4 py-3 font-semibold">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {query.data.map((specialty) => (
-                <tr key={specialty.id} className="border-t border-border">
-                  <td className="px-4 py-3 font-medium">{specialty.name}</td>
-                  <td className="px-4 py-3 font-mono text-xs">{specialty.slug}</td>
-                  <td className="px-4 py-3">{specialty.sortOrder}</td>
-                  <td className="px-4 py-3">{specialty.doctorCount}</td>
-                  <td className="px-4 py-3">
-                    {specialty.isActive ? (
-                      <span className="text-emerald-600">Activa</span>
-                    ) : (
-                      <span className="text-muted-foreground">Inactiva</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setEditing(specialty)}
-                      >
-                        Editar
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setDeleting(specialty)}
-                      >
-                        Eliminar
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <ModuleCard>
+        <div className="flex flex-col gap-4 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <ModuleCardTitle>Lista de especialidades</ModuleCardTitle>
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar especialidad…"
+              className="h-10 w-full rounded-xl border border-border bg-background pr-10 pl-3 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
         </div>
-      ) : null}
+
+        {query.isLoading ? (
+          <p className="py-8 text-sm text-muted-foreground">Cargando…</p>
+        ) : null}
+        {query.error ? (
+          <p className="py-8 text-sm text-destructive">
+            No se pudieron cargar las especialidades.
+          </p>
+        ) : null}
+
+        {rows.length > 0 ? (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead>
+                <tr className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                  <th className="px-4 py-3 font-semibold">Especialidad</th>
+                  <th className="px-4 py-3 font-semibold">Descripción</th>
+                  <th className="px-4 py-3 font-semibold">Estado</th>
+                  <th className="px-4 py-3 text-right font-semibold">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((specialty) => (
+                  <tr
+                    key={specialty.id}
+                    className="border-t border-border/80 align-top"
+                  >
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-3">
+                        <SpecialtyIcon slug={specialty.slug} />
+                        <span className="font-semibold text-foreground">
+                          {specialty.name}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="max-w-md px-4 py-4 text-muted-foreground">
+                      {specialty.description ?? "—"}
+                    </td>
+                    <td className="px-4 py-4">
+                      <StatusBadge active={specialty.isActive} />
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex justify-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => setEditing(specialty)}
+                        >
+                          <Pencil className="size-4" />
+                          <span className="sr-only">Editar</span>
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : query.data ? (
+          <p className="py-8 text-sm text-muted-foreground">
+            No hay especialidades que coincidan con la búsqueda.
+          </p>
+        ) : null}
+      </ModuleCard>
 
       <Dialog open={creating} onOpenChange={setCreating}>
         <DialogContent className="sm:max-w-lg">
@@ -213,9 +317,6 @@ export function SpecialtiesAdminPanel() {
 
       {editing ? (
         <EditDialog specialty={editing} onClose={() => setEditing(null)} />
-      ) : null}
-      {deleting ? (
-        <DeleteDialog specialty={deleting} onClose={() => setDeleting(null)} />
       ) : null}
     </div>
   );
@@ -248,57 +349,3 @@ function EditDialog({
   );
 }
 
-function DeleteDialog({
-  specialty,
-  onClose,
-}: {
-  specialty: Specialty;
-  onClose: () => void;
-}) {
-  const remove = useDeleteSpecialty();
-  return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Eliminar {specialty.name}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <p className="text-sm">
-            {specialty.doctorCount > 0 ? (
-              <>
-                Hay <strong>{specialty.doctorCount}</strong> doctor
-                {specialty.doctorCount === 1 ? "" : "es"} con esta especialidad.
-                No se puede eliminar hasta reasignarlos.
-              </>
-            ) : (
-              "Se eliminará la especialidad y su rol RBAC asociado."
-            )}
-          </p>
-          {remove.error ? (
-            <p className="text-sm text-destructive">
-              {remove.error instanceof ApiError
-                ? remove.error.message
-                : "No se pudo eliminar la especialidad."}
-            </p>
-          ) : null}
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={remove.isPending || specialty.doctorCount > 0}
-              onClick={async () => {
-                await remove.mutateAsync(specialty.id);
-                onClose();
-              }}
-            >
-              {remove.isPending ? "Eliminando…" : "Eliminar"}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
