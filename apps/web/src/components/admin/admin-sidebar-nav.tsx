@@ -6,9 +6,13 @@ import { useVerificationStats } from "@/lib/queries/doctors";
 export function AdminSidebarNav({
   items,
   enablePendingBadge,
+  collapsed,
+  onNavigate,
 }: {
   items: ResolvedNavItem[];
   enablePendingBadge?: boolean;
+  collapsed?: boolean;
+  onNavigate?: () => void;
 }) {
   const stats = useVerificationStats();
   const pending = enablePendingBadge ? (stats.data?.pending ?? null) : null;
@@ -23,5 +27,11 @@ export function AdminSidebarNav({
     return item;
   });
 
-  return <SidebarNav items={withBadges} />;
+  return (
+    <SidebarNav
+      items={withBadges}
+      collapsed={collapsed}
+      onNavigate={onNavigate}
+    />
+  );
 }

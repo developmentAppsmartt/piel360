@@ -29,4 +29,8 @@ export class CreateSpecialtyDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
 }

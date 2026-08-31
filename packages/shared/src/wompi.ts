@@ -39,14 +39,21 @@ export interface CreateGatewayConfigInput {
 
 export type UpdateGatewayConfigInput = Partial<CreateGatewayConfigInput>;
 
+export type PlanType = 'individual' | 'business';
+
 /** `GET /plans` — catálogo de planes activos por proveedor. */
 export interface Plan {
   id: string;
   analysisProviderId: string;
+  analysisProviderIds: string[];
   name: string;
+  planType: PlanType;
   analysisLimit: number;
   price: string;
   durationDays: number;
+  maxUsers: number;
+  modules: string[];
+  roleLimits: Record<string, number>;
   isActive: boolean;
   description: string | null;
   provider: {
@@ -54,4 +61,11 @@ export interface Plan {
     name: string;
     slug: string;
   };
+  /** Proveedores incluidos en el paquete (planes empresas con 1–3 análisis). */
+  providers?: {
+    id: string;
+    name: string;
+    slug: string;
+    displayLabel: string | null;
+  }[];
 }

@@ -6,6 +6,7 @@ import { AddressLocationPicker } from "@/components/maps";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-error";
 import {
+  isEnterpriseDoctor,
   useMyDoctorProfile,
   useUpdateMyDoctorProfile,
   useUploadDoctorDocuments,
@@ -13,15 +14,14 @@ import {
   type MyDoctorProfile,
 } from "@/lib/queries/doctors";
 import { useSpecialties } from "@/lib/queries/specialties";
+import { useLaborTechnicianProfiles } from "@/lib/queries/labor-technician-profiles";
 import {
   CompanyProfileSection,
   type CompanyProfileHandle,
 } from "./company-profile-section";
 
 function isCompanyMembership(profile: MyDoctorProfile) {
-  const type = (profile.membershipType ?? "").trim().toLowerCase();
-  if (type === "empresa" || type === "empresa_aliada") return true;
-  return Boolean(profile.empresa || profile.empresaReferida);
+  return isEnterpriseDoctor(profile);
 }
 
 const DOC_TYPES = ["CC", "CE", "TI", "PA"] as const;
@@ -164,8 +164,12 @@ function profileToForm(p: MyDoctorProfile) {
 
 export function DoctorProfileForm() {
   const query = useMyDoctorProfile();
-  const specialtiesQuery = useSpecialties();
-  const specialties = specialtiesQuery.data?.map((item) => item.name) ?? [];
+  const isEmpresa = query.data ? isCompanyMembership(query.data) : false;
+  const specialtiesQuery = useSpecialties(!isEmpresa);
+  const laborProfilesQuery = useLaborTechnicianProfiles(!isEmpresa);
+  const medicalSpecialties = specialtiesQuery.data?.map((item) => item.name) ?? [];
+  const laborProfiles = laborProfilesQuery.data?.map((item) => item.name) ?? [];
+  const professionalProfiles = [...medicalSpecialties, ...laborProfiles];
   const mutation = useUpdateMyDoctorProfile();
   const uploadDocs = useUploadDoctorDocuments();
   const companyRef = useRef<CompanyProfileHandle>(null);
@@ -185,20 +189,22 @@ export function DoctorProfileForm() {
     if (query.data) setForm(profileToForm(query.data));
   }, [query.data]);
 
-  function set<K extends keyof NonNullable<typeof form>>(
+  const displayForm = form ?? (query.data ? profileToForm(query.data) : null);
+
+  function set<K extends keyof NonNullable<typeof displayForm>>(
     key: K,
-    value: NonNullable<typeof form>[K],
+    value: NonNullable<typeof displayForm>[K],
   ) {
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
   }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form) return;
+    if (!displayForm) return;
     setMessage(null);
     setError(null);
 
-    const phone = digitsOnly(form.phone);
+    const phone = digitsOnly(displayForm.phone);
     if (phone && !/^\d{10,15}$/.test(phone)) {
       setError(
         "Celular inválido — usa solo dígitos, con indicativo de país (10 a 15).",
@@ -210,26 +216,31 @@ export function DoctorProfileForm() {
     const showCompany = profile ? isCompanyMembership(profile) : false;
 
     const payload: DoctorProfileInput = {
-      firstName: form.firstName.trim(),
-      lastName: form.lastName.trim(),
+      firstName: displayForm.firstName.trim(),
+      lastName: displayForm.lastName.trim(),
       phone: phone || undefined,
-      docType: form.docType || undefined,
-      docNumber: form.docNumber.trim() || undefined,
-      gender: form.gender || undefined,
-      birthDate: form.birthDate || undefined,
-      specialty: form.specialty || undefined,
-      medicalRegistry: form.medicalRegistry.trim() || undefined,
-      licenseNumber: form.licenseNumber.trim() || undefined,
-      educationEntity: form.educationEntity.trim() || undefined,
-      graduationInstitution: form.graduationInstitution.trim() || undefined,
-      address: form.address.trim() || undefined,
-      city: form.city.trim() || undefined,
-      department: form.department.trim() || undefined,
-      country: form.country.trim() || undefined,
-      zip: form.zip.trim() || undefined,
-      ...(form.lat != null && form.lng != null
-        ? { lat: form.lat, lng: form.lng }
-        : {}),
+      docType: displayForm.docType || undefined,
+      docNumber: displayForm.docNumber.trim() || undefined,
+      ...(showCompany
+        ? {}
+        : {
+            gender: displayForm.gender || undefined,
+            birthDate: displayForm.birthDate || undefined,
+            specialty: displayForm.specialty || undefined,
+            medicalRegistry: displayForm.medicalRegistry.trim() || undefined,
+            licenseNumber: displayForm.licenseNumber.trim() || undefined,
+            educationEntity: displayForm.educationEntity.trim() || undefined,
+            graduationInstitution:
+              displayForm.graduationInstitution.trim() || undefined,
+            address: displayForm.address.trim() || undefined,
+            city: displayForm.city.trim() || undefined,
+            department: displayForm.department.trim() || undefined,
+            country: displayForm.country.trim() || undefined,
+            zip: displayForm.zip.trim() || undefined,
+            ...(displayForm.lat != null && displayForm.lng != null
+              ? { lat: displayForm.lat, lng: displayForm.lng }
+              : {}),
+          }),
     };
 
     setSavingAll(true);
@@ -252,7 +263,7 @@ export function DoctorProfileForm() {
         await companyRef.current.save();
         setMessage("Perfil y empresa actualizados.");
       } else {
-        setMessage("Perfil actualizado.");
+        setMessage("Cuenta actualizada.");
       }
     } catch (err) {
       setError(
@@ -267,30 +278,38 @@ export function DoctorProfileForm() {
     }
   }
 
-  if (query.isLoading || !form) {
-    return <p className="text-sm text-muted-foreground">Cargando perfil…</p>;
+  if (query.isPending) {
+    return <p className="text-sm text-muted-foreground">Cargando tu cuenta…</p>;
   }
 
-  if (query.isError) {
+  if (query.isError || !query.data) {
     return (
       <p className="text-sm text-destructive">
-        No se pudo cargar tu perfil de médico.
+        No se pudo cargar la información de tu cuenta.
       </p>
     );
   }
 
-  const profile = query.data!;
+  if (!displayForm) {
+    return <p className="text-sm text-muted-foreground">Cargando tu cuenta…</p>;
+  }
+
+  const profile = query.data;
   const saving =
     savingAll || mutation.isPending || uploadDocs.isPending;
   const showCompany = isCompanyMembership(profile);
 
   return (
-    <form onSubmit={onSubmit} className="max-w-3xl space-y-8">
+    <form onSubmit={onSubmit} className="max-w-4xl space-y-8">
       <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Perfil de médico</h1>
-        <p className="text-sm text-muted-foreground">
-          Puedes actualizar tus datos. El correo no se puede cambiar.
+        <h2 className="text-lg font-semibold text-foreground">
+          {showCompany ? "Representante legal" : "Información personal"}
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {showCompany
+            ? "Datos del representante legal de la empresa. El correo no se puede cambiar."
+            : "Datos de tu cuenta profesional. El correo no se puede cambiar."}
           {profile.verificationStatus
             ? ` Estado: ${
                 profile.verificationStatus === "in_review"
@@ -343,7 +362,7 @@ export function DoctorProfileForm() {
         <Field label="Nombre">
           <input
             className={inputClass}
-            value={form.firstName}
+            value={displayForm.firstName}
             onChange={(e) => set("firstName", e.target.value)}
             required
           />
@@ -351,19 +370,19 @@ export function DoctorProfileForm() {
         <Field label="Apellidos">
           <input
             className={inputClass}
-            value={form.lastName}
+            value={displayForm.lastName}
             onChange={(e) => set("lastName", e.target.value)}
             required
           />
         </Field>
         <Field label="Correo" hint="Solo lectura">
-          <input className={inputClass} value={form.email} disabled readOnly />
+          <input className={inputClass} value={displayForm.email} disabled readOnly />
         </Field>
         <Field label="Celular">
           <input
             className={inputClass}
             type="tel"
-            value={form.phone}
+            value={displayForm.phone}
             onChange={(e) => set("phone", e.target.value)}
             placeholder="+57 300 000 0000"
           />
@@ -371,7 +390,7 @@ export function DoctorProfileForm() {
         <Field label="Tipo de documento">
           <select
             className={inputClass}
-            value={form.docType}
+            value={displayForm.docType}
             onChange={(e) => set("docType", e.target.value)}
           >
             {DOC_TYPES.map((t) => (
@@ -384,14 +403,16 @@ export function DoctorProfileForm() {
         <Field label="Número de documento">
           <input
             className={inputClass}
-            value={form.docNumber}
+            value={displayForm.docNumber}
             onChange={(e) => set("docNumber", e.target.value)}
           />
         </Field>
+        {!showCompany ? (
+          <>
         <Field label="Género">
           <select
             className={inputClass}
-            value={form.gender}
+            value={displayForm.gender}
             onChange={(e) => set("gender", e.target.value)}
           >
             <option value="">Seleccionar</option>
@@ -406,71 +427,95 @@ export function DoctorProfileForm() {
           <input
             className={inputClass}
             type="date"
-            value={form.birthDate}
+            value={displayForm.birthDate}
             onChange={(e) => set("birthDate", e.target.value)}
             max={new Date().toISOString().slice(0, 10)}
           />
         </Field>
-        <Field label="Especialidad">
+        <Field label="Especialidad o perfil profesional">
           <select
             className={inputClass}
-            value={form.specialty}
+            value={displayForm.specialty}
             onChange={(e) => set("specialty", e.target.value)}
-            disabled={specialtiesQuery.isLoading || specialties.length === 0}
+            disabled={
+              specialtiesQuery.isLoading ||
+              laborProfilesQuery.isLoading ||
+              professionalProfiles.length === 0
+            }
           >
-            {specialtiesQuery.isLoading ? (
-              <option value="">Cargando especialidades…</option>
+            {specialtiesQuery.isLoading || laborProfilesQuery.isLoading ? (
+              <option value="">Cargando perfiles…</option>
             ) : null}
-            {!specialties.includes(form.specialty) && form.specialty ? (
-              <option value={form.specialty}>{form.specialty}</option>
+            {!professionalProfiles.includes(displayForm.specialty) && displayForm.specialty ? (
+              <option value={displayForm.specialty}>{displayForm.specialty}</option>
             ) : null}
-            {specialties.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
+            {medicalSpecialties.length > 0 ? (
+              <optgroup label="Especialidades médicas">
+                {medicalSpecialties.map((name) => (
+                  <option key={`med-${name}`} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
+            {laborProfiles.length > 0 ? (
+              <optgroup label="Técnico laboral">
+                {laborProfiles.map((name) => (
+                  <option key={`lab-${name}`} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
           </select>
         </Field>
-        <Field label="Registro médico">
+        <Field
+          label="Registro profesional"
+          hint="Registro médico, tarjeta profesional o certificación técnica."
+        >
           <input
             className={inputClass}
-            value={form.medicalRegistry}
+            value={displayForm.medicalRegistry}
             onChange={(e) => set("medicalRegistry", e.target.value)}
           />
         </Field>
         <Field label="Número de licencia">
           <input
             className={inputClass}
-            value={form.licenseNumber}
+            value={displayForm.licenseNumber}
             onChange={(e) => set("licenseNumber", e.target.value)}
           />
         </Field>
         <Field label="Entidad educativa">
           <input
             className={inputClass}
-            value={form.educationEntity}
+            value={displayForm.educationEntity}
             onChange={(e) => set("educationEntity", e.target.value)}
           />
         </Field>
         <Field label="Institución de graduación">
           <input
             className={inputClass}
-            value={form.graduationInstitution}
+            value={displayForm.graduationInstitution}
             onChange={(e) => set("graduationInstitution", e.target.value)}
           />
         </Field>
+          </>
+        ) : null}
       </div>
 
+      {!showCompany ? (
+        <>
       <AddressLocationPicker
         showAdminFields
         value={{
-          address: form.address,
-          lat: form.lat,
-          lng: form.lng,
-          city: form.city,
-          department: form.department,
-          country: form.country,
-          zip: form.zip,
+          address: displayForm.address,
+          lat: displayForm.lat,
+          lng: displayForm.lng,
+          city: displayForm.city,
+          department: displayForm.department,
+          country: displayForm.country,
+          zip: displayForm.zip,
         }}
         onChange={(next) => {
           setForm((prev) =>
@@ -493,7 +538,7 @@ export function DoctorProfileForm() {
       <div className="space-y-2">
         <h2 className="text-sm font-semibold">Documentos</h2>
         <p className="text-xs text-muted-foreground">
-          Cédula, registro médico y diploma (PDF, JPG o PNG).
+          Cédula, registro profesional y diploma o certificado (PDF, JPG o PNG).
         </p>
         <div className="grid gap-4 sm:grid-cols-3">
           <DocPreview
@@ -504,7 +549,7 @@ export function DoctorProfileForm() {
             onChange={setCedula}
           />
           <DocPreview
-            title="Registro médico"
+            title="Registro profesional"
             url={profile.medicalRegistryDocUrl}
             fileKey={profile.medicalRegistryDocKey}
             file={medicalRegistryDoc}
@@ -519,6 +564,9 @@ export function DoctorProfileForm() {
           />
         </div>
       </div>
+        </>
+      ) : null}
+
       </div>
 
       {showCompany ? <CompanyProfileSection ref={companyRef} /> : null}
@@ -526,13 +574,15 @@ export function DoctorProfileForm() {
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
 
-      <Button type="submit" disabled={saving}>
-        {saving
-          ? "Guardando…"
-          : showCompany
-            ? "Guardar perfil y empresa"
-            : "Guardar cambios"}
-      </Button>
+      <div className="flex justify-end">
+        <Button type="submit" disabled={saving}>
+          {saving
+            ? "Guardando…"
+            : showCompany
+              ? "Guardar cambios y empresa"
+              : "Guardar cambios"}
+        </Button>
+      </div>
     </form>
   );
 }

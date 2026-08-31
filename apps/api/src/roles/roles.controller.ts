@@ -14,6 +14,7 @@ import { RequirePermission } from '../auth/permissions.decorator';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { UpdateSpecialtyPlanPermissionsDto } from './dto/update-specialty-plan-permissions.dto';
+import { UpdatePermissionDto } from './dto/update-permission.dto';
 import { RolesService } from './roles.service';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
 
@@ -31,10 +32,22 @@ export class RolesController {
     return this.rolesService.findAll();
   }
 
+  @Get('roles/:id')
+  @RequirePermission('view_any_role')
+  findOne(@Param('id') id: string) {
+    return this.rolesService.findOne(id);
+  }
+
   @Get('permissions')
   @RequirePermission('view_any_role')
   findPermissions() {
     return this.rolesService.findPermissions();
+  }
+
+  @Patch('permissions/:id')
+  @RequirePermission('update_role')
+  updatePermission(@Param('id') id: string, @Body() dto: UpdatePermissionDto) {
+    return this.rolesService.updatePermission(id, dto.isActive);
   }
 
   @Post('roles')

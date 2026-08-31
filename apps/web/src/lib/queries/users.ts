@@ -8,6 +8,13 @@ export interface AdminUser {
   name: string;
   email: string;
   roles: { name: string }[];
+  doctor: {
+    empresa: boolean;
+    empresaReferida: boolean;
+    membershipType: string;
+    specialty: string | null;
+  } | null;
+  patient: { id: string } | null;
   createdAt: string;
 }
 

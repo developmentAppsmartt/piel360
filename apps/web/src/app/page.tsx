@@ -11,10 +11,10 @@ export default function Home() {
       </p>
       <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
         <Link href="/doctor" className="underline">
-          Soy doctor
+          Soy profesional
         </Link>
-        <Link href="/patient" className="underline">
-          Soy paciente
+        <Link href="/doctor/empresa" className="underline">
+          Soy empresa
         </Link>
         <Link href="/administrador" className="underline">
           Soy administrador

@@ -3,6 +3,7 @@ import { Alert, FlatList, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useBranding } from '../../../context/BrandingContext';
 import { useAuth } from '../../../context/AuthContext';
+import { isClinicalPanelUser } from '../../../types/auth';
 import { ApiError } from '../../../services/api.client';
 import { messagesService } from '../../../services/messages.service';
 import type { Conversation } from '../../../types/messages';
@@ -25,7 +26,7 @@ export function ChatThreadView({
 }: ChatThreadViewProps) {
   const branding = useBranding();
   const { user } = useAuth();
-  const isDoctor = user?.role === 'doctor';
+  const isDoctor = isClinicalPanelUser(user);
   const styles = useMemo(
     () => createChatStyles(branding.colors),
     [branding.colors],

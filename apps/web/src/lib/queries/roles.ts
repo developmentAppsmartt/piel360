@@ -6,24 +6,69 @@ import { apiClientFetch } from "@/lib/api-client";
 export interface Permission {
   id: string;
   name: string;
+  slug: string;
+  label?: string | null;
+  description?: string | null;
+  isActive: boolean;
+  kind: string;
+  panel?: string | null;
+  href?: string | null;
+  sortOrder?: number;
+  parentSlug?: string | null;
+}
+
+export interface RoleSpecialtyLink {
+  doctorSpecialtyId: string;
+  doctorSpecialty: {
+    id: string;
+    name: string;
+    slug: string;
+    roleId: string;
+  };
 }
 
 export interface Role {
   id: string;
   name: string;
+  label: string | null;
+  description: string | null;
+  color: string | null;
+  isActive: boolean;
+  laborTechnicianProfileId: string | null;
+  laborTechnicianProfile: {
+    id: string;
+    name: string;
+    slug: string;
+  } | null;
+  specialtyLinks: RoleSpecialtyLink[];
   permissions: Permission[];
   _count: { users: number };
 }
 
 export interface RoleInput {
-  name: string;
-  permissionIds: string[];
+  label: string;
+  name?: string;
+  description?: string;
+  color?: string;
+  isActive?: boolean;
+  permissionIds?: string[];
+  specialtyIds?: string[];
+  laborTechnicianProfileId?: string | null;
 }
 
 export function useRoles() {
   return useQuery({
     queryKey: ["admin", "roles"],
     queryFn: () => apiClientFetch<Role[]>("/admin/roles"),
+  });
+}
+
+export function useRole(id: string | undefined, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ["admin", "roles", id],
+    queryFn: () => apiClientFetch<Role>(`/admin/roles/${id}`),
+    enabled: Boolean(id) && (options?.enabled ?? true),
+    retry: false,
   });
 }
 
@@ -58,6 +103,7 @@ export function useUpdateRole(id: string) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "roles"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "roles", id] });
     },
   });
 }

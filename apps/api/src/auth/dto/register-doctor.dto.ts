@@ -2,6 +2,7 @@ import {
   IsDateString,
   IsEmail,
   IsIn,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
@@ -11,7 +12,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { LOCATION_TYPES, MEMBERSHIP_TYPES, type LocationType, type MembershipType } from '@piel360/shared';
+import { LOCATION_TYPES, type LocationType } from '@piel360/shared';
 
 export class RegisterDoctorDto {
   @IsEmail()
@@ -38,10 +39,10 @@ export class RegisterDoctorDto {
   @IsString()
   phoneTicket?: string;
 
-  /** Solo doctor / membresía empresa / empresa aliada. */
+  /** Solo profesionales individuales — empresas usan POST /auth/register/empresa. */
   @IsOptional()
-  @IsIn([...MEMBERSHIP_TYPES])
-  membershipType?: MembershipType;
+  @IsIn(['solo_doctor'])
+  membershipType?: 'solo_doctor';
 
   @IsOptional()
   @IsString()
@@ -60,9 +61,10 @@ export class RegisterDoctorDto {
   @IsString()
   gender?: string;
 
-  @IsOptional()
+  /** Nombre de la especialidad médica o del perfil de técnico laboral. */
   @IsString()
-  specialty?: string;
+  @IsNotEmpty()
+  specialty!: string;
 
   @IsOptional()
   @IsString()

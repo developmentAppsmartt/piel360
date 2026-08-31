@@ -4,6 +4,7 @@
 // el dashboard (solo accesible autenticado; si no, redirige a /admin/login).
 import { redirect } from "next/navigation";
 import { PanelShell } from "@/components/layout/panel-shell";
+import { fetchUserPermissionsFromCookies } from "@/lib/server-auth-permissions";
 import { getSession } from "@/lib/session";
 import { adminNav } from "./nav-config";
 
@@ -16,11 +17,13 @@ export default async function AdminPanelLayout({
   if (!session) redirect("/admin/login");
 
   const isMonitor = session.role === "monitor";
+  const freshPermissions = await fetchUserPermissionsFromCookies();
+  const permissions = freshPermissions ?? session.permissions ?? [];
 
   return (
     <PanelShell
       nav={adminNav}
-      user={{ email: session.email, role: session.role }}
+      user={{ email: session.email, role: session.role, permissions }}
       notificationCount={isMonitor ? 0 : 12}
       sidebarUser={{
         name: isMonitor ? "Moderador" : "Super Admin",

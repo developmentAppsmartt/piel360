@@ -1,4 +1,5 @@
 import type { Role } from '../../../types/auth';
+import { isClinicalPanelRole } from '../../../types/auth';
 import type { DoctorProfile } from '../../../services/doctors.service';
 import type { PatientProfileDisplay } from './patient';
 import {
@@ -437,12 +438,15 @@ export function buildProfileContent({
   patient,
   doctor,
 }: BuildProfileOptions): ProfileContent {
-  if (role === 'doctor') {
+  if (isClinicalPanelRole(role)) {
+    const isEmpresa = role === 'empresa';
     const displayName = doctor
       ? doctorDisplayName(doctor, userName)
-      : userName.startsWith('Dr.')
+      : isEmpresa
         ? userName
-        : `Dr. ${userName}`;
+        : userName.startsWith('Dr.')
+          ? userName
+          : `Dr. ${userName}`;
     const registry =
       doctor?.licenseNumber?.trim() ||
       doctor?.medicalRegistry?.trim() ||

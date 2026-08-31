@@ -1,11 +1,8 @@
 import type { Role } from "@piel360/shared";
-import { Shield } from "lucide-react";
-import { AdminSidebarNav } from "@/components/admin/admin-sidebar-nav";
-import { Logo } from "./logo";
+import { isClinicalPanelRole } from "@piel360/shared";
 import { filterNavByFeatures, type NavItem } from "./nav-items";
-import { PanelHeader } from "./panel-header";
-import { SidebarFooter } from "./sidebar-footer";
-import { SidebarNav } from "./sidebar-nav";
+import { PanelLayoutClient } from "./panel-layout-client";
+import type { ResolvedNavItem } from "./sidebar-nav";
 
 export function PanelShell({
   nav,
@@ -22,10 +19,10 @@ export function PanelShell({
     empresa?: boolean;
     empresaReferida?: boolean;
     verificationStatus?: string | null;
+    permissions?: string[];
   };
   children: React.ReactNode;
   notificationCount?: number;
-  /** Perfil inferior del sidebar + cerrar sesión. */
   sidebarUser?: {
     name: string;
     subtitle: string;
@@ -33,7 +30,6 @@ export function PanelShell({
     enrichFromDoctorProfile?: boolean;
     monitorHint?: string;
   };
-  /** Oculta «Cerrar sesión» del header si ya está en el sidebar. */
   hideHeaderLogout?: boolean;
 }) {
   const visibleNav = filterNavByFeatures(nav, {
@@ -41,96 +37,69 @@ export function PanelShell({
     empresa: user.empresa,
     empresaReferida: user.empresaReferida,
     verificationStatus: user.verificationStatus,
+    permissions: user.permissions,
   });
 
   function resolveItems(
     items: ReturnType<typeof filterNavByFeatures>,
-  ): Parameters<typeof SidebarNav>[0]["items"] {
-    return items.map(
-      ({
+  ): ResolvedNavItem[] {
+    const mapItem = (
+      {
         icon: Icon,
         children,
         roles: _roles,
         requiresEmpresa: _e,
         requiresEmpresaReferida: _er,
         allowedWhilePending: _p,
+        permissionsAny: _pa,
         badgeKey: _bk,
         ...item
-      }) => ({
-        label: item.label,
-        href: item.href,
-        icon: <Icon className="size-5 shrink-0" />,
-        children: children?.length
-          ? children.map(
-              ({
-                icon: ChildIcon,
-                roles: _r,
-                children: _c,
-                requiresEmpresa: _ce,
-                requiresEmpresaReferida: _cer,
-                allowedWhilePending: _cp,
-                badgeKey: _cbk,
-                ...child
-              }) => ({
-                label: child.label,
-                href: child.href,
-                icon: <ChildIcon className="size-4 shrink-0" />,
-              }),
-            )
-          : undefined,
-      }),
-    );
+      }: (typeof items)[number],
+      depth: number,
+    ): ResolvedNavItem => ({
+      label: item.label,
+      href: item.href,
+      icon:
+        depth === 0 ? (
+          <Icon className="size-5 shrink-0" />
+        ) : (
+          <Icon className="size-4 shrink-0" />
+        ),
+      children: children?.length
+        ? children.map((child) => mapItem(child, depth + 1))
+        : undefined,
+    });
+
+    return items.map((item) => mapItem(item, 0));
   }
 
   const resolvedNav = resolveItems(visibleNav);
   const isMonitor = user.role === "monitor";
 
   return (
-    <div className="flex min-h-full flex-1 bg-[#F5F6FA] dark:bg-background">
-      <aside className="hidden min-h-full w-72 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
-        <div className="shrink-0 overflow-hidden border-b border-sidebar-border px-4 pt-0 pb-0">
-          <Logo fullWidth />
-        </div>
-        {isMonitor ? (
-          <div className="px-3 pb-2">
-            <div className="flex items-center gap-2 rounded-full bg-primary/15 px-3 py-1.5 text-xs font-bold tracking-wide text-primary uppercase">
-              <Shield className="size-3.5" />
-              Rol moderador
-            </div>
-          </div>
-        ) : null}
-        {isMonitor ? (
-          <AdminSidebarNav items={resolvedNav} enablePendingBadge />
-        ) : (
-          <SidebarNav items={resolvedNav} />
-        )}
-        {sidebarUser ? (
-          <SidebarFooter
-            name={sidebarUser.name}
-            subtitle={sidebarUser.subtitle}
-            avatarUrl={sidebarUser.avatarUrl}
-            enrichFromDoctorProfile={
-              sidebarUser.enrichFromDoctorProfile ?? user.role === "doctor"
+    <PanelLayoutClient
+      resolvedNav={resolvedNav}
+      isMonitor={isMonitor}
+      user={user}
+      notificationCount={notificationCount}
+      sidebarUser={
+        sidebarUser
+          ? {
+              ...sidebarUser,
+              enrichFromDoctorProfile:
+                sidebarUser.enrichFromDoctorProfile ??
+                isClinicalPanelRole(user.role),
+              monitorHint:
+                isMonitor
+                  ? (sidebarUser.monitorHint ??
+                    "Validar profesionales mantiene la confianza de la plataforma.")
+                  : sidebarUser.monitorHint,
             }
-            monitorHint={
-              isMonitor
-                ? (sidebarUser.monitorHint ??
-                  "Validar profesionales mantiene la confianza de la plataforma.")
-                : sidebarUser.monitorHint
-            }
-          />
-        ) : null}
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <PanelHeader
-          email={user.email}
-          role={user.role}
-          notificationCount={notificationCount}
-          showLogout={!hideHeaderLogout && !sidebarUser}
-        />
-        <main className="flex-1 space-y-6 p-6 md:p-8">{children}</main>
-      </div>
-    </div>
+          : undefined
+      }
+      hideHeaderLogout={hideHeaderLogout}
+    >
+      {children}
+    </PanelLayoutClient>
   );
 }

@@ -17,6 +17,7 @@ export type SpecialtyPlanPermissionRow = {
   roleId: string;
   roleSlug: string;
   label: string;
+  kind: 'specialty' | 'labor_technician';
   providers: Record<AnalysisProviderSlug, boolean>;
 };
 
@@ -29,6 +30,72 @@ export class SpecialtyAccessService {
 
   providerPermissionName(slug: AnalysisProviderSlug): string {
     return PROVIDER_USAGE_PERMISSIONS[slug];
+  }
+
+  private providersFromRolePermissions(
+    permissionNames: Set<string>,
+  ): Record<AnalysisProviderSlug, boolean> {
+    return Object.fromEntries(
+      ANALYSIS_PROVIDER_SLUGS.map((slug) => [
+        slug,
+        permissionNames.has(this.providerPermissionName(slug)),
+      ]),
+    ) as Record<AnalysisProviderSlug, boolean>;
+  }
+
+  async resolveProfessionalRoleSlug(
+    label: string | null | undefined,
+  ): Promise<string | null> {
+    const specialty = await this.specialtiesService.findByName(label);
+    if (specialty) return specialty.slug;
+
+    const trimmed = label?.trim();
+    if (!trimmed) return null;
+
+    const labor = await this.prisma.laborTechnicianProfile.findFirst({
+      where: { name: trimmed, isActive: true },
+    });
+    return labor?.slug ?? null;
+  }
+
+  async assertProfessionalRoleSlug(
+    label: string | null | undefined,
+  ): Promise<string> {
+    const trimmed = label?.trim();
+    if (!trimmed) {
+      throw new BadRequestException(
+        'Selecciona una especialidad médica o un perfil de técnico laboral.',
+      );
+    }
+
+    const specialty = await this.specialtiesService.findByName(trimmed);
+    if (specialty) {
+      const role = await this.prisma.role.findUnique({
+        where: { name: specialty.slug },
+      });
+      if (!role) {
+        throw new BadRequestException(
+          'La especialidad seleccionada no está configurada. Contacta al administrador.',
+        );
+      }
+      return specialty.slug;
+    }
+
+    const labor = await this.prisma.laborTechnicianProfile.findFirst({
+      where: { name: trimmed, isActive: true },
+      include: { role: true },
+    });
+    if (!labor) {
+      throw new BadRequestException(
+        'Especialidad médica o perfil de técnico laboral no válido.',
+      );
+    }
+    if (!labor.role) {
+      throw new BadRequestException(
+        'El perfil de técnico laboral no está configurado. Contacta al administrador.',
+      );
+    }
+    return labor.slug;
   }
 
   async getAllowedProviderSlugs(userId: bigint): Promise<AnalysisProviderSlug[]> {
@@ -69,7 +136,7 @@ export class SpecialtyAccessService {
     }
     if (!allowed.has(providerSlug)) {
       throw new ForbiddenException(
-        'Tu especialidad no tiene permiso para este tipo de análisis. Contacta al administrador.',
+        'Tu especialidad o perfil técnico no tiene permiso para este tipo de análisis. Contacta al administrador.',
       );
     }
   }
@@ -78,19 +145,20 @@ export class SpecialtyAccessService {
     userId: bigint,
     specialtyLabel: string | null | undefined,
   ): Promise<void> {
-    const specialty = await this.specialtiesService.findByName(specialtyLabel);
+    const nextSlug = await this.resolveProfessionalRoleSlug(specialtyLabel);
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      include: { roles: { include: { specialty: true } } },
+      include: {
+        roles: { include: { specialty: true, laborTechnicianProfile: true } },
+      },
     });
     if (!user) throw new NotFoundException('Usuario no encontrado');
 
-    const currentSpecialtyRoles = user.roles
-      .filter((role) => role.specialty)
+    const currentProfessionalRoles = user.roles
+      .filter((role) => role.specialty || role.laborTechnicianProfile)
       .map((role) => role.name);
 
-    const nextSlug = specialty?.slug ?? null;
-    const disconnect = currentSpecialtyRoles
+    const disconnect = currentProfessionalRoles
       .filter((slug) => slug !== nextSlug)
       .map((name) => ({ name }));
 
@@ -108,31 +176,52 @@ export class SpecialtyAccessService {
   }
 
   async getSpecialtyPlanMatrix(): Promise<SpecialtyPlanPermissionRow[]> {
-    const specialties = await this.prisma.doctorSpecialty.findMany({
-      include: {
-        role: { include: { permissions: true } },
-      },
-      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-    });
+    const [specialties, laborProfiles] = await Promise.all([
+      this.prisma.doctorSpecialty.findMany({
+        include: {
+          role: { include: { permissions: true } },
+        },
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      }),
+      this.prisma.laborTechnicianProfile.findMany({
+        include: {
+          role: { include: { permissions: true } },
+        },
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      }),
+    ]);
 
-    return specialties.map((specialty) => {
-      const permissionNames = new Set(
-        specialty.role.permissions.map((p) => p.name),
-      );
-      const providers = Object.fromEntries(
-        ANALYSIS_PROVIDER_SLUGS.map((slug) => [
-          slug,
-          permissionNames.has(this.providerPermissionName(slug)),
-        ]),
-      ) as Record<AnalysisProviderSlug, boolean>;
+    const specialtyRows = specialties
+      .filter((specialty) => specialty.role)
+      .map((specialty) => {
+        const permissionNames = new Set(
+          specialty.role.permissions.map((p) => p.name),
+        );
+        return {
+          roleId: specialty.roleId.toString(),
+          roleSlug: specialty.slug,
+          label: specialty.name,
+          kind: 'specialty' as const,
+          providers: this.providersFromRolePermissions(permissionNames),
+        };
+      });
 
-      return {
-        roleId: specialty.roleId.toString(),
-        roleSlug: specialty.slug,
-        label: specialty.name,
-        providers,
-      };
-    });
+    const laborRows = laborProfiles
+      .filter((profile) => profile.role)
+      .map((profile) => {
+        const permissionNames = new Set(
+          profile.role!.permissions.map((p) => p.name),
+        );
+        return {
+          roleId: profile.role!.id.toString(),
+          roleSlug: profile.slug,
+          label: profile.name,
+          kind: 'labor_technician' as const,
+          providers: this.providersFromRolePermissions(permissionNames),
+        };
+      });
+
+    return [...specialtyRows, ...laborRows];
   }
 
   async updateSpecialtyPlanPermissions(
@@ -141,10 +230,16 @@ export class SpecialtyAccessService {
   ): Promise<SpecialtyPlanPermissionRow> {
     const role = await this.prisma.role.findUnique({
       where: { id: BigInt(roleId) },
-      include: { permissions: true, specialty: true },
+      include: {
+        permissions: true,
+        specialty: true,
+        laborTechnicianProfile: true,
+      },
     });
-    if (!role?.specialty) {
-      throw new NotFoundException('Rol de especialidad no encontrado');
+    if (!role?.specialty && !role?.laborTechnicianProfile) {
+      throw new NotFoundException(
+        'Rol de especialidad o técnico laboral no encontrado',
+      );
     }
 
     const connect: { name: string }[] = [];
@@ -168,9 +263,9 @@ export class SpecialtyAccessService {
     });
 
     const matrix = await this.getSpecialtyPlanMatrix();
-    const row = matrix.find((r) => r.roleSlug === role.specialty!.slug);
+    const row = matrix.find((r) => r.roleId === roleId);
     if (!row) {
-      throw new NotFoundException('No se pudo actualizar el rol de especialidad');
+      throw new NotFoundException('No se pudo actualizar el rol profesional');
     }
     return row;
   }

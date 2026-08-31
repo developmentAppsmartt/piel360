@@ -8,6 +8,7 @@ export type SpecialtyPlanPermissionRow = {
   roleId: string;
   roleSlug: string;
   label: string;
+  kind: "specialty" | "labor_technician";
   providers: Record<AnalysisProviderSlug, boolean>;
 };
 

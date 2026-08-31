@@ -7,6 +7,7 @@ export type Specialty = {
   id: string;
   name: string;
   slug: string;
+  description: string | null;
   sortOrder: number;
   isActive: boolean;
   roleId: string;
@@ -16,14 +17,16 @@ export type Specialty = {
 export type SpecialtyInput = {
   name: string;
   slug?: string;
+  description?: string;
   sortOrder?: number;
   isActive?: boolean;
 };
 
-export function useSpecialties() {
+export function useSpecialties(enabled = true) {
   return useQuery({
     queryKey: ["specialties"],
     queryFn: () => apiClientFetch<Specialty[]>("/specialties"),
+    enabled,
   });
 }
 

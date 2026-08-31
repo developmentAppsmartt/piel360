@@ -16,6 +16,9 @@ export interface Subscription {
     analysisLimit: number;
     durationDays: number;
     price: string;
+    maxUsers?: number;
+    modules?: string[];
+    roleLimits?: Record<string, number>;
     provider: { slug: string; name: string };
   };
 }
@@ -43,17 +46,38 @@ export interface SubscriptionAdmin {
     id: string;
     name: string;
     email: string;
+    accountKind: "empresa" | "profesional" | "paciente";
+    accountKindLabel: string;
   };
   plan: {
     id: string;
     name: string;
-    provider: { name: string };
+    planType: "individual" | "business";
+    analysisLimit: number;
+    price: string;
+    durationDays: number;
+    maxUsers: number;
+    modules: string[];
+    roleLimits: Record<string, number>;
+    analysisProviderIds: string[];
+    provider: {
+      id: string;
+      name: string;
+      slug: string;
+      displayLabel?: string | null;
+    };
+    providers?: {
+      id: string;
+      name: string;
+      slug: string;
+      displayLabel?: string | null;
+    }[];
   };
 }
 
 export interface SubscriptionInput {
-  userId: string;
-  planId: string;
+  userId?: string;
+  planId?: string;
   status?: "active" | "pending" | "cancelled";
   endsAt?: string;
 }

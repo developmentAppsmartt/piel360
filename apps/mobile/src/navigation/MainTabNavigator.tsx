@@ -9,7 +9,7 @@ import {
   patientsService,
   type AnalysisRequest,
 } from '../services/patients.service';
-import { isDoctorVerificationActive } from '../types/auth';
+import { isDoctorVerificationActive, isClinicalPanelUser } from '../types/auth';
 import { DoctorHomeView } from '../views/doctor/home/DoctorHomeView';
 import { DoctorPatientsView } from '../views/doctor/patients/DoctorPatientsView';
 import { HomeView } from '../views/home/HomeView';
@@ -59,7 +59,7 @@ export function MainTabNavigator() {
   const insets = useSafeAreaInsets();
   const branding = useBranding();
   const { user, refreshDoctorVerification } = useAuth();
-  const isDoctor = user?.role === 'doctor';
+  const isDoctor = isClinicalPanelUser(user);
   const doctorActive =
     !isDoctor || isDoctorVerificationActive(user?.verificationStatus);
   const tabs = useMemo(() => {

@@ -2,9 +2,12 @@ import { jwtVerify } from "jose";
 import { type NextRequest, NextResponse } from "next/server";
 import {
   DOCTOR_PANEL_ROLES,
+  isClinicalPanelRole,
   isDoctorVerificationActive,
   type Role,
 } from "@piel360/shared";
+import { doctorRouteAllowed } from "@/lib/doctor-panel-permissions";
+import { adminRouteAllowed } from "@/lib/admin-panel-permissions";
 
 /**
  * Protección de rutas por rol (equivalente a `EnsurePanelRole`) y gate de
@@ -27,8 +30,11 @@ type Panel = (typeof PANELS)[number];
 const PUBLIC_PATHS: Record<Panel, string[]> = {
   doctor: [
     "/doctor",
+    "/doctor/empresa",
     "/doctor/login",
+    "/doctor/login/empresa",
     "/doctor/register",
+    "/doctor/register/empresa",
     "/doctor/password-reset/request",
     "/doctor/password-reset/reset",
   ],
@@ -50,10 +56,12 @@ const DOCTOR_PENDING_ALLOWED_PREFIXES = [
   "/doctor/planes",
   "/doctor/facturacion",
   "/doctor/configuracion",
+  "/doctor/mapas",
 ];
 
 interface SessionPayload {
   role?: Role;
+  permissions?: string[];
   surveyCompletedAt?: string | null;
   verificationStatus?: string;
 }
@@ -89,6 +97,35 @@ function doctorPathAllowedWhilePending(pathname: string): boolean {
   );
 }
 
+async function getFreshPermissions(
+  token: string | undefined,
+): Promise<string[] | undefined> {
+  if (!token) return undefined;
+  try {
+    const apiUrl =
+      process.env.API_URL ??
+      process.env.NEXT_PUBLIC_API_URL ??
+      "http://localhost:3000/api";
+    const res = await fetch(`${apiUrl}/auth/me/permissions`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return undefined;
+    const data = (await res.json()) as { permissions?: string[] };
+    return data.permissions;
+  } catch {
+    return undefined;
+  }
+}
+
+async function getClinicalPanelPermissions(
+  token: string | undefined,
+  session: SessionPayload,
+): Promise<string[] | undefined> {
+  if (!isClinicalPanelRole(session.role) || !token) return session.permissions;
+  return (await getFreshPermissions(token)) ?? session.permissions;
+}
+
 async function getSession(
   token: string | undefined,
 ): Promise<SessionPayload | null> {
@@ -112,11 +149,23 @@ export async function proxy(request: NextRequest) {
 
   if (PUBLIC_PATHS[panel].includes(pathname)) return NextResponse.next();
 
-  const session = await getSession(request.cookies.get("piel360_token")?.value);
+  const token = request.cookies.get("piel360_token")?.value;
+  const session = await getSession(token);
 
   if (!session || !roleAllowedForPanel(panel, session.role)) {
     return NextResponse.redirect(new URL(`/${panel}/login`, request.url));
   }
+
+  const clinicalPermissions =
+    panel === "doctor" && isClinicalPanelRole(session.role)
+      ? await getClinicalPanelPermissions(token, session)
+      : session.permissions;
+
+  const adminPermissions =
+    panel === "admin" &&
+    (session.role === "superadmin" || session.role === "monitor")
+      ? ((await getFreshPermissions(token)) ?? session.permissions)
+      : session.permissions;
 
   if (
     panel === "patient" &&
@@ -128,7 +177,7 @@ export async function proxy(request: NextRequest) {
 
   if (
     panel === "doctor" &&
-    session.role === "doctor" &&
+    isClinicalPanelRole(session.role) &&
     !isDoctorVerificationActive(session.verificationStatus) &&
     !doctorPathAllowedWhilePending(pathname)
   ) {
@@ -139,11 +188,29 @@ export async function proxy(request: NextRequest) {
   }
 
   if (
+    panel === "doctor" &&
+    isClinicalPanelRole(session.role) &&
+    isDoctorVerificationActive(session.verificationStatus) &&
+    !doctorRouteAllowed(pathname, clinicalPermissions)
+  ) {
+    return NextResponse.redirect(new URL("/doctor/home", request.url));
+  }
+
+  if (
     panel === "admin" &&
     session.role === "monitor" &&
-    !monitorPathAllowed(pathname)
+    !monitorPathAllowed(pathname) &&
+    !adminRouteAllowed(pathname, adminPermissions)
   ) {
     return NextResponse.redirect(new URL("/admin/verificacion", request.url));
+  }
+
+  if (
+    panel === "admin" &&
+    session.role === "superadmin" &&
+    !adminRouteAllowed(pathname, adminPermissions)
+  ) {
+    return NextResponse.redirect(new URL("/admin", request.url));
   }
 
   return NextResponse.next();

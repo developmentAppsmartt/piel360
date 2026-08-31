@@ -16,6 +16,7 @@ import { SkiniverService } from '../skiniver/skiniver.service';
 import { StorageService } from '../storage/storage.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
+import { getAnalysisProviderIdBySlug } from '../plans/plan-providers.util';
 import type { JwtPayload } from '../auth/types';
 import { AnalysisImageUrlsService } from './analysis-image-urls.service';
 import type { ConfirmAnalysisDto } from './dto/confirm-analysis.dto';
@@ -129,6 +130,10 @@ export class AnalysesService {
     }
 
     const analysis = await this.prisma.$transaction(async (tx) => {
+      const skiniverProviderId = await getAnalysisProviderIdBySlug(
+        tx,
+        SKINIVER_PROVIDER_SLUG,
+      );
       const remainingInTx = await this.subscriptions.remainingCredits(
         tx,
         subscription.id,
@@ -144,7 +149,7 @@ export class AnalysesService {
         data: {
           patientId: BigInt(dto.patientId),
           userId,
-          providerId: subscription.plan.analysisProviderId,
+          providerId: skiniverProviderId,
           imagePath: `analyses/pending/original.jpg`,
           bodyRegion: dto.bodyRegion,
           xCoord: dto.xCoord,

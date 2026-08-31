@@ -14,6 +14,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
+import { getAnalysisProviderIdBySlug } from '../plans/plan-providers.util';
 import type { CreateYoucamAnalysisDto } from './dto/create-youcam-analysis.dto';
 import { YOUCAM_POLL_QUEUE, type YoucamPollJobData } from './queues';
 import { YouCamService } from './youcam.service';
@@ -159,11 +160,16 @@ export class YoucamAnalysesService {
       throw err;
     }
 
+    const youcamProviderId = await getAnalysisProviderIdBySlug(
+      this.prisma,
+      YOUCAM_PROVIDER_SLUG,
+    );
+
     const analysis = await this.prisma.analysis.create({
       data: {
         patientId: BigInt(dto.patientId),
         userId,
-        providerId: subscription.plan.analysisProviderId,
+        providerId: youcamProviderId,
         youcamTaskId: taskId,
         imagePath: 'youcam',
         bodyRegion: dto.bodyRegion,

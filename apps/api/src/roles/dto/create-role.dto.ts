@@ -1,10 +1,44 @@
-import { IsArray, IsNumberString, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsNumberString,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 
 export class CreateRoleDto {
   @IsString()
-  name!: string;
+  @MinLength(2)
+  label!: string;
 
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  color?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+
+  @IsOptional()
   @IsArray()
   @IsNumberString({}, { each: true })
-  permissionIds!: string[];
+  permissionIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsNumberString({}, { each: true })
+  specialtyIds?: string[];
+
+  @IsOptional()
+  @IsNumberString()
+  laborTechnicianProfileId?: string;
 }

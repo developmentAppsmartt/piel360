@@ -1,11 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CloudUpload, LocateFixed, Search } from "lucide-react";
-import type { MembershipType } from "@piel360/shared";
-import { LocationPickerMap, type LatLng } from "@/components/maps";
+import { CloudUpload } from "lucide-react";
+import { LocationPickerSection, useLocationPicker } from "@/components/auth/location-picker-section";
+import {
+  digitsOnly,
+  Field,
+  inputClass,
+  normalizePhoneDigits,
+  splitFullName,
+} from "@/components/auth/auth-form-primitives";
 import {
   establishSessionAction,
   type AuthActionState,
@@ -14,6 +20,7 @@ import { sendPhoneOtpAction, verifyPhoneOtpAction } from "@/lib/actions/phone-ot
 import { homeForUser } from "@/lib/auth-redirect";
 import { ApiError } from "@/lib/api-error";
 import { registerDoctorWithDocuments } from "@/lib/doctor-register-client";
+import { useLaborTechnicianProfiles } from "@/lib/queries/labor-technician-profiles";
 import { useSpecialties } from "@/lib/queries/specialties";
 
 const DOC_TYPES = ["CC", "CE", "TI", "PA"] as const;
@@ -23,75 +30,6 @@ const GENDER_OPTIONS = [
   { value: "male", label: "Masculino" },
   { value: "other", label: "Otro" },
 ] as const;
-
-const MEMBERSHIP_OPTIONS: {
-  value: MembershipType;
-  label: string;
-  hint: string;
-}[] = [
-  {
-    value: "solo_doctor",
-    label: "Solo doctor",
-    hint: "Consulta individual sin equipo.",
-  },
-  {
-    value: "empresa",
-    label: "Membresía empresa",
-    hint: "Equipos según plan de espacios.",
-  },
-  {
-    value: "empresa_aliada",
-    label: "Empresa aliada",
-    hint: "Equipos con programa de referidos.",
-  },
-];
-
-type GeocodeResult = {
-  display_name: string;
-  lat: string;
-  lon: string;
-};
-
-function splitFullName(fullName: string): { firstName: string; lastName: string } {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return { firstName: "", lastName: "" };
-  if (parts.length === 1) return { firstName: parts[0], lastName: parts[0] };
-  return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
-}
-
-function digitsOnly(value: string) {
-  return value.replace(/\D/g, "");
-}
-
-function Field({
-  label,
-  children,
-  required,
-  hint,
-}: {
-  label: string;
-  children: React.ReactNode;
-  required?: boolean;
-  hint?: string;
-}) {
-  return (
-    <label className="flex flex-col gap-1.5 text-sm text-zinc-900">
-      <span className="font-medium">
-        {label}
-        {required ? (
-          <span className="text-red-500"> *</span>
-        ) : (
-          <span className="font-normal text-zinc-400"> (opcional)</span>
-        )}
-      </span>
-      {hint ? <span className="text-xs text-zinc-500">{hint}</span> : null}
-      {children}
-    </label>
-  );
-}
-
-const inputClass =
-  "h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-sky-500 disabled:bg-zinc-50";
 
 function DocUploadCard({
   title,
@@ -123,8 +61,11 @@ function DocUploadCard({
 
 export function DoctorRegisterForm() {
   const router = useRouter();
+  const locationPicker = useLocationPicker();
   const specialtiesQuery = useSpecialties();
+  const laborProfilesQuery = useLaborTechnicianProfiles();
   const specialties = specialtiesQuery.data?.map((item) => item.name) ?? [];
+  const laborProfiles = laborProfilesQuery.data?.map((item) => item.name) ?? [];
   const [state, setState] = useState<AuthActionState>({});
   const [isPending, setIsPending] = useState(false);
 
@@ -136,35 +77,15 @@ export function DoctorRegisterForm() {
   const [docNumber, setDocNumber] = useState("");
   const [gender, setGender] = useState("");
   const [birthDate, setBirthDate] = useState("");
+  const [professionalKind, setProfessionalKind] = useState<"specialty" | "labor" | "">("");
   const [specialty, setSpecialty] = useState("");
+  const [laborProfile, setLaborProfile] = useState("");
   const [medicalRegistry, setMedicalRegistry] = useState("");
   const [licenseNumber, setLicenseNumber] = useState("");
   const [educationEntity, setEducationEntity] = useState("");
   const [graduationInstitution, setGraduationInstitution] = useState("");
-  const [membershipType, setMembershipType] =
-    useState<MembershipType>("solo_doctor");
-  const [addressQuery, setAddressQuery] = useState("");
-  const [address, setAddress] = useState("");
-  const [suggestions, setSuggestions] = useState<GeocodeResult[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [location, setLocation] = useState<LatLng | null>(null);
-  const [geoError, setGeoError] = useState<string | null>(null);
-  const [geoLoading, setGeoLoading] = useState(false);
-  const searchAbort = useRef<AbortController | null>(null);
-  /** Evita re-buscar en Nominatim cuando el texto viene del mapa / GPS. */
-  const suppressAddressSearch = useRef(false);
-
-  useEffect(() => {
-    if (!specialty && specialties[0]) {
-      setSpecialty(specialties[0]);
-    }
-  }, [specialties, specialty]);
-
   const [cedula, setCedula] = useState<File | null>(null);
-  const [medicalRegistryDoc, setMedicalRegistryDoc] = useState<File | null>(
-    null,
-  );
+  const [medicalRegistryDoc, setMedicalRegistryDoc] = useState<File | null>(null);
   const [diploma, setDiploma] = useState<File | null>(null);
 
   const phone = digitsOnly(phoneDisplay);
@@ -172,6 +93,7 @@ export function DoctorRegisterForm() {
 
   const [otpCode, setOtpCode] = useState("");
   const [phoneTicket, setPhoneTicket] = useState<string | null>(null);
+  const [verifiedPhone, setVerifiedPhone] = useState<string | null>(null);
   const [otpSent, setOtpSent] = useState(false);
   const [otpError, setOtpError] = useState<string | null>(null);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
@@ -181,6 +103,7 @@ export function DoctorRegisterForm() {
     setOtpSent(false);
     setOtpCode("");
     setPhoneTicket(null);
+    setVerifiedPhone(null);
     setOtpError(null);
   }
 
@@ -206,112 +129,7 @@ export function DoctorRegisterForm() {
       return;
     }
     setPhoneTicket(result.ticket);
-  }
-
-  useEffect(() => {
-    if (suppressAddressSearch.current) {
-      suppressAddressSearch.current = false;
-      return;
-    }
-
-    const q = addressQuery.trim();
-    if (q.length < 3) {
-      setSuggestions([]);
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      searchAbort.current?.abort();
-      const controller = new AbortController();
-      searchAbort.current = controller;
-      setSearchLoading(true);
-      try {
-        const url = new URL("https://nominatim.openstreetmap.org/search");
-        url.searchParams.set("q", q);
-        url.searchParams.set("format", "json");
-        url.searchParams.set("addressdetails", "1");
-        url.searchParams.set("limit", "5");
-        url.searchParams.set("countrycodes", "co");
-        const res = await fetch(url.toString(), {
-          signal: controller.signal,
-          headers: { Accept: "application/json" },
-        });
-        if (!res.ok) throw new Error("geocode");
-        const data = (await res.json()) as GeocodeResult[];
-        setSuggestions(data);
-        setSearchOpen(true);
-      } catch (err) {
-        if ((err as Error).name !== "AbortError") {
-          setSuggestions([]);
-        }
-      } finally {
-        setSearchLoading(false);
-      }
-    }, 400);
-
-    return () => {
-      clearTimeout(timer);
-      searchAbort.current?.abort();
-    };
-  }, [addressQuery]);
-
-  async function reverseGeocode(lat: number, lng: number) {
-    try {
-      const url = new URL("https://nominatim.openstreetmap.org/reverse");
-      url.searchParams.set("lat", String(lat));
-      url.searchParams.set("lon", String(lng));
-      url.searchParams.set("format", "json");
-      const res = await fetch(url.toString(), {
-        headers: { Accept: "application/json" },
-      });
-      if (!res.ok) return;
-      const data = (await res.json()) as { display_name?: string };
-      if (!data.display_name) return;
-      suppressAddressSearch.current = true;
-      setAddress(data.display_name);
-      setAddressQuery(data.display_name);
-      setSuggestions([]);
-      setSearchOpen(false);
-    } catch {
-      /* el pin basta */
-    }
-  }
-
-  function selectSuggestion(item: GeocodeResult) {
-    const lat = Number(item.lat);
-    const lng = Number(item.lon);
-    suppressAddressSearch.current = true;
-    setAddress(item.display_name);
-    setAddressQuery(item.display_name);
-    setLocation({ lat, lng });
-    setSuggestions([]);
-    setSearchOpen(false);
-    setGeoError(null);
-  }
-
-  function useCurrentLocation() {
-    setGeoError(null);
-    if (!navigator.geolocation) {
-      setGeoError("Tu navegador no soporta geolocalización.");
-      return;
-    }
-    setGeoLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setLocation({ lat, lng });
-        setGeoLoading(false);
-        await reverseGeocode(lat, lng);
-      },
-      () => {
-        setGeoError(
-          "No se pudo obtener tu ubicación. Busca la dirección o marca el mapa.",
-        );
-        setGeoLoading(false);
-      },
-      { enableHighAccuracy: true, timeout: 15000 },
-    );
+    setVerifiedPhone(normalizePhoneDigits(phone));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -328,7 +146,7 @@ export function DoctorRegisterForm() {
       setState({ error: "Verifica tu celular antes de continuar." });
       return;
     }
-    if (!location) {
+    if (!locationPicker.location) {
       setState({
         error: "Busca o marca la ubicación exacta de tu consulta.",
       });
@@ -344,6 +162,23 @@ export function DoctorRegisterForm() {
       setState({ error: "Ingresa el número de documento." });
       return;
     }
+    if (!professionalKind) {
+      setState({ error: "Elige si eres especialista médico o técnico laboral." });
+      return;
+    }
+    if (professionalKind === "specialty" && !specialty.trim()) {
+      setState({ error: "Selecciona una especialidad médica." });
+      return;
+    }
+    if (professionalKind === "labor" && !laborProfile.trim()) {
+      setState({ error: "Selecciona un perfil de técnico laboral." });
+      return;
+    }
+
+    const resolvedSpecialty =
+      professionalKind === "labor" ? laborProfile.trim() : specialty.trim();
+
+    const phoneForRegister = verifiedPhone ?? normalizePhoneDigits(phoneDisplay);
 
     setIsPending(true);
     try {
@@ -353,14 +188,14 @@ export function DoctorRegisterForm() {
           password,
           firstName,
           lastName,
-          phone,
-          phoneTicket,
-          membershipType,
-          specialty,
-          address: address || addressQuery,
+          phone: phoneForRegister,
+          phoneTicket: phoneTicket ?? undefined,
+          membershipType: "solo_doctor",
+          specialty: resolvedSpecialty,
+          address: locationPicker.address || locationPicker.addressQuery,
           country: "CO",
-          lat: location.lat,
-          lng: location.lng,
+          lat: locationPicker.location.lat,
+          lng: locationPicker.location.lng,
           docType: docType || undefined,
           docNumber: docNumber.trim() || undefined,
           gender: gender || undefined,
@@ -397,11 +232,15 @@ export function DoctorRegisterForm() {
     >
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">
-          Registro de doctor
+          Registro de profesionales
         </h1>
         <p className="text-sm text-zinc-500">
-          Los campos con * son obligatorios. El resto es opcional y puedes
-          completarlo después en tu perfil.
+          Para especialistas médicos y técnicos laborales. Si representas una
+          empresa, usa el{" "}
+          <Link href="/doctor/register/empresa" className="text-sky-600 underline">
+            registro empresarial
+          </Link>
+          .
         </p>
       </div>
 
@@ -532,24 +371,86 @@ export function DoctorRegisterForm() {
             max={new Date().toISOString().slice(0, 10)}
           />
         </Field>
-        <Field label="Especialidad" required>
-          <select
-            className={inputClass}
-            value={specialty}
-            onChange={(e) => setSpecialty(e.target.value)}
-            required
-            disabled={specialtiesQuery.isLoading || specialties.length === 0}
-          >
-            {specialtiesQuery.isLoading ? (
-              <option value="">Cargando especialidades…</option>
-            ) : null}
-            {specialties.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
+        <div className="sm:col-span-2 space-y-3">
+          <div>
+            <p className="text-sm font-medium text-zinc-900">
+              Tipo de profesional <span className="text-red-500">*</span>
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              Elige una opción. Los análisis disponibles dependen del perfil
+              configurado por el administrador.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {(
+              [
+                { id: "specialty" as const, label: "Especialidad médica" },
+                { id: "labor" as const, label: "Técnico laboral" },
+              ] as const
+            ).map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                className={`rounded-xl border px-3 py-2.5 text-left text-sm transition ${
+                  professionalKind === option.id
+                    ? "border-sky-500 bg-sky-50 font-medium text-sky-700"
+                    : "border-zinc-200 bg-white text-zinc-900 hover:border-sky-300"
+                }`}
+                onClick={() => {
+                  setProfessionalKind(option.id);
+                  if (option.id === "specialty") setLaborProfile("");
+                  else setSpecialty("");
+                }}
+              >
+                {option.label}
+              </button>
             ))}
-          </select>
-        </Field>
+          </div>
+          {professionalKind === "specialty" ? (
+            <Field label="Especialidad" required>
+              <select
+                className={inputClass}
+                value={specialty}
+                onChange={(e) => setSpecialty(e.target.value)}
+                required
+                disabled={specialtiesQuery.isLoading || specialties.length === 0}
+              >
+                <option value="">
+                  {specialtiesQuery.isLoading
+                    ? "Cargando especialidades…"
+                    : "Selecciona una especialidad"}
+                </option>
+                {specialties.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ) : null}
+          {professionalKind === "labor" ? (
+            <Field label="Técnico laboral" required>
+              <select
+                className={inputClass}
+                value={laborProfile}
+                onChange={(e) => setLaborProfile(e.target.value)}
+                required
+                disabled={laborProfilesQuery.isLoading || laborProfiles.length === 0}
+              >
+                <option value="">
+                  {laborProfilesQuery.isLoading
+                    ? "Cargando perfiles…"
+                    : "Selecciona un técnico laboral"}
+                </option>
+                {laborProfiles.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ) : null}
+        </div>
         <Field label="Contraseña" required>
           <input
             className={inputClass}
@@ -596,120 +497,7 @@ export function DoctorRegisterForm() {
         </Field>
       </div>
 
-      <fieldset className="space-y-3">
-        <legend className="text-sm font-semibold text-zinc-900">
-          Tipo de cuenta <span className="text-red-500">*</span>
-        </legend>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {MEMBERSHIP_OPTIONS.map((opt) => {
-            const selected = membershipType === opt.value;
-            return (
-              <label
-                key={opt.value}
-                className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition ${
-                  selected
-                    ? "border-sky-500 bg-sky-50"
-                    : "border-zinc-200 bg-white hover:border-zinc-300"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="membershipType"
-                  className="mt-1"
-                  checked={selected}
-                  onChange={() => setMembershipType(opt.value)}
-                />
-                <span>
-                  <span className="block text-sm font-medium">{opt.label}</span>
-                  <span className="block text-xs text-zinc-500">{opt.hint}</span>
-                </span>
-              </label>
-            );
-          })}
-        </div>
-      </fieldset>
-
-      {/* Ubicación: búsqueda por encima del mapa (Leaflet usa z-index altos) */}
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-sm font-semibold">
-              Ubicación <span className="text-red-500">*</span>
-            </h2>
-            <p className="text-xs text-zinc-500">
-              Busca la dirección exacta o usa tu ubicación actual.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={useCurrentLocation}
-            className="inline-flex h-10 items-center gap-2 rounded-lg border border-zinc-300 bg-white px-3 text-sm hover:bg-zinc-50"
-          >
-            <LocateFixed className="size-4 text-sky-500" />
-            {geoLoading ? "Obteniendo…" : "Usar mi ubicación"}
-          </button>
-        </div>
-
-        <div className="relative isolate z-[1100]">
-          <Field label="Buscar dirección exacta" required>
-            <div className="relative">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-400" />
-              <input
-                className={`${inputClass} pl-9`}
-                placeholder="Ej. Calle 100 #19-54, Bogotá"
-                value={addressQuery}
-                onChange={(e) => {
-                  setAddressQuery(e.target.value);
-                  setSearchOpen(true);
-                }}
-                onFocus={() => suggestions.length > 0 && setSearchOpen(true)}
-                onBlur={() => {
-                  window.setTimeout(() => setSearchOpen(false), 150);
-                }}
-                autoComplete="street-address"
-              />
-            </div>
-          </Field>
-          {searchLoading && (
-            <p className="mt-1 text-xs text-zinc-500">Buscando…</p>
-          )}
-          {searchOpen && suggestions.length > 0 && (
-            <ul className="absolute top-full right-0 left-0 z-[1200] mt-1 max-h-52 overflow-auto rounded-xl border border-zinc-200 bg-white py-1 shadow-xl">
-              {suggestions.map((item) => (
-                <li key={`${item.lat}-${item.lon}-${item.display_name}`}>
-                  <button
-                    type="button"
-                    className="w-full px-3 py-2 text-left text-sm text-zinc-800 hover:bg-sky-50"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => selectSuggestion(item)}
-                  >
-                    {item.display_name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div className="relative z-0 overflow-hidden rounded-xl border border-zinc-200">
-          <LocationPickerMap
-            value={location}
-            onChange={(pos) => {
-              setLocation(pos);
-              setGeoError(null);
-              void reverseGeocode(pos.lat, pos.lng);
-            }}
-            className="h-56 w-full"
-          />
-        </div>
-        {location && (
-          <p className="text-xs text-zinc-500">
-            {address || "Ubicación marcada"} · Lat {location.lat.toFixed(5)}, Lng{" "}
-            {location.lng.toFixed(5)}
-          </p>
-        )}
-        {geoError && <p className="text-sm text-red-600">{geoError}</p>}
-      </section>
+      <LocationPickerSection picker={locationPicker} />
 
       <section className="space-y-3">
         <div>

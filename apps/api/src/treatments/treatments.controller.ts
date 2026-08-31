@@ -10,9 +10,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { ClinicalPanelRoles } from '../auth/clinical-panel.roles.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
 import type { JwtPayload } from '../auth/types';
 import { TreatmentsService } from './treatments.service';
 import { CreateTreatmentCategoryDto } from './dto/create-treatment-category.dto';
@@ -25,7 +25,7 @@ import { ReorderTreatmentItemsDto } from './dto/reorder-treatment-items.dto';
 
 @Controller('treatments')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('doctor')
+@ClinicalPanelRoles()
 export class TreatmentsController {
   constructor(private readonly treatmentsService: TreatmentsService) {}
 

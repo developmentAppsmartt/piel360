@@ -1,4 +1,4 @@
-import { isDoctorVerificationActive, type Role } from "@piel360/shared";
+import { isClinicalPanelRole, isDoctorVerificationActive, type Role } from "@piel360/shared";
 
 export interface AuthUser {
   id: string;
@@ -13,6 +13,7 @@ export interface AuthUser {
 const PANEL_HOME: Record<Role, string> = {
   superadmin: "/admin",
   monitor: "/admin",
+  empresa: "/doctor/home",
   doctor: "/doctor/home",
   patient: "/patient/dashboard",
 };
@@ -20,7 +21,7 @@ const PANEL_HOME: Record<Role, string> = {
 export function homeForUser(user: AuthUser): string {
   if (user.role === "monitor") return "/admin/verificacion";
   if (
-    user.role === "doctor" &&
+    isClinicalPanelRole(user.role) &&
     !isDoctorVerificationActive(user.verificationStatus)
   ) {
     return "/doctor/home";

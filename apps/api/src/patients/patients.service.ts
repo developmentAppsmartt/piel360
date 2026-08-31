@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { DOCTOR_PANEL_ROLES, type Role } from '@piel360/shared';
 import { AnalysisImageUrlsService } from '../analyses/analysis-image-urls.service';
@@ -104,31 +104,53 @@ export class PatientsService {
         throw new ConflictException('Ya existe una cuenta con ese email');
       }
 
+      const patientRole = await this.prisma.role.findUnique({
+        where: { name: 'patient' },
+        select: { id: true },
+      });
+      if (!patientRole) {
+        throw new BadRequestException(
+          'El rol de paciente no está configurado en el sistema. Contacta al administrador.',
+        );
+      }
+
       const hashed = await argon2.hash(password);
-      const user = await this.prisma.user.create({
-        data: {
-          email: emailNorm,
-          password: hashed,
-          name: `${dto.firstName} ${dto.lastName}`.trim(),
-          firstName: dto.firstName.trim(),
-          lastName: dto.lastName.trim(),
-          phone: dto.phone?.trim() || null,
-          roles: { connect: { name: 'patient' } },
-          patient: {
-            create: {
-              ...rest,
-              email: emailNorm,
-              doctorId,
-              ...(birthDate !== undefined
-                ? { birthDate: birthDate ? new Date(birthDate) : null }
-                : {}),
+      try {
+        const user = await this.prisma.user.create({
+          data: {
+            email: emailNorm,
+            password: hashed,
+            name: `${dto.firstName} ${dto.lastName}`.trim(),
+            firstName: dto.firstName.trim(),
+            lastName: dto.lastName.trim(),
+            phone: dto.phone?.trim() || null,
+            roles: { connect: { id: patientRole.id } },
+            patient: {
+              create: {
+                ...rest,
+                email: emailNorm,
+                doctorId,
+                ...(birthDate !== undefined
+                  ? { birthDate: birthDate ? new Date(birthDate) : null }
+                  : {}),
+              },
             },
           },
-        },
-        include: { patient: true },
-      });
+          include: { patient: true },
+        });
 
-      return user.patient!;
+        return user.patient!;
+      } catch (err) {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === 'P2025'
+        ) {
+          throw new BadRequestException(
+            'No se pudo asignar el rol de paciente. Contacta al administrador.',
+          );
+        }
+        throw err;
+      }
     }
 
     return this.prisma.patient.create({

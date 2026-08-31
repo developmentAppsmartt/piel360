@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   OnModuleDestroy,
   UnauthorizedException,
@@ -8,20 +9,23 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import {
+  isMobileLoginAllowed,
   SEAT_PLAN_LIMITS,
   type MembershipType,
   type Role,
 } from '@piel360/shared';
 import * as argon2 from 'argon2';
+import { Prisma } from '@prisma/client';
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { Redis } from 'ioredis';
 import { MailService } from '../mail/mail.service';
 import { SmsService } from '../sms/sms.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { SpecialtiesService } from '../specialties/specialties.service';
+import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
 import type { ForgotPasswordDto } from './dto/forgot-password.dto';
 import type { LoginDto } from './dto/login.dto';
 import type { RegisterDoctorDto } from './dto/register-doctor.dto';
+import type { RegisterEmpresaDto } from './dto/register-empresa.dto';
 import type { RegisterPatientDto } from './dto/register-patient.dto';
 import type { ResetPasswordDto } from './dto/reset-password.dto';
 import type { SendOtpDto } from './dto/send-otp.dto';
@@ -40,16 +44,23 @@ const PASSWORD_RESET_TTL_MINUTES = 30;
 
 /** OTP de 5 dígitos (registro / reset). */
 const OTP_TTL_SECONDS = 10 * 60;
-const OTP_TICKET_TTL_SECONDS = 15 * 60;
+const OTP_TICKET_TTL_SECONDS = 60 * 60;
 const OTP_MAX_ATTEMPTS = 5;
 
-const ROLE_PRIORITY: Role[] = ['superadmin', 'monitor', 'doctor', 'patient'];
+const ROLE_PRIORITY: Role[] = ['superadmin', 'monitor', 'empresa', 'doctor', 'patient'];
+
+/** Roles de sistema en BD; cualquier otro slug se trata como rol profesional (especialidad / técnico). */
+const SYSTEM_ROLE_SLUGS = new Set<string>(ROLE_PRIORITY);
 
 interface AuthUser {
   id: bigint;
   email: string;
   name: string;
-  roles: { name: string; permissions: { name: string }[] }[];
+  roles: {
+    name: string;
+    isActive: boolean;
+    permissions: { name: string; slug: string; isActive: boolean }[];
+  }[];
   patient?: { surveyCompletedAt: Date | null } | null;
   doctor?: {
     empresa: boolean;
@@ -82,7 +93,7 @@ export class AuthService implements OnModuleDestroy {
     private readonly config: ConfigService,
     private readonly mail: MailService,
     private readonly sms: SmsService,
-    private readonly specialtiesService: SpecialtiesService,
+    private readonly specialtyAccess: SpecialtyAccessService,
   ) {
     this.redis = new Redis(this.config.getOrThrow<string>('REDIS_URL'), {
       lazyConnect: true,
@@ -99,118 +110,238 @@ export class AuthService implements OnModuleDestroy {
     dto: RegisterDoctorDto,
     client: 'mobile' | 'web' = 'web',
   ): Promise<AuthResult> {
+    const email = dto.email.trim().toLowerCase();
+    const phone = this.normalizePhoneDigits(dto.phone);
     if (dto.phoneTicket) {
-      await this.consumePhoneTicket(dto.phoneTicket, dto.phone);
+      await this.assertPhoneTicket(dto.phoneTicket, phone);
     }
+    await this.assertEmailAvailable(email);
+    const password = await argon2.hash(dto.password);
+    const membershipType: MembershipType = 'solo_doctor';
+
+    const professionalRoleSlug =
+      await this.specialtyAccess.assertProfessionalRoleSlug(dto.specialty);
+
+    let user: AuthUser;
+    try {
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          password,
+          name: `${dto.firstName} ${dto.lastName}`,
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          phone,
+          phoneVerifiedAt: dto.phoneTicket ? new Date() : null,
+          roles: {
+            connect: [{ name: professionalRoleSlug }],
+          },
+          doctor: {
+            create: {
+              firstName: dto.firstName,
+              lastName: dto.lastName,
+              phone,
+              membershipType,
+              empresa: false,
+              empresaReferida: false,
+              verificationStatus: 'pending',
+              docType: dto.docType?.trim() || null,
+              docNumber: dto.docNumber?.trim() || null,
+              gender: dto.gender?.trim() || null,
+              ...(dto.birthDate
+                ? { birthDate: new Date(dto.birthDate) }
+                : {}),
+              specialty: dto.specialty?.trim() || null,
+              medicalRegistry: dto.medicalRegistry?.trim() || null,
+              licenseNumber: dto.licenseNumber?.trim() || null,
+              educationEntity: dto.educationEntity?.trim() || null,
+              graduationInstitution: dto.graduationInstitution?.trim() || null,
+              address: dto.address?.trim() || null,
+              city: dto.city?.trim() || null,
+              department: dto.department?.trim() || null,
+              country: dto.country?.trim() || null,
+              locationType: dto.locationType?.trim() || null,
+              ...(dto.lat != null && dto.lng != null
+                ? {
+                    lat: dto.lat,
+                    lng: dto.lng,
+                    addressVerificationStatus:
+                      dto.address?.trim() ? 'in_review' : 'pending',
+                  }
+                : {}),
+            },
+          },
+        },
+        include: {
+          roles: { include: { permissions: true } },
+          doctor: {
+            select: {
+              empresa: true,
+              empresaReferida: true,
+              verificationStatus: true,
+            },
+          },
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new BadRequestException(
+          'El perfil profesional seleccionado no está configurado correctamente. Contacta al administrador.',
+        );
+      }
+      throw error;
+    }
+
+    if (dto.phoneTicket) {
+      await this.consumePhoneTicket(dto.phoneTicket, phone);
+    }
+
+    const role = this.resolveRole(user);
+    return this.buildAuthResult(user, role, client);
+  }
+
+  async registerEmpresa(
+    dto: RegisterEmpresaDto,
+    client: 'mobile' | 'web' = 'web',
+  ): Promise<AuthResult> {
+    const phone = this.normalizePhoneDigits(dto.phone);
+    if (!dto.phoneTicket?.trim()) {
+      throw new BadRequestException(
+        'Debes verificar tu teléfono con el código enviado por SMS antes de registrarte',
+      );
+    }
+    await this.assertPhoneTicket(dto.phoneTicket, phone);
     await this.assertEmailAvailable(dto.email);
     const password = await argon2.hash(dto.password);
-    const membershipType: MembershipType =
-      dto.membershipType ?? 'solo_doctor';
-    const empresa =
-      membershipType === 'empresa' || membershipType === 'empresa_aliada';
+
+    const membershipType = dto.membershipType;
     const empresaReferida = membershipType === 'empresa_aliada';
+    const legalRepName = dto.legalRepName.trim();
+    const nameParts = legalRepName.split(/\s+/).filter(Boolean);
+    const firstName = nameParts[0] ?? legalRepName;
+    const lastName =
+      nameParts.length > 1 ? nameParts.slice(1).join(' ') : firstName;
+    const referralCode = empresaReferida ? this.generateReferralCode() : null;
+    const orgType = empresaReferida ? 'empresa_aliada' : 'empresa';
+    const address = dto.address.trim();
 
-    const specialtyRoleSlug = await this.specialtiesService.resolveRoleSlugByLabel(
-      dto.specialty,
-    );
-
-    const user = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        password,
-        name: `${dto.firstName} ${dto.lastName}`,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        phone: dto.phone,
-        phoneVerifiedAt: dto.phoneTicket ? new Date() : null,
-        roles: {
-          connect: [
-            { name: 'doctor' },
-            ...(specialtyRoleSlug ? [{ name: specialtyRoleSlug }] : []),
-          ],
-        },
-        doctor: {
-          create: {
-            firstName: dto.firstName,
-            lastName: dto.lastName,
-            phone: dto.phone,
-            membershipType,
-            empresa,
-            empresaReferida,
-            verificationStatus: 'pending',
-            docType: dto.docType?.trim() || null,
-            docNumber: dto.docNumber?.trim() || null,
-            gender: dto.gender?.trim() || null,
-            ...(dto.birthDate
-              ? { birthDate: new Date(dto.birthDate) }
-              : {}),
-            specialty: dto.specialty?.trim() || null,
-            medicalRegistry: dto.medicalRegistry?.trim() || null,
-            licenseNumber: dto.licenseNumber?.trim() || null,
-            educationEntity: dto.educationEntity?.trim() || null,
-            graduationInstitution: dto.graduationInstitution?.trim() || null,
-            address: dto.address?.trim() || null,
-            city: dto.city?.trim() || null,
-            department: dto.department?.trim() || null,
-            country: dto.country?.trim() || null,
-            locationType: dto.locationType?.trim() || null,
-            ...(dto.lat != null && dto.lng != null
-              ? {
-                  lat: dto.lat,
-                  lng: dto.lng,
-                  addressVerificationStatus:
-                    dto.address?.trim() ? 'in_review' : 'pending',
-                }
-              : {}),
-          },
-        },
-      },
-      include: {
-        roles: { include: { permissions: true } },
-        doctor: {
-          select: {
-            empresa: true,
-            empresaReferida: true,
-            verificationStatus: true,
-          },
-        },
-      },
+    const empresaRole = await this.prisma.role.findUnique({
+      where: { name: 'empresa' },
     });
+    if (!empresaRole) {
+      throw new BadRequestException(
+        'El rol de empresa no está configurado en el sistema. Contacta al administrador.',
+      );
+    }
 
-    if (empresa) {
-      const referralCode = empresaReferida
-        ? this.generateReferralCode()
-        : null;
-      const orgName = `Clínica ${dto.firstName} ${dto.lastName}`.trim();
-      const orgType = empresaReferida ? 'empresa_aliada' : 'empresa';
+    let created: AuthUser;
+    try {
+      created = await this.prisma.$transaction(async (tx) => {
+        const newUser = await tx.user.create({
+          data: {
+            email: dto.email.trim().toLowerCase(),
+            password,
+            name: legalRepName,
+            firstName,
+            lastName,
+            phone,
+            phoneVerifiedAt: new Date(),
+            roles: { connect: [{ name: 'empresa' }] },
+          doctor: {
+            create: {
+              firstName,
+              lastName,
+              phone,
+              membershipType,
+              empresa: true,
+              empresaReferida,
+              verificationStatus: 'pending',
+              docType: dto.legalRepDocType?.trim() || null,
+              docNumber: dto.legalRepDocNumber.trim(),
+              address,
+              city: dto.city?.trim() || null,
+              department: dto.department?.trim() || null,
+              country: dto.country?.trim() || 'CO',
+              ...(dto.lat != null && dto.lng != null
+                ? {
+                    lat: dto.lat,
+                    lng: dto.lng,
+                    addressVerificationStatus: address ? 'in_review' : 'pending',
+                  }
+                : {}),
+              locationType: empresaReferida ? 'empresa_aliada' : 'clinica',
+            },
+          },
+        },
+        include: {
+          roles: { include: { permissions: true } },
+          doctor: {
+            select: {
+              empresa: true,
+              empresaReferida: true,
+              verificationStatus: true,
+            },
+          },
+        },
+      });
 
-      await this.prisma.organization.create({
+      await tx.organization.create({
         data: {
           type: orgType,
-          name: orgName,
-          ownerUserId: user.id,
+          name: dto.organizationName.trim(),
+          ownerUserId: newUser.id,
           seatPlan: 'two',
           seatLimit: SEAT_PLAN_LIMITS.two,
           referralCode,
           status: 'pending',
+          ciiuCode: dto.ciiuCode?.trim() || null,
+          businessEmail: dto.businessEmail?.trim() || null,
+          businessPhone: dto.businessPhone?.trim() || null,
+          website: dto.website?.trim() || null,
+          employeeCountRange: dto.employeeCountRange?.trim() || null,
+          legalRepName,
+          legalRepDocType: dto.legalRepDocType?.trim() || null,
+          legalRepDocNumber: dto.legalRepDocNumber.trim(),
+          address,
+          city: dto.city?.trim() || null,
+          department: dto.department?.trim() || null,
+          country: dto.country?.trim() || 'CO',
+          ...(dto.lat != null && dto.lng != null
+            ? { lat: dto.lat, lng: dto.lng }
+            : {}),
           members: {
             create: {
-              userId: user.id,
+              userId: newUser.id,
               memberRole: 'owner',
             },
           },
           ...(referralCode
-            ? {
-                referrals: {
-                  create: { code: referralCode },
-                },
-              }
+            ? { referrals: { create: { code: referralCode } } }
             : {}),
         },
       });
+
+      return newUser;
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new BadRequestException(
+          'No se pudo asignar el rol de empresa. Contacta al administrador.',
+        );
+      }
+      throw error;
     }
 
-    return this.buildAuthResult(user, 'doctor', client);
+    await this.consumePhoneTicket(dto.phoneTicket, phone);
+
+    const role = this.resolveRole(created);
+    return this.buildAuthResult(created, role, client);
   }
 
   private generateReferralCode(): string {
@@ -226,7 +357,8 @@ export class AuthService implements OnModuleDestroy {
     if (emailTicket) {
       await this.consumeRegisterTicket(emailTicket, email);
     }
-    await this.consumePhoneTicket(dto.phoneTicket, dto.phone);
+    const phone = this.normalizePhoneDigits(dto.phone);
+    await this.assertPhoneTicket(dto.phoneTicket, phone);
 
     await this.assertEmailAvailable(email);
     const password = await argon2.hash(dto.password);
@@ -240,7 +372,7 @@ export class AuthService implements OnModuleDestroy {
         lastName: dto.lastName,
         // Solo se marca verificado si hubo ticket OTP.
         emailVerifiedAt: emailTicket ? new Date() : null,
-        phone: dto.phone,
+        phone,
         phoneVerifiedAt: new Date(),
         roles: { connect: { name: 'patient' } },
         patient: {
@@ -254,6 +386,8 @@ export class AuthService implements OnModuleDestroy {
       include: { roles: { include: { permissions: true } }, patient: true },
     });
 
+    await this.consumePhoneTicket(dto.phoneTicket, phone);
+
     return this.buildAuthResult(user, 'patient', client);
   }
 
@@ -261,12 +395,18 @@ export class AuthService implements OnModuleDestroy {
     dto: LoginDto,
     client: 'mobile' | 'web' = 'web',
   ): Promise<AuthResult> {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-      include: this.authUserInclude,
-    });
+    const email = dto.email.trim().toLowerCase();
+    const user = await this.findUserByEmail(email);
 
-    if (!user || !(await argon2.verify(user.password, dto.password))) {
+    if (!user) {
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+    if (!user.password?.trim()) {
+      throw new UnauthorizedException(
+        'Esta cuenta usa inicio con Google. Continúa con Google.',
+      );
+    }
+    if (!(await argon2.verify(user.password, dto.password))) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
@@ -319,9 +459,10 @@ export class AuthService implements OnModuleDestroy {
 
   /**
    * Crea o loguea un usuario vía Google. Regla de seguridad (MIGRACION.md §2.2):
-   * el rol `doctor` NUNCA se auto-asigna a una cuenta ya existente — solo se
-   * asigna en el registro inicial. `patient` sí puede agregarse a una cuenta
-   * existente que aún no lo tenga (ej. un doctor que también quiere auto-analizarse).
+   * el perfil profesional no recibe el rol RBAC legacy `doctor` — solo se crea
+   * el registro en `doctors` y el JWT expone `role: doctor` para el panel hasta
+   * que el usuario complete especialidad (mismo criterio que registerDoctor).
+   * `patient` sí puede agregarse a una cuenta existente que aún no lo tenga.
    */
   async loginOrRegisterWithGoogle(
     profile: GoogleProfile,
@@ -329,22 +470,11 @@ export class AuthService implements OnModuleDestroy {
   ): Promise<AuthResult> {
     const existing = await this.prisma.user.findUnique({
       where: { email: profile.email },
-      include: {
-        roles: { include: { permissions: true } },
-        patient: true,
-        doctor: {
-          select: {
-            empresa: true,
-            empresaReferida: true,
-            verificationStatus: true,
-          },
-        },
-      },
+      include: this.authUserInclude,
     });
 
     if (!existing) {
-      const roleIntent: Role =
-        profile.roleIntent === 'doctor' ? 'doctor' : 'patient';
+      const isDoctorIntent = profile.roleIntent === 'doctor';
       const randomPassword = await argon2.hash(randomBytes(32).toString('hex'));
 
       const user = await this.prisma.user.create({
@@ -355,17 +485,21 @@ export class AuthService implements OnModuleDestroy {
           name: `${profile.firstName} ${profile.lastName}`.trim(),
           firstName: profile.firstName,
           lastName: profile.lastName,
-          roles: { connect: { name: roleIntent } },
-          ...(roleIntent === 'doctor'
+          ...(isDoctorIntent
             ? {
                 doctor: {
                   create: {
                     firstName: profile.firstName,
                     lastName: profile.lastName,
+                    membershipType: 'solo_doctor',
+                    empresa: false,
+                    empresaReferida: false,
+                    verificationStatus: 'pending',
                   },
                 },
               }
             : {
+                roles: { connect: { name: 'patient' } },
                 patient: {
                   create: {
                     firstName: profile.firstName,
@@ -375,20 +509,11 @@ export class AuthService implements OnModuleDestroy {
                 },
               }),
         },
-        include: {
-          roles: { include: { permissions: true } },
-          patient: true,
-          doctor: {
-            select: {
-              empresa: true,
-              empresaReferida: true,
-              verificationStatus: true,
-            },
-          },
-        },
+        include: this.authUserInclude,
       });
 
-      return this.buildAuthResult(user, roleIntent, client);
+      const role = this.resolveRole(user);
+      return this.buildAuthResult(user, role, client);
     }
 
     const roleNames = existing.roles.map((r) => r.name);
@@ -422,17 +547,7 @@ export class AuthService implements OnModuleDestroy {
         ? await this.prisma.user.update({
             where: { id: existing.id },
             data: updateData,
-            include: {
-              roles: { include: { permissions: true } },
-              patient: true,
-              doctor: {
-                select: {
-                  empresa: true,
-                  empresaReferida: true,
-                  verificationStatus: true,
-                },
-              },
-            },
+            include: this.authUserInclude,
           })
         : existing;
 
@@ -623,7 +738,7 @@ export class AuthService implements OnModuleDestroy {
    * (sendOtp/verifyOtp): 5 dígitos en Redis con intentos/expiración.
    */
   async sendPhoneOtp(dto: SendPhoneOtpDto): Promise<{ ok: true }> {
-    const phone = dto.phone.trim();
+    const phone = this.normalizePhoneDigits(dto.phone);
     const existing = await this.prisma.user.findFirst({ where: { phone } });
     if (existing) {
       throw new ConflictException('Ya existe una cuenta con ese teléfono');
@@ -654,7 +769,7 @@ export class AuthService implements OnModuleDestroy {
   async verifyPhoneOtp(
     dto: VerifyPhoneOtpDto,
   ): Promise<{ ok: true; ticket: string }> {
-    const phone = dto.phone.trim();
+    const phone = this.normalizePhoneDigits(dto.phone);
     const key = this.phoneOtpKey(phone);
     await this.ensureRedis();
     const raw = await this.redis.get(key);
@@ -694,24 +809,33 @@ export class AuthService implements OnModuleDestroy {
     return { ok: true, ticket };
   }
 
+  private normalizePhoneDigits(phone: string): string {
+    return phone.replace(/\D/g, '');
+  }
+
   private phoneOtpKey(phone: string) {
-    return `otp:phone:${phone}`;
+    return `otp:phone:${this.normalizePhoneDigits(phone)}`;
   }
 
   private phoneTicketKey(ticket: string) {
     return `otp-ticket:phone:${ticket}`;
   }
 
-  private async consumePhoneTicket(ticket: string, phone: string) {
+  private async assertPhoneTicket(ticket: string, phone: string) {
     await this.ensureRedis();
-    const key = this.phoneTicketKey(ticket);
+    const key = this.phoneTicketKey(ticket.trim());
     const storedPhone = await this.redis.get(key);
-    if (!storedPhone || storedPhone !== phone.trim()) {
+    const normalized = this.normalizePhoneDigits(phone);
+    if (!storedPhone || this.normalizePhoneDigits(storedPhone) !== normalized) {
       throw new BadRequestException(
         'Debes verificar tu teléfono con el código enviado por SMS antes de registrarte',
       );
     }
-    await this.redis.del(key);
+  }
+
+  private async consumePhoneTicket(ticket: string, phone: string) {
+    await this.assertPhoneTicket(ticket, phone);
+    await this.redis.del(this.phoneTicketKey(ticket.trim()));
   }
 
   private otpKey(purpose: string, email: string) {
@@ -753,10 +877,43 @@ export class AuthService implements OnModuleDestroy {
     return safeUser;
   }
 
+  /** Permisos RBAC actuales desde BD (no del JWT en caché). */
+  async getPermissionsForUser(userId: string): Promise<string[]> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: BigInt(userId) },
+      include: this.authUserInclude,
+    });
+    if (!user) return [];
+    return this.resolvePermissions(user);
+  }
+
+  private normalizeEmail(email: string): string {
+    return email.trim().toLowerCase();
+  }
+
+  private async findUserByEmail(email: string) {
+    const normalized = this.normalizeEmail(email);
+    return this.prisma.user.findFirst({
+      where: { email: { equals: normalized, mode: 'insensitive' } },
+      include: this.authUserInclude,
+    });
+  }
+
   private async assertEmailAvailable(email: string): Promise<void> {
-    const existing = await this.prisma.user.findUnique({ where: { email } });
+    const existing = await this.findUserByEmail(email);
     if (existing) {
       throw new ConflictException('Ya existe una cuenta con ese email');
+    }
+  }
+
+  private assertMobileLoginAllowed(
+    role: Role,
+    client: 'mobile' | 'web',
+  ): void {
+    if (client === 'mobile' && !isMobileLoginAllowed(role)) {
+      throw new ForbiddenException(
+        'Esta cuenta no puede iniciar sesión en la app móvil. Usa el panel web.',
+      );
     }
   }
 
@@ -767,19 +924,25 @@ export class AuthService implements OnModuleDestroy {
     const names = user.roles.map((r) => r.name);
     const match = ROLE_PRIORITY.find((role) => names.includes(role));
     if (match) return match;
+    if (user.doctor?.empresa) return 'empresa';
+    if (user.doctor) return 'doctor';
+    if (user.patient) return 'patient';
+    if (names.some((name) => !SYSTEM_ROLE_SLUGS.has(name))) return 'doctor';
     if (this.resolvePermissions(user).length > 0) return 'superadmin';
     throw new UnauthorizedException('El usuario no tiene un rol asignado');
   }
 
-  /** Unión de los permisos de todos los roles del usuario (no solo el de
-   * mayor prioridad) — un usuario puede tener superadmin más un rol
-   * personalizado adicional. */
+  /** Unión de slugs activos de todos los roles del usuario. */
   private resolvePermissions(user: AuthUser): string[] {
-    const names = new Set<string>();
+    const slugs = new Set<string>();
     for (const role of user.roles) {
-      for (const permission of role.permissions) names.add(permission.name);
+      if (!role.isActive) continue;
+      for (const permission of role.permissions) {
+        if (!permission.isActive) continue;
+        slugs.add(permission.slug);
+      }
     }
-    return Array.from(names);
+    return Array.from(slugs);
   }
 
   private buildAuthResult(
@@ -787,11 +950,12 @@ export class AuthService implements OnModuleDestroy {
     role: Role,
     client: 'mobile' | 'web' = 'web',
   ): AuthResult {
+    this.assertMobileLoginAllowed(role, client);
     const empresa = user.doctor?.empresa ?? false;
     const empresaReferida = user.doctor?.empresaReferida ?? false;
     const verificationStatus = user.doctor?.verificationStatus ?? 'pending';
     const doctorFlags =
-      role === 'doctor'
+      role === 'doctor' || role === 'empresa'
         ? { empresa, empresaReferida, verificationStatus }
         : {};
     const payload: JwtPayload = {

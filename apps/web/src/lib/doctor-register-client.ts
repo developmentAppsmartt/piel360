@@ -1,4 +1,3 @@
-import type { MembershipType } from "@piel360/shared";
 import { ApiError } from "@/lib/api-error";
 import { apiClientFetch } from "@/lib/api-client";
 import type { AuthUser } from "@/lib/auth-redirect";
@@ -11,12 +10,12 @@ export interface DoctorRegisterPayload {
   phone: string;
   /** Ticket de `POST /auth/otp/phone/verify` — confirma que el celular fue verificado. */
   phoneTicket?: string;
-  membershipType: MembershipType;
+  membershipType?: "solo_doctor";
   docType?: string;
   docNumber?: string;
   birthDate?: string;
   gender?: string;
-  specialty?: string;
+  specialty: string;
   medicalRegistry?: string;
   licenseNumber?: string;
   educationEntity?: string;

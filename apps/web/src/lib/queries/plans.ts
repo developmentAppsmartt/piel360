@@ -20,12 +20,19 @@ export interface PlanAdmin extends Plan {
   _count: { subscriptions: number };
 }
 
+export type PlanType = "individual" | "business";
+
 export interface PlanInput {
   name: string;
-  analysisProviderId: string;
+  analysisProviderId?: string;
+  analysisProviderIds?: string[];
   analysisLimit: number;
   price: number;
   durationDays: number;
+  maxUsers: number;
+  planType?: PlanType;
+  modules?: string[];
+  roleLimits?: Record<string, number>;
   isActive?: boolean;
   description?: string;
 }

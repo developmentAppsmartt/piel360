@@ -2,7 +2,9 @@
 
 import { LogOut } from "lucide-react";
 import Image from "next/image";
+import type { Role } from "@piel360/shared";
 import { logoutAction } from "@/lib/actions/auth";
+import { resolveRoleDisplayLabel } from "@/lib/user-role-display";
 import { useMyDoctorProfile } from "@/lib/queries/doctors";
 import { cn } from "@/lib/utils";
 
@@ -22,26 +24,41 @@ export function SidebarFooter({
   avatarUrl,
   enrichFromDoctorProfile = false,
   monitorHint,
+  collapsed = false,
+  panelRole = "doctor",
+  empresa = false,
 }: {
   name: string;
   subtitle: string;
   avatarUrl?: string | null;
-  /** Carga nombre, especialidad y foto desde GET /doctors/me */
   enrichFromDoctorProfile?: boolean;
-  /** Texto extra bajo el perfil (p. ej. moderador). */
   monitorHint?: string;
+  collapsed?: boolean;
+  panelRole?: Role;
+  empresa?: boolean;
 }) {
   const profile = useMyDoctorProfile(enrichFromDoctorProfile);
 
   const displayName = profile.data
-    ? `Dr. ${profile.data.firstName} ${profile.data.lastName}`.trim()
+    ? `${profile.data.firstName} ${profile.data.lastName}`.trim()
     : name;
-  const displaySubtitle = profile.data?.specialty?.trim() || subtitle;
+  const displaySubtitle = profile.data
+    ? resolveRoleDisplayLabel(panelRole, {
+        specialty: profile.data.specialty,
+        empresa,
+      })
+    : subtitle;
   const photo = profile.data?.avatarUrl ?? avatarUrl ?? null;
 
   return (
     <div className="mt-auto shrink-0 border-t border-sidebar-border bg-sidebar">
-      <div className="flex items-center gap-3 px-4 py-4">
+      <div
+        className={cn(
+          "flex items-center",
+          collapsed ? "justify-center px-2 py-3" : "gap-3 px-4 py-4",
+        )}
+        title={collapsed ? displayName : undefined}
+      >
         <div className="relative size-11 shrink-0 overflow-hidden rounded-full bg-zinc-200">
           {photo ? (
             <Image
@@ -58,27 +75,37 @@ export function SidebarFooter({
             </span>
           )}
         </div>
-        <div className="min-w-0 flex-1 leading-tight">
-          <p className="truncate text-sm font-semibold text-[#1e3a6e]">
-            {displayName}
-          </p>
-          <p className="truncate text-xs text-zinc-500">{displaySubtitle}</p>
-          {monitorHint ? (
-            <p className="mt-1 text-[11px] text-muted-foreground">{monitorHint}</p>
-          ) : null}
-        </div>
+        {!collapsed ? (
+          <div className="min-w-0 flex-1 leading-tight">
+            <p className="truncate text-sm font-semibold text-[#1e3a6e]">
+              {displayName}
+            </p>
+            <p className="truncate text-xs text-zinc-500">{displaySubtitle}</p>
+            {monitorHint ? (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {monitorHint}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <form action={logoutAction} className="border-t border-sidebar-border">
         <button
           type="submit"
+          title={collapsed ? "Cerrar sesión" : undefined}
           className={cn(
-            "flex w-full items-center gap-3 px-4 py-3.5 text-sm font-medium text-zinc-600",
-            "transition-colors hover:bg-sidebar-accent hover:text-zinc-900",
+            "flex w-full items-center text-sm font-medium text-zinc-600 transition-colors hover:bg-sidebar-accent hover:text-zinc-900",
+            collapsed
+              ? "justify-center px-2 py-3.5"
+              : "gap-3 px-4 py-3.5",
           )}
         >
-          <LogOut className="size-5 shrink-0 text-zinc-500" strokeWidth={1.75} />
-          Cerrar sesión
+          <LogOut
+            className="size-5 shrink-0 text-zinc-500"
+            strokeWidth={1.75}
+          />
+          {!collapsed ? "Cerrar sesión" : null}
         </button>
       </form>
     </div>

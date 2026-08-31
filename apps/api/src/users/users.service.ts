@@ -41,10 +41,32 @@ export class UsersService {
 
   async findAll() {
     const users = await this.prisma.user.findMany({
-      include: { roles: true },
+      include: {
+        roles: true,
+        doctor: {
+          select: {
+            empresa: true,
+            empresaReferida: true,
+            membershipType: true,
+            specialty: true,
+          },
+        },
+        patient: { select: { id: true } },
+      },
       orderBy: { id: 'asc' },
     });
-    return Promise.all(users.map((u) => this.withAvatarUrl(omitPassword(u))));
+    return Promise.all(
+      users.map(async (u) => {
+        const base = omitPassword(u);
+        const withAvatar = await this.withAvatarUrl(base);
+        const { doctor, patient, ...rest } = withAvatar;
+        return {
+          ...rest,
+          doctor: doctor ?? null,
+          patient: patient ? { id: patient.id.toString() } : null,
+        };
+      }),
+    );
   }
 
   async findOne(id: string) {

@@ -4,10 +4,15 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useRef,
   useState,
   type ChangeEvent,
 } from "react";
 import { CloudUpload } from "lucide-react";
+import {
+  LocationPickerSection,
+  useLocationPicker,
+} from "@/components/auth/location-picker-section";
 import { ApiError } from "@/lib/api-error";
 import {
   useMyOrganization,
@@ -32,6 +37,12 @@ const inputClass =
 
 function digitsOnly(value: string) {
   return value.replace(/\D/g, "");
+}
+
+function toCoord(value: string | number | null | undefined): number | null {
+  if (value == null || value === "") return null;
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
 }
 
 function isPdfUrl(url: string | null | undefined, key: string | null | undefined) {
@@ -159,6 +170,8 @@ export const CompanyProfileSection = forwardRef<CompanyProfileHandle>(
     const query = useMyOrganization(true);
     const mutation = useUpdateMyOrganization();
     const uploadDocs = useUploadOrganizationDocuments();
+    const locationPicker = useLocationPicker();
+    const hydratedOrgId = useRef<string | null>(null);
     const [form, setForm] = useState<ReturnType<typeof orgToForm> | null>(null);
     const [legalRepCedula, setLegalRepCedula] = useState<File | null>(null);
     const [rut, setRut] = useState<File | null>(null);
@@ -166,8 +179,17 @@ export const CompanyProfileSection = forwardRef<CompanyProfileHandle>(
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-      if (query.data) setForm(orgToForm(query.data));
-    }, [query.data]);
+      if (!query.data) return;
+      setForm(orgToForm(query.data));
+      if (hydratedOrgId.current !== query.data.id) {
+        hydratedOrgId.current = query.data.id;
+        locationPicker.hydrate({
+          address: query.data.address,
+          lat: toCoord(query.data.lat),
+          lng: toCoord(query.data.lng),
+        });
+      }
+    }, [query.data, locationPicker.hydrate]);
 
     useImperativeHandle(ref, () => ({
       isReady: () => Boolean(form) && !query.isLoading && !query.isError,
@@ -192,9 +214,22 @@ export const CompanyProfileSection = forwardRef<CompanyProfileHandle>(
           throw new Error(msg);
         }
 
+        if (!locationPicker.location) {
+          const msg = "Marca la ubicación de la empresa en el mapa.";
+          setError(msg);
+          throw new Error(msg);
+        }
+
         const payload: OrgCompanyProfileInput = {
           name: form.name.trim(),
           ciiuCode: form.ciiuCode.trim() || undefined,
+          address:
+            locationPicker.address.trim() ||
+            locationPicker.addressQuery.trim() ||
+            undefined,
+          country: "CO",
+          lat: locationPicker.location.lat,
+          lng: locationPicker.location.lng,
           businessEmail: form.businessEmail.trim() || undefined,
           businessPhone: phone || undefined,
           website: form.website.trim() || undefined,
@@ -237,7 +272,7 @@ export const CompanyProfileSection = forwardRef<CompanyProfileHandle>(
       setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
     }
 
-    if (query.isLoading) {
+    if (query.isPending) {
       return (
         <p className="text-sm text-muted-foreground">
           Cargando información de empresa…
@@ -245,7 +280,7 @@ export const CompanyProfileSection = forwardRef<CompanyProfileHandle>(
       );
     }
 
-    if (query.isError || !form) {
+    if (query.isError || !query.data) {
       return (
         <p className="text-sm text-destructive">
           No se encontró una organización asociada a tu cuenta.
@@ -253,7 +288,15 @@ export const CompanyProfileSection = forwardRef<CompanyProfileHandle>(
       );
     }
 
-    const org = query.data!;
+    if (!form) {
+      return (
+        <p className="text-sm text-muted-foreground">
+          Cargando información de empresa…
+        </p>
+      );
+    }
+
+    const org = query.data;
     const typeLabel = TYPE_LABEL[org.type] ?? org.type;
 
     return (
@@ -262,7 +305,7 @@ export const CompanyProfileSection = forwardRef<CompanyProfileHandle>(
           <h2 className="text-lg font-semibold">Información de la empresa</h2>
           <p className="text-sm text-muted-foreground">
             Datos comerciales de tu {typeLabel}. Completa o actualiza cuando
-            cambien. La ubicación se gestiona en tu perfil de médico.
+            cambien.
           </p>
         </div>
 
@@ -325,6 +368,12 @@ export const CompanyProfileSection = forwardRef<CompanyProfileHandle>(
             </select>
           </Field>
         </div>
+
+        <LocationPickerSection
+          picker={locationPicker}
+          title="Ubicación de la empresa"
+          description="Busca la sede principal o marca el punto en el mapa."
+        />
 
         <div>
           <h3 className="mb-3 text-sm font-semibold">Representante legal</h3>

@@ -13,6 +13,7 @@ export type SpecialtyDto = {
   id: string;
   name: string;
   slug: string;
+  description: string | null;
   sortOrder: number;
   isActive: boolean;
   roleId: string;
@@ -46,6 +47,7 @@ export class SpecialtiesService {
       id: specialty.id.toString(),
       name: specialty.name,
       slug: specialty.slug,
+      description: specialty.description,
       sortOrder: specialty.sortOrder,
       isActive: specialty.isActive,
       roleId: specialty.roleId.toString(),
@@ -143,6 +145,7 @@ export class SpecialtiesService {
         data: {
           name,
           slug,
+          description: dto.description?.trim() || null,
           sortOrder: dto.sortOrder ?? (maxSort._max.sortOrder ?? -1) + 1,
           isActive: dto.isActive ?? true,
           roleId: role.id,
@@ -210,6 +213,9 @@ export class SpecialtiesService {
         data: {
           ...(nextName ? { name: nextName } : {}),
           ...(nextSlug ? { slug: nextSlug } : {}),
+          ...(dto.description !== undefined
+            ? { description: dto.description.trim() || null }
+            : {}),
           ...(dto.sortOrder !== undefined ? { sortOrder: dto.sortOrder } : {}),
           ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         },

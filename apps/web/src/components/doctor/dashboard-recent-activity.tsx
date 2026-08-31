@@ -15,33 +15,6 @@ export type ActivityFeedItem = {
   kind: "analysis_done" | "analysis_confirmed" | "patient_new";
 };
 
-const FALLBACK_ACTIVITY: ActivityFeedItem[] = [
-  {
-    id: "preview-1",
-    title: "Nuevo análisis dermatológico completado",
-    patientName: "Juan Pérez",
-    time: "Hace 10 min",
-    sortAt: 0,
-    kind: "analysis_done",
-  },
-  {
-    id: "preview-2",
-    title: "Análisis estético confirmado",
-    patientName: "María Gómez",
-    time: "Hace 30 min",
-    sortAt: 0,
-    kind: "analysis_confirmed",
-  },
-  {
-    id: "preview-3",
-    title: "Nuevo paciente registrado",
-    patientName: "Carlos Ruiz",
-    time: "Hace 1 h",
-    sortAt: 0,
-    kind: "patient_new",
-  },
-];
-
 const ICON_STYLES: Record<
   ActivityFeedItem["kind"],
   { bg: string; icon: typeof Activity }
@@ -101,8 +74,8 @@ export function DashboardRecentActivity({
   analyses?: AnalysisListItem[];
   patients?: Patient[];
 }) {
-  const built = buildActivity(analyses, patients);
-  const items = built.length > 0 ? built : FALLBACK_ACTIVITY;
+  const items = buildActivity(analyses, patients);
+  if (items.length === 0) return null;
 
   return (
     <div className="flex h-full flex-col rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">

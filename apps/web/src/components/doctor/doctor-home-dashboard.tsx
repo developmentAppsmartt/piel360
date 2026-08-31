@@ -8,6 +8,7 @@ import type { AnalysisListItem } from "@/lib/queries/analyses";
 import type { Doctor } from "@/lib/queries/doctors";
 import type { Patient } from "@/lib/queries/patients";
 import type { Subscription } from "@/lib/queries/subscriptions";
+import { formatClinicalGreeting } from "@/lib/user-role-display";
 
 export function DoctorHomeDashboard({
   profile,
@@ -34,14 +35,21 @@ export function DoctorHomeDashboard({
   patients?: Patient[];
   loading?: boolean;
 }) {
-  const name = `Dr(a). ${profile.firstName} ${profile.lastName}`.trim();
+  const name = formatClinicalGreeting(
+    "doctor",
+    profile.firstName,
+    profile.lastName,
+    { specialty: profile.specialty },
+  );
 
   return (
     <section className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <h2 className="text-2xl font-semibold text-zinc-900">Hola, {name}</h2>
+      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
+        <h2 className="text-xl font-semibold text-zinc-900 sm:text-2xl">
+          Hola, {name}
+        </h2>
         {!verified ? (
-          <p className="text-xs text-zinc-500">
+          <p className="mt-1 text-sm text-zinc-500">
             Algunas métricas se activarán al aprobar tu cuenta
           </p>
         ) : null}

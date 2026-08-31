@@ -14,9 +14,9 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { ClinicalPanelRoles } from '../auth/clinical-panel.roles.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
 import type { JwtPayload } from '../auth/types';
 import { ProductsService } from './products.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -26,7 +26,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('doctor')
+@ClinicalPanelRoles()
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 

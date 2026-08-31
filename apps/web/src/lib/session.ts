@@ -6,6 +6,7 @@ export interface Session {
   sub: string;
   email: string;
   role: Role;
+  permissions?: string[];
   surveyCompletedAt?: string | null;
   empresa?: boolean;
   empresaReferida?: boolean;
