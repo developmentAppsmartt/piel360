@@ -122,9 +122,8 @@ export function ConditionRow({
 
       {isSkinAge && (
         <p className="text-xs text-muted-foreground">
-          Diferencia entre la edad real del paciente y la edad de piel que da YouCam
-          (edad real − edad de piel). Negativo = piel más envejecida; positivo = piel
-          más joven.
+          Fórmula utilizada: Diferencia = Edad de la piel − Edad cronológica (años).
+          Valores negativos indican que la piel es más joven que la edad real.
         </p>
       )}
 

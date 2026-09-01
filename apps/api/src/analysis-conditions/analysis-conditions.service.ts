@@ -111,17 +111,17 @@ export class AnalysisConditionsService {
         );
       }
 
-      // skin_age no se compara contra el puntaje crudo de YouCam — el valor
+      // skin_age no se compara contra el puntaje crudo — el valor
       // clínicamente relevante es cuánto más vieja/joven se ve la piel
-      // respecto a la edad real del paciente (edadReal - edadPiel). Negativo
-      // = piel más envejecida; positivo = piel más joven.
+      // respecto a la edad real del paciente: edadPiel - edadCronológica.
+      // Negativo = piel más joven; positivo = piel más vieja.
       if (condition.metricType === 'skin_age') {
         if (!skinAge.patientBirthDate) return false;
         const skinAgeScore = resolveScore(result);
         if (skinAgeScore == null || condition.value == null) return false;
         const diff =
-          ageInYears(skinAge.patientBirthDate, skinAge.analysisDate) -
-          skinAgeScore;
+          skinAgeScore -
+          ageInYears(skinAge.patientBirthDate, skinAge.analysisDate);
         return operatorMatches(condition.operator, diff, condition.value);
       }
 

@@ -79,7 +79,7 @@ export function conditionSentence(condition: ConditionLike, subjectPhrase: strin
   const operator = conditionOperatorLabel(condition.operator).toLowerCase();
 
   if (condition.metricType === "skin_age") {
-    return `Se recomienda ${subjectPhrase} cuando la diferencia de edad de piel (edad real − edad de piel) sea ${operator} ${condition.value}`;
+    return `Se recomienda ${subjectPhrase} cuando la diferencia de edad de piel (edad de piel − edad real) sea ${operator} ${condition.value}`;
   }
 
   return `Se recomienda ${subjectPhrase} cuando ${metric}${region} sea ${operator} ${condition.value}`;
