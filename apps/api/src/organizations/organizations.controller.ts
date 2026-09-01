@@ -19,7 +19,8 @@ import {
   ClinicalPanelRoles,
 } from '../auth/clinical-panel.roles.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { Roles } from '../auth/roles.decorator';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { RequirePermission } from '../auth/permissions.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import type { JwtPayload } from '../auth/types';
 import { AddTeamDoctorDto } from './dto/add-team-doctor.dto';
@@ -119,22 +120,22 @@ export class OrganizationsController {
   }
 
   @Get('admin/organizations')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('superadmin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('admin.companies')
   listAll() {
     return this.organizations.listAllForAdmin();
   }
 
   @Get('admin/empresas')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('superadmin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('admin.companies')
   listCompanies() {
     return this.organizations.listCompanyRegistrationsForAdmin();
   }
 
   @Get('admin/referrals')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('superadmin')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('admin.settings.referrals')
   listReferrals() {
     return this.organizations.listReferralsForAdmin();
   }

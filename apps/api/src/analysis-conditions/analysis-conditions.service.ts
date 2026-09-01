@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import type { AnalysisResult } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { DoctorsService } from '../doctors/doctors.service';
+import { OrgContextService } from '../organizations/org-context.service';
 
 interface Condition {
   metricType: string;
@@ -73,7 +73,7 @@ function findResultForCondition(
 export class AnalysisConditionsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly doctorsService: DoctorsService,
+    private readonly orgContext: OrgContextService,
   ) {}
 
   matchesAnyCondition<C extends Condition>(
@@ -102,15 +102,27 @@ export class AnalysisConditionsService {
   /** Verifica que el análisis pertenezca a un paciente del doctor autenticado
    * y devuelve sus AnalysisResult ya cargados. */
   async loadAnalysisResultsForDoctor(userId: string, analysisId: string) {
-    const doctor = await this.doctorsService.requireDoctorByUserId(userId);
-
     const analysis = await this.prisma.analysis.findUnique({
       where: { id: BigInt(analysisId) },
       include: { patient: true },
     });
     if (!analysis) throw new NotFoundException('Análisis no encontrado');
-    if (analysis.patient.doctorId !== doctor.id) {
+
+    const allowed = await this.orgContext.canAccessPatientDoctorId(
+      userId,
+      analysis.patient.doctorId,
+    );
+    if (!allowed) {
       throw new ForbiddenException('No tienes acceso a este análisis');
+    }
+
+    const doctor = analysis.patient.doctorId
+      ? await this.prisma.doctor.findUnique({
+          where: { id: analysis.patient.doctorId },
+        })
+      : null;
+    if (!doctor) {
+      throw new NotFoundException('Médico del análisis no encontrado');
     }
 
     const results = await this.prisma.analysisResult.findMany({

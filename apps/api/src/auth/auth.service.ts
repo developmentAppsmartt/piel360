@@ -10,9 +10,14 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import {
   isMobileLoginAllowed,
+  parseTeamMemberPermissions,
+  resolveUserPrimaryPanel,
+  TEAM_MEMBER_PERMISSIONS,
   SEAT_PLAN_LIMITS,
   type MembershipType,
+  type PrimaryPanel,
   type Role,
+  type TeamMemberPermission,
 } from '@piel360/shared';
 import * as argon2 from 'argon2';
 import { Prisma } from '@prisma/client';
@@ -49,9 +54,6 @@ const OTP_MAX_ATTEMPTS = 5;
 
 const ROLE_PRIORITY: Role[] = ['superadmin', 'monitor', 'empresa', 'doctor', 'patient'];
 
-/** Roles de sistema en BD; cualquier otro slug se trata como rol profesional (especialidad / técnico). */
-const SYSTEM_ROLE_SLUGS = new Set<string>(ROLE_PRIORITY);
-
 interface AuthUser {
   id: bigint;
   email: string;
@@ -59,6 +61,7 @@ interface AuthUser {
   roles: {
     name: string;
     isActive: boolean;
+    primaryPanel?: string | null;
     permissions: { name: string; slug: string; isActive: boolean }[];
   }[];
   patient?: { surveyCompletedAt: Date | null } | null;
@@ -67,6 +70,10 @@ interface AuthUser {
     empresaReferida: boolean;
     verificationStatus: string;
   } | null;
+  organizationMembers?: {
+    memberRole: string;
+    permissions: unknown;
+  }[];
 }
 
 export interface AuthResult {
@@ -77,9 +84,14 @@ export interface AuthResult {
     email: string;
     name: string;
     role: Role;
+    primaryPanel?: PrimaryPanel;
+    permissions?: string[];
     empresa?: boolean;
     empresaReferida?: boolean;
     verificationStatus?: string;
+    teamPermissions?: TeamMemberPermission[] | null;
+    organizationMemberRole?: 'owner' | 'member' | null;
+    isOrgMember?: boolean;
   };
 }
 
@@ -199,8 +211,8 @@ export class AuthService implements OnModuleDestroy {
       await this.consumePhoneTicket(dto.phoneTicket, phone);
     }
 
-    const role = this.resolveRole(user);
-    return this.buildAuthResult(user, role, client);
+    const session = this.resolveSessionContext(user);
+    return this.buildAuthResult(user, session, client);
   }
 
   async registerEmpresa(
@@ -273,6 +285,8 @@ export class AuthService implements OnModuleDestroy {
                   }
                 : {}),
               locationType: empresaReferida ? 'empresa_aliada' : 'clinica',
+              // Sin especialidad: la cuenta es empresa, no profesional individual.
+              specialty: null,
             },
           },
         },
@@ -285,6 +299,13 @@ export class AuthService implements OnModuleDestroy {
               verificationStatus: true,
             },
           },
+        },
+      });
+
+      await tx.user.update({
+        where: { id: newUser.id },
+        data: {
+          roles: { set: [{ name: 'empresa' }] },
         },
       });
 
@@ -340,8 +361,8 @@ export class AuthService implements OnModuleDestroy {
 
     await this.consumePhoneTicket(dto.phoneTicket, phone);
 
-    const role = this.resolveRole(created);
-    return this.buildAuthResult(created, role, client);
+    const session = this.resolveSessionContext(created);
+    return this.buildAuthResult(created, session, client);
   }
 
   private generateReferralCode(): string {
@@ -388,7 +409,19 @@ export class AuthService implements OnModuleDestroy {
 
     await this.consumePhoneTicket(dto.phoneTicket, phone);
 
-    return this.buildAuthResult(user, 'patient', client);
+    return this.buildAuthResult(
+      user,
+      {
+        role: 'patient',
+        primaryPanel: 'patient',
+        roleSlugs: ['patient'],
+        permissions: this.resolvePermissions(user),
+        teamPermissions: null,
+        organizationMemberRole: null,
+        isOrgMember: false,
+      },
+      client,
+    );
   }
 
   async login(
@@ -410,8 +443,8 @@ export class AuthService implements OnModuleDestroy {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    const role = this.resolveRole(user);
-    return this.buildAuthResult(user, role, client);
+    const session = this.resolveSessionContext(user);
+    return this.buildAuthResult(user, session, client);
   }
 
   /** Canjea el refresh token (cookie `piel360_refresh` en web, body en móvil)
@@ -438,8 +471,8 @@ export class AuthService implements OnModuleDestroy {
     });
     if (!user) throw new UnauthorizedException();
 
-    const role = this.resolveRole(user);
-    return this.buildAuthResult(user, role, client);
+    const session = this.resolveSessionContext(user);
+    return this.buildAuthResult(user, session, client);
   }
 
   /** Include común para construir `AuthUser` (login/refresh) — roles+permisos
@@ -453,6 +486,12 @@ export class AuthService implements OnModuleDestroy {
         empresa: true,
         empresaReferida: true,
         verificationStatus: true,
+      },
+    },
+    organizationMembers: {
+      select: {
+        memberRole: true,
+        permissions: true,
       },
     },
   } as const;
@@ -512,8 +551,8 @@ export class AuthService implements OnModuleDestroy {
         include: this.authUserInclude,
       });
 
-      const role = this.resolveRole(user);
-      return this.buildAuthResult(user, role, client);
+      const session = this.resolveSessionContext(user);
+      return this.buildAuthResult(user, session, client);
     }
 
     const roleNames = existing.roles.map((r) => r.name);
@@ -551,8 +590,8 @@ export class AuthService implements OnModuleDestroy {
           })
         : existing;
 
-    const role = this.resolveRole(user);
-    return this.buildAuthResult(user, role, client);
+    const session = this.resolveSessionContext(user);
+    return this.buildAuthResult(user, session, client);
   }
 
   /** Guarda el resultado de auth bajo un código de un solo uso (Redis, TTL
@@ -917,19 +956,97 @@ export class AuthService implements OnModuleDestroy {
     }
   }
 
-  /** Prioridad: superadmin > monitor > doctor > patient.
-   * Si ninguno calza pero tiene permisos (rol personalizado), se trata como
-   * superadmin para ruteo del panel (apps/web/src/proxy.ts). */
-  private resolveRole(user: AuthUser): Role {
+  /** Prioridad JWT legacy para flags móviles y verificación doctor. */
+  private resolveRole(user: AuthUser, primaryPanel: PrimaryPanel): Role {
     const names = user.roles.map((r) => r.name);
     const match = ROLE_PRIORITY.find((role) => names.includes(role));
-    if (match) return match;
-    if (user.doctor?.empresa) return 'empresa';
+    if (primaryPanel === 'patient') return 'patient';
+    if (primaryPanel === 'admin') {
+      if (names.includes('monitor')) return 'monitor';
+      if (names.includes('superadmin')) return 'superadmin';
+      if (names.includes('empresa') || user.doctor?.empresa) return 'empresa';
+      if (user.doctor) return 'doctor';
+      return 'doctor';
+    }
+    if (names.includes('empresa') || user.doctor?.empresa) return 'empresa';
+    if (match === 'doctor' || match === 'empresa') return match;
     if (user.doctor) return 'doctor';
-    if (user.patient) return 'patient';
-    if (names.some((name) => !SYSTEM_ROLE_SLUGS.has(name))) return 'doctor';
-    if (this.resolvePermissions(user).length > 0) return 'superadmin';
-    throw new UnauthorizedException('El usuario no tiene un rol asignado');
+    return 'doctor';
+  }
+
+  private resolveRoleSlugs(user: AuthUser): string[] {
+    return user.roles.filter((role) => role.isActive).map((role) => role.name);
+  }
+
+  private resolvePrimaryPanel(user: AuthUser, permissions: string[]): PrimaryPanel {
+    return resolveUserPrimaryPanel(
+      user.roles.map((role) => ({
+        name: role.name,
+        isActive: role.isActive,
+        primaryPanel: role.primaryPanel,
+      })),
+      permissions,
+      { hasPatientProfile: Boolean(user.patient) },
+    );
+  }
+
+  private resolveTeamContext(user: AuthUser): {
+    teamPermissions: TeamMemberPermission[] | null;
+    organizationMemberRole: 'owner' | 'member' | null;
+    isOrgMember: boolean;
+  } {
+    const membership = user.organizationMembers?.[0];
+    if (!membership) {
+      return {
+        teamPermissions: null,
+        organizationMemberRole: null,
+        isOrgMember: false,
+      };
+    }
+    if (membership.memberRole === 'owner') {
+      return {
+        teamPermissions: [...TEAM_MEMBER_PERMISSIONS],
+        organizationMemberRole: 'owner',
+        isOrgMember: true,
+      };
+    }
+    const parsed = parseTeamMemberPermissions(membership.permissions);
+    return {
+      teamPermissions: parsed,
+      organizationMemberRole: 'member',
+      isOrgMember: true,
+    };
+  }
+
+  private resolveSessionContext(user: AuthUser): {
+    role: Role;
+    primaryPanel: PrimaryPanel;
+    roleSlugs: string[];
+    permissions: string[];
+    teamPermissions: TeamMemberPermission[] | null;
+    organizationMemberRole: 'owner' | 'member' | null;
+    isOrgMember: boolean;
+  } {
+    const permissions = this.resolvePermissions(user);
+    const team = this.resolveTeamContext(user);
+    const hasActiveRole = user.roles.some((role) => role.isActive);
+    if (
+      !hasActiveRole &&
+      !user.patient &&
+      !user.doctor &&
+      permissions.length === 0
+    ) {
+      throw new UnauthorizedException('El usuario no tiene un rol asignado');
+    }
+    const primaryPanel = this.resolvePrimaryPanel(user, permissions);
+    const role = this.resolveRole(user, primaryPanel);
+    return {
+      role,
+      primaryPanel,
+      roleSlugs: this.resolveRoleSlugs(user),
+      permissions,
+      ...team,
+    };
   }
 
   /** Unión de slugs activos de todos los roles del usuario. */
@@ -947,24 +1064,37 @@ export class AuthService implements OnModuleDestroy {
 
   private buildAuthResult(
     user: AuthUser,
-    role: Role,
+    session: {
+      role: Role;
+      primaryPanel: PrimaryPanel;
+      roleSlugs: string[];
+      permissions: string[];
+      teamPermissions: TeamMemberPermission[] | null;
+      organizationMemberRole: 'owner' | 'member' | null;
+      isOrgMember: boolean;
+    },
     client: 'mobile' | 'web' = 'web',
   ): AuthResult {
-    this.assertMobileLoginAllowed(role, client);
+    this.assertMobileLoginAllowed(session.role, client);
     const empresa = user.doctor?.empresa ?? false;
     const empresaReferida = user.doctor?.empresaReferida ?? false;
     const verificationStatus = user.doctor?.verificationStatus ?? 'pending';
     const doctorFlags =
-      role === 'doctor' || role === 'empresa'
+      session.role === 'doctor' || session.role === 'empresa'
         ? { empresa, empresaReferida, verificationStatus }
         : {};
     const payload: JwtPayload = {
       sub: user.id.toString(),
       email: user.email,
-      role,
-      permissions: this.resolvePermissions(user),
+      role: session.role,
+      primaryPanel: session.primaryPanel,
+      roleSlugs: session.roleSlugs,
+      permissions: session.permissions,
+      teamPermissions: session.teamPermissions,
+      organizationMemberRole: session.organizationMemberRole,
+      isOrgMember: session.isOrgMember,
       surveyCompletedAt:
-        role === 'patient'
+        session.role === 'patient'
           ? (user.patient?.surveyCompletedAt?.toISOString() ?? null)
           : undefined,
       ...doctorFlags,
@@ -988,7 +1118,12 @@ export class AuthService implements OnModuleDestroy {
         id: user.id.toString(),
         email: user.email,
         name: user.name,
-        role,
+        role: session.role,
+        primaryPanel: session.primaryPanel,
+        permissions: session.permissions,
+        teamPermissions: session.teamPermissions,
+        organizationMemberRole: session.organizationMemberRole,
+        isOrgMember: session.isOrgMember,
         ...doctorFlags,
       },
     };

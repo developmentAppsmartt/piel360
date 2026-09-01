@@ -1,7 +1,13 @@
+"use client";
+
 import type { TeamMemberPermission } from "@piel360/shared";
 import {
+  BarChart3,
   ClipboardList,
+  CreditCard,
   FileText,
+  ListChecks,
+  ShoppingBag,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -21,9 +27,8 @@ export type TeamPermissionGroup = {
 };
 
 /**
- * Permisos de módulo del equipo (por miembro).
- * Los análisis IA (Skiniver / YouCam / Fitzpatrick) no van aquí:
- * se definen en Admin → Permisos de planes según especialidad o técnico laboral.
+ * Permisos de módulo del equipo (por miembro invitado).
+ * Los análisis IA (Skiniver / YouCam / Fitzpatrick) se definen en Admin → Permisos de planes.
  */
 export const TEAM_PERMISSION_GROUPS: TeamPermissionGroup[] = [
   {
@@ -40,6 +45,40 @@ export const TEAM_PERMISSION_GROUPS: TeamPermissionGroup[] = [
     ],
   },
   {
+    key: "analyses",
+    label: "Análisis y resultados",
+    icon: ClipboardList,
+    module: "analyses",
+    items: [
+      { key: "analyses.view", label: "Ver análisis" },
+      { key: "analyses.create", label: "Crear análisis" },
+    ],
+  },
+  {
+    key: "products",
+    label: "Productos",
+    icon: ShoppingBag,
+    module: "products",
+    items: [
+      { key: "products.view", label: "Ver productos" },
+      { key: "products.create", label: "Crear productos" },
+      { key: "products.update", label: "Editar productos" },
+      { key: "products.delete", label: "Eliminar productos" },
+    ],
+  },
+  {
+    key: "routines",
+    label: "Rutinas",
+    icon: ListChecks,
+    module: "routines",
+    items: [
+      { key: "routines.view", label: "Ver rutinas" },
+      { key: "routines.create", label: "Crear rutinas" },
+      { key: "routines.update", label: "Editar rutinas" },
+      { key: "routines.delete", label: "Eliminar rutinas" },
+    ],
+  },
+  {
     key: "treatments",
     label: "Planes de tratamiento",
     icon: ClipboardList,
@@ -50,6 +89,16 @@ export const TEAM_PERMISSION_GROUPS: TeamPermissionGroup[] = [
       { key: "treatments.update", label: "Editar planes" },
       { key: "treatments.delete", label: "Eliminar planes" },
       { key: "treatments.export", label: "Exportar planes" },
+    ],
+  },
+  {
+    key: "billing",
+    label: "Planes y suscripción",
+    icon: CreditCard,
+    module: "billing",
+    items: [
+      { key: "billing.view", label: "Ver planes y facturación" },
+      { key: "billing.consumption", label: "Ver consumo de análisis" },
     ],
   },
   {

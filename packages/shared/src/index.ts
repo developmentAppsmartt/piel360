@@ -1,4 +1,5 @@
 export * from "./enums.js";
+export * from "./team-permissions.js";
 export * from "./constants.js";
 export * from "./doctor-specialties.js";
 export * from "./skiniver.js";
@@ -6,4 +7,9 @@ export * from "./youcam.js";
 export * from "./wompi.js";
 export * from "./fitzpatrick.js";
 export * from "./admin-components.js";
+export * from "./clinical-components.js";
+export * from "./clinical-nav-access.js";
+export * from "./admin-nav-access.js";
+export * from "./panel-access.js";
+export * from "./permission-resolution.js";
 export * from "./empresa-role.js";

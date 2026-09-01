@@ -1,28 +1,18 @@
 import { jwtVerify } from "jose";
 import { type NextRequest, NextResponse } from "next/server";
 import {
-  DOCTOR_PANEL_ROLES,
+  canAccessAdminPanel,
+  canAccessClinicalPanel,
+  canAccessPatientPanel,
   isClinicalPanelRole,
   isDoctorVerificationActive,
+  teamPermissionAllowsNavHref,
+  type PrimaryPanel,
   type Role,
+  type TeamMemberPermission,
 } from "@piel360/shared";
-import { doctorRouteAllowed } from "@/lib/doctor-panel-permissions";
 import { adminRouteAllowed } from "@/lib/admin-panel-permissions";
-
-/**
- * Protección de rutas por rol (equivalente a `EnsurePanelRole`) y gate de
- * encuesta obligatoria del paciente (equivalente a `EnsurePatientSurveyCompleted`).
- * Ver MIGRACION.md §6. El token lo emite `POST /api/auth/login` (Semana 2 del
- * backend); aquí solo se verifica la firma y se lee el payload.
- *
- * Nota: en Next.js 16 este archivo se llama `proxy.ts` (antes `middleware.ts`,
- * convención deprecada desde v16 — ver next.js/docs file-conventions/proxy).
- *
- * Nota: (panel) es un route group de Next.js — no aparece en la URL — por eso
- * las rutas del panel autenticado comparten el mismo prefijo `/doctor/*` que
- * la landing/login públicos. La protección se hace por lista de excepciones,
- * no por segmento de carpeta.
- */
+import { clinicalRouteAllowed } from "@/lib/clinical-panel-permissions";
 
 const PANELS = ["doctor", "patient", "admin"] as const;
 type Panel = (typeof PANELS)[number];
@@ -50,8 +40,7 @@ const PUBLIC_PATHS: Record<Panel, string[]> = {
 
 const SURVEY_EXEMPT_PATHS = ["/patient/encuesta"];
 
-/** Rutas permitidas mientras el doctor no está active/approved. */
-const DOCTOR_PENDING_ALLOWED_PREFIXES = [
+const CLINICAL_PENDING_ALLOWED_PREFIXES = [
   "/doctor/home",
   "/doctor/planes",
   "/doctor/facturacion",
@@ -61,38 +50,48 @@ const DOCTOR_PENDING_ALLOWED_PREFIXES = [
 
 interface SessionPayload {
   role?: Role;
+  primaryPanel?: PrimaryPanel;
+  roleSlugs?: string[];
   permissions?: string[];
+  teamPermissions?: TeamMemberPermission[] | null;
+  isOrgMember?: boolean;
   surveyCompletedAt?: string | null;
   verificationStatus?: string;
 }
 
-function roleAllowedForPanel(panel: Panel, role: Role | undefined): boolean {
-  if (!role) return false;
-  if (panel === "admin") return role === "superadmin" || role === "monitor";
-  if (panel === "doctor") {
-    return (DOCTOR_PANEL_ROLES as readonly Role[]).includes(role);
+function panelAllowed(panel: Panel, session: SessionPayload): boolean {
+  if (panel === "admin") {
+    return canAccessAdminPanel(session.role, session.permissions);
   }
-  return role === "patient";
+  if (panel === "doctor") {
+    return canAccessClinicalPanel(session.role, session.permissions);
+  }
+  return canAccessPatientPanel(session.role, session.primaryPanel);
 }
 
-/** Rutas del panel admin permitidas para el rol monitor (moderador). */
+function isClinicalSession(session: SessionPayload): boolean {
+  return (
+    canAccessClinicalPanel(session.role, session.permissions) &&
+    session.role !== "patient"
+  );
+}
+
 const MONITOR_ALLOWED_PREFIXES = ["/admin/verificacion"];
 
 function monitorPathAllowed(pathname: string): boolean {
   return MONITOR_ALLOWED_PREFIXES.some(
-    (prefix) =>
-      pathname === prefix || pathname.startsWith(`${prefix}/`),
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
 }
 
-function doctorPathAllowedWhilePending(pathname: string): boolean {
+function clinicalPathAllowedWhilePending(pathname: string): boolean {
   if (
     pathname.startsWith("/doctor/configuracion/equipos") ||
     pathname.startsWith("/doctor/configuracion/referidos")
   ) {
     return false;
   }
-  return DOCTOR_PENDING_ALLOWED_PREFIXES.some(
+  return CLINICAL_PENDING_ALLOWED_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
 }
@@ -116,14 +115,6 @@ async function getFreshPermissions(
   } catch {
     return undefined;
   }
-}
-
-async function getClinicalPanelPermissions(
-  token: string | undefined,
-  session: SessionPayload,
-): Promise<string[] | undefined> {
-  if (!isClinicalPanelRole(session.role) || !token) return session.permissions;
-  return (await getFreshPermissions(token)) ?? session.permissions;
 }
 
 async function getSession(
@@ -152,18 +143,12 @@ export async function proxy(request: NextRequest) {
   const token = request.cookies.get("piel360_token")?.value;
   const session = await getSession(token);
 
-  if (!session || !roleAllowedForPanel(panel, session.role)) {
+  if (!session || !panelAllowed(panel, session)) {
     return NextResponse.redirect(new URL(`/${panel}/login`, request.url));
   }
 
-  const clinicalPermissions =
-    panel === "doctor" && isClinicalPanelRole(session.role)
-      ? await getClinicalPanelPermissions(token, session)
-      : session.permissions;
-
-  const adminPermissions =
-    panel === "admin" &&
-    (session.role === "superadmin" || session.role === "monitor")
+  const permissions =
+    panel === "doctor" || panel === "admin"
       ? ((await getFreshPermissions(token)) ?? session.permissions)
       : session.permissions;
 
@@ -177,9 +162,11 @@ export async function proxy(request: NextRequest) {
 
   if (
     panel === "doctor" &&
+    isClinicalSession(session) &&
     isClinicalPanelRole(session.role) &&
+    session.verificationStatus &&
     !isDoctorVerificationActive(session.verificationStatus) &&
-    !doctorPathAllowedWhilePending(pathname)
+    !clinicalPathAllowedWhilePending(pathname)
   ) {
     const dest = pathname.startsWith("/doctor/configuracion/")
       ? "/doctor/configuracion"
@@ -189,28 +176,43 @@ export async function proxy(request: NextRequest) {
 
   if (
     panel === "doctor" &&
-    isClinicalPanelRole(session.role) &&
-    isDoctorVerificationActive(session.verificationStatus) &&
-    !doctorRouteAllowed(pathname, clinicalPermissions)
+    isClinicalSession(session) &&
+    (!session.verificationStatus ||
+      isDoctorVerificationActive(session.verificationStatus)) &&
+    !clinicalRouteAllowed(pathname, permissions)
+  ) {
+    return NextResponse.redirect(new URL("/doctor/home", request.url));
+  }
+
+  if (
+    panel === "doctor" &&
+    session.isOrgMember &&
+    !teamPermissionAllowsNavHref(session.teamPermissions ?? undefined, pathname, {
+      isOrgMember: true,
+    })
   ) {
     return NextResponse.redirect(new URL("/doctor/home", request.url));
   }
 
   if (
     panel === "admin" &&
-    session.role === "monitor" &&
-    !monitorPathAllowed(pathname) &&
-    !adminRouteAllowed(pathname, adminPermissions)
+    !canAccessAdminPanel(session.role, permissions) &&
+    canAccessClinicalPanel(session.role, permissions)
   ) {
-    return NextResponse.redirect(new URL("/admin/verificacion", request.url));
+    return NextResponse.redirect(new URL("/doctor/home", request.url));
   }
 
-  if (
-    panel === "admin" &&
-    session.role === "superadmin" &&
-    !adminRouteAllowed(pathname, adminPermissions)
-  ) {
-    return NextResponse.redirect(new URL("/admin", request.url));
+  if (panel === "admin") {
+    if (
+      session.role === "monitor" &&
+      !monitorPathAllowed(pathname) &&
+      !adminRouteAllowed(pathname, permissions)
+    ) {
+      return NextResponse.redirect(new URL("/admin/verificacion", request.url));
+    }
+    if (!adminRouteAllowed(pathname, permissions)) {
+      return NextResponse.redirect(new URL("/admin", request.url));
+    }
   }
 
   return NextResponse.next();

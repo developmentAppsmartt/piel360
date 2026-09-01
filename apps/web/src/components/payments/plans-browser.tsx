@@ -85,6 +85,13 @@ export function PlansBrowser({
 
       {plans.isLoading && <p className="text-muted-foreground">Cargando planes...</p>}
 
+      {!plans.isLoading && visiblePlans.length === 0 && providers.length > 0 && (
+        <p className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+          No hay planes disponibles para contratar en este momento. Si tienes una suscripción activa,
+          revisa el estado de tu plan actual arriba.
+        </p>
+      )}
+
       {providers.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {providers.map((slug) => (

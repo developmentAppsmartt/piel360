@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import { ApiError } from "@/lib/api-error";
+import { subscriptionEndsAtDisplay } from "@/components/payments/subscription-utils";
 import {
   subscriptionPackageSummary,
   subscriptionProviderLabels,
@@ -154,17 +155,16 @@ export function SubscriptionsManager() {
   const [pageSize, setPageSize] = useState<(typeof ADMIN_PAGE_SIZES)[number]>(10);
 
   const stats = useMemo(() => {
-    const rows = subscriptions.data ?? [];
+    const rows = (subscriptions.data ?? []).filter((s) => s.status !== "pending");
     return {
       total: rows.length,
       active: rows.filter((s) => s.status === "active").length,
-      pending: rows.filter((s) => s.status === "pending").length,
       cancelled: rows.filter((s) => s.status === "cancelled").length,
     };
   }, [subscriptions.data]);
 
   const filtered = useMemo(() => {
-    const rows = subscriptions.data ?? [];
+    const rows = (subscriptions.data ?? []).filter((s) => s.status !== "pending");
     const q = search.trim().toLowerCase();
     return rows.filter((row) => {
       if (statusFilter !== "all" && row.status !== statusFilter) return false;
@@ -211,7 +211,7 @@ export function SubscriptionsManager() {
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <ModuleCard className="p-4">
           <p className="text-xs font-medium text-muted-foreground">Total</p>
           <p className="mt-1 text-2xl font-bold tabular-nums">{stats.total}</p>
@@ -219,10 +219,6 @@ export function SubscriptionsManager() {
         <ModuleCard className="p-4">
           <p className="text-xs font-medium text-muted-foreground">Activas</p>
           <p className="mt-1 text-2xl font-bold tabular-nums text-emerald-600">{stats.active}</p>
-        </ModuleCard>
-        <ModuleCard className="p-4">
-          <p className="text-xs font-medium text-muted-foreground">Pendientes</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-amber-600">{stats.pending}</p>
         </ModuleCard>
         <ModuleCard className="p-4">
           <p className="text-xs font-medium text-muted-foreground">Canceladas</p>
@@ -235,7 +231,6 @@ export function SubscriptionsManager() {
           [
             { id: "all" as const, label: "Todas" },
             { id: "active" as const, label: "Activas" },
-            { id: "pending" as const, label: "Pendientes" },
             { id: "cancelled" as const, label: "Canceladas" },
           ] as const
         ).map((item) => (
@@ -324,7 +319,7 @@ export function SubscriptionsManager() {
                           <SubscriptionStatusBadge status={row.status} />
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
-                          {row.endsAt ? formatAdminDate(row.endsAt) : "—"}
+                          {subscriptionEndsAtDisplay(row)}
                         </td>
                         <td className="px-4 py-3">
                           {row.wompiTransactionId ? (
@@ -389,9 +384,9 @@ export function SubscriptionsManager() {
         <div className="text-sm text-muted-foreground">
           <p className="font-medium text-foreground">Suscripciones y créditos de análisis</p>
           <p className="mt-1">
-            Cada suscripción vincula un usuario con un plan y controla cuántos análisis IA puede
-            ejecutar. Las creadas por Wompi muestran el ID de transacción; las manuales se gestionan
-            desde aquí.
+            Cada suscripción activa reserva créditos de la bolsa global según el plan.
+            Al cancelar, los créditos no usados vuelven a la bolsa y el usuario deja de
+            poder ejecutar análisis. Las compras por Wompi se activan solas al confirmar el pago.
           </p>
         </div>
       </ModuleCard>

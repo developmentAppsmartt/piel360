@@ -1,5 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { inferPrimaryPanelFromPermissions } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateRoleDto } from './dto/create-role.dto';
 import type { UpdateRoleDto } from './dto/update-role.dto';
@@ -56,6 +57,7 @@ export class RolesService {
         kind: permission.kind,
         panel: permission.panel,
       })),
+      primaryPanel: role.primaryPanel,
     };
   }
 
@@ -75,9 +77,10 @@ export class RolesService {
     return this.serializeRole(role);
   }
 
-  /** `GET /admin/permissions` — catálogo completo para armar la matriz de checkboxes. */
+  /** `GET /admin/permissions` — catálogo activo para armar la matriz de checkboxes. */
   async findPermissions() {
     const permissions = await this.prisma.permission.findMany({
+      where: { isActive: true },
       orderBy: [
         { kind: 'asc' },
         { panel: 'asc' },
@@ -127,10 +130,46 @@ export class RolesService {
     return candidate;
   }
 
+  private async assertAssignablePermissionIds(permissionIds: string[]) {
+    if (permissionIds.length === 0) return;
+    const active = await this.prisma.permission.findMany({
+      where: {
+        id: { in: permissionIds.map((id) => BigInt(id)) },
+        isActive: true,
+      },
+      select: { id: true },
+    });
+    if (active.length !== permissionIds.length) {
+      throw new ConflictException(
+        'Uno o más permisos no existen o están inactivos en el catálogo',
+      );
+    }
+  }
+
+  /** Panel de inicio inferido desde los módulos seleccionados (admin vs clínico). */
+  private async resolvePrimaryPanelFromPermissionIds(
+    permissionIds: string[],
+  ): Promise<string> {
+    if (permissionIds.length === 0) return 'clinical';
+    const permissions = await this.prisma.permission.findMany({
+      where: { id: { in: permissionIds.map((id) => BigInt(id)) } },
+      select: { slug: true },
+    });
+    return (
+      inferPrimaryPanelFromPermissions(permissions.map((permission) => permission.slug)) ??
+      'clinical'
+    );
+  }
+
   async create(dto: CreateRoleDto) {
     const label = dto.label.trim();
     const name = await this.resolveUniqueName(label, dto.name);
     const permissionIds = dto.permissionIds ?? [];
+    await this.assertAssignablePermissionIds(permissionIds);
+    const primaryPanel =
+      permissionIds.length > 0
+        ? await this.resolvePrimaryPanelFromPermissionIds(permissionIds)
+        : (dto.primaryPanel ?? 'clinical');
 
     const role = await this.prisma.role.create({
       data: {
@@ -139,6 +178,7 @@ export class RolesService {
         description: dto.description?.trim() || null,
         color: dto.color?.trim() || '#6C4FFB',
         isActive: dto.isActive ?? true,
+        primaryPanel,
         laborTechnicianProfileId: dto.laborTechnicianProfileId
           ? BigInt(dto.laborTechnicianProfileId)
           : undefined,
@@ -174,6 +214,15 @@ export class RolesService {
       }
     }
 
+    if (dto.permissionIds !== undefined) {
+      await this.assertAssignablePermissionIds(dto.permissionIds);
+    }
+
+    const inferredPrimaryPanel =
+      dto.permissionIds !== undefined
+        ? await this.resolvePrimaryPanelFromPermissionIds(dto.permissionIds)
+        : undefined;
+
     const role = await this.prisma.$transaction(async (tx) => {
       if (dto.specialtyIds !== undefined) {
         await tx.roleSpecialtyLink.deleteMany({ where: { roleId: existing.id } });
@@ -197,6 +246,11 @@ export class RolesService {
             : {}),
           ...(dto.color !== undefined ? { color: dto.color.trim() || '#6C4FFB' } : {}),
           ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+          ...(inferredPrimaryPanel !== undefined
+            ? { primaryPanel: inferredPrimaryPanel }
+            : dto.primaryPanel !== undefined
+              ? { primaryPanel: dto.primaryPanel }
+              : {}),
           ...(dto.laborTechnicianProfileId !== undefined
             ? {
                 laborTechnicianProfileId: dto.laborTechnicianProfileId

@@ -62,11 +62,51 @@ export function computeVerificationCriteria(d: Doctor) {
   const enterprise = isEnterpriseDoctor(d);
   const org = d.organization;
 
+  const addrStatus = (d.addressVerificationStatus ??
+    "pending") as AddressVerificationStatus;
+  let addressVerified: CriterionStatus = "pending";
+  if (addrStatus === "verified") addressVerified = "fulfilled";
+  else if (addrStatus === "in_review" || hasRegisteredAddress(d)) {
+    addressVerified = "in_review";
+  }
+
+  if (enterprise) {
+    const coherentInfo: CriterionStatus =
+      org?.name?.trim() &&
+      org?.legalRepName?.trim() &&
+      org?.legalRepDocNumber?.trim() &&
+      org?.ciiuCode?.trim()
+        ? "fulfilled"
+        : "pending";
+
+    const orgDocsUploaded =
+      Boolean(org?.legalRepCedulaDocKey || org?.legalRepCedulaDocUrl) &&
+      Boolean(org?.rutDocKey || org?.rutDocUrl) &&
+      Boolean(org?.existenceCertDocKey || org?.existenceCertDocUrl);
+
+    const validDocs: CriterionStatus = orgDocsUploaded ? "fulfilled" : "pending";
+
+    let enterpriseData: CriterionStatus = "fulfilled";
+    if (coherentInfo !== "fulfilled") {
+      enterpriseData = "pending";
+    } else if (!orgDocsUploaded) {
+      enterpriseData = "in_review";
+    }
+
+    return {
+      coherentInfo,
+      validDocs,
+      enterpriseData,
+      addressVerified,
+      enterprise: true,
+    };
+  }
+
   const coherentInfo: CriterionStatus =
     d.firstName?.trim() &&
     d.lastName?.trim() &&
-    (d.specialty?.trim() || enterprise) &&
-    (d.docNumber?.trim() || d.medicalRegistry?.trim() || enterprise)
+    d.specialty?.trim() &&
+    (d.docNumber?.trim() || d.medicalRegistry?.trim())
       ? "fulfilled"
       : "pending";
 
@@ -77,33 +117,12 @@ export function computeVerificationCriteria(d: Doctor) {
 
   const validDocs: CriterionStatus = docsUploaded ? "fulfilled" : "pending";
 
-  let enterpriseData: CriterionStatus = "fulfilled";
-  if (enterprise) {
-    if (!org?.name?.trim() || !org?.ciiuCode?.trim()) {
-      enterpriseData = "pending";
-    } else if (
-      !org.rutDocKey &&
-      !org.existenceCertDocKey &&
-      !org.legalRepCedulaDocKey
-    ) {
-      enterpriseData = "in_review";
-    }
-  }
-
-  const addrStatus = (d.addressVerificationStatus ??
-    "pending") as AddressVerificationStatus;
-  let addressVerified: CriterionStatus = "pending";
-  if (addrStatus === "verified") addressVerified = "fulfilled";
-  else if (addrStatus === "in_review" || hasRegisteredAddress(d)) {
-    addressVerified = "in_review";
-  }
-
   return {
     coherentInfo,
     validDocs,
-    enterpriseData,
+    enterpriseData: "fulfilled" as CriterionStatus,
     addressVerified,
-    enterprise,
+    enterprise: false,
   };
 }
 

@@ -5,6 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { hasEffectivePermission } from '@piel360/shared';
 import type { Request } from 'express';
 import { PERMISSIONS_KEY } from './permissions.decorator';
 import type { JwtPayload } from './types';
@@ -26,10 +27,9 @@ export class PermissionsGuard implements CanActivate {
       .getRequest<Request & { user: JwtPayload }>();
     const user = request.user;
 
-    // Superadmin: acceso total (evita fallos si el JWT no trae el catálogo completo).
     if (user?.role === 'superadmin') return true;
 
-    if (!user || !user.permissions?.includes(requiredPermission)) {
+    if (!user || !hasEffectivePermission(user.permissions, requiredPermission)) {
       throw new ForbiddenException(
         'No tienes permiso para acceder a este recurso',
       );

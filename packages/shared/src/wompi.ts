@@ -41,8 +41,19 @@ export type UpdateGatewayConfigInput = Partial<CreateGatewayConfigInput>;
 
 export type PlanType = 'individual' | 'business';
 
+export type PoolProvider = 'skiniver' | 'perfectcorp';
+
+/** Disponibilidad de créditos en bolsa para contratar un plan. */
+export interface PlanPoolAvailability {
+  poolProvider: PoolProvider;
+  poolAvailable: number;
+  poolRequired: number;
+  poolPurchasable: boolean;
+  poolUnavailableReason: string | null;
+}
+
 /** `GET /plans` — catálogo de planes activos por proveedor. */
-export interface Plan {
+export interface Plan extends PlanPoolAvailability {
   id: string;
   analysisProviderId: string;
   analysisProviderIds: string[];

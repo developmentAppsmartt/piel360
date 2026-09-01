@@ -17,6 +17,7 @@ import {
   formatCOP,
   providerLabel,
   SUBSCRIPTION_STATUS_LABELS,
+  subscriptionEndsAtDisplay,
   subscriptionUsage,
 } from "./subscription-utils";
 
@@ -88,7 +89,7 @@ export function SubscriptionDetailCard({
         <div className="rounded-xl bg-muted/40 px-3 py-2">
           <p className="text-xs text-muted-foreground">Vigencia</p>
           <p className="mt-1 font-medium text-foreground">
-            {formatAdminDate(subscription.endsAt)}
+            {subscriptionEndsAtDisplay(subscription)}
           </p>
         </div>
       </div>
@@ -206,7 +207,7 @@ export function SubscriptionDetailBody({
             <CalendarDays className="size-3.5" aria-hidden />
             Vence
           </p>
-          <p className="mt-1 font-medium">{formatAdminDate(subscription.endsAt)}</p>
+          <p className="mt-1 font-medium">{subscriptionEndsAtDisplay(subscription)}</p>
         </div>
       </div>
 

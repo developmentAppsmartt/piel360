@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, Package } from "lucide-react";
 import { AnalysesTable } from "@/components/analyses/analyses-table";
+import { PoolCreditsAlert } from "@/components/admin/pool-credits-alert";
 import { RiskChart } from "@/components/admin/risk-chart";
 import { SubscriptionStats } from "@/components/admin/subscription-stats";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,8 @@ export default function AdminDashboardPage() {
           <ArrowRight className="size-4" />
         </Button>
       </div>
+
+      <PoolCreditsAlert />
 
       {stats.isLoading && (
         <p className="text-muted-foreground">Cargando estadísticas...</p>

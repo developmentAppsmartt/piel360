@@ -34,6 +34,7 @@ export interface Role {
   description: string | null;
   color: string | null;
   isActive: boolean;
+  primaryPanel?: string | null;
   laborTechnicianProfileId: string | null;
   laborTechnicianProfile: {
     id: string;
@@ -51,6 +52,7 @@ export interface RoleInput {
   description?: string;
   color?: string;
   isActive?: boolean;
+  primaryPanel?: string;
   permissionIds?: string[];
   specialtyIds?: string[];
   laborTechnicianProfileId?: string | null;

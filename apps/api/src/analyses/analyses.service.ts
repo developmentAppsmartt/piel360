@@ -9,6 +9,7 @@ import {
 import type { Queue } from 'bullmq';
 import type { Prisma } from '@prisma/client';
 import { DOCTOR_PANEL_ROLES, type Role } from '@piel360/shared';
+import { OrgContextService } from '../organizations/org-context.service';
 import { DoctorsService } from '../doctors/doctors.service';
 import { PatientsService } from '../patients/patients.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -43,6 +44,7 @@ export class AnalysesService {
     private readonly skiniver: SkiniverService,
     private readonly subscriptions: SubscriptionsService,
     private readonly patients: PatientsService,
+    private readonly orgContext: OrgContextService,
     private readonly doctors: DoctorsService,
     private readonly storage: StorageService,
     private readonly specialtyAccess: SpecialtyAccessService,
@@ -84,6 +86,7 @@ export class AnalysesService {
   ) {
     // Verifica que el usuario puede operar sobre este paciente (scoping).
     await this.patients.findOne(dto.patientId, currentUser);
+    await this.orgContext.assertTeamPermissionForUser(currentUser.sub, 'analyses');
 
     const userId = BigInt(currentUser.sub);
     await this.specialtyAccess.assertCanUseProvider(userId, SKINIVER_PROVIDER_SLUG);
@@ -234,9 +237,15 @@ export class AnalysesService {
     }
 
     if (isDoctorPanelRole(currentUser.role)) {
-      const doctor = await this.doctors.requireDoctorByUserId(currentUser.sub);
+      await this.orgContext.assertTeamPermissionForUser(
+        currentUser.sub,
+        'analyses',
+      );
+      const scope = await this.orgContext.resolvePatientDoctorScope(
+        currentUser.sub,
+      );
       return this.prisma.analysis.findMany({
-        where: { patient: { doctorId: doctor.id } },
+        where: { patient: { doctorId: { in: scope.visibleDoctorIds } } },
         include: { patient: true, provider: providerSelect },
         orderBy: { id: 'desc' },
       });
@@ -348,8 +357,11 @@ export class AnalysesService {
     if (currentUser.role === 'superadmin') return;
 
     if (isDoctorPanelRole(currentUser.role)) {
-      const doctor = await this.doctors.requireDoctorByUserId(currentUser.sub);
-      if (analysis.patient.doctorId === doctor.id) return;
+      const allowed = await this.orgContext.canAccessPatientDoctorId(
+        currentUser.sub,
+        analysis.patient.doctorId,
+      );
+      if (allowed) return;
       throw new ForbiddenException('Este análisis no pertenece a tu consulta');
     }
 

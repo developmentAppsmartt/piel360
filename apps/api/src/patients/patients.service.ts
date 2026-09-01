@@ -11,6 +11,7 @@ import { DOCTOR_PANEL_ROLES, type Role } from '@piel360/shared';
 import { AnalysisImageUrlsService } from '../analyses/analysis-image-urls.service';
 import type { JwtPayload } from '../auth/types';
 import { DoctorsService } from '../doctors/doctors.service';
+import { OrgContextService } from '../organizations/org-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import type { CreatePatientDto } from './dto/create-patient.dto';
@@ -27,13 +28,18 @@ export class PatientsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly doctors: DoctorsService,
+    private readonly orgContext: OrgContextService,
     private readonly imageUrls: AnalysisImageUrlsService,
     private readonly storage: StorageService,
   ) {}
 
   /** Scoping (MIGRACION.md §2.5/§2.6): doctor/empresa solo ve los suyos,
+   * owner empresa ve pacientes de todo el equipo, miembros solo los propios,
    * patient solo se ve a sí mismo, superadmin ve todos. */
-  async findAll(currentUser: JwtPayload) {
+  async findAll(
+    currentUser: JwtPayload,
+    options?: { professionalUserId?: string },
+  ) {
     if (currentUser.role === 'superadmin') {
       const rows = await this.prisma.patient.findMany({
         include: { user: { select: { avatarKey: true } } },
@@ -43,13 +49,42 @@ export class PatientsService {
     }
 
     if (isDoctorPanelRole(currentUser.role)) {
-      const doctor = await this.doctors.requireDoctorByUserId(currentUser.sub);
+      const scope = await this.orgContext.resolvePatientDoctorScope(
+        currentUser.sub,
+      );
+      this.orgContext.assertTeamPermission(scope.ctx, 'patients');
+
+      let doctorIds = scope.visibleDoctorIds;
+      if (options?.professionalUserId) {
+        if (!scope.ctx.isOrgOwner) {
+          throw new ForbiddenException(
+            'Solo el dueño del equipo puede filtrar por profesional',
+          );
+        }
+        const professional = scope.professionals.find(
+          (p) => p.userId === options.professionalUserId,
+        );
+        if (!professional) {
+          throw new BadRequestException('Profesional no encontrado en tu equipo');
+        }
+        doctorIds = [BigInt(professional.doctorId)];
+      }
+
       const rows = await this.prisma.patient.findMany({
-        where: { doctorId: doctor.id },
-        include: { user: { select: { avatarKey: true } } },
+        where: { doctorId: { in: doctorIds } },
+        include: {
+          user: { select: { avatarKey: true } },
+          doctor: {
+            include: {
+              user: { select: { id: true, name: true } },
+            },
+          },
+        },
         orderBy: { id: 'asc' },
       });
-      return Promise.all(rows.map((row) => this.withAvatarUrl(row)));
+      return Promise.all(
+        rows.map((row) => this.withAvatarUrl(row, scope.ctx.isOrgOwner)),
+      );
     }
 
     const own = await this.requireOwnPatient(currentUser.sub);
@@ -63,18 +98,39 @@ export class PatientsService {
   async findOne(id: string, currentUser: JwtPayload) {
     const patient = await this.prisma.patient.findUnique({
       where: { id: BigInt(id) },
-      include: { user: { select: { avatarKey: true } } },
+      include: {
+        user: { select: { avatarKey: true } },
+        doctor: {
+          include: {
+            user: { select: { id: true, name: true } },
+          },
+        },
+      },
     });
     if (!patient) throw new NotFoundException('Paciente no encontrado');
+
+    if (isDoctorPanelRole(currentUser.role)) {
+      await this.orgContext.assertTeamPermissionForUser(
+        currentUser.sub,
+        'patients',
+      );
+    }
+
     await this.assertCanAccess(patient, currentUser);
-    return this.withAvatarUrl(patient);
+    const scope = await this.orgContext.resolvePatientDoctorScope(
+      currentUser.sub,
+    );
+    return this.withAvatarUrl(patient, scope.ctx.isOrgOwner);
   }
 
   async create(dto: CreatePatientDto, currentUser: JwtPayload) {
     let doctorId: bigint | undefined;
     if (isDoctorPanelRole(currentUser.role)) {
-      const doctor = await this.doctors.requireDoctorByUserId(currentUser.sub);
-      doctorId = doctor.id;
+      const scope = await this.orgContext.assertTeamPermissionForUser(
+        currentUser.sub,
+        'patients',
+      );
+      doctorId = scope.doctorId;
     } else if (currentUser.role !== 'superadmin') {
       throw new ForbiddenException(
         'Solo doctores o administradores pueden crear pacientes',
@@ -391,9 +447,14 @@ export class PatientsService {
   }
 
   private async withAvatarUrl<
-    T extends { user?: { avatarKey: string | null } | null },
-  >(row: T) {
-    const { user, ...patient } = row;
+    T extends {
+      user?: { avatarKey: string | null } | null;
+      doctor?: {
+        user?: { id: bigint; name: string } | null;
+      } | null;
+    },
+  >(row: T, includeProfessional = false) {
+    const { user, doctor, ...patient } = row;
     let avatarUrl: string | null = null;
     if (user?.avatarKey) {
       try {
@@ -402,7 +463,14 @@ export class PatientsService {
         avatarUrl = null;
       }
     }
-    return { ...patient, avatarUrl };
+    const professional =
+      includeProfessional && doctor?.user
+        ? {
+            professionalUserId: doctor.user.id.toString(),
+            professionalName: doctor.user.name,
+          }
+        : {};
+    return { ...patient, avatarUrl, ...professional };
   }
 
   private async requireOwnPatient(userId: string) {
@@ -422,8 +490,15 @@ export class PatientsService {
     if (currentUser.role === 'superadmin') return;
 
     if (isDoctorPanelRole(currentUser.role)) {
-      const doctor = await this.doctors.requireDoctorByUserId(currentUser.sub);
-      if (patient.doctorId === doctor.id) return;
+      await this.orgContext.assertTeamPermissionForUser(
+        currentUser.sub,
+        'patients',
+      );
+      const allowed = await this.orgContext.canAccessPatientDoctorId(
+        currentUser.sub,
+        patient.doctorId,
+      );
+      if (allowed) return;
       throw new ForbiddenException('Este paciente no pertenece a tu consulta');
     }
 

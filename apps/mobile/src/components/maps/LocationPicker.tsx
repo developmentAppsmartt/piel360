@@ -66,6 +66,36 @@ export function LocationPicker({
   const [error, setError] = useState<string | null>(null);
   const suppressSearch = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+  const searchInputRef = useRef<TextInput>(null);
+  const blurCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function closeSuggestions() {
+    if (blurCloseTimerRef.current) {
+      clearTimeout(blurCloseTimerRef.current);
+      blurCloseTimerRef.current = null;
+    }
+    setSearchOpen(false);
+    searchInputRef.current?.blur();
+  }
+
+  function scheduleCloseSuggestions() {
+    if (blurCloseTimerRef.current) {
+      clearTimeout(blurCloseTimerRef.current);
+    }
+    blurCloseTimerRef.current = setTimeout(() => {
+      blurCloseTimerRef.current = null;
+      setSearchOpen(false);
+    }, 180);
+  }
+
+  useEffect(
+    () => () => {
+      if (blurCloseTimerRef.current) {
+        clearTimeout(blurCloseTimerRef.current);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (value.address !== query && !searchOpen) {
@@ -82,6 +112,7 @@ export function LocationPicker({
     const q = query.trim();
     if (q.length < 3 || disabled) {
       setSuggestions([]);
+      setSearchOpen(false);
       return;
     }
 
@@ -116,6 +147,7 @@ export function LocationPicker({
   }, [query, disabled]);
 
   async function applyCoords(lat: number, lng: number) {
+    closeSuggestions();
     setGeoLoading(true);
     setError(null);
     try {
@@ -151,6 +183,10 @@ export function LocationPicker({
   }
 
   function selectSuggestion(item: PlaceSuggestion) {
+    if (blurCloseTimerRef.current) {
+      clearTimeout(blurCloseTimerRef.current);
+      blurCloseTimerRef.current = null;
+    }
     suppressSearch.current = true;
     setQuery(item.description);
     setSuggestions([]);
@@ -205,7 +241,10 @@ export function LocationPicker({
           </Text>
         </View>
         <Pressable
-          onPress={() => void useCurrentLocation()}
+          onPress={() => {
+            closeSuggestions();
+            void useCurrentLocation();
+          }}
           disabled={disabled || geoLoading}
           style={styles.gpsBtn}
         >
@@ -229,6 +268,7 @@ export function LocationPicker({
         <View style={styles.searchWrap}>
           <AppIcon icon={Icons.search} size={18} color={branding.colors.muted} />
           <TextInput
+            ref={searchInputRef}
             style={styles.searchInput}
             value={query}
             onChangeText={(t) => {
@@ -236,6 +276,12 @@ export function LocationPicker({
               setSearchOpen(true);
               onChange({ ...value, address: t });
             }}
+            onFocus={() => {
+              if (suggestions.length > 0) {
+                setSearchOpen(true);
+              }
+            }}
+            onBlur={scheduleCloseSuggestions}
             placeholder="Ej. Calle 100 #19-54, Bogotá"
             placeholderTextColor={styles.placeholder.color}
             editable={!disabled}
@@ -281,13 +327,19 @@ export function LocationPicker({
         ) : null}
       </View>
 
-      <LocationMap
-        lat={value.lat}
-        lng={value.lng}
-        disabled={disabled}
-        style={styles.map}
-        onPick={(lat, lng) => void applyCoords(lat, lng)}
-      />
+      <View
+        onTouchStart={() => {
+          closeSuggestions();
+        }}
+      >
+        <LocationMap
+          lat={value.lat}
+          lng={value.lng}
+          disabled={disabled}
+          style={styles.map}
+          onPick={(lat, lng) => void applyCoords(lat, lng)}
+        />
+      </View>
 
       {hasPin ? (
         <Text style={styles.coords}>

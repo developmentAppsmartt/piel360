@@ -10,7 +10,13 @@ import { ApiError } from "@/lib/api-error";
 import { useDeleteRole, useRoles } from "@/lib/queries/roles";
 import type { Role } from "@/lib/queries/roles";
 
-const PROTECTED_ROLE_NAMES = new Set(["superadmin", "doctor", "patient", "monitor"]);
+const PROTECTED_ROLE_NAMES = new Set([
+  "superadmin",
+  "doctor",
+  "patient",
+  "monitor",
+  "empresa",
+]);
 
 function DeleteDialog({ role, onClose }: { role: Role; onClose: () => void }) {
   const remove = useDeleteRole();

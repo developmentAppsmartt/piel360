@@ -21,7 +21,6 @@ import {
 } from "@/lib/user-account-kind";
 
 const STATUS_OPTIONS = [
-  { value: "pending", label: "Pendiente" },
   { value: "active", label: "Activo" },
   { value: "cancelled", label: "Cancelado" },
 ] as const;
@@ -29,30 +28,32 @@ const STATUS_OPTIONS = [
 const createSchema = z.object({
   userId: z.string().min(1, "Selecciona el usuario titular de la suscripción"),
   planId: z.string().min(1, "Selecciona el paquete comprado"),
-  status: z.enum(["pending", "active", "cancelled"]),
-  endsAt: z.string(),
+  status: z.enum(["active", "cancelled"]),
 });
 
 const editSchema = z.object({
-  status: z.enum(["pending", "active", "cancelled"]),
-  endsAt: z.string(),
+  status: z.enum(["active", "cancelled"]),
 });
 
 type CreateFormValues = z.infer<typeof createSchema>;
 type EditFormValues = z.infer<typeof editSchema>;
+
+function formatEndsAtPreview(durationDays: number): string {
+  const ends = new Date();
+  ends.setDate(ends.getDate() + durationDays);
+  return ends.toLocaleDateString("es-CO", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
 
 function toInput(values: CreateFormValues): SubscriptionInput {
   return {
     userId: values.userId,
     planId: values.planId,
     status: values.status,
-    endsAt: values.endsAt ? new Date(values.endsAt).toISOString() : undefined,
   };
-}
-
-function toDateInputValue(iso: string | null): string {
-  if (!iso) return "";
-  return iso.slice(0, 10);
 }
 
 const inputClass =
@@ -126,24 +127,23 @@ export function SubscriptionForm({
     defaultValues: {
       userId: "",
       planId: "",
-      status: "pending",
-      endsAt: "",
+      status: "active",
     },
   });
 
   const editForm = useForm<EditFormValues>({
     resolver: zodResolver(editSchema),
     defaultValues: {
-      status: defaultValues?.status ?? "pending",
-      endsAt: toDateInputValue(defaultValues?.endsAt ?? null),
+      status:
+        defaultValues?.status === "cancelled" ? "cancelled" : "active",
     },
   });
 
   useEffect(() => {
     if (!isEdit || !defaultValues) return;
     editForm.reset({
-      status: defaultValues.status,
-      endsAt: toDateInputValue(defaultValues.endsAt),
+      status:
+        defaultValues.status === "cancelled" ? "cancelled" : "active",
     });
   }, [defaultValues, editForm, isEdit]);
 
@@ -195,10 +195,7 @@ export function SubscriptionForm({
   const onEditSubmit = editForm.handleSubmit(async (values) => {
     if (!defaultValues) return;
     try {
-      await onSubmit({
-        status: values.status,
-        endsAt: values.endsAt ? new Date(values.endsAt).toISOString() : undefined,
-      });
+      await onSubmit({ status: values.status });
     } catch (err) {
       editForm.setError("root", {
         message: err instanceof ApiError ? err.message : "No se pudo guardar la suscripción.",
@@ -211,6 +208,8 @@ export function SubscriptionForm({
       register,
       formState: { errors, isSubmitting },
     } = editForm;
+
+    const isPendingPayment = defaultValues.status === "pending";
 
     return (
       <form onSubmit={onEditSubmit} className="space-y-4">
@@ -227,26 +226,36 @@ export function SubscriptionForm({
 
         <PurchasedPackageCard plan={defaultValues.plan} />
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label htmlFor="status" className="text-sm font-medium">
-              Estado
-            </label>
-            <select id="status" {...register("status")} className={inputClass}>
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
+        {isPendingPayment ? (
+          <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            Pago pendiente con Wompi. Puedes activarla manualmente si el pago ya se confirmó
+            fuera del webhook; al activar se descontarán los créditos del plan de la bolsa global.
+          </p>
+        ) : null}
 
-          <div className="space-y-2">
-            <label htmlFor="endsAt" className="text-sm font-medium">
-              Finaliza el
-            </label>
-            <input id="endsAt" type="date" {...register("endsAt")} className={inputClass} />
-          </div>
+        <div className="space-y-2">
+          <label htmlFor="status" className="text-sm font-medium">
+            Estado
+          </label>
+          <select id="status" {...register("status")} className={inputClass}>
+            {STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-sm">
+          <p className="text-xs font-medium text-muted-foreground">Finaliza el</p>
+          <p className="mt-0.5 font-medium text-foreground">
+            {defaultValues.endsAt
+              ? new Date(defaultValues.endsAt).toLocaleDateString("es-CO")
+              : formatEndsAtPreview(defaultValues.plan.durationDays)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Calculado según la duración del plan ({defaultValues.plan.durationDays} días).
+          </p>
         </div>
 
         {defaultValues.wompiTransactionId ? (
@@ -316,27 +325,33 @@ export function SubscriptionForm({
         ) : null}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label htmlFor="status" className="text-sm font-medium">
-            Estado
-          </label>
-          <select id="status" {...register("status")} className={inputClass}>
-            {STATUS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="space-y-2">
-          <label htmlFor="endsAt" className="text-sm font-medium">
-            Finaliza el
-          </label>
-          <input id="endsAt" type="date" {...register("endsAt")} className={inputClass} />
-        </div>
+      <div className="space-y-2">
+        <label htmlFor="status" className="text-sm font-medium">
+          Estado
+        </label>
+        <select id="status" {...register("status")} className={inputClass}>
+          {STATUS_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-muted-foreground">
+          Por defecto queda activa y se descuentan los análisis del plan de la bolsa global.
+        </p>
       </div>
+
+      {selectedPlan ? (
+        <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-sm">
+          <p className="text-xs font-medium text-muted-foreground">Finalizará el</p>
+          <p className="mt-0.5 font-medium text-foreground">
+            {formatEndsAtPreview(selectedPlan.durationDays)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Según duración del plan ({selectedPlan.durationDays} días desde la activación).
+          </p>
+        </div>
+      ) : null}
 
       {errors.root ? <p className="text-sm text-destructive">{errors.root.message}</p> : null}
 

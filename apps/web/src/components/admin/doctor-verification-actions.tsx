@@ -31,8 +31,12 @@ export function DoctorVerificationActions({
   const pending =
     verificationStatus === "pending" ||
     verificationStatus === "in_review";
+  const rejected = verificationStatus === "rejected";
+  const canDecide = pending || rejected;
 
-  async function decide(status: "active" | "rejected" | "in_review") {
+  async function decide(
+    status: "active" | "rejected" | "in_review" | "pending",
+  ) {
     setError(null);
     setMessage(null);
     if (status === "in_review" && !note.trim()) {
@@ -49,7 +53,9 @@ export function DoctorVerificationActions({
           ? "Doctor validado. Ya puede usar el panel completo."
           : status === "rejected"
             ? "Doctor rechazado."
-            : "Se solicitaron ajustes. El usuario verá la observación en su perfil.",
+            : status === "pending"
+              ? "Estado cambiado a pendiente."
+              : "Se solicitaron ajustes. El usuario verá la observación en su perfil.",
       );
       setNote("");
       onDone?.();
@@ -70,15 +76,29 @@ export function DoctorVerificationActions({
           {STATUS_LABELS[verificationStatus] ?? verificationStatus}
         </span>
       </p>
-      {pending ? (
+      {canDecide ? (
         <>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value.slice(0, 500))}
-            placeholder="Observación para el profesional (obligatoria al solicitar ajustes)…"
+            placeholder={
+              rejected
+                ? "Motivo del cambio o qué debe corregir el profesional…"
+                : "Observación para el profesional (obligatoria al solicitar ajustes)…"
+            }
             className="min-h-20 w-full resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
           />
           <div className="flex flex-wrap gap-2">
+            {rejected ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={verify.isPending}
+                onClick={() => void decide("pending")}
+              >
+                Volver a pendiente
+              </Button>
+            ) : null}
             <Button
               type="button"
               disabled={verify.isPending}
@@ -94,14 +114,16 @@ export function DoctorVerificationActions({
             >
               Solicitar ajustes
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={verify.isPending}
-              onClick={() => void decide("rejected")}
-            >
-              Rechazar doctor
-            </Button>
+            {pending ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={verify.isPending}
+                onClick={() => void decide("rejected")}
+              >
+                Rechazar doctor
+              </Button>
+            ) : null}
           </div>
         </>
       ) : null}

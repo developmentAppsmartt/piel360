@@ -8,8 +8,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { Roles } from '../auth/roles.decorator';
-import { RolesGuard } from '../auth/roles.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { RequirePermission } from '../auth/permissions.decorator';
 import { CreateModeratorDto } from './dto/create-moderator.dto';
 import { ModeratorsService } from './moderators.service';
 
@@ -18,27 +18,30 @@ import { ModeratorsService } from './moderators.service';
  * paths absolutos en `@Controller()` para evitar colisiones).
  */
 @Controller()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('superadmin')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ModeratorsController {
   constructor(private readonly moderatorsService: ModeratorsService) {}
 
   @Get('admin/moderators')
+  @RequirePermission('admin.moderators')
   findAll() {
     return this.moderatorsService.findAll();
   }
 
   @Post('admin/moderators')
+  @RequirePermission('admin.moderators')
   create(@Body() dto: CreateModeratorDto) {
     return this.moderatorsService.create(dto);
   }
 
   @Get('admin/moderators/:id')
+  @RequirePermission('admin.moderators')
   findOne(@Param('id') id: string) {
     return this.moderatorsService.findOne(id);
   }
 
   @Delete('admin/moderators/:id')
+  @RequirePermission('admin.moderators')
   remove(@Param('id') id: string) {
     return this.moderatorsService.remove(id);
   }

@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { DoctorsService } from '../doctors/doctors.service';
+import { OrgContextService } from '../organizations/org-context.service';
 import { StorageService } from '../storage/storage.service';
 import { AnalysisConditionsService } from '../analysis-conditions/analysis-conditions.service';
 import type { CreateRoutineDto } from './dto/create-routine.dto';
@@ -17,15 +17,17 @@ import type { UpdateRoutineStepDto } from './dto/update-routine-step.dto';
 export class RoutinesService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly doctorsService: DoctorsService,
+    private readonly orgContext: OrgContextService,
     private readonly storage: StorageService,
     private readonly analysisConditions: AnalysisConditionsService,
   ) {}
 
-  // ─── Helpers ────────────────────────────────────────────────────────────────
-
-  private async requireDoctor(userId: string) {
-    return this.doctorsService.requireDoctorByUserId(userId);
+  private async catalogDoctorId(userId: string) {
+    const ctx = await this.orgContext.assertTeamPermissionForUser(
+      userId,
+      'routines',
+    );
+    return ctx.catalogDoctorId;
   }
 
   private async ensureRoutineOwner(routineId: bigint, doctorId: bigint) {
@@ -85,9 +87,9 @@ export class RoutinesService {
   // ─── Rutinas ────────────────────────────────────────────────────────────────
 
   async getRoutines(userId: string) {
-    const doctor = await this.requireDoctor(userId);
+    const doctorId = await this.catalogDoctorId(userId);
     const routines = await this.prisma.routine.findMany({
-      where: { doctorId: doctor.id },
+      where: { doctorId: doctorId },
       include: this.routineInclude,
       orderBy: { createdAt: 'asc' },
     });
@@ -95,8 +97,8 @@ export class RoutinesService {
   }
 
   async getRoutine(userId: string, routineId: string) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureRoutineOwner(BigInt(routineId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureRoutineOwner(BigInt(routineId), doctorId);
     const routine = await this.prisma.routine.findUniqueOrThrow({
       where: { id: BigInt(routineId) },
       include: this.routineInclude,
@@ -105,10 +107,10 @@ export class RoutinesService {
   }
 
   async createRoutine(userId: string, dto: CreateRoutineDto) {
-    const doctor = await this.requireDoctor(userId);
+    const doctorId = await this.catalogDoctorId(userId);
     const routine = await this.prisma.routine.create({
       data: {
-        doctorId: doctor.id,
+        doctorId: doctorId,
         name: dto.name,
         description: dto.description,
         isActive: dto.isActive ?? true,
@@ -134,8 +136,8 @@ export class RoutinesService {
     routineId: string,
     dto: UpdateRoutineDto,
   ) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureRoutineOwner(BigInt(routineId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureRoutineOwner(BigInt(routineId), doctorId);
 
     await this.prisma.$transaction(async (tx) => {
       await tx.routine.update({
@@ -175,8 +177,8 @@ export class RoutinesService {
   }
 
   async deleteRoutine(userId: string, routineId: string) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureRoutineOwner(BigInt(routineId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureRoutineOwner(BigInt(routineId), doctorId);
     return this.prisma.routine.delete({ where: { id: BigInt(routineId) } });
   }
 
@@ -187,10 +189,10 @@ export class RoutinesService {
     routineId: string,
     dto: CreateRoutineStepDto,
   ) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureRoutineOwner(BigInt(routineId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureRoutineOwner(BigInt(routineId), doctorId);
     if (dto.productId !== undefined) {
-      await this.ensureProductOwner(BigInt(dto.productId), doctor.id);
+      await this.ensureProductOwner(BigInt(dto.productId), doctorId);
     }
     const step = await this.prisma.routineStep.create({
       data: {
@@ -211,14 +213,14 @@ export class RoutinesService {
     stepId: string,
     dto: UpdateRoutineStepDto,
   ) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureRoutineOwner(BigInt(routineId), doctor.id);
-    const step = await this.ensureStepOwner(BigInt(stepId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureRoutineOwner(BigInt(routineId), doctorId);
+    const step = await this.ensureStepOwner(BigInt(stepId), doctorId);
     if (step.routineId !== BigInt(routineId)) {
       throw new NotFoundException('Paso no encontrado en esta rutina');
     }
     if (dto.productId !== undefined) {
-      await this.ensureProductOwner(BigInt(dto.productId), doctor.id);
+      await this.ensureProductOwner(BigInt(dto.productId), doctorId);
     }
     const updated = await this.prisma.routineStep.update({
       where: { id: BigInt(stepId) },
@@ -234,9 +236,9 @@ export class RoutinesService {
   }
 
   async deleteStep(userId: string, routineId: string, stepId: string) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureRoutineOwner(BigInt(routineId), doctor.id);
-    const step = await this.ensureStepOwner(BigInt(stepId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureRoutineOwner(BigInt(routineId), doctorId);
+    const step = await this.ensureStepOwner(BigInt(stepId), doctorId);
     if (step.routineId !== BigInt(routineId)) {
       throw new NotFoundException('Paso no encontrado en esta rutina');
     }
@@ -270,9 +272,9 @@ export class RoutinesService {
     stepId: string,
     file: Express.Multer.File,
   ) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureRoutineOwner(BigInt(routineId), doctor.id);
-    const step = await this.ensureStepOwner(BigInt(stepId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureRoutineOwner(BigInt(routineId), doctorId);
+    const step = await this.ensureStepOwner(BigInt(stepId), doctorId);
     if (step.routineId !== BigInt(routineId)) {
       throw new NotFoundException('Paso no encontrado en esta rutina');
     }
@@ -310,15 +312,17 @@ export class RoutinesService {
    * una se cumpla) matchean los resultados estructurados de un análisis
    * YouCam (analysis_results). Solo aplica a análisis YouCam. */
   async getRecommendedRoutines(userId: string, analysisId: string) {
-    const { doctor, results } =
+    const { results } =
       await this.analysisConditions.loadAnalysisResultsForDoctor(
         userId,
         analysisId,
       );
     if (results.length === 0) return [];
 
+    const doctorId = await this.catalogDoctorId(userId);
+
     const routines = await this.prisma.routine.findMany({
-      where: { doctorId: doctor.id, isActive: true },
+      where: { doctorId, isActive: true },
       include: this.routineInclude,
     });
 

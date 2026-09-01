@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Permission } from "@/lib/queries/roles";
+import { permissionScope, type PermissionScope } from "@/lib/role-permission-scope";
 
 const ACTION_ORDER = [
   "view_any",
@@ -56,14 +57,22 @@ const RESOURCE_META: Record<string, { label: string; icon: LucideIcon; order: nu
 };
 
 const COMPONENT_PANEL_META: Record<string, { label: string; icon: LucideIcon; order: number }> = {
-  admin: { label: "Componentes del panel admin", icon: LayoutDashboard, order: 5 },
-  doctor: { label: "Componentes del panel doctor", icon: Stethoscope, order: 6 },
+  admin: { label: "Módulos del panel admin", icon: LayoutDashboard, order: 5 },
+  clinical: { label: "Módulos del panel clínico", icon: Stethoscope, order: 6 },
+  doctor: { label: "Módulos del panel clínico", icon: Stethoscope, order: 6 },
 };
+
+/** Solo permisos asignables (activos en catálogo). */
+export function assignablePermissions(permissions: Permission[]): Permission[] {
+  return permissions.filter((permission) => permission.isActive !== false);
+}
 
 export type PermissionGroup = {
   key: string;
   label: string;
   icon: LucideIcon;
+  section?: string;
+  scope: PermissionScope;
   permissions: {
     id: string;
     name: string;
@@ -121,9 +130,14 @@ function groupActionPermissions(permissions: Permission[]): PermissionGroup[] {
         key: resource,
         label: meta.label,
         icon: meta.icon,
+        scope: "api_only",
         permissions: [],
       });
     }
+
+    const group = groups.get(resource)!;
+    const scope = permissionScope(permission);
+    if (scope === "clinical_menu") group.scope = "clinical_menu";
 
     groups.get(resource)!.permissions.push({
       id: permission.id,
@@ -152,54 +166,122 @@ function groupActionPermissions(permissions: Permission[]): PermissionGroup[] {
     );
 }
 
+/** Un grupo por módulo de menú (cada componente admin = una tarjeta con un checkbox). */
 function groupComponentPermissions(permissions: Permission[]): PermissionGroup[] {
-  const byPanel = new Map<string, Permission[]>();
-  for (const permission of permissions) {
-    const panel = permission.panel ?? "other";
-    if (!byPanel.has(panel)) byPanel.set(panel, []);
-    byPanel.get(panel)!.push(permission);
-  }
-
-  return [...byPanel.entries()]
-    .map(([panel, panelPermissions]) => {
+  return [...permissions]
+    .sort(
+      (a, b) =>
+        (a.sortOrder ?? 0) - (b.sortOrder ?? 0) ||
+        (a.label ?? a.slug).localeCompare(b.label ?? b.slug),
+    )
+    .map((permission) => {
+      const panel = permission.panel ?? "admin";
       const meta = COMPONENT_PANEL_META[panel] ?? {
-        label: `Componentes (${panel})`,
+        label: `Módulo (${panel})`,
         icon: LayoutDashboard,
         order: 50,
       };
+      const moduleLabel = permission.label ?? permission.slug;
       return {
-        key: `components_${panel}`,
-        label: meta.label,
+        key: `component_${permission.slug}`,
+        label: moduleLabel,
         icon: meta.icon,
-        order: meta.order,
-        permissions: [...panelPermissions]
-          .sort(
-            (a, b) =>
-              (a.sortOrder ?? 0) - (b.sortOrder ?? 0) ||
-              (a.label ?? a.slug).localeCompare(b.label ?? b.slug),
-          )
-          .map((permission) => ({
+        order: permission.sortOrder ?? meta.order,
+        section: meta.label,
+        scope:
+          permission.panel === "admin"
+            ? ("admin_menu" as const)
+            : ("clinical_menu" as const),
+        permissions: [
+          {
             id: permission.id,
             name: permission.name,
             slug: permission.slug,
             isActive: permission.isActive,
-            label: permission.label ?? permission.slug,
-          })),
+            label: permission.href
+              ? `Acceso al menú · ${permission.href}`
+              : "Acceso al menú",
+          },
+        ],
       };
     })
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     .map(({ order: _order, ...group }) => group);
 }
 
-export function groupPermissions(permissions: Permission[]): PermissionGroup[] {
-  const components = permissions.filter((permission) => permission.kind === "component");
-  const actions = permissions.filter((permission) => permission.kind !== "component");
+export type PermissionGroupSection = {
+  title: string;
+  groups: PermissionGroup[];
+};
 
-  return [...groupComponentPermissions(components), ...groupActionPermissions(actions)];
+export function groupPermissions(permissions: Permission[]): PermissionGroup[] {
+  return groupPermissionsBySection(permissions).flatMap((section) => section.groups);
+}
+
+/** Agrupa permisos en secciones: módulos de menú (uno por tarjeta) + acciones API por recurso. */
+export function groupPermissionsBySection(
+  permissions: Permission[],
+): PermissionGroupSection[] {
+  const active = assignablePermissions(permissions);
+  const components = active.filter((permission) => permission.kind === "component");
+  const actions = active.filter((permission) => permission.kind !== "component");
+
+  const sections: PermissionGroupSection[] = [];
+
+  const adminComponents = components.filter(
+    (permission) => permission.panel === "admin",
+  );
+  const clinicalComponents = components.filter(
+    (permission) => permission.panel === "clinical" || permission.panel === "doctor",
+  );
+
+  const adminGroups = groupComponentPermissions(adminComponents);
+  if (adminGroups.length > 0) {
+    sections.push({
+      title: "Módulos del panel admin",
+      groups: adminGroups,
+    });
+  }
+
+  const clinicalGroups = groupComponentPermissions(clinicalComponents);
+  if (clinicalGroups.length > 0) {
+    sections.push({
+      title: "Módulos del panel clínico",
+      groups: clinicalGroups,
+    });
+  }
+
+  const actionGroups = groupActionPermissions(actions);
+  if (actionGroups.length > 0) {
+    sections.push({
+      title: "Permisos de acción (API)",
+      groups: actionGroups,
+    });
+  }
+
+  return sections;
+}
+
+/** IDs de todos los componentes clínicos activos. */
+export function clinicalComponentPermissionIds(permissions: Permission[]): string[] {
+  return assignablePermissions(permissions)
+    .filter(
+      (permission) =>
+        permission.kind === "component" &&
+        (permission.panel === "clinical" || permission.panel === "doctor"),
+    )
+    .map((permission) => permission.id);
+}
+
+/** IDs de todos los componentes admin activos (referencia superadmin). */
+export function adminComponentPermissionIds(permissions: Permission[]): string[] {
+  return assignablePermissions(permissions)
+    .filter((permission) => permission.kind === "component" && permission.panel === "admin")
+    .map((permission) => permission.id);
 }
 
 export function allPermissionIds(permissions: Permission[]): string[] {
-  return permissions.map((permission) => permission.id);
+  return assignablePermissions(permissions).map((permission) => permission.id);
 }
 
 export function planModuleLabelsFromPermissionNames(names: string[]): string[] {

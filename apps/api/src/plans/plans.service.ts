@@ -11,12 +11,14 @@ import {
   parsePlanProviderIds,
   resolvePlanProviderIdsFromDto,
 } from './plan-providers.util';
+import { PlanPoolAvailabilityService } from './plan-pool-availability.service';
 
 @Injectable()
 export class PlansService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly specialtyAccess: SpecialtyAccessService,
+    private readonly planPool: PlanPoolAvailabilityService,
   ) {}
 
   private async enrichPlans<
@@ -38,7 +40,10 @@ export class PlansService {
       orderBy: { price: 'asc' },
     });
     const enriched = await this.enrichPlans(plans);
-    if (!user || user.role !== 'doctor') return enriched;
+    const withPool = await this.planPool.enrichPlans(enriched);
+    const purchasable = withPool.filter((plan) => plan.poolPurchasable);
+
+    if (!user || user.role !== 'doctor') return purchasable;
 
     const doctor = await this.prisma.doctor.findUnique({
       where: { userId: BigInt(user.sub) },
@@ -51,7 +56,7 @@ export class PlansService {
 
     const expectedPlanType = doctor && isEnterpriseDoctor(doctor) ? 'business' : 'individual';
 
-    return enriched.filter((plan) => {
+    return purchasable.filter((plan) => {
       if (plan.planType !== expectedPlanType) return false;
       return plan.providers.some((provider) =>
         allowed.includes(provider.slug as (typeof allowed)[number]),
@@ -65,7 +70,8 @@ export class PlansService {
       include: { provider: true, _count: { select: { subscriptions: true } } },
       orderBy: { id: 'asc' },
     });
-    return this.enrichPlans(plans);
+    const enriched = await this.enrichPlans(plans);
+    return this.planPool.enrichPlans(enriched);
   }
 
   findProviders() {

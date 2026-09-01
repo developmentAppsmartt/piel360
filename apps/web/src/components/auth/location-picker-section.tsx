@@ -59,11 +59,24 @@ export function LocationPickerSection({
               value={addressQuery}
               onChange={(e) => {
                 setAddressQuery(e.target.value);
-                setSearchOpen(true);
+                if (e.target.value.trim().length >= 3) {
+                  setSearchOpen(true);
+                } else {
+                  setSearchOpen(false);
+                }
               }}
-              onFocus={() => suggestions.length > 0 && setSearchOpen(true)}
+              onFocus={() => {
+                if (suggestions.length > 0 && addressQuery.trim().length >= 3) {
+                  setSearchOpen(true);
+                }
+              }}
               onBlur={() => {
                 window.setTimeout(() => setSearchOpen(false), 150);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setSearchOpen(false);
+                }
               }}
               autoComplete="street-address"
             />
