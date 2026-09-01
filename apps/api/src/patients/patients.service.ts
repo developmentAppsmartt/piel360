@@ -210,6 +210,7 @@ export class PatientsService {
           yCoord: true,
           zCoord: true,
           aiDiagnosis: true,
+          aiProbability: true,
           finalDiagnosis: true,
           aiRawResponse: true,
           imagePath: true,

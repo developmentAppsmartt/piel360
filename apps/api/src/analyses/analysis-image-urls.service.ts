@@ -1,8 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import type { SkiniverPrediction, YouCamResults } from '@piel360/shared';
+import type {
+  SkiniverDiagnosisDetails,
+  SkiniverPrediction,
+  YouCamResults,
+} from '@piel360/shared';
 import { StorageService } from '../storage/storage.service';
 import { youcamMaskKey } from '../youcam/mask-key.util';
+import { parseSkiniverDescription } from '../skiniver/skiniver-description.util';
 
 /** Extraído de AnalysesService — lo reutiliza también PatientsService
  * (historial 3D) para no duplicar el firmado de URLs ni la lógica de
@@ -25,6 +30,7 @@ export class AnalysisImageUrlsService {
       maskedS3Url: string | null;
       youcamTaskId: string | null;
       aiRawResponse: Prisma.JsonValue | null;
+      aiProbability: number | null;
       id: bigint;
     },
   >(analysis: T) {
@@ -52,6 +58,9 @@ export class AnalysisImageUrlsService {
     // el placeholder 'youcam' de siempre, imageUrl es un link muerto que el
     // frontend no debe intentar mostrar.
     const hasOriginalPhoto = analysis.imagePath !== 'youcam';
+    const skiniverDiagnosis = prediction
+      ? this.buildSkiniverDiagnosis(prediction, analysis.aiProbability)
+      : null;
     return {
       ...analysis,
       imageUrl,
@@ -59,6 +68,28 @@ export class AnalysisImageUrlsService {
       maskedUrl,
       masks,
       hasOriginalPhoto,
+      skiniverDiagnosis,
+    };
+  }
+
+  /** Skiniver no manda diagnóstico/tratamiento/consejo/ICD como claves
+   * separadas — vienen concatenados como texto libre en `description`, y el
+   * "ICD" real se llama `lesion_code`. Ver skiniver-description.util.ts. */
+  private buildSkiniverDiagnosis(
+    prediction: SkiniverPrediction,
+    aiProbability: number | null,
+  ): SkiniverDiagnosisDetails {
+    const parsed = parseSkiniverDescription(prediction.description);
+    return {
+      description: parsed?.riskEvaluation ?? null,
+      conclusion: {
+        category: prediction.desease ?? prediction.class ?? null,
+        category_prob: Math.round((aiProbability ?? 0) * 100),
+      },
+      precise_diagnosis: parsed?.preciseDiagnosis ?? null,
+      treatment: parsed?.treatment ?? null,
+      advice: parsed?.advice ?? null,
+      icd_code: prediction.lesion_code ?? null,
     };
   }
 

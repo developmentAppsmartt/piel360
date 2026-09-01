@@ -1,7 +1,12 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { FitzpatrickResult, SkiniverPrediction, YouCamResults } from "@piel360/shared";
+import type {
+  FitzpatrickResult,
+  SkiniverDiagnosisDetails,
+  SkiniverPrediction,
+  YouCamResults,
+} from "@piel360/shared";
 import { apiClientFetch } from "@/lib/api-client";
 
 // Shape que escribe YoucamResultsService#applyError cuando YouCam rechaza el
@@ -49,6 +54,9 @@ export interface AnalysisDetail {
   coloredUrl: string | null;
   maskedUrl: string | null;
   masks: { type: string; region?: string; url: string }[];
+  // Solo Skiniver — diagnóstico/tratamiento/consejo/ICD parseados del texto
+  // libre de aiRawResponse.description (ver skiniver-description.util.ts).
+  skiniverDiagnosis: SkiniverDiagnosisDetails | null;
   // true solo si se guardó la selfie original aparte (YouCam con
   // enableMaskOverlay: false) — en ese caso imageUrl es una foto real que
   // sirve de fondo para las máscaras crudas; si no, imageUrl es un link
