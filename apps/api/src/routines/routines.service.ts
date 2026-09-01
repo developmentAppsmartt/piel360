@@ -327,7 +327,10 @@ export class RoutinesService {
     });
 
     const matched = routines.filter((routine) =>
-      this.analysisConditions.matchesAnyCondition(routine.conditions, results),
+      this.analysisConditions.matchesAnyCondition(routine.conditions, results, {
+        patientBirthDate,
+        analysisDate,
+      }),
     );
 
     return Promise.all(matched.map((r) => this.withResolvedSteps(r)));

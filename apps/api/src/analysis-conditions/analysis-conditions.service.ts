@@ -44,6 +44,23 @@ export function resolveScore(result: AnalysisResult): number | null {
   return result.uiScore ?? result.score ?? result.rawScore;
 }
 
+/** Edad exacta en años completos a una fecha dada (ajusta por mes/día, no
+ * solo resta de años). */
+function ageInYears(birthDate: Date, atDate: Date): number {
+  let age = atDate.getFullYear() - birthDate.getFullYear();
+  const hasHadBirthdayThisYear =
+    atDate.getMonth() > birthDate.getMonth() ||
+    (atDate.getMonth() === birthDate.getMonth() &&
+      atDate.getDate() >= birthDate.getDate());
+  if (!hasHadBirthdayThisYear) age -= 1;
+  return age;
+}
+
+export interface SkinAgeContext {
+  patientBirthDate: Date | null;
+  analysisDate: Date;
+}
+
 /** El formulario de condiciones no pide región (se mantiene simple para
  * personal sin experiencia técnica) — el doctor piensa en "Arrugas", no en
  * "Arrugas (frente)". Métricas con varias zonas (hd_wrinkle, hd_pore,
@@ -79,6 +96,7 @@ export class AnalysisConditionsService {
   matchesAnyCondition<C extends Condition>(
     conditions: C[],
     results: AnalysisResult[],
+    skinAge: SkinAgeContext,
   ): boolean {
     return conditions.some((condition) => {
       const result = findResultForCondition(results, condition);
@@ -91,6 +109,20 @@ export class AnalysisConditionsService {
         return (
           result.skinType.toLowerCase() === condition.textValue.toLowerCase()
         );
+      }
+
+      // skin_age no se compara contra el puntaje crudo de YouCam — el valor
+      // clínicamente relevante es cuánto más vieja/joven se ve la piel
+      // respecto a la edad real del paciente (edadReal - edadPiel). Negativo
+      // = piel más envejecida; positivo = piel más joven.
+      if (condition.metricType === 'skin_age') {
+        if (!skinAge.patientBirthDate) return false;
+        const skinAgeScore = resolveScore(result);
+        if (skinAgeScore == null || condition.value == null) return false;
+        const diff =
+          ageInYears(skinAge.patientBirthDate, skinAge.analysisDate) -
+          skinAgeScore;
+        return operatorMatches(condition.operator, diff, condition.value);
       }
 
       const score = resolveScore(result);
@@ -129,6 +161,11 @@ export class AnalysisConditionsService {
       where: { analysisId: BigInt(analysisId) },
     });
 
-    return { doctor, results };
+    return {
+      doctor,
+      results,
+      patientBirthDate: analysis.patient.birthDate,
+      analysisDate: analysis.createdAt,
+    };
   }
 }

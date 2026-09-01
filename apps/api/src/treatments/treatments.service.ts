@@ -379,6 +379,7 @@ export class TreatmentsService {
       this.analysisConditions.matchesAnyCondition(
         treatment.conditions,
         results,
+        { patientBirthDate, analysisDate },
       ),
     );
 
