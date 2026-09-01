@@ -56,6 +56,7 @@ export function ConditionRow({
   const metricType = watched?.metricType ?? CONDITION_METRICS[0];
   const regions = CONDITION_METRIC_REGIONS[metricType];
   const skinType = isSkinTypeMetric(metricType);
+  const isSkinAge = metricType === "skin_age";
 
   return (
     <div className="space-y-2 rounded-lg border border-border bg-card p-3">
@@ -113,10 +114,18 @@ export function ConditionRow({
             type="number"
             step="0.01"
             className={inputCls}
-            placeholder="Ej: 70"
+            placeholder={isSkinAge ? "Ej: -5 u 8" : "Ej: 70"}
             {...register(`conditions.${index}.value`)}
           />
         </div>
+      )}
+
+      {isSkinAge && (
+        <p className="text-xs text-muted-foreground">
+          Diferencia entre la edad real del paciente y la edad de piel que da YouCam
+          (edad real − edad de piel). Negativo = piel más envejecida; positivo = piel
+          más joven.
+        </p>
       )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
