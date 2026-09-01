@@ -361,7 +361,7 @@ export class TreatmentsService {
   /** Tratamientos/productos sugeridos activos del doctor cuyas condiciones
    * (lógica O) matchean los resultados estructurados de un análisis YouCam. */
   async getRecommendedTreatments(userId: string, analysisId: string) {
-    const { results } =
+    const { results, patientBirthDate, analysisDate } =
       await this.analysisConditions.loadAnalysisResultsForDoctor(
         userId,
         analysisId,

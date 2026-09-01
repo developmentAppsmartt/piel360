@@ -312,7 +312,7 @@ export class RoutinesService {
    * una se cumpla) matchean los resultados estructurados de un análisis
    * YouCam (analysis_results). Solo aplica a análisis YouCam. */
   async getRecommendedRoutines(userId: string, analysisId: string) {
-    const { results } =
+    const { results, patientBirthDate, analysisDate } =
       await this.analysisConditions.loadAnalysisResultsForDoctor(
         userId,
         analysisId,
