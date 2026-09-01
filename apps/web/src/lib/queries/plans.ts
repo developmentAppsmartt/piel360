@@ -14,10 +14,13 @@ export function usePlans() {
 // GET /admin/plans — a diferencia del catálogo público (`usePlans`), incluye
 // los planes inactivos y `_count.subscriptions`, necesario para advertir
 // antes de borrar (Subscription.plan tiene onDelete: Cascade).
-export interface PlanAdmin extends Plan {
+export interface PlanAdmin extends Omit<Plan, "provider"> {
   createdAt: string;
   updatedAt: string;
   _count: { subscriptions: number };
+  // GET /admin/plans sí trae el proveedor real (admin-only, ver
+  // plans.service.ts#findAllAdmin) — a diferencia de Plan.provider (público).
+  provider: { id: string; name: string; slug: string; displayLabel: string | null };
 }
 
 export interface PlanInput {

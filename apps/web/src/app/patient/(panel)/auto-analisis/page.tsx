@@ -81,7 +81,7 @@ export default function AutoAnalisisPage() {
             onClick={() => chooseProvider("skiniver")}
             className="rounded-lg border border-border p-4 text-left hover:bg-muted"
           >
-            <p className="font-medium">{ANALYSIS_PROVIDER_STATIC_LABELS.skiniver}</p>
+            <p className="font-medium">{ANALYSIS_PROVIDER_STATIC_LABELS.dermatologico}</p>
             <p className="text-sm text-muted-foreground">
               Sube o toma una foto de una lesión o zona de la piel que quieras revisar.
             </p>
@@ -91,7 +91,7 @@ export default function AutoAnalisisPage() {
             onClick={() => chooseProvider("youcam")}
             className="rounded-lg border border-border p-4 text-left hover:bg-muted"
           >
-            <p className="font-medium">{ANALYSIS_PROVIDER_STATIC_LABELS.youcam}</p>
+            <p className="font-medium">{ANALYSIS_PROVIDER_STATIC_LABELS.estetico}</p>
             <p className="text-sm text-muted-foreground">
               Captura una selfie para evaluar 16 métricas de piel del rostro.
             </p>
@@ -167,8 +167,8 @@ export default function AutoAnalisisPage() {
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
             {provider === "youcam"
-              ? "Se enviará la foto a YouCam para el análisis facial. El resultado puede tardar varios minutos en procesarse."
-              : "Se enviará la foto a Skiniver para el análisis. Esto puede tardar unos segundos."}
+              ? "Se enviará la foto para el análisis facial. El resultado puede tardar varios minutos en procesarse."
+              : "Se enviará la foto para el análisis dermatológico. Esto puede tardar unos segundos."}
           </p>
           {createAnalysis.error && (
             <p className="text-sm text-destructive">

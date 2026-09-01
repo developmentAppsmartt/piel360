@@ -4,14 +4,13 @@ import { AnalysisConsumptionView } from "@/components/analyses/analysis-consumpt
 import { MOCK_COMPANY_CONSUMPTION } from "@/lib/mocks/admin-bolsa";
 import { useMySubscriptions } from "@/lib/queries/subscriptions";
 
-/** youcam = estético; skiniver = dermatológico (imagen). */
 function poolFromSubs(
   subscriptions: ReturnType<typeof useMySubscriptions>["data"],
-  slug: "youcam" | "skiniver",
+  category: "estetico" | "dermatologico",
   fallback: { done: number; limit: number; available: number },
 ) {
   const sub = subscriptions?.find(
-    (s) => s.status === "active" && s.plan.provider.slug === slug,
+    (s) => s.status === "active" && s.plan.provider.category === category,
   );
   if (!sub) return fallback;
   const done = Math.max(0, sub.plan.analysisLimit - sub.remainingCredits);
@@ -30,8 +29,8 @@ export default function ConsumoPage() {
     return <p className="text-muted-foreground">Cargando consumo...</p>;
   }
 
-  const aesthetic = poolFromSubs(subscriptions.data, "youcam", mock.aesthetic);
-  const derm = poolFromSubs(subscriptions.data, "skiniver", mock.derm);
+  const aesthetic = poolFromSubs(subscriptions.data, "estetico", mock.aesthetic);
+  const derm = poolFromSubs(subscriptions.data, "dermatologico", mock.derm);
 
   return (
     <AnalysisConsumptionView

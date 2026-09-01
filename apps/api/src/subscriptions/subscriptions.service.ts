@@ -3,6 +3,7 @@ import type { AnalysisProviderSlug } from '@piel360/shared';
 import type { Prisma } from '@prisma/client';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { categoryForSlug } from '../plans/analysis-provider-category.util';
 import type { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import type { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 
@@ -128,13 +129,29 @@ export class SubscriptionsService {
   async findMine(userId: bigint) {
     const subscriptions = await this.prisma.subscription.findMany({
       where: { userId },
-      include: { plan: { include: { provider: true } } },
+      include: {
+        plan: {
+          include: {
+            provider: { select: { id: true, slug: true, displayLabel: true } },
+          },
+        },
+      },
       orderBy: { id: 'desc' },
     });
 
     return Promise.all(
       subscriptions.map(async (subscription) => ({
         ...subscription,
+        // `slug` solo se usa acá para derivar `category` — nunca sale en la
+        // respuesta (ver analysis-provider-category.util.ts).
+        plan: {
+          ...subscription.plan,
+          provider: {
+            id: subscription.plan.provider.id,
+            displayLabel: subscription.plan.provider.displayLabel,
+            category: categoryForSlug(subscription.plan.provider.slug),
+          },
+        },
         remainingCredits: await this.remainingCredits(
           this.prisma,
           subscription.id,

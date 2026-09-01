@@ -23,7 +23,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import { ApiError } from "@/lib/api-error";
 import {
   type Analysis,
@@ -150,9 +149,7 @@ export default function PatientDashboardPage() {
           {activeSub ? (
             <Badge className="mt-1" variant="secondary">
               Plan:{" "}
-              {(ANALYSIS_PROVIDER_STATIC_LABELS as Record<string, string>)[
-                activeSub.plan.provider.slug
-              ] ?? activeSub.plan.name}
+              {activeSub.plan.provider.displayLabel ?? activeSub.plan.name}
             </Badge>
           ) : null}
         </div>

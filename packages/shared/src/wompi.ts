@@ -39,7 +39,10 @@ export interface CreateGatewayConfigInput {
 
 export type UpdateGatewayConfigInput = Partial<CreateGatewayConfigInput>;
 
-/** `GET /plans` — catálogo de planes activos por proveedor. */
+/** `GET /plans` — catálogo de planes activos por proveedor. Endpoint
+ * accesible a cualquier doctor/paciente autenticado (no solo admin), así
+ * que `provider` nunca trae `name`/`slug` reales — solo el `displayLabel`
+ * ya sanitizado (ver `AnalysisProvider.displayLabel` en el schema). */
 export interface Plan {
   id: string;
   analysisProviderId: string;
@@ -51,7 +54,9 @@ export interface Plan {
   description: string | null;
   provider: {
     id: string;
-    name: string;
-    slug: string;
+    displayLabel: string | null;
+    /** Categoría segura derivada del slug real (nunca expuesto) — permite
+     * distinguir planes sin revelar qué proveedor de IA hay detrás. */
+    category: "dermatologico" | "estetico" | "fototipo";
   };
 }

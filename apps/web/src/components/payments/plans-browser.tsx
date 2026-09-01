@@ -4,13 +4,8 @@ import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { WompiCheckoutButton } from "@/components/payments/wompi-checkout-button";
-import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import { usePlans } from "@/lib/queries/plans";
 import { useMySubscriptions } from "@/lib/queries/subscriptions";
-
-function providerLabel(slug: string): string {
-  return (ANALYSIS_PROVIDER_STATIC_LABELS as Record<string, string>)[slug] ?? slug;
-}
 
 function formatCOP(price: string) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(
@@ -23,15 +18,16 @@ function formatCOP(price: string) {
 export function PlansBrowser() {
   const plans = usePlans();
   const subscriptions = useMySubscriptions();
-  const [providerSlug, setProviderSlug] = useState<string | null>(null);
+  const [providerId, setProviderId] = useState<string | null>(null);
 
   const providers = useMemo(() => {
-    const slugs = new Set(plans.data?.map((p) => p.provider.slug));
-    return Array.from(slugs);
+    const seen = new Map<string, string | null>();
+    for (const p of plans.data ?? []) seen.set(p.provider.id, p.provider.displayLabel);
+    return Array.from(seen, ([id, displayLabel]) => ({ id, displayLabel }));
   }, [plans.data]);
 
-  const activeProvider = providerSlug ?? providers[0] ?? null;
-  const visiblePlans = plans.data?.filter((p) => p.provider.slug === activeProvider) ?? [];
+  const activeProvider = providerId ?? providers[0]?.id ?? null;
+  const visiblePlans = plans.data?.filter((p) => p.provider.id === activeProvider) ?? [];
   const activeSubscriptions = subscriptions.data?.filter((s) => s.status === "active") ?? [];
 
   return (
@@ -43,7 +39,7 @@ export function PlansBrowser() {
             {activeSubscriptions.map((sub) => (
               <li key={sub.id} className="flex items-center justify-between gap-2">
                 <span>
-                  {providerLabel(sub.plan.provider.slug)} — {sub.plan.name}
+                  {sub.plan.provider.displayLabel ?? "Análisis"} — {sub.plan.name}
                 </span>
                 <span className="text-muted-foreground">
                   Vence el {sub.endsAt ? new Date(sub.endsAt).toLocaleDateString("es-CO") : "—"}
@@ -58,15 +54,15 @@ export function PlansBrowser() {
 
       {providers.length > 0 && (
         <div className="flex gap-2">
-          {providers.map((slug) => (
+          {providers.map((provider) => (
             <Button
-              key={slug}
+              key={provider.id}
               type="button"
-              variant={activeProvider === slug ? "default" : "outline"}
+              variant={activeProvider === provider.id ? "default" : "outline"}
               size="sm"
-              onClick={() => setProviderSlug(slug)}
+              onClick={() => setProviderId(provider.id)}
             >
-              {providerLabel(slug)}
+              {provider.displayLabel ?? "Análisis"}
             </Button>
           ))}
         </div>

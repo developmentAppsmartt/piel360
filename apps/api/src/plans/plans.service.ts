@@ -2,18 +2,32 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreatePlanDto } from './dto/create-plan.dto';
 import type { UpdatePlanDto } from './dto/update-plan.dto';
+import { categoryForSlug } from './analysis-provider-category.util';
 
 @Injectable()
 export class PlansService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** `GET /plans` — catálogo para el selector de planes (checkout Wompi). */
-  findAll() {
-    return this.prisma.plan.findMany({
+  /** `GET /plans` — catálogo para el selector de planes (checkout Wompi).
+   * Cualquier doctor/paciente autenticado puede llamarlo (solo JwtAuthGuard,
+   * sin permiso de admin) — nunca incluir `name`/`slug` reales del
+   * proveedor acá, solo `displayLabel` (ya sanitizado). */
+  async findAll() {
+    const plans = await this.prisma.plan.findMany({
       where: { isActive: true },
-      include: { provider: true },
+      include: { provider: { select: { id: true, slug: true, displayLabel: true } } },
       orderBy: { price: 'asc' },
     });
+    // `slug` solo se usa acá para derivar `category` — nunca sale en la
+    // respuesta (ver analysis-provider-category.util.ts).
+    return plans.map((plan) => ({
+      ...plan,
+      provider: {
+        id: plan.provider.id,
+        displayLabel: plan.provider.displayLabel,
+        category: categoryForSlug(plan.provider.slug),
+      },
+    }));
   }
 
   /** `GET /admin/plans` — a diferencia del catálogo público, incluye los

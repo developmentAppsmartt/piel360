@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import type { Subscription } from "@/lib/queries/subscriptions";
 
 /** Versión compacta de la barra de progreso de consumo/page.tsx, para el
@@ -26,11 +25,7 @@ export function DashboardCredits({ subscriptions }: { subscriptions: Subscriptio
             return (
               <div key={sub.id} className="space-y-1">
                 <div className="flex items-center justify-between text-sm">
-                  <span>
-                    {(ANALYSIS_PROVIDER_STATIC_LABELS as Record<string, string>)[
-                      sub.plan.provider.slug
-                    ] ?? sub.plan.provider.name}
-                  </span>
+                  <span>{sub.plan.provider.displayLabel ?? sub.plan.name}</span>
                   <span className="text-muted-foreground">
                     {sub.remainingCredits} de {sub.plan.analysisLimit} restantes
                   </span>

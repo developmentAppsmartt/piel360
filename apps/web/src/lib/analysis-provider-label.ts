@@ -1,10 +1,12 @@
 // Fuente de verdad: AnalysisProvider.displayLabel (backend). Estas constantes
 // cubren botones para iniciar un análisis nuevo (aún sin fila `provider`).
-// Nunca exponer nombres de API (Skiniver / YouCam / Fitzpatrick) al usuario.
+// Nunca exponer nombres de API al usuario — y las CLAVES de este objeto
+// tampoco deben coincidir con los `slug` reales del backend (aparecerían
+// legibles en el bundle de JS aunque el valor ya esté sanitizado).
 export const ANALYSIS_PROVIDER_STATIC_LABELS = {
-  skiniver: "Piel 360 AI · Dermatológico",
-  youcam: "Piel 360 AI · Estético",
-  fitzpatrick: "Piel 360 AI · Fototipo",
+  dermatologico: "Piel 360 AI · Dermatológico",
+  estetico: "Piel 360 AI · Estético",
+  fototipo: "Piel 360 AI · Fototipo",
 } as const;
 
 function looksLikeApiVendor(label: string): boolean {
@@ -26,7 +28,7 @@ export function analysisProviderLabel(row: {
 }): string {
   const raw = row.provider?.displayLabel?.trim();
   if (raw && !looksLikeApiVendor(raw)) return raw;
-  if (row.youcamTaskId) return ANALYSIS_PROVIDER_STATIC_LABELS.youcam;
-  if (row.fitzpatrickTaskId) return ANALYSIS_PROVIDER_STATIC_LABELS.fitzpatrick;
-  return ANALYSIS_PROVIDER_STATIC_LABELS.skiniver;
+  if (row.youcamTaskId) return ANALYSIS_PROVIDER_STATIC_LABELS.estetico;
+  if (row.fitzpatrickTaskId) return ANALYSIS_PROVIDER_STATIC_LABELS.fototipo;
+  return ANALYSIS_PROVIDER_STATIC_LABELS.dermatologico;
 }

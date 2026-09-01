@@ -58,19 +58,19 @@ export default function PacienteDetallePage() {
             nativeButton={false}
             render={<Link href={`/doctor/pacientes/${p.id}/nuevo-analisis`} />}
           >
-            {ANALYSIS_PROVIDER_STATIC_LABELS.skiniver}
+            {ANALYSIS_PROVIDER_STATIC_LABELS.dermatologico}
           </Button>
           <Button
             nativeButton={false}
-            render={<Link href={`/doctor/pacientes/${p.id}/nuevo-analisis-youcam`} />}
+            render={<Link href={`/doctor/pacientes/${p.id}/nuevo-analisis-estetico`} />}
           >
-            {ANALYSIS_PROVIDER_STATIC_LABELS.youcam}
+            {ANALYSIS_PROVIDER_STATIC_LABELS.estetico}
           </Button>
           <Button
             nativeButton={false}
-            render={<Link href={`/doctor/pacientes/${p.id}/nuevo-analisis-fitzpatrick`} />}
+            render={<Link href={`/doctor/pacientes/${p.id}/nuevo-analisis-fototipo`} />}
           >
-            {ANALYSIS_PROVIDER_STATIC_LABELS.fitzpatrick}
+            {ANALYSIS_PROVIDER_STATIC_LABELS.fototipo}
           </Button>
           <Button
             variant="outline"

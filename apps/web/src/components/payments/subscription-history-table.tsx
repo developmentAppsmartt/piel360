@@ -53,7 +53,7 @@ export function SubscriptionHistoryTable({ limit }: { limit?: number }) {
             <TableRow key={sub.id}>
               <TableCell>{new Date(sub.createdAt).toLocaleDateString("es-CO")}</TableCell>
               <TableCell>{sub.plan.name}</TableCell>
-              <TableCell>{sub.plan.provider.name}</TableCell>
+              <TableCell>{sub.plan.provider.displayLabel ?? sub.plan.name}</TableCell>
               <TableCell>{formatCOP(sub.plan.price)}</TableCell>
               <TableCell>
                 <Badge variant={sub.status === "active" ? "default" : sub.status === "pending" ? "secondary" : "destructive"}>

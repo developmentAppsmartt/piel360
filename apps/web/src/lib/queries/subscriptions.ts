@@ -16,7 +16,13 @@ export interface Subscription {
     analysisLimit: number;
     durationDays: number;
     price: string;
-    provider: { slug: string; name: string };
+    // /me/subscriptions es accesible a cualquier doctor/paciente autenticado
+    // — nunca trae name/slug reales del proveedor, solo displayLabel/category.
+    provider: {
+      id: string;
+      displayLabel: string | null;
+      category: "dermatologico" | "estetico" | "fototipo";
+    };
   };
 }
 
