@@ -160,6 +160,63 @@ export function AnalysisResultsView({
             </p>
           </ModuleCard>
 
+          {analysis.data.skiniverDiagnosis ? (
+            <ModuleCard className="space-y-3 p-4">
+              {analysis.data.skiniverDiagnosis.description && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Descripción
+                  </p>
+                  <p className="text-sm">{analysis.data.skiniverDiagnosis.description}</p>
+                </div>
+              )}
+              {analysis.data.skiniverDiagnosis.conclusion.category && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Conclusión
+                  </p>
+                  <p className="text-sm">
+                    {analysis.data.skiniverDiagnosis.conclusion.category}
+                    {" · "}
+                    {analysis.data.skiniverDiagnosis.conclusion.category_prob}%
+                  </p>
+                </div>
+              )}
+              {analysis.data.skiniverDiagnosis.precise_diagnosis && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Diagnóstico preciso
+                  </p>
+                  <p className="text-sm">
+                    {analysis.data.skiniverDiagnosis.precise_diagnosis}
+                  </p>
+                </div>
+              )}
+              {analysis.data.skiniverDiagnosis.treatment && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Tratamiento
+                  </p>
+                  <p className="text-sm">{analysis.data.skiniverDiagnosis.treatment}</p>
+                </div>
+              )}
+              {analysis.data.skiniverDiagnosis.advice && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Consejo</p>
+                  <p className="text-sm">{analysis.data.skiniverDiagnosis.advice}</p>
+                </div>
+              )}
+              {analysis.data.skiniverDiagnosis.icd_code && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Código ICD
+                  </p>
+                  <p className="text-sm">{analysis.data.skiniverDiagnosis.icd_code}</p>
+                </div>
+              )}
+            </ModuleCard>
+          ) : null}
+
           {prediction?.topn && prediction.topn.length > 0 ? (
             <div className="space-y-2">
               <h3 className="text-sm font-semibold">
