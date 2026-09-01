@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createColumnHelper } from "@tanstack/react-table";
+import { createColumnHelper, type ColumnDef } from "@tanstack/react-table";
 import { Plus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
@@ -18,7 +18,7 @@ function initials(first: string, last: string) {
 function buildColumns(basePath: string, showProfessionalColumn = false) {
   const columnHelper = createColumnHelper<Patient>();
 
-  const columns = [
+  const columns: ColumnDef<Patient, any>[] = [
     columnHelper.accessor((row) => `${row.firstName} ${row.lastName}`, {
       id: "name",
       header: "Paciente",

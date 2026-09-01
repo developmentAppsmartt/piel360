@@ -33,11 +33,6 @@ export type OrgCompanyProfile = {
   existenceCertDocKey: string | null;
   legalRepCedulaDocUrl?: string | null;
   rutDocUrl?: string | null;
-  legalRepName: string | null;
-  legalRepDocType: string | null;
-  legalRepDocNumber: string | null;
-  legalRepCedulaDocUrl?: string | null;
-  rutDocUrl?: string | null;
   existenceCertDocUrl?: string | null;
 };
 
