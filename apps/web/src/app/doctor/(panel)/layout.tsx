@@ -2,11 +2,11 @@
 // La protección de rol (equivalente a EnsurePanelRole, MIGRACION.md §6) vive en
 // src/proxy.ts, que intercepta /doctor/(panel)/* antes de llegar aquí.
 import { redirect } from "next/navigation";
-import { isClinicalPanelRole, isDoctorVerificationActive } from "@piel360/shared";
+import { isDoctorVerificationActive } from "@piel360/shared";
 import { PanelShell } from "@/components/layout/panel-shell";
 import { fetchUserPermissionsFromCookies } from "@/lib/server-auth-permissions";
 import { getSession } from "@/lib/session";
-import { doctorNav } from "./nav-config";
+import { buildUnifiedPanelNav } from "@/lib/unified-panel-nav";
 
 export default async function DoctorPanelLayout({
   children,
@@ -16,9 +16,7 @@ export default async function DoctorPanelLayout({
   const session = await getSession();
   if (!session) redirect("/doctor/login");
 
-  const freshPermissions = isClinicalPanelRole(session.role)
-    ? await fetchUserPermissionsFromCookies()
-    : null;
+  const freshPermissions = await fetchUserPermissionsFromCookies();
   const permissions = freshPermissions ?? session.permissions ?? [];
 
   const active = isDoctorVerificationActive(session.verificationStatus);
@@ -30,17 +28,21 @@ export default async function DoctorPanelLayout({
         ? "Empresa · Equipo"
         : "Consulta individual";
 
+  const navFeatures = {
+    email: session.email,
+    role: session.role,
+    permissions,
+    empresa: session.empresa,
+    empresaReferida: session.empresaReferida,
+    verificationStatus: session.verificationStatus,
+    teamPermissions: session.teamPermissions,
+    isOrgMember: session.isOrgMember,
+  };
+
   return (
     <PanelShell
-      nav={doctorNav}
-      user={{
-        email: session.email,
-        role: session.role,
-        permissions,
-        empresa: session.empresa,
-        empresaReferida: session.empresaReferida,
-        verificationStatus: session.verificationStatus,
-      }}
+      nav={buildUnifiedPanelNav(navFeatures)}
+      user={navFeatures}
       sidebarUser={{
         name: session.email,
         subtitle,

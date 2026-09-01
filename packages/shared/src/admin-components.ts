@@ -190,6 +190,13 @@ export const ADMIN_COMPONENTS: readonly AdminComponentDef[] = [
     parentSlug: "admin.settings",
   },
   {
+    slug: "admin.settings.gateways",
+    label: "Pasarelas de pago",
+    href: "/admin/gateway-configs",
+    sortOrder: 168,
+    parentSlug: "admin.settings",
+  },
+  {
     slug: "admin.audit",
     label: "Auditoría",
     href: "/admin/auditoria",

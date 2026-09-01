@@ -1,13 +1,14 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { createReadStream, existsSync } from 'fs';
-import { mkdir, writeFile } from 'fs/promises';
+import { mkdir, unlink, writeFile } from 'fs/promises';
 import { dirname, join, normalize, resolve } from 'path';
 
 const SIGNED_URL_TTL_SECONDS = 3600;
@@ -100,6 +101,29 @@ export class StorageService {
         return;
       }
       throw err;
+    }
+  }
+
+  /** Elimina un objeto (local y/o S3). Ignora si no existe. */
+  async delete(key: string): Promise<void> {
+    if (this.localExists(key)) {
+      try {
+        await unlink(this.localPath(key));
+      } catch (err) {
+        this.logger.warn(
+          `No se pudo borrar local ${key}: ${err instanceof Error ? err.message : err}`,
+        );
+      }
+    }
+    if (this.forceLocal || !this.client) return;
+    try {
+      await this.client.send(
+        new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
+      );
+    } catch (err) {
+      this.logger.warn(
+        `No se pudo borrar S3 ${key}: ${err instanceof Error ? err.message : err}`,
+      );
     }
   }
 

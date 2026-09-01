@@ -1,11 +1,13 @@
 import {
   IsArray,
   IsBoolean,
+  IsIn,
   IsNumberString,
   IsOptional,
   IsString,
   MinLength,
 } from 'class-validator';
+import { PRIMARY_PANELS } from '@piel360/shared';
 
 export class UpdateRoleDto {
   @IsOptional()
@@ -28,6 +30,10 @@ export class UpdateRoleDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsIn([...PRIMARY_PANELS])
+  primaryPanel?: string;
 
   @IsOptional()
   @IsArray()

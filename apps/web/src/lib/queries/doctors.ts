@@ -303,3 +303,42 @@ export function useUpdateDoctorAddressVerification(id: string) {
     },
   });
 }
+
+export function useUploadAddressVerificationEvidence(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData();
+      form.append("evidence", file);
+      return apiClientFetch<Doctor>(
+        `/admin/doctors/${id}/address-verification/evidence`,
+        { method: "POST", body: form },
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "doctors"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "doctors", id] });
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "verification"],
+      });
+    },
+  });
+}
+
+export function useDeleteAddressVerificationEvidence(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiClientFetch<Doctor>(
+        `/admin/doctors/${id}/address-verification/evidence`,
+        { method: "DELETE" },
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "doctors"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "doctors", id] });
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "verification"],
+      });
+    },
+  });
+}

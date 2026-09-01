@@ -13,9 +13,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import type { Role } from "@/lib/queries/roles";
+import { roleVisibilitySummary } from "@/lib/role-permission-scope";
 
 const PAGE_SIZE = 10;
-const PROTECTED_ROLE_NAMES = new Set(["superadmin", "doctor", "patient", "monitor"]);
+const PROTECTED_ROLE_NAMES = new Set([
+  "superadmin",
+  "doctor",
+  "patient",
+  "monitor",
+  "empresa",
+]);
 
 function RoleStatusBadge({ active }: { active: boolean }) {
   if (active) {
@@ -112,6 +119,7 @@ export function RolesList({
                   <th className="px-4 py-3 font-semibold">Rol</th>
                   <th className="px-4 py-3 font-semibold">Asociación</th>
                   <th className="px-4 py-3 font-semibold">Permisos</th>
+                  <th className="px-4 py-3 font-semibold">Menú efectivo</th>
                   <th className="px-4 py-3 font-semibold">Usuarios</th>
                   <th className="px-4 py-3 font-semibold">Estado</th>
                   <th className="px-4 py-3 text-right font-semibold">Acciones</th>
@@ -126,6 +134,12 @@ export function RolesList({
                           .map((link) => link.doctorSpecialty.name)
                           .join(", ")
                       : role.laborTechnicianProfile?.name ?? "—";
+                  const visibility = roleVisibilitySummary(role.name, role.permissions);
+                  const effectiveMenuCount =
+                    visibility.adminNavItems.length + visibility.clinicalNavItems.length;
+                  const panelLabels: string[] = [];
+                  if (visibility.adminNavItems.length > 0) panelLabels.push("admin");
+                  if (visibility.clinicalNavItems.length > 0) panelLabels.push("clínico");
 
                   return (
                     <tr key={role.id} className="border-t border-border/80 align-top">
@@ -146,9 +160,26 @@ export function RolesList({
                         {association}
                       </td>
                       <td className="px-4 py-4">
-                        <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-foreground">
-                          {role.permissions.length}
+                        <div className="space-y-1">
+                          <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-foreground">
+                            {role.permissions.length} total
+                          </span>
+                          <p className="text-xs text-muted-foreground">
+                            {visibility.scopeCounts.adminMenu} admin ·{" "}
+                            {visibility.scopeCounts.clinicalMenu} clínico ·{" "}
+                            {visibility.scopeCounts.apiOnly} API
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <span className="inline-flex rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                          {effectiveMenuCount} módulos
                         </span>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {panelLabels.length > 0
+                            ? `Panel ${panelLabels.join(" + ")}`
+                            : "Solo API"}
+                        </p>
                       </td>
                       <td className="px-4 py-4">
                         <span className="inline-flex rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">

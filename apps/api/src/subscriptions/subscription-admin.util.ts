@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import type { AnalysisProvider, Plan, Prisma } from '@prisma/client';
 import { isEnterpriseDoctor } from '../doctors/doctor-account.util';
 import { attachProvidersToPlan } from '../plans/plan-providers.util';
+import { resolveSubscriptionEndsAt } from './subscription-ends.util';
 
 export type AdminSubscriptionRow = Prisma.SubscriptionGetPayload<{
   include: {
@@ -82,15 +83,54 @@ export function serializeAdminPlan(
   };
 }
 
+export type UserSubscriptionRow = Prisma.SubscriptionGetPayload<{
+  include: { plan: { include: { provider: true } } };
+}>;
+
+export function serializeUserSubscription(
+  row: UserSubscriptionRow,
+  remainingCredits: number,
+) {
+  const endsAt = resolveSubscriptionEndsAt(row, row.plan);
+  return {
+    id: row.id.toString(),
+    status: row.status,
+    endsAt: endsAt?.toISOString() ?? null,
+    wompiTransactionId: row.wompiTransactionId,
+    createdAt: row.createdAt.toISOString(),
+    remainingCredits,
+    plan: {
+      id: row.plan.id.toString(),
+      name: row.plan.name,
+      analysisLimit: row.plan.analysisLimit,
+      durationDays: row.plan.durationDays,
+      price: row.plan.price.toString(),
+      maxUsers: row.plan.maxUsers,
+      modules: Array.isArray(row.plan.modules)
+        ? (row.plan.modules as string[])
+        : [],
+      roleLimits:
+        row.plan.roleLimits && typeof row.plan.roleLimits === 'object'
+          ? (row.plan.roleLimits as Record<string, number>)
+          : {},
+      provider: {
+        slug: row.plan.provider.slug,
+        name: row.plan.provider.name,
+      },
+    },
+  };
+}
+
 export function serializeAdminSubscription(
   row: AdminSubscriptionRow,
   allProviders: ProviderRow[],
 ) {
   const accountKind = resolveSubscriptionAccountKind(row.user);
+  const endsAt = resolveSubscriptionEndsAt(row, row.plan);
   return {
     id: row.id.toString(),
     status: row.status,
-    endsAt: row.endsAt,
+    endsAt,
     wompiTransactionId: row.wompiTransactionId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

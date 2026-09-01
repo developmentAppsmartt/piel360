@@ -8,12 +8,14 @@ import {
 import * as argon2 from 'argon2';
 import {
   DEFAULT_TEAM_MEMBER_PERMISSIONS,
+  parseTeamMemberPermissions,
   type Role,
   type TeamMemberPermission,
 } from '@piel360/shared';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { DoctorsService } from '../doctors/doctors.service';
+import { isEnterpriseDoctor } from '../doctors/doctor-account.util';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
 import { StorageService } from '../storage/storage.service';
 import type { AddTeamDoctorDto } from './dto/add-team-doctor.dto';
@@ -28,8 +30,7 @@ const DOC_MIME = new Set([
 ]);
 
 function parsePermissions(raw: unknown): TeamMemberPermission[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((p): p is TeamMemberPermission => typeof p === 'string');
+  return parseTeamMemberPermissions(raw);
 }
 
 function toCoord(value: Prisma.Decimal | number | null | undefined) {
@@ -236,7 +237,57 @@ export class OrganizationsService {
       data,
     });
 
+    await this.syncEnterpriseOwnerFromOrganization(ownerUserId, org.id);
+
     return this.getMine(ownerUserId);
+  }
+
+  /** Mantiene User/Doctor alineados con la organización (cuenta empresa única). */
+  private async syncEnterpriseOwnerFromOrganization(
+    ownerUserId: string,
+    organizationId: bigint,
+  ) {
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
+    if (!org) return;
+
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { userId: BigInt(ownerUserId) },
+    });
+    if (!doctor || !isEnterpriseDoctor(doctor)) return;
+
+    const legalRepName = org.legalRepName?.trim() || doctor.firstName;
+    const nameParts = legalRepName.split(/\s+/).filter(Boolean);
+    const firstName = nameParts[0] ?? legalRepName;
+    const lastName =
+      nameParts.length > 1 ? nameParts.slice(1).join(' ') : firstName;
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: BigInt(ownerUserId) },
+        data: {
+          name: legalRepName,
+          firstName,
+          lastName,
+        },
+      }),
+      this.prisma.doctor.update({
+        where: { id: doctor.id },
+        data: {
+          firstName,
+          lastName,
+          docType: org.legalRepDocType,
+          docNumber: org.legalRepDocNumber,
+          address: org.address,
+          city: org.city,
+          department: org.department,
+          country: org.country,
+          lat: org.lat,
+          lng: org.lng,
+        },
+      }),
+    ]);
   }
 
   async uploadCompanyDocuments(

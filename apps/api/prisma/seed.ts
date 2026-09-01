@@ -1,7 +1,7 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
-import { ADMIN_COMPONENTS, MONITOR_COMPONENT_SLUGS, EMPRESA_ROLE_PERMISSIONS } from '@piel360/shared';
+import { ADMIN_COMPONENTS, MONITOR_COMPONENT_SLUGS, EMPRESA_ROLE_PERMISSIONS, CLINICAL_COMPONENTS, EMPRESA_CLINICAL_COMPONENT_SLUGS } from '@piel360/shared';
 
 // Prisma 7: el cliente necesita un driver adapter explícito (ver src/prisma/prisma.service.ts).
 const adapter = new PrismaPg({
@@ -42,6 +42,41 @@ const ORG_OWNER_PERMS = [
   'create_organization',
   'update_organization',
 ] as const;
+
+/** Añade permisos por defecto sin borrar los que el admin haya asignado al rol. */
+async function ensureRolePermissions(
+  roleId: bigint,
+  connect: { name?: string; slug?: string }[],
+) {
+  const role = await prisma.role.findUnique({
+    where: { id: roleId },
+    include: { permissions: { select: { name: true, slug: true } } },
+  });
+  if (!role) return;
+
+  const existingNames = new Set(role.permissions.map((permission) => permission.name));
+  const existingSlugs = new Set(role.permissions.map((permission) => permission.slug));
+
+  for (const item of connect) {
+    if (item.name) {
+      if (existingNames.has(item.name)) continue;
+      await prisma.role.update({
+        where: { id: roleId },
+        data: { permissions: { connect: { name: item.name } } },
+      });
+      existingNames.add(item.name);
+      continue;
+    }
+    if (item.slug) {
+      if (existingSlugs.has(item.slug)) continue;
+      await prisma.role.update({
+        where: { id: roleId },
+        data: { permissions: { connect: { slug: item.slug } } },
+      });
+      existingSlugs.add(item.slug);
+    }
+  }
+}
 
 async function main() {
   // --- Analysis providers (MIGRACION.md §3.1) ---
@@ -90,23 +125,23 @@ async function main() {
   ] = await Promise.all([
     prisma.role.upsert({
       where: { name: 'superadmin' },
-      update: {},
-      create: { name: 'superadmin' },
+      update: { primaryPanel: 'admin' },
+      create: { name: 'superadmin', primaryPanel: 'admin' },
     }),
     prisma.role.upsert({
       where: { name: 'doctor' },
-      update: {},
-      create: { name: 'doctor' },
+      update: { primaryPanel: 'clinical' },
+      create: { name: 'doctor', primaryPanel: 'clinical' },
     }),
     prisma.role.upsert({
       where: { name: 'patient' },
-      update: {},
-      create: { name: 'patient' },
+      update: { primaryPanel: 'patient' },
+      create: { name: 'patient', primaryPanel: 'patient' },
     }),
     prisma.role.upsert({
       where: { name: 'monitor' },
-      update: {},
-      create: { name: 'monitor' },
+      update: { primaryPanel: 'admin' },
+      create: { name: 'monitor', primaryPanel: 'admin' },
     }),
     prisma.role.upsert({
       where: { name: 'empresa' },
@@ -116,6 +151,7 @@ async function main() {
           'Cuenta empresarial con equipo, planes business y gestión de organización.',
         color: '#0EA5E9',
         isActive: true,
+        primaryPanel: 'clinical',
       },
       create: {
         name: 'empresa',
@@ -123,6 +159,7 @@ async function main() {
         description:
           'Cuenta empresarial con equipo, planes business y gestión de organización.',
         color: '#0EA5E9',
+        primaryPanel: 'clinical',
       },
     }),
   ]);
@@ -138,6 +175,8 @@ async function main() {
     'use_provider_fitzpatrick',
   ] as const;
 
+  const extraActionPermissions = ['manage_app_config'] as const;
+
   // --- Permissions: view_any_user, create_doctor, ... + validate_doctor ---
   const permissionNames = [
     ...RESOURCES.flatMap((resource) =>
@@ -145,6 +184,7 @@ async function main() {
     ),
     'validate_doctor',
     ...providerUsagePermissions,
+    ...extraActionPermissions,
   ];
 
   await prisma.$transaction(
@@ -185,6 +225,34 @@ async function main() {
     ),
   );
 
+  await prisma.$transaction(
+    CLINICAL_COMPONENTS.map((component) =>
+      prisma.permission.upsert({
+        where: { slug: component.slug },
+        update: {
+          label: component.label,
+          href: component.href,
+          sortOrder: component.sortOrder,
+          parentSlug: component.parentSlug ?? null,
+          panel: 'clinical',
+          kind: 'component',
+          isActive: component.isActive ?? true,
+        },
+        create: {
+          name: component.slug,
+          slug: component.slug,
+          label: component.label,
+          href: component.href,
+          sortOrder: component.sortOrder,
+          parentSlug: component.parentSlug ?? null,
+          panel: 'clinical',
+          kind: 'component',
+          isActive: component.isActive ?? true,
+        },
+      }),
+    ),
+  );
+
   const allActivePermissions = await prisma.permission.findMany({
     where: { isActive: true },
     select: { id: true },
@@ -201,33 +269,24 @@ async function main() {
     },
   });
 
-  // Monitor: doctores + validación + componentes de verificación
-  await prisma.role.update({
-    where: { id: monitorRole.id },
-    data: {
-      permissions: {
-        set: [],
-        connect: [
-          { name: 'view_any_doctor' },
-          { name: 'view_doctor' },
-          { name: 'update_doctor' },
-          { name: 'validate_doctor' },
-          ...MONITOR_COMPONENT_SLUGS.map((slug) => ({ slug })),
-        ],
-      },
-    },
-  });
+  // Monitor: permisos mínimos de verificación (sin borrar personalizaciones)
+  await ensureRolePermissions(monitorRole.id, [
+    { name: 'view_any_doctor' },
+    { name: 'view_doctor' },
+    { name: 'update_doctor' },
+    { name: 'validate_doctor' },
+    ...MONITOR_COMPONENT_SLUGS.map((slug) => ({ slug })),
+  ]);
 
-  // Empresa: permisos de panel clínico + organización
+  // Empresa: permisos base (sin borrar módulos extra asignados en admin)
   await prisma.role.update({
     where: { id: empresaRole.id },
-    data: {
-      permissions: {
-        set: [],
-        connect: EMPRESA_ROLE_PERMISSIONS.map((name) => ({ name })),
-      },
-    },
+    data: { primaryPanel: 'clinical' },
   });
+  await ensureRolePermissions(empresaRole.id, [
+    ...EMPRESA_ROLE_PERMISSIONS.map((name) => ({ name })),
+    ...EMPRESA_CLINICAL_COMPONENT_SLUGS.map((slug) => ({ slug })),
+  ]);
 
   // Permisos de organization en catálogo; flags Doctor.empresa activan módulos UI.
   void doctorRole;
@@ -312,23 +371,18 @@ async function main() {
     specialtyDefinitions.map((item) =>
       prisma.role.upsert({
         where: { name: item.slug },
-        update: {},
-        create: { name: item.slug },
+        update: { primaryPanel: 'clinical' },
+        create: { name: item.slug, primaryPanel: 'clinical' },
       }),
     ),
   );
 
   for (const [index, role] of specialtyRoles.entries()) {
     const item = specialtyDefinitions[index];
-    await prisma.role.update({
-      where: { id: role.id },
-      data: {
-        permissions: {
-          set: [],
-          connect: item.perms.map((name) => ({ name })),
-        },
-      },
-    });
+    await ensureRolePermissions(
+      role.id,
+      item.perms.map((name) => ({ name })),
+    );
 
     await prisma.doctorSpecialty.upsert({
       where: { slug: item.slug },

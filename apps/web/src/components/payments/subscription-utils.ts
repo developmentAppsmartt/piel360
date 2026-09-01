@@ -29,6 +29,40 @@ export function formatAdminDate(iso: string | null) {
   });
 }
 
+/** Vigencia: endsAt guardado o fecha de compra + duración del plan. */
+export function subscriptionEndsAtDisplay(
+  sub: Pick<Subscription, "endsAt" | "createdAt" | "status"> & {
+    plan: Pick<Subscription["plan"], "durationDays">;
+  },
+): string {
+  const durationDays = Number(sub.plan?.durationDays ?? 0);
+  if (durationDays <= 0) return "—";
+
+  if (sub.endsAt) {
+    const parsed = new Date(sub.endsAt);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toLocaleDateString("es-CO", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+    }
+  }
+
+  if (sub.status !== "active" && sub.status !== "pending") return "—";
+
+  const purchaseDate = new Date(sub.createdAt);
+  if (Number.isNaN(purchaseDate.getTime())) return "—";
+
+  const ends = new Date(purchaseDate);
+  ends.setDate(ends.getDate() + durationDays);
+  return ends.toLocaleDateString("es-CO", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export function formatAdminDateTime(iso: string | null) {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("es-CO", {

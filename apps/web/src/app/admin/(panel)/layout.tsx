@@ -1,12 +1,10 @@
 // Chrome del panel admin. Protección de rol (equivalente a EnsurePanelRole,
 // MIGRACION.md §6) en src/proxy.ts, que intercepta /admin/(panel)/*.
-// A diferencia de doctor/patient, admin no tiene landing pública: /admin ES
-// el dashboard (solo accesible autenticado; si no, redirige a /admin/login).
 import { redirect } from "next/navigation";
 import { PanelShell } from "@/components/layout/panel-shell";
 import { fetchUserPermissionsFromCookies } from "@/lib/server-auth-permissions";
 import { getSession } from "@/lib/session";
-import { adminNav } from "./nav-config";
+import { buildUnifiedPanelNav } from "@/lib/unified-panel-nav";
 
 export default async function AdminPanelLayout({
   children,
@@ -20,14 +18,28 @@ export default async function AdminPanelLayout({
   const freshPermissions = await fetchUserPermissionsFromCookies();
   const permissions = freshPermissions ?? session.permissions ?? [];
 
+  const navFeatures = {
+    email: session.email,
+    role: session.role,
+    permissions,
+    empresa: session.empresa,
+    empresaReferida: session.empresaReferida,
+    verificationStatus: session.verificationStatus,
+    teamPermissions: session.teamPermissions,
+    isOrgMember: session.isOrgMember,
+  };
+
+  const unifiedNav = buildUnifiedPanelNav(navFeatures);
+
   return (
     <PanelShell
-      nav={adminNav}
-      user={{ email: session.email, role: session.role, permissions }}
+      nav={unifiedNav}
+      user={navFeatures}
       notificationCount={isMonitor ? 0 : 12}
       sidebarUser={{
-        name: isMonitor ? "Moderador" : "Super Admin",
-        subtitle: isMonitor ? "Verificación de doctores" : "Acceso total",
+        name: session.email,
+        subtitle: isMonitor ? "Verificación de doctores" : session.email,
+        enrichFromDoctorProfile: session.role === "empresa" || session.role === "doctor",
         monitorHint: isMonitor
           ? "Validar profesionales mantiene la confianza de la plataforma."
           : undefined,

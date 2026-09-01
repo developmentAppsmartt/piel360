@@ -78,8 +78,7 @@ export interface SubscriptionAdmin {
 export interface SubscriptionInput {
   userId?: string;
   planId?: string;
-  status?: "active" | "pending" | "cancelled";
-  endsAt?: string;
+  status?: "active" | "cancelled";
 }
 
 export function useAdminSubscriptions() {
@@ -99,6 +98,7 @@ export function useCreateSubscription() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "subscriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "bolsa-unidades"] });
     },
   });
 }
@@ -113,6 +113,7 @@ export function useUpdateSubscription(id: string) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "subscriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "bolsa-unidades"] });
     },
   });
 }

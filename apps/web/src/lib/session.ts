@@ -1,12 +1,17 @@
 import { jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import type { Role } from "@piel360/shared";
+import type { PrimaryPanel, Role, TeamMemberPermission } from "@piel360/shared";
 
 export interface Session {
   sub: string;
   email: string;
   role: Role;
+  primaryPanel?: PrimaryPanel;
+  roleSlugs?: string[];
   permissions?: string[];
+  teamPermissions?: TeamMemberPermission[] | null;
+  organizationMemberRole?: "owner" | "member" | null;
+  isOrgMember?: boolean;
   surveyCompletedAt?: string | null;
   empresa?: boolean;
   empresaReferida?: boolean;

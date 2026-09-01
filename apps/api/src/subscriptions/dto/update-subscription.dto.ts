@@ -1,11 +1,10 @@
 import {
-  IsDateString,
   IsIn,
   IsNumberString,
   IsOptional,
 } from 'class-validator';
 
-const STATUSES = ['pending', 'active', 'cancelled'] as const;
+const ADMIN_STATUSES = ['active', 'cancelled'] as const;
 
 export class UpdateSubscriptionDto {
   @IsOptional()
@@ -17,10 +16,6 @@ export class UpdateSubscriptionDto {
   planId?: string;
 
   @IsOptional()
-  @IsIn(STATUSES)
-  status?: (typeof STATUSES)[number];
-
-  @IsOptional()
-  @IsDateString()
-  endsAt?: string;
+  @IsIn(ADMIN_STATUSES)
+  status?: (typeof ADMIN_STATUSES)[number];
 }

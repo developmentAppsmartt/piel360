@@ -8,6 +8,7 @@ import type { JwtPayload } from '../auth/types';
 import { isEnterpriseDoctor } from '../doctors/doctor-account.util';
 import { EncryptionService } from '../common/encryption.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { PlanPoolAvailabilityService } from '../plans/plan-pool-availability.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import type { CreateCheckoutDto } from './dto/create-checkout.dto';
 import type { CreateGatewayConfigDto } from './dto/create-gateway-config.dto';
@@ -38,6 +39,7 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     private readonly encryption: EncryptionService,
     private readonly subscriptions: SubscriptionsService,
+    private readonly planPool: PlanPoolAvailabilityService,
   ) {}
 
   async createGatewayConfig(dto: CreateGatewayConfigDto) {
@@ -98,6 +100,8 @@ export class PaymentsService {
     if (!plan || !plan.isActive) {
       throw new BadRequestException('Plan no disponible');
     }
+
+    await this.planPool.assertPlanPurchasable(plan);
 
     if (currentUser.role === 'doctor') {
       const doctor = await this.prisma.doctor.findUnique({

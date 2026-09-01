@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { RolePermissionsMatrix } from "@/components/admin/role-permissions-matrix";
+import { RoleVisibilityPreview } from "@/components/admin/role-visibility-preview";
 import { TextField } from "@/components/auth/text-field";
 import { Button } from "@/components/ui/button";
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
@@ -193,8 +194,9 @@ export function RoleEditorForm({
           {mode === "create" ? "Crear rol y permisos" : `Editar ${defaultValues?.label ?? defaultValues?.name}`}
         </h1>
         <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-          Define un rol y asigna los permisos correspondientes dentro de la plataforma.
-          Los análisis PIEL 360 por especialidad o técnico laboral se configuran en{" "}
+          Asigna módulos y permisos a cualquier rol del sistema (dermatólogo, empresa,
+          técnico, etc.). Lo que marques aquí define el menú y las acciones de los usuarios
+          con ese rol. Los análisis por especialidad se configuran en{" "}
           <Link href="/admin/roles/permisos-planes" className="text-primary underline">
             Permisos de planes
           </Link>
@@ -209,7 +211,7 @@ export function RoleEditorForm({
             label="Nombre del rol"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="Ej. Médico Estético"
+            placeholder="Ej. Cosmetólogo"
             required
           />
           <label className="flex flex-col gap-1.5 text-sm">
@@ -294,10 +296,16 @@ export function RoleEditorForm({
           <div>
             <ModuleCardTitle>Permisos del rol</ModuleCardTitle>
             <p className="mt-1 text-sm text-muted-foreground">
-              Permisos del catálogo RBAC asignados a este rol.
+              Marca los módulos de menú admin y/o clínico. Cada tarjeta controla una
+              entrada del sidebar. Sin restricciones por tipo de rol.
             </p>
           </div>
         </div>
+        <RoleVisibilityPreview
+          roleName={defaultValues?.name ?? (label.trim() || "nuevo_rol")}
+          permissionsCatalog={permissionsQuery.data ?? []}
+          selectedPermissionIds={selectedPermissionIds}
+        />
         <RolePermissionsMatrix
           permissions={permissionsQuery.data ?? []}
           selected={selectedPermissionIds}
@@ -311,8 +319,8 @@ export function RoleEditorForm({
           </p>
         ) : (
           <p className="text-xs text-muted-foreground">
-            Los doctores con este rol verán los cambios al recargar el panel (no hace falta cerrar
-            sesión).
+            Los usuarios con este rol verán los cambios al volver a iniciar sesión o al
+            recargar el panel.
           </p>
         )}
       </ModuleCard>

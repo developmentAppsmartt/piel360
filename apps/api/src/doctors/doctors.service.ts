@@ -41,6 +41,15 @@ export class DoctorsService {
 
   findAll() {
     return this.prisma.doctor.findMany({
+      where: {
+        NOT: {
+          OR: [
+            { empresa: true },
+            { empresaReferida: true },
+            { membershipType: { in: ['empresa', 'empresa_aliada'] } },
+          ],
+        },
+      },
       include: { user: { select: { email: true, avatarKey: true } } },
       orderBy: { id: 'asc' },
     });
@@ -246,6 +255,18 @@ export class DoctorsService {
       );
     }
 
+    if (dto.status === 'verified' && dto.method === 'photo_evidence') {
+      const current = await this.prisma.doctor.findUnique({
+        where: { id: BigInt(id) },
+        select: { addressVerificationEvidenceKey: true },
+      });
+      if (!current?.addressVerificationEvidenceKey) {
+        throw new BadRequestException(
+          'Sube una imagen o video corto como evidencia antes de marcar la dirección como verificada con este método.',
+        );
+      }
+    }
+
     const doctor = await this.prisma.doctor.update({
       where: { id: BigInt(id) },
       data: {
@@ -268,6 +289,131 @@ export class DoctorsService {
     return this.withVerificationPayload(doctor);
   }
 
+  private static readonly EVIDENCE_MIME = new Set([
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/webp',
+    'image/heic',
+    'image/heif',
+    'video/mp4',
+    'video/webm',
+    'video/quicktime',
+  ]);
+  private static readonly EVIDENCE_MAX_BYTES = 25 * 1024 * 1024; // 25 MB
+
+  /** Evidencia de dirección (imagen o video corto) — admin verificación. */
+  async uploadAddressVerificationEvidence(
+    id: string,
+    file: Express.Multer.File | undefined,
+  ) {
+    if (!/^\d+$/.test(id)) {
+      throw new NotFoundException('Doctor no encontrado');
+    }
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Falta el archivo de evidencia');
+    }
+    const mime = (file.mimetype || '').toLowerCase();
+    if (!DoctorsService.EVIDENCE_MIME.has(mime)) {
+      throw new BadRequestException(
+        `Formato no soportado (${file.mimetype}). Usa imagen (jpg/png/webp) o video corto (mp4/webm/mov).`,
+      );
+    }
+    if (file.size > DoctorsService.EVIDENCE_MAX_BYTES) {
+      throw new BadRequestException(
+        'El archivo supera el tamaño máximo (25 MB). Usa un video corto o comprime la imagen.',
+      );
+    }
+
+    const existing = await this.prisma.doctor.findUnique({
+      where: { id: BigInt(id) },
+      select: { id: true, addressVerificationStatus: true },
+    });
+    if (!existing) throw new NotFoundException('Doctor no encontrado');
+
+    const ext =
+      mime.includes('png')
+        ? 'png'
+        : mime.includes('webp')
+          ? 'webp'
+          : mime.includes('webm')
+            ? 'webm'
+            : mime.includes('quicktime')
+              ? 'mov'
+              : mime.startsWith('video/')
+                ? 'mp4'
+                : 'jpg';
+
+    const key = `doctors/${id}/address-evidence/${Date.now()}.${ext}`;
+    await this.storage.upload(key, file.buffer, mime);
+
+    const addrStatus = (
+      existing.addressVerificationStatus ?? 'pending'
+    ).toLowerCase();
+    const promoteToReview = addrStatus === 'pending' || !addrStatus;
+
+    const doctor = await this.prisma.doctor.update({
+      where: { id: BigInt(id) },
+      data: {
+        addressVerificationEvidenceKey: key,
+        ...(promoteToReview
+          ? { addressVerificationStatus: 'in_review' }
+          : {}),
+      },
+      include: {
+        user: { select: { email: true, avatarKey: true, name: true } },
+      },
+    });
+
+    return this.withVerificationPayload(doctor);
+  }
+
+  /** Quita la evidencia de dirección (archivo + key en BD). */
+  async deleteAddressVerificationEvidence(id: string) {
+    if (!/^\d+$/.test(id)) {
+      throw new NotFoundException('Doctor no encontrado');
+    }
+    const existing = await this.prisma.doctor.findUnique({
+      where: { id: BigInt(id) },
+      select: {
+        id: true,
+        addressVerificationEvidenceKey: true,
+        addressVerificationStatus: true,
+        addressVerificationMethod: true,
+      },
+    });
+    if (!existing) throw new NotFoundException('Doctor no encontrado');
+
+    const key = existing.addressVerificationEvidenceKey;
+    if (key) {
+      await this.storage.delete(key);
+    }
+
+    const wasPhotoVerified =
+      (existing.addressVerificationStatus ?? '').toLowerCase() ===
+        'verified' &&
+      (existing.addressVerificationMethod ?? '') === 'photo_evidence';
+
+    const doctor = await this.prisma.doctor.update({
+      where: { id: BigInt(id) },
+      data: {
+        addressVerificationEvidenceKey: null,
+        ...(wasPhotoVerified
+          ? {
+              addressVerificationStatus: 'in_review',
+              addressVerificationMethod: null,
+              addressVerifiedAt: null,
+            }
+          : {}),
+      },
+      include: {
+        user: { select: { email: true, avatarKey: true, name: true } },
+      },
+    });
+
+    return this.withVerificationPayload(doctor);
+  }
+
   /** Perfil del doctor autenticado (incluye email y URLs firmadas de docs). */
   async findMe(userId: string) {
     const doctor = await this.prisma.doctor.findUnique({
@@ -279,8 +425,11 @@ export class DoctorsService {
     }
     const allowedProviderSlugs =
       await this.specialtyAccess.getAllowedProviderSlugs(BigInt(userId));
+    const base = this.isEnterpriseDoctor(doctor)
+      ? await this.withVerificationPayload(doctor)
+      : await this.withDocumentUrls(doctor);
     return {
-      ...(await this.withDocumentUrls(doctor)),
+      ...base,
       allowedProviderSlugs,
     };
   }
@@ -322,6 +471,11 @@ export class DoctorsService {
 
   async updateMe(userId: string, dto: UpdateDoctorDto) {
     const doctor = await this.requireDoctorByUserId(userId);
+    if (this.isEnterpriseDoctor(doctor)) {
+      throw new BadRequestException(
+        'Las cuentas empresa se editan en Configuración → Información de la empresa.',
+      );
+    }
     const { birthDate, firstName, lastName, phone, ...rest } = dto;
 
     const addressFieldsTouched =

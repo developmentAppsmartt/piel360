@@ -24,6 +24,9 @@ export interface Patient {
   fitzpatrickType: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Solo en listados del owner empresa. */
+  professionalUserId?: string | null;
+  professionalName?: string | null;
 }
 
 export interface Analysis {
@@ -85,10 +88,16 @@ export interface PatientInput {
   fitzpatrickType?: string;
 }
 
-export function usePatients(enabled = true) {
+export function usePatients(
+  enabled = true,
+  professionalUserId?: string,
+) {
+  const query = professionalUserId
+    ? `?professionalUserId=${encodeURIComponent(professionalUserId)}`
+    : "";
   return useQuery({
-    queryKey: ["patients"],
-    queryFn: () => apiClientFetch<Patient[]>("/patients"),
+    queryKey: ["patients", professionalUserId ?? "all"],
+    queryFn: () => apiClientFetch<Patient[]>(`/patients${query}`),
     enabled,
   });
 }

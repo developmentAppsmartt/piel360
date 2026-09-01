@@ -20,6 +20,22 @@ export function useLocationPicker() {
   const [geoLoading, setGeoLoading] = useState(false);
   const searchAbort = useRef<AbortController | null>(null);
   const suppressAddressSearch = useRef(false);
+  const searchRequestId = useRef(0);
+  const addressQueryRef = useRef(addressQuery);
+
+  addressQueryRef.current = addressQuery;
+
+  function cancelPendingSearch() {
+    searchAbort.current?.abort();
+    searchAbort.current = null;
+    searchRequestId.current += 1;
+    setSearchLoading(false);
+  }
+
+  function closeSuggestions() {
+    setSuggestions([]);
+    setSearchOpen(false);
+  }
 
   useEffect(() => {
     if (suppressAddressSearch.current) {
@@ -29,10 +45,12 @@ export function useLocationPicker() {
 
     const q = addressQuery.trim();
     if (q.length < 3) {
-      setSuggestions([]);
+      cancelPendingSearch();
+      closeSuggestions();
       return;
     }
 
+    const requestId = ++searchRequestId.current;
     const timer = setTimeout(async () => {
       searchAbort.current?.abort();
       const controller = new AbortController();
@@ -50,15 +68,27 @@ export function useLocationPicker() {
           headers: { Accept: "application/json" },
         });
         if (!res.ok) throw new Error("geocode");
+        if (
+          requestId !== searchRequestId.current ||
+          q !== addressQueryRef.current.trim()
+        ) {
+          return;
+        }
         const data = (await res.json()) as GeocodeResult[];
         setSuggestions(data);
-        setSearchOpen(true);
+        if (data.length === 0) {
+          setSearchOpen(false);
+        }
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
-          setSuggestions([]);
+          if (requestId === searchRequestId.current) {
+            closeSuggestions();
+          }
         }
       } finally {
-        setSearchLoading(false);
+        if (requestId === searchRequestId.current) {
+          setSearchLoading(false);
+        }
       }
     }, 400);
 
@@ -80,11 +110,11 @@ export function useLocationPicker() {
       if (!res.ok) return;
       const data = (await res.json()) as { display_name?: string };
       if (!data.display_name) return;
+      cancelPendingSearch();
       suppressAddressSearch.current = true;
       setAddress(data.display_name);
       setAddressQuery(data.display_name);
-      setSuggestions([]);
-      setSearchOpen(false);
+      closeSuggestions();
     } catch {
       /* el pin basta */
     }
@@ -93,12 +123,12 @@ export function useLocationPicker() {
   function selectSuggestion(item: GeocodeResult) {
     const lat = Number(item.lat);
     const lng = Number(item.lon);
+    cancelPendingSearch();
     suppressAddressSearch.current = true;
     setAddress(item.display_name);
     setAddressQuery(item.display_name);
     setLocation({ lat, lng });
-    setSuggestions([]);
-    setSearchOpen(false);
+    closeSuggestions();
     setGeoError(null);
   }
 
@@ -141,9 +171,11 @@ export function useLocationPicker() {
     }) => {
       const addr = data.address?.trim();
       if (addr) {
+        cancelPendingSearch();
         suppressAddressSearch.current = true;
         setAddress(addr);
         setAddressQuery(addr);
+        closeSuggestions();
       }
       if (
         data.lat != null &&

@@ -44,7 +44,9 @@ export function ConfiguracionShell({ children }: { children: React.ReactNode }) 
           Configuración
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Administra tu cuenta, equipo y preferencias.
+          {empresa
+            ? "Administra tu empresa, equipo y preferencias."
+            : "Administra tu cuenta, equipo y preferencias."}
         </p>
       </div>
 

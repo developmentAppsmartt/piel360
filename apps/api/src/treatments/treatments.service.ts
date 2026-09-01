@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { DoctorsService } from '../doctors/doctors.service';
+import { OrgContextService } from '../organizations/org-context.service';
 import { StorageService } from '../storage/storage.service';
 import { AnalysisConditionsService } from '../analysis-conditions/analysis-conditions.service';
 import type { CreateTreatmentCategoryDto } from './dto/create-treatment-category.dto';
@@ -18,15 +18,17 @@ import type { UpdateTreatmentItemDto } from './dto/update-treatment-item.dto';
 export class TreatmentsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly doctorsService: DoctorsService,
+    private readonly orgContext: OrgContextService,
     private readonly storage: StorageService,
     private readonly analysisConditions: AnalysisConditionsService,
   ) {}
 
-  // ─── Helpers ────────────────────────────────────────────────────────────────
-
-  private async requireDoctor(userId: string) {
-    return this.doctorsService.requireDoctorByUserId(userId);
+  private async catalogDoctorId(userId: string) {
+    const ctx = await this.orgContext.assertTeamPermissionForUser(
+      userId,
+      'treatments',
+    );
+    return ctx.catalogDoctorId;
   }
 
   private async ensureCategoryOwner(categoryId: bigint, doctorId: bigint) {
@@ -111,18 +113,18 @@ export class TreatmentsService {
   // ─── Categorías ─────────────────────────────────────────────────────────────
 
   async getCategories(userId: string) {
-    const doctor = await this.requireDoctor(userId);
+    const doctorId = await this.catalogDoctorId(userId);
     return this.prisma.treatmentCategory.findMany({
-      where: { doctorId: doctor.id },
+      where: { doctorId: doctorId },
       include: { _count: { select: { treatments: true } } },
       orderBy: { createdAt: 'asc' },
     });
   }
 
   async createCategory(userId: string, dto: CreateTreatmentCategoryDto) {
-    const doctor = await this.requireDoctor(userId);
+    const doctorId = await this.catalogDoctorId(userId);
     return this.prisma.treatmentCategory.create({
-      data: { doctorId: doctor.id, categoryName: dto.categoryName },
+      data: { doctorId: doctorId, categoryName: dto.categoryName },
     });
   }
 
@@ -131,8 +133,8 @@ export class TreatmentsService {
     categoryId: string,
     dto: UpdateTreatmentCategoryDto,
   ) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureCategoryOwner(BigInt(categoryId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureCategoryOwner(BigInt(categoryId), doctorId);
     return this.prisma.treatmentCategory.update({
       where: { id: BigInt(categoryId) },
       data: dto,
@@ -140,8 +142,8 @@ export class TreatmentsService {
   }
 
   async deleteCategory(userId: string, categoryId: string) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureCategoryOwner(BigInt(categoryId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureCategoryOwner(BigInt(categoryId), doctorId);
     return this.prisma.treatmentCategory.delete({
       where: { id: BigInt(categoryId) },
     });
@@ -153,10 +155,10 @@ export class TreatmentsService {
     userId: string,
     params?: { categoryId?: string; kind?: 'plain' | 'treatment' },
   ) {
-    const doctor = await this.requireDoctor(userId);
+    const doctorId = await this.catalogDoctorId(userId);
     const treatments = await this.prisma.treatment.findMany({
       where: {
-        doctorId: doctor.id,
+        doctorId: doctorId,
         ...(params?.categoryId
           ? { categoryId: BigInt(params.categoryId) }
           : {}),
@@ -173,8 +175,8 @@ export class TreatmentsService {
   }
 
   async getTreatment(userId: string, treatmentId: string) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureTreatmentOwner(BigInt(treatmentId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureTreatmentOwner(BigInt(treatmentId), doctorId);
     const treatment = await this.prisma.treatment.findUniqueOrThrow({
       where: { id: BigInt(treatmentId) },
       include: this.treatmentInclude,
@@ -183,13 +185,13 @@ export class TreatmentsService {
   }
 
   async createTreatment(userId: string, dto: CreateTreatmentDto) {
-    const doctor = await this.requireDoctor(userId);
+    const doctorId = await this.catalogDoctorId(userId);
     if (dto.categoryId !== undefined && dto.categoryId !== null) {
-      await this.ensureCategoryOwner(BigInt(dto.categoryId), doctor.id);
+      await this.ensureCategoryOwner(BigInt(dto.categoryId), doctorId);
     }
     const treatment = await this.prisma.treatment.create({
       data: {
-        doctorId: doctor.id,
+        doctorId: doctorId,
         categoryId:
           dto.categoryId !== undefined && dto.categoryId !== null
             ? BigInt(dto.categoryId)
@@ -219,10 +221,10 @@ export class TreatmentsService {
     treatmentId: string,
     dto: UpdateTreatmentDto,
   ) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureTreatmentOwner(BigInt(treatmentId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureTreatmentOwner(BigInt(treatmentId), doctorId);
     if (dto.categoryId !== undefined && dto.categoryId !== null) {
-      await this.ensureCategoryOwner(BigInt(dto.categoryId), doctor.id);
+      await this.ensureCategoryOwner(BigInt(dto.categoryId), doctorId);
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -267,8 +269,8 @@ export class TreatmentsService {
   }
 
   async deleteTreatment(userId: string, treatmentId: string) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureTreatmentOwner(BigInt(treatmentId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureTreatmentOwner(BigInt(treatmentId), doctorId);
     return this.prisma.treatment.delete({ where: { id: BigInt(treatmentId) } });
   }
 
@@ -279,9 +281,9 @@ export class TreatmentsService {
     treatmentId: string,
     dto: CreateTreatmentItemDto,
   ) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureTreatmentOwner(BigInt(treatmentId), doctor.id);
-    await this.ensureProductOwner(BigInt(dto.productId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureTreatmentOwner(BigInt(treatmentId), doctorId);
+    await this.ensureProductOwner(BigInt(dto.productId), doctorId);
     const item = await this.prisma.treatmentProduct.create({
       data: {
         treatmentId: BigInt(treatmentId),
@@ -300,14 +302,14 @@ export class TreatmentsService {
     itemId: string,
     dto: UpdateTreatmentItemDto,
   ) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureTreatmentOwner(BigInt(treatmentId), doctor.id);
-    const item = await this.ensureItemOwner(BigInt(itemId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureTreatmentOwner(BigInt(treatmentId), doctorId);
+    const item = await this.ensureItemOwner(BigInt(itemId), doctorId);
     if (item.treatmentId !== BigInt(treatmentId)) {
       throw new NotFoundException('Ítem no encontrado en este tratamiento');
     }
     if (dto.productId !== undefined) {
-      await this.ensureProductOwner(BigInt(dto.productId), doctor.id);
+      await this.ensureProductOwner(BigInt(dto.productId), doctorId);
     }
     const updated = await this.prisma.treatmentProduct.update({
       where: { id: BigInt(itemId) },
@@ -323,9 +325,9 @@ export class TreatmentsService {
   }
 
   async deleteItem(userId: string, treatmentId: string, itemId: string) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureTreatmentOwner(BigInt(treatmentId), doctor.id);
-    const item = await this.ensureItemOwner(BigInt(itemId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureTreatmentOwner(BigInt(treatmentId), doctorId);
+    const item = await this.ensureItemOwner(BigInt(itemId), doctorId);
     if (item.treatmentId !== BigInt(treatmentId)) {
       throw new NotFoundException('Ítem no encontrado en este tratamiento');
     }
@@ -339,8 +341,8 @@ export class TreatmentsService {
     treatmentId: string,
     orderedItemIds: string[],
   ) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureTreatmentOwner(BigInt(treatmentId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureTreatmentOwner(BigInt(treatmentId), doctorId);
 
     await this.prisma.$transaction(
       orderedItemIds.map((itemId, index) =>
@@ -359,15 +361,17 @@ export class TreatmentsService {
   /** Tratamientos/productos sugeridos activos del doctor cuyas condiciones
    * (lógica O) matchean los resultados estructurados de un análisis YouCam. */
   async getRecommendedTreatments(userId: string, analysisId: string) {
-    const { doctor, results, patientBirthDate, analysisDate } =
+    const { results } =
       await this.analysisConditions.loadAnalysisResultsForDoctor(
         userId,
         analysisId,
       );
     if (results.length === 0) return [];
 
+    const doctorId = await this.catalogDoctorId(userId);
+
     const treatments = await this.prisma.treatment.findMany({
-      where: { doctorId: doctor.id, isActive: true },
+      where: { doctorId, isActive: true },
       include: this.treatmentInclude,
     });
 

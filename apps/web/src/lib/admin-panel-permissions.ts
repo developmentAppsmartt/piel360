@@ -6,27 +6,35 @@ export { hasAnyPermission };
 const ADMIN_ROUTE_RULES = [...ADMIN_COMPONENTS]
   .map((component) => ({
     prefix: component.href,
-    anyOf: [component.slug] as const,
+    slug: component.slug,
   }))
   .sort((a, b) => b.prefix.length - a.prefix.length);
 
-/** Ruta del panel admin → requiere slug del componente asignado al rol. */
+/** Solo el slug `admin.*` asignado al rol en la matriz (checkbox). */
+export function adminNavPermission(slug: string): readonly string[] {
+  return [slug];
+}
+
+/** Ruta del panel admin → requiere el slug del componente marcado en el rol. */
 export function adminRouteAllowed(
   pathname: string,
   userPermissions: string[] | undefined,
 ): boolean {
   if (pathname === "/admin" || pathname === "/admin/login") return true;
 
-  const rule = ADMIN_ROUTE_RULES.find(
+  const matchingRules = ADMIN_ROUTE_RULES.filter(
     (entry) =>
       pathname === entry.prefix || pathname.startsWith(`${entry.prefix}/`),
   );
-  if (!rule) return true;
-  return hasAnyPermission(userPermissions, rule.anyOf);
+  if (matchingRules.length === 0) return false;
+  return matchingRules.some((rule) =>
+    hasAnyPermission(userPermissions, [rule.slug]),
+  );
 }
 
-/** Slug del componente admin para un ítem de navegación. */
-export function adminNavPermission(href: string): readonly string[] {
-  const component = ADMIN_COMPONENTS.find((entry) => entry.href === href);
-  return component ? [component.slug] : [];
+/** Resuelve slug por href cuando no hay ambigüedad (un solo componente por ruta). */
+export function adminNavPermissionByHref(href: string): readonly string[] {
+  const matches = ADMIN_COMPONENTS.filter((entry) => entry.href === href);
+  if (matches.length === 1) return [matches[0].slug];
+  return [];
 }

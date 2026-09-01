@@ -152,7 +152,7 @@ export const ADDRESS_VERIFICATION_METHOD_LABELS: Record<
 > = {
   visit: "Visita",
   google_maps: "Google Maps",
-  photo_evidence: "Evidencia fotográfica",
+  photo_evidence: "Evidencia foto / video",
 };
 
 /** Roles con acceso al panel clínico `/doctor` (web y mobile). */

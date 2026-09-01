@@ -34,10 +34,37 @@ export type YouCamCheckStatusResult =
   | { status: 'processing' }
   | { status: 'error'; message: string };
 
+export type PerfectCorpCreditBalance = {
+  id: string;
+  type: 'ApiSubsToken' | 'ApiPaygToken' | string;
+  amount: number;
+  expiryMs: number | null;
+};
+
+export type PerfectCorpFeatureSku = {
+  description: string;
+  amount: number;
+  unit: string;
+  procUnit: number;
+  runTaskUrl: string;
+};
+
+export type PerfectCorpCreditHistoryItem = {
+  id: string;
+  timestampMs: number;
+  action: string;
+  targetId: string | null;
+  delta: number;
+  dstActions: string[];
+};
+
 /**
  * Cliente HTTP puro de la API server-to-server de YouCam (INTEGRACIONES-IA.md
  * §2). `Authorization: Bearer ${YOUCAM_API_KEY}` — confirmado literal en
  * `YouCamService.php` vía `Http::withToken($apiKey)`.
+ *
+ * También consulta saldo/costos Perfect Corp (`/s2s/v1.0/client/credit`,
+ * `/s2s/v2.0/credit/feature-cost`) — misma cuenta para YouCam + Fitzpatrick.
  */
 @Injectable()
 export class YouCamService {
@@ -47,6 +74,130 @@ export class YouCamService {
   constructor(private readonly config: ConfigService) {
     this.baseUrl = this.config.getOrThrow<string>('YOUCAM_API_URL');
     this.apiKey = this.config.getOrThrow<string>('YOUCAM_API_KEY');
+  }
+
+  /** `GET /s2s/v1.0/client/credit` — saldo de unidades Perfect Corp. */
+  async getCreditBalances(): Promise<PerfectCorpCreditBalance[]> {
+    const response = await fetch(`${this.baseUrl}/s2s/v1.0/client/credit`, {
+      headers: { Authorization: `Bearer ${this.apiKey}` },
+    });
+    if (!response.ok) {
+      await this.throwYouCamError(response, 'PerfectCorp client/credit');
+    }
+
+    const json = (await response.json()) as {
+      status?: number;
+      results?: Array<{
+        id?: number | string;
+        type?: string;
+        amount?: number;
+        amount_dec?: number;
+        expiry?: number;
+      }>;
+    };
+
+    return (json.results ?? []).map((row) => ({
+      id: String(row.id ?? ''),
+      type: row.type ?? 'unknown',
+      amount: Number(row.amount_dec ?? row.amount ?? 0),
+      expiryMs:
+        typeof row.expiry === 'number' && row.expiry > 0 ? row.expiry : null,
+    }));
+  }
+
+  /** `GET /s2s/v2.0/credit/feature-cost` — costo por SKU (paginado). */
+  async getFeatureCosts(maxPages = 10): Promise<PerfectCorpFeatureSku[]> {
+    const skus: PerfectCorpFeatureSku[] = [];
+    let startingToken: string | null = null;
+
+    for (let page = 0; page < maxPages; page += 1) {
+      const url = new URL(`${this.baseUrl}/s2s/v2.0/credit/feature-cost`);
+      url.searchParams.set('page_size', '20');
+      if (startingToken) url.searchParams.set('starting_token', startingToken);
+
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${this.apiKey}` },
+      });
+      if (!response.ok) {
+        await this.throwYouCamError(response, 'PerfectCorp credit/feature-cost');
+      }
+
+      const json = (await response.json()) as {
+        result?: {
+          next_token?: string | null;
+          skus?: Array<{
+            description?: string;
+            amount?: number;
+            unit?: string;
+            proc_unit?: number;
+            run_task_url?: string;
+          }>;
+        };
+      };
+
+      for (const sku of json.result?.skus ?? []) {
+        skus.push({
+          description: sku.description ?? '',
+          amount: Number(sku.amount ?? 0),
+          unit: sku.unit ?? '',
+          procUnit: Number(sku.proc_unit ?? 1),
+          runTaskUrl: sku.run_task_url ?? '',
+        });
+      }
+
+      const next = json.result?.next_token ?? null;
+      if (!next) break;
+      startingToken = next;
+    }
+
+    return skus;
+  }
+
+  /** `GET /s2s/v1.0/client/credit/history` — historial reciente de unidades. */
+  async getCreditHistory(
+    pageSize = 20,
+  ): Promise<PerfectCorpCreditHistoryItem[]> {
+    const url = new URL(`${this.baseUrl}/s2s/v1.0/client/credit/history`);
+    url.searchParams.set('page_size', String(Math.min(Math.max(pageSize, 1), 30)));
+
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${this.apiKey}` },
+    });
+    if (!response.ok) {
+      await this.throwYouCamError(response, 'PerfectCorp client/credit/history');
+    }
+
+    const json = (await response.json()) as {
+      result?: {
+        history?: Array<{
+          id?: number | string;
+          timestamp?: number;
+          action?: string;
+          target_id?: string;
+          info?: {
+            credits?: Array<{
+              amount?: number;
+              amount_dec?: number;
+            }>;
+            dst_actions?: string[];
+          };
+        }>;
+      };
+    };
+
+    return (json.result?.history ?? []).map((row) => {
+      const delta = (row.info?.credits ?? []).reduce((sum, c) => {
+        return sum + Number(c.amount_dec ?? c.amount ?? 0);
+      }, 0);
+      return {
+        id: String(row.id ?? ''),
+        timestampMs: Number(row.timestamp ?? 0),
+        action: row.action ?? 'unknown',
+        targetId: row.target_id ?? null,
+        delta,
+        dstActions: row.info?.dst_actions ?? [],
+      };
+    });
   }
 
   async uploadImage(image: Buffer): Promise<string> {

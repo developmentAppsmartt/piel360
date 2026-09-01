@@ -50,6 +50,7 @@ model User {
   ownedOrganizations     Organization[]       @relation("OrganizationOwner")
   organizationMembers    OrganizationMember[]
   referredBy             Referral[]           @relation("ReferredUser")
+  platformUnitRecharges  PlatformUnitRecharge[]
 
   @@map("users")
 }
@@ -411,6 +412,7 @@ model Subscription {
   user   User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   plan   Plan                @relation(fields: [planId], references: [id], onDelete: Cascade)
   usages SubscriptionUsage[]
+  poolAllocation SubscriptionPoolAllocation?
 
   @@index([wompiTransactionId])
   @@map("subscriptions")
@@ -428,6 +430,23 @@ model SubscriptionUsage {
   analysis     Analysis     @relation(fields: [analysisId], references: [id], onDelete: Cascade)
 
   @@map("subscription_usages")
+}
+
+/** Créditos reservados de la bolsa global al activar una suscripción. */
+model SubscriptionPoolAllocation {
+  id             BigInt   @id @default(autoincrement())
+  subscriptionId BigInt   @unique @map("subscription_id")
+  /** skiniver | perfectcorp */
+  poolProvider   String   @map("pool_provider")
+  allocated      Int
+  returned       Int      @default(0)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([poolProvider])
+  @@map("subscription_pool_allocations")
 }
 
 model EncyclopediaEntry {
@@ -525,6 +544,8 @@ model Role {
   description              String?               @db.Text
   color                    String?               @default("#6C4FFB")
   isActive                 Boolean               @default(true) @map("is_active")
+  /** Panel principal al que aplica este rol: admin | clinical | patient */
+  primaryPanel             String?               @default("clinical") @map("primary_panel")
   permissions              Permission[]
   users                    User[]
   specialty                DoctorSpecialty?
@@ -794,4 +815,20 @@ model TreatmentProduct {
   @@index([treatmentId])
   @@index([productId])
   @@map("treatment_products")
+}
+
+/** Recargas manuales de la bolsa global de unidades (p. ej. Skiniver). */
+model PlatformUnitRecharge {
+  id          BigInt    @id @default(autoincrement())
+  provider    String
+  quantity    Int
+  expiresAt   DateTime? @map("expires_at")
+  note        String?   @db.Text
+  createdById BigInt?   @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([provider, createdAt])
+  @@map("platform_unit_recharges")
 }

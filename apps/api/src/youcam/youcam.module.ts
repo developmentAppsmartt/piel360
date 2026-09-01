@@ -1,5 +1,5 @@
 import { BullModule } from '@nestjs/bullmq';
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { PatientsModule } from '../patients/patients.module';
 import { StorageModule } from '../storage/storage.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
@@ -16,7 +16,7 @@ import { YouCamService } from './youcam.service';
   imports: [
     BullModule.registerQueue({ name: YOUCAM_POLL_QUEUE }),
     PatientsModule,
-    SubscriptionsModule,
+    forwardRef(() => SubscriptionsModule),
     StorageModule,
   ],
   providers: [
@@ -27,5 +27,6 @@ import { YouCamService } from './youcam.service';
     YoucamPollProcessor,
   ],
   controllers: [YoucamController, YoucamWebhookController],
+  exports: [YouCamService],
 })
 export class YoucamModule {}

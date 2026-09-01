@@ -33,6 +33,11 @@ export type OrgCompanyProfile = {
   existenceCertDocKey: string | null;
   legalRepCedulaDocUrl?: string | null;
   rutDocUrl?: string | null;
+  legalRepName: string | null;
+  legalRepDocType: string | null;
+  legalRepDocNumber: string | null;
+  legalRepCedulaDocUrl?: string | null;
+  rutDocUrl?: string | null;
   existenceCertDocUrl?: string | null;
 };
 
@@ -54,6 +59,28 @@ export type OrgCompanyProfileInput = {
   legalRepDocType?: string;
   legalRepDocNumber?: string;
 };
+
+export type OrgTeamMember = {
+  id: string;
+  memberRole: string;
+  userId: string;
+  email: string;
+  name: string;
+  specialty: string | null;
+};
+
+export type OrgWithTeam = OrgCompanyProfile & {
+  members?: OrgTeamMember[];
+};
+
+export function useOrganizationTeam(enabled = true) {
+  return useQuery({
+    queryKey: ["organizations", "me", "team"],
+    queryFn: () => apiClientFetch<OrgWithTeam>("/organizations/me"),
+    enabled,
+    retry: false,
+  });
+}
 
 export function useMyOrganization(enabled = true) {
   return useQuery({

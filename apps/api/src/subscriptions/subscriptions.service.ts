@@ -1,12 +1,14 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
 import type { AnalysisProviderSlug } from '@piel360/shared';
-import type { Prisma } from '@prisma/client';
+import type { Prisma, Plan } from '@prisma/client';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { OrgContextService } from '../organizations/org-context.service';
 import {
   parsePlanProviderIds,
   planIncludesProviderId,
 } from '../plans/plan-providers.util';
+import { PlanPoolAvailabilityService } from '../plans/plan-pool-availability.service';
 import type { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import type { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 import { syncOrganizationSeatLimitForUser } from '../organizations/org-seat-limit.util';
@@ -14,7 +16,13 @@ import {
   assertUserMatchesPlanType,
   loadAdminSubscriptionById,
   serializeAdminSubscription,
+  serializeUserSubscription,
 } from './subscription-admin.util';
+import {
+  computeSubscriptionEndsAt,
+  resolveSubscriptionEndsAt,
+} from './subscription-ends.util';
+import { SubscriptionPoolService } from './subscription-pool.service';
 
 type Db = PrismaService | Prisma.TransactionClient;
 
@@ -34,6 +42,10 @@ export class SubscriptionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
+    private readonly orgContext: OrgContextService,
+    private readonly subscriptionPool: SubscriptionPoolService,
+    @Inject(forwardRef(() => PlanPoolAvailabilityService))
+    private readonly planPool: PlanPoolAvailabilityService,
   ) {}
 
   private readonly adminSubscriptionInclude = {
@@ -64,6 +76,9 @@ export class SubscriptionsService {
     userId: bigint,
     providerSlug: AnalysisProviderSlug,
   ) {
+    const ctx = await this.orgContext.resolve(userId.toString());
+    const billingUserId = ctx.subscriptionUserId;
+
     const provider = await db.analysisProvider.findUnique({
       where: { slug: providerSlug },
     });
@@ -71,18 +86,22 @@ export class SubscriptionsService {
 
     const subscriptions = await db.subscription.findMany({
       where: {
-        userId,
+        userId: billingUserId,
         status: 'active',
-        endsAt: { gt: new Date() },
       },
       include: { plan: { include: { provider: true } } },
       orderBy: { id: 'desc' },
     });
 
+    const now = new Date();
     return (
-      subscriptions.find((subscription) =>
-        planIncludesProviderId(subscription.plan, provider.id),
-      ) ?? null
+      subscriptions.find((subscription) => {
+        if (!planIncludesProviderId(subscription.plan, provider.id)) {
+          return false;
+        }
+        const endsAt = resolveSubscriptionEndsAt(subscription, subscription.plan);
+        return endsAt !== null && endsAt > now;
+      }) ?? null
     );
   }
 
@@ -104,10 +123,66 @@ export class SubscriptionsService {
     });
   }
 
-  /** Creación manual (admin), sin pasar por Wompi — MIGRACION.md §2.4.
-   * `status`/`endsAt` son opcionales (compatibilidad con el único caller
-   * actual, que no los envía): si se omiten, se mantiene el comportamiento
-   * original (`active` + vencimiento calculado desde `plan.durationDays`). */
+  private computeEndsAt(plan: { durationDays: number }, from = new Date()) {
+    return computeSubscriptionEndsAt(plan, from);
+  }
+
+  /** Persiste endsAt en suscripciones activas que aún no lo tienen. */
+  private async ensureSubscriptionEndsAt<
+    T extends {
+      id: bigint;
+      endsAt: Date | null;
+      status: string;
+      createdAt: Date;
+      plan: { durationDays: number };
+    },
+  >(subscription: T, db: Db = this.prisma): Promise<Date | null> {
+    if (subscription.endsAt) return subscription.endsAt;
+    const resolved = resolveSubscriptionEndsAt(subscription, subscription.plan);
+    if (!resolved) return null;
+    await db.subscription.update({
+      where: { id: subscription.id },
+      data: { endsAt: resolved },
+    });
+    return resolved;
+  }
+
+  private async reservePoolForActiveSubscription(
+    subscriptionId: bigint,
+    plan: Plan,
+  ): Promise<void> {
+    await this.planPool.assertPlanPurchasable(plan);
+    await this.subscriptionPool.allocateForSubscription(
+      this.prisma,
+      subscriptionId,
+      plan,
+    );
+  }
+
+  private async cancelOverlappingActive(
+    tx: Prisma.TransactionClient,
+    userId: bigint,
+    newPlan: Plan,
+  ) {
+    const activeSubs = await tx.subscription.findMany({
+      where: { userId, status: 'active' },
+      include: { plan: true },
+    });
+    const newProviderIds = new Set(parsePlanProviderIds(newPlan));
+    for (const active of activeSubs) {
+      const activeIds = parsePlanProviderIds(active.plan);
+      const overlaps = activeIds.some((id) => newProviderIds.has(id));
+      if (overlaps) {
+        await this.subscriptionPool.returnUnusedCredits(tx, active.id);
+        await tx.subscription.update({
+          where: { id: active.id },
+          data: { status: 'cancelled' },
+        });
+      }
+    }
+  }
+
+  /** Creación manual (admin), sin pasar por Wompi — activa por defecto. */
   async createManual(dto: CreateSubscriptionDto) {
     const plan = await this.prisma.plan.findUnique({
       where: { id: BigInt(dto.planId) },
@@ -130,22 +205,33 @@ export class SubscriptionsService {
     if (!user) throw new BadRequestException('Usuario no encontrado');
     assertUserMatchesPlanType(user, plan);
 
-    let endsAt: Date | undefined;
-    if (dto.endsAt) {
-      endsAt = new Date(dto.endsAt);
-    } else {
-      endsAt = new Date();
-      endsAt.setDate(endsAt.getDate() + plan.durationDays);
+    const status = dto.status === 'cancelled' ? 'cancelled' : 'active';
+    const endsAt = this.computeEndsAt(plan);
+
+    if (status === 'active') {
+      await this.planPool.assertPlanPurchasable(plan);
     }
 
-    const subscription = await this.prisma.subscription.create({
-      data: {
-        userId: user.id,
-        planId: plan.id,
-        status: dto.status ?? 'active',
-        endsAt,
-      },
+    const subscription = await this.prisma.$transaction(async (tx) => {
+      if (status === 'active') {
+        await this.cancelOverlappingActive(tx, user.id, plan);
+      }
+
+      const created = await tx.subscription.create({
+        data: {
+          userId: user.id,
+          planId: plan.id,
+          status,
+          endsAt: status === 'active' ? endsAt : null,
+        },
+      });
+
+      return created;
     });
+
+    if (subscription.status === 'active') {
+      await this.reservePoolForActiveSubscription(subscription.id, plan);
+    }
 
     if (subscription.status === 'active' && plan.planType === 'business') {
       await syncOrganizationSeatLimitForUser(
@@ -173,6 +259,17 @@ export class SubscriptionsService {
       }),
       this.listAllProviders(),
     ]);
+
+    await Promise.all(
+      rows
+        .filter((row) => row.status === 'active' && !row.endsAt)
+        .map(async (row) => {
+          row.endsAt = await this.ensureSubscriptionEndsAt(row);
+        }),
+    );
+
+    await this.subscriptionPool.syncActiveSubscriptionPools();
+
     return rows.map((row) => serializeAdminSubscription(row, providers));
   }
 
@@ -230,16 +327,64 @@ export class SubscriptionsService {
     if (!nextPlan) throw new BadRequestException('Plan no encontrado');
     assertUserMatchesPlanType(nextUser, nextPlan);
 
-    const updated = await this.prisma.subscription.update({
-      where: { id: BigInt(id) },
-      data: {
-        userId: dto.userId ? nextUserId : undefined,
-        planId: dto.planId ? nextPlanId : undefined,
-        status: dto.status,
-        endsAt: dto.endsAt ? new Date(dto.endsAt) : undefined,
-      },
-      include: { plan: { select: { planType: true } } },
+    const nextStatus = dto.status ?? existing.status;
+    const wasActive = existing.status === 'active';
+    const willBeActive = nextStatus === 'active';
+    const willBeCancelled = nextStatus === 'cancelled';
+    const activating = willBeActive && !wasActive;
+    const planChanged = nextPlanId !== existing.planId;
+
+    const needsPoolAllocation =
+      activating ||
+      (willBeActive && wasActive && planChanged) ||
+      (willBeActive && !existing.endsAt);
+
+    if (needsPoolAllocation) {
+      await this.planPool.assertPlanPurchasable(nextPlan);
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      if (willBeCancelled && wasActive) {
+        await this.subscriptionPool.returnUnusedCredits(tx, existing.id);
+      }
+
+      if (activating) {
+        await this.cancelOverlappingActive(tx, nextUserId, nextPlan);
+      }
+
+      const reactivate = willBeActive && wasActive && planChanged;
+
+      if (reactivate) {
+        await this.subscriptionPool.returnUnusedCredits(tx, existing.id);
+        await tx.subscriptionPoolAllocation.deleteMany({
+          where: { subscriptionId: existing.id },
+        });
+      }
+
+      const endsAt = willBeActive
+        ? this.computeEndsAt(
+            nextPlan,
+            activating || reactivate || !existing.endsAt
+              ? new Date()
+              : (existing.endsAt ?? new Date()),
+          )
+        : existing.endsAt;
+
+      return tx.subscription.update({
+        where: { id: BigInt(id) },
+        data: {
+          userId: dto.userId ? nextUserId : undefined,
+          planId: dto.planId ? nextPlanId : undefined,
+          status: dto.status ?? existing.status,
+          endsAt: willBeActive ? endsAt : existing.endsAt,
+        },
+        include: { plan: { select: { planType: true } } },
+      });
     });
+
+    if (updated.status === 'active') {
+      await this.reservePoolForActiveSubscription(updated.id, nextPlan);
+    }
 
     if (updated.status === 'active' && updated.plan.planType === 'business') {
       await syncOrganizationSeatLimitForUser(this.prisma, updated.userId);
@@ -253,27 +398,49 @@ export class SubscriptionsService {
    * (`onDelete: Cascade` en el schema), no afecta otras suscripciones ni los
    * `Analysis` en sí. */
   remove(id: string) {
-    return this.prisma.subscription.delete({ where: { id: BigInt(id) } });
+    return this.prisma.$transaction(async (tx) => {
+      const sub = await tx.subscription.findUnique({
+        where: { id: BigInt(id) },
+      });
+      if (!sub) throw new BadRequestException('Suscripción no encontrada');
+      if (sub.status === 'active') {
+        await this.subscriptionPool.returnUnusedCredits(tx, sub.id);
+      }
+      await tx.subscription.delete({ where: { id: sub.id } });
+    });
   }
 
   /** Incluye `remainingCredits` por suscripción (página de "consumo") —
    * reusa el mismo cálculo que ya usa AnalysesService al descontar créditos. */
   async findMine(userId: bigint) {
+    const ctx = await this.orgContext.resolve(userId.toString());
+    this.orgContext.assertTeamPermission(ctx, 'billing');
+
     const subscriptions = await this.prisma.subscription.findMany({
-      where: { userId },
+      where: { userId: ctx.subscriptionUserId },
       include: { plan: { include: { provider: true } } },
       orderBy: { id: 'desc' },
     });
 
+    const withEndsAt = await Promise.all(
+      subscriptions.map(async (subscription) => {
+        const endsAt = await this.ensureSubscriptionEndsAt(subscription);
+        if (endsAt) subscription.endsAt = endsAt;
+        return subscription;
+      }),
+    );
+
     return Promise.all(
-      subscriptions.map(async (subscription) => ({
-        ...subscription,
-        remainingCredits: await this.remainingCredits(
-          this.prisma,
-          subscription.id,
-          subscription.plan.analysisLimit,
+      withEndsAt.map(async (subscription) =>
+        serializeUserSubscription(
+          subscription,
+          await this.remainingCredits(
+            this.prisma,
+            subscription.id,
+            subscription.plan.analysisLimit,
+          ),
         ),
-      })),
+      ),
     );
   }
 
@@ -301,30 +468,11 @@ export class SubscriptionsService {
     }
 
     if (APPROVED_STATUSES.includes(wompiStatus)) {
-      const endsAt = new Date();
-      endsAt.setDate(endsAt.getDate() + subscription.plan.durationDays);
+      await this.planPool.assertPlanPurchasable(subscription.plan);
+      const endsAt = this.computeEndsAt(subscription.plan);
 
       await this.prisma.$transaction(async (tx) => {
-        const activeSubs = await tx.subscription.findMany({
-          where: {
-            userId: subscription.userId,
-            status: 'active',
-          },
-          include: { plan: true },
-        });
-        const newProviderIds = new Set(
-          parsePlanProviderIds(subscription.plan),
-        );
-        for (const active of activeSubs) {
-          const activeIds = parsePlanProviderIds(active.plan);
-          const overlaps = activeIds.some((id) => newProviderIds.has(id));
-          if (overlaps) {
-            await tx.subscription.update({
-              where: { id: active.id },
-              data: { status: 'cancelled' },
-            });
-          }
-        }
+        await this.cancelOverlappingActive(tx, subscription.userId, subscription.plan);
 
         await tx.subscription.update({
           where: { id: subscription.id },
@@ -335,6 +483,11 @@ export class SubscriptionsService {
           await syncOrganizationSeatLimitForUser(tx, subscription.userId);
         }
       });
+
+      await this.reservePoolForActiveSubscription(
+        subscription.id,
+        subscription.plan,
+      );
 
       await this.mail.send({
         to: subscription.user.email,

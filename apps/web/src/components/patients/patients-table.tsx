@@ -7,6 +7,7 @@ import { Plus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { ModuleCard, ModuleMetric } from "@/components/ui/module-card";
+import type { OrgTeamMember } from "@/lib/queries/organizations";
 import type { Patient } from "@/lib/queries/patients";
 import { patientsListPath, type PatientsPanel } from "@/lib/patients-panel";
 
@@ -14,10 +15,10 @@ function initials(first: string, last: string) {
   return `${first[0] ?? ""}${last[0] ?? ""}`.toUpperCase() || "?";
 }
 
-function buildColumns(basePath: string) {
+function buildColumns(basePath: string, showProfessionalColumn = false) {
   const columnHelper = createColumnHelper<Patient>();
 
-  return [
+  const columns = [
     columnHelper.accessor((row) => `${row.firstName} ${row.lastName}`, {
       id: "name",
       header: "Paciente",
@@ -49,6 +50,18 @@ function buildColumns(basePath: string) {
         return row.docType ? `${row.docType} ${row.docNumber}` : row.docNumber;
       },
     }),
+  ];
+
+  if (showProfessionalColumn) {
+    columns.push(
+      columnHelper.accessor("professionalName", {
+        header: "Profesional",
+        cell: (info) => info.getValue() ?? "—",
+      }),
+    );
+  }
+
+  columns.push(
     columnHelper.accessor("phone", {
       header: "Teléfono",
       cell: (info) => info.getValue() ?? "—",
@@ -87,23 +100,27 @@ function buildColumns(basePath: string) {
         </span>
       ),
     }),
-  ];
+  );
+
+  return columns;
 }
 
 export function PatientsTable({
   patients,
   panel = "doctor",
   showNewButton = true,
+  showProfessionalColumn = false,
 }: {
   patients: Patient[];
   panel?: PatientsPanel;
   showNewButton?: boolean;
+  showProfessionalColumn?: boolean;
 }) {
   const router = useRouter();
   const resolvedBase = patientsListPath(panel);
 
   const withFitzpatrick = patients.filter((p) => p.fitzpatrickType).length;
-  const columns = buildColumns(resolvedBase);
+  const columns = buildColumns(resolvedBase, showProfessionalColumn);
 
   return (
     <div className="space-y-6">
@@ -168,6 +185,38 @@ export function PatientsTable({
         </div>
       ) : null}
     </div>
+  );
+}
+
+export function PatientsProfessionalFilter({
+  members,
+  value,
+  onChange,
+}: {
+  members: OrgTeamMember[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="flex min-w-60 flex-col gap-1.5 text-sm">
+      <span className="text-xs font-medium text-muted-foreground">
+        Profesional del equipo
+      </span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-ring"
+      >
+        <option value="all">Todos los profesionales</option>
+        {members.map((member) => (
+          <option key={member.userId} value={member.userId}>
+            {member.name}
+            {member.specialty ? ` · ${member.specialty}` : ""}
+            {member.memberRole === "owner" ? " (titular)" : ""}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 

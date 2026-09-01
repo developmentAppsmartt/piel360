@@ -3,8 +3,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import type { TeamMemberPermission } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
-import { DoctorsService } from '../doctors/doctors.service';
+import { OrgContextService } from '../organizations/org-context.service';
 import { StorageService } from '../storage/storage.service';
 import { AppConfigService } from '../app-config/app-config.service';
 import type { CreateCategoryDto } from './dto/create-category.dto';
@@ -16,15 +17,20 @@ import type { UpdateProductDto } from './dto/update-product.dto';
 export class ProductsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly doctorsService: DoctorsService,
+    private readonly orgContext: OrgContextService,
     private readonly storage: StorageService,
     private readonly appConfig: AppConfigService,
   ) {}
 
-  // ─── Helpers ────────────────────────────────────────────────────────────────
-
-  private async requireDoctor(userId: string) {
-    return this.doctorsService.requireDoctorByUserId(userId);
+  private async catalogDoctorId(
+    userId: string,
+    permission: TeamMemberPermission = 'products',
+  ) {
+    const ctx = await this.orgContext.assertTeamPermissionForUser(
+      userId,
+      permission,
+    );
+    return ctx.catalogDoctorId;
   }
 
   private async ensureCategoryOwner(categoryId: bigint, doctorId: bigint) {
@@ -48,21 +54,19 @@ export class ProductsService {
     return product;
   }
 
-  // ─── Categorías ─────────────────────────────────────────────────────────────
-
   async getCategories(userId: string) {
-    const doctor = await this.requireDoctor(userId);
+    const doctorId = await this.catalogDoctorId(userId);
     return this.prisma.productCategory.findMany({
-      where: { doctorId: doctor.id },
+      where: { doctorId },
       include: { _count: { select: { products: true } } },
       orderBy: { createdAt: 'asc' },
     });
   }
 
   async createCategory(userId: string, dto: CreateCategoryDto) {
-    const doctor = await this.requireDoctor(userId);
+    const doctorId = await this.catalogDoctorId(userId);
     return this.prisma.productCategory.create({
-      data: { doctorId: doctor.id, categoryName: dto.categoryName },
+      data: { doctorId, categoryName: dto.categoryName },
     });
   }
 
@@ -71,8 +75,8 @@ export class ProductsService {
     categoryId: string,
     dto: UpdateCategoryDto,
   ) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureCategoryOwner(BigInt(categoryId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureCategoryOwner(BigInt(categoryId), doctorId);
     return this.prisma.productCategory.update({
       where: { id: BigInt(categoryId) },
       data: dto,
@@ -80,20 +84,18 @@ export class ProductsService {
   }
 
   async deleteCategory(userId: string, categoryId: string) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureCategoryOwner(BigInt(categoryId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureCategoryOwner(BigInt(categoryId), doctorId);
     return this.prisma.productCategory.delete({
       where: { id: BigInt(categoryId) },
     });
   }
 
-  // ─── Productos ──────────────────────────────────────────────────────────────
-
   async getProducts(userId: string, categoryId?: string, productType?: string) {
-    const doctor = await this.requireDoctor(userId);
+    const doctorId = await this.catalogDoctorId(userId);
     const products = await this.prisma.product.findMany({
       where: {
-        doctorId: doctor.id,
+        doctorId,
         ...(categoryId ? { categoryId: BigInt(categoryId) } : {}),
         ...(productType ? { productType } : {}),
       },
@@ -104,12 +106,11 @@ export class ProductsService {
   }
 
   async getProduct(userId: string, productId: string) {
-    const doctor = await this.requireDoctor(userId);
-    const product = await this.ensureProductOwner(BigInt(productId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    const product = await this.ensureProductOwner(BigInt(productId), doctorId);
     return this.resolveImageUrl(product);
   }
 
-  /** Si imageUrl es un key de S3 (no empieza con http), genera URL firmada (1 h). */
   private async resolveImageUrl<T extends { imageUrl: string | null }>(
     product: T,
   ): Promise<T> {
@@ -125,14 +126,14 @@ export class ProductsService {
   }
 
   async createProduct(userId: string, dto: CreateProductDto) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureCategoryOwner(BigInt(dto.categoryId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureCategoryOwner(BigInt(dto.categoryId), doctorId);
     const currencyCode =
       dto.currencyCode ?? (await this.appConfig.getCurrencyCode());
 
     return this.prisma.product.create({
       data: {
-        doctorId: doctor.id,
+        doctorId,
         categoryId: BigInt(dto.categoryId),
         productName: dto.productName,
         productType: dto.productType ?? 'product',
@@ -154,10 +155,10 @@ export class ProductsService {
     productId: string,
     dto: UpdateProductDto,
   ) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureProductOwner(BigInt(productId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureProductOwner(BigInt(productId), doctorId);
     if (dto.categoryId !== undefined) {
-      await this.ensureCategoryOwner(BigInt(dto.categoryId), doctor.id);
+      await this.ensureCategoryOwner(BigInt(dto.categoryId), doctorId);
     }
     return this.prisma.product.update({
       where: { id: BigInt(productId) },
@@ -180,33 +181,28 @@ export class ProductsService {
   }
 
   async deleteProduct(userId: string, productId: string) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureProductOwner(BigInt(productId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureProductOwner(BigInt(productId), doctorId);
     return this.prisma.product.delete({ where: { id: BigInt(productId) } });
   }
 
-  /** Sube la imagen al S3 y guarda el object key (no la URL firmada)
-   *  para evitar la limitación de 7 días de AWS SigV4. La URL firmada se
-   *  genera en tiempo real al leer el producto (TTL: 1 h). */
   async uploadProductImage(
     userId: string,
     productId: string,
     file: Express.Multer.File,
   ) {
-    const doctor = await this.requireDoctor(userId);
-    await this.ensureProductOwner(BigInt(productId), doctor.id);
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureProductOwner(BigInt(productId), doctorId);
 
     const ext = file.originalname.split('.').pop() ?? 'jpg';
     const key = `products/${productId}/image.${ext}`;
     await this.storage.upload(key, file.buffer, file.mimetype);
 
-    // Guardamos el key, no la URL firmada
     const updated = await this.prisma.product.update({
       where: { id: BigInt(productId) },
       data: { imageUrl: key },
     });
 
-    // Devolvemos con URL firmada fresca para que el frontend la muestre
     return this.resolveImageUrl(updated);
   }
 }

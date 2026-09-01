@@ -1,5 +1,6 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
+import { OrganizationsModule } from '../organizations/organizations.module';
 import { DoctorsModule } from '../doctors/doctors.module';
 import { PatientsModule } from '../patients/patients.module';
 import { SkiniverModule } from '../skiniver/skiniver.module';
@@ -17,6 +18,7 @@ import { ANALYSIS_IMAGES_QUEUE, ENCYCLOPEDIA_QUEUE } from './queues';
       { name: ANALYSIS_IMAGES_QUEUE },
       { name: ENCYCLOPEDIA_QUEUE },
     ),
+    OrganizationsModule,
     DoctorsModule,
     PatientsModule,
     SkiniverModule,

@@ -1,4 +1,4 @@
-import type { Role } from "@piel360/shared";
+import type { Role, TeamMemberPermission } from "@piel360/shared";
 import { isClinicalPanelRole } from "@piel360/shared";
 import { filterNavByFeatures, type NavItem } from "./nav-items";
 import { PanelLayoutClient } from "./panel-layout-client";
@@ -20,6 +20,8 @@ export function PanelShell({
     empresaReferida?: boolean;
     verificationStatus?: string | null;
     permissions?: string[];
+    teamPermissions?: TeamMemberPermission[] | null;
+    isOrgMember?: boolean;
   };
   children: React.ReactNode;
   notificationCount?: number;
@@ -38,6 +40,8 @@ export function PanelShell({
     empresaReferida: user.empresaReferida,
     verificationStatus: user.verificationStatus,
     permissions: user.permissions,
+    teamPermissions: user.teamPermissions,
+    isOrgMember: user.isOrgMember,
   });
 
   function resolveItems(

@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import { ApiError } from "@/lib/api-error";
 import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
+import { PoolCreditsAlert } from "@/components/admin/pool-credits-alert";
 import { useAdminPlans, useDeletePlan, type PlanAdmin } from "@/lib/queries/plans";
 import { cn } from "@/lib/utils";
 
@@ -44,7 +45,20 @@ function PlanTypeBadge({ planType }: { planType?: string }) {
   );
 }
 
-function PlanStatusBadge({ active }: { active: boolean }) {
+function PlanStatusBadge({
+  active,
+  poolPurchasable,
+}: {
+  active: boolean;
+  poolPurchasable?: boolean;
+}) {
+  if (active && poolPurchasable === false) {
+    return (
+      <span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
+        Sin créditos en bolsa
+      </span>
+    );
+  }
   if (active) {
     return (
       <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
@@ -173,6 +187,7 @@ export function PlansManager() {
       total: rows.length,
       active: rows.filter((p) => p.isActive).length,
       inactive: rows.filter((p) => !p.isActive).length,
+      poolBlocked: rows.filter((p) => p.isActive && p.poolPurchasable === false).length,
       subscriptions: rows.reduce((sum, p) => sum + (p._count?.subscriptions ?? 0), 0),
     };
   }, [plans.data]);
@@ -225,7 +240,9 @@ export function PlansManager() {
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <PoolCreditsAlert />
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <ModuleCard className="p-4">
           <p className="text-xs font-medium text-muted-foreground">Total planes</p>
           <p className="mt-1 text-2xl font-bold tabular-nums">{stats.total}</p>
@@ -237,6 +254,10 @@ export function PlansManager() {
         <ModuleCard className="p-4">
           <p className="text-xs font-medium text-muted-foreground">Inactivos</p>
           <p className="mt-1 text-2xl font-bold tabular-nums text-rose-600">{stats.inactive}</p>
+        </ModuleCard>
+        <ModuleCard className="p-4">
+          <p className="text-xs font-medium text-muted-foreground">Sin bolsa</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-amber-600">{stats.poolBlocked}</p>
         </ModuleCard>
         <ModuleCard className="p-4">
           <p className="text-xs font-medium text-muted-foreground">Suscripciones</p>
@@ -370,7 +391,10 @@ export function PlansManager() {
                           {row._count?.subscriptions ?? 0}
                         </td>
                         <td className="px-4 py-3">
-                          <PlanStatusBadge active={row.isActive} />
+                          <PlanStatusBadge
+                            active={row.isActive}
+                            poolPurchasable={row.poolPurchasable}
+                          />
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex justify-end gap-2">

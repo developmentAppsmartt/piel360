@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Building2,
   Check,
@@ -10,20 +10,26 @@ import {
   Eye,
   FileText,
   Filter,
+  ImagePlus,
   MapPin,
   MessageSquare,
   Search,
   ShieldCheck,
+  Trash2,
+  Upload,
   UserRound,
+  Video,
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-error";
 import {
   useDoctor,
+  useDeleteAddressVerificationEvidence,
   usePendingVerificationDoctors,
   useUpdateDoctorAddressVerification,
   useUpdateDoctorVerification,
+  useUploadAddressVerificationEvidence,
   useVerificationStats,
   matchesVerificationGroup,
   accountTypeLabel,
@@ -214,25 +220,111 @@ function DetailPanel({
   const doctor = useDoctor(doctorId);
   const verify = useUpdateDoctorVerification(doctorId);
   const addressVerify = useUpdateDoctorAddressVerification(doctorId);
+  const uploadEvidence = useUploadAddressVerificationEvidence(doctorId);
+  const deleteEvidence = useDeleteAddressVerificationEvidence(doctorId);
+  const evidenceInputRef = useRef<HTMLInputElement>(null);
   const [note, setNote] = useState("");
   const [addressMethod, setAddressMethod] = useState<
     "visit" | "google_maps" | "photo_evidence"
   >("google_maps");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [localPreview, setLocalPreview] = useState<{
+    url: string;
+    isVideo: boolean;
+  } | null>(null);
 
   useEffect(() => {
     setNote("");
     setError(null);
     setMessage(null);
+    setLocalPreview((prev) => {
+      if (prev?.url) URL.revokeObjectURL(prev.url);
+      return null;
+    });
   }, [doctorId]);
 
+  async function handleEvidenceFile(file: File | undefined) {
+    if (!file) return;
+    setError(null);
+    setMessage(null);
+
+    const isVideo = file.type.startsWith("video/");
+    if (isVideo) {
+      const durationOk = await new Promise<boolean>((resolve) => {
+        const video = document.createElement("video");
+        video.preload = "metadata";
+        video.onloadedmetadata = () => {
+          URL.revokeObjectURL(video.src);
+          resolve(video.duration > 0 && video.duration <= 60);
+        };
+        video.onerror = () => {
+          URL.revokeObjectURL(video.src);
+          resolve(false);
+        };
+        video.src = URL.createObjectURL(file);
+      });
+      if (!durationOk) {
+        setError(
+          "El video debe durar como máximo 60 segundos. Usa un clip corto de la locación.",
+        );
+        return;
+      }
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setLocalPreview((prev) => {
+      if (prev?.url) URL.revokeObjectURL(prev.url);
+      return { url: previewUrl, isVideo };
+    });
+    setAddressMethod("photo_evidence");
+
+    try {
+      await uploadEvidence.mutateAsync(file);
+      setMessage(
+        isVideo
+          ? "Video de evidencia cargado."
+          : "Imagen de evidencia cargada.",
+      );
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudo subir la evidencia.",
+      );
+    }
+  }
+
+  async function handleDeleteEvidence() {
+    setError(null);
+    setMessage(null);
+    try {
+      await deleteEvidence.mutateAsync();
+      setLocalPreview((prev) => {
+        if (prev?.url) URL.revokeObjectURL(prev.url);
+        return null;
+      });
+      if (evidenceInputRef.current) evidenceInputRef.current.value = "";
+      setMessage("Evidencia eliminada.");
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudo eliminar la evidencia.",
+      );
+    }
+  }
+
   async function decide(
-    status: "active" | "rejected" | "in_review",
+    status: "active" | "rejected" | "in_review" | "pending",
   ) {
     setError(null);
     setMessage(null);
     const isEnt = doctor.data ? isEnterpriseDoctor(doctor.data) : false;
+    if (status === "in_review" && !note.trim()) {
+      setError("Escribe una observación para solicitar ajustes.");
+      return;
+    }
     try {
       await verify.mutateAsync({
         status,
@@ -245,8 +337,11 @@ function DetailPanel({
             : "Profesional verificado y aprobado."
           : status === "rejected"
             ? "Solicitud rechazada."
-            : "Se solicitaron ajustes.",
+            : status === "pending"
+              ? "Estado cambiado a pendiente. Volvió a la cola de verificación."
+              : "Se solicitaron ajustes. El usuario verá la observación en su perfil.",
       );
+      setNote("");
       onDone();
     } catch (err) {
       setError(
@@ -297,14 +392,28 @@ function DetailPanel({
   const d = doctor.data;
   const enterprise = isEnterpriseDoctor(d);
   const org = d.organization ?? null;
-  // Solo cola de revisión (no aprobados ni rechazados)
   const pending =
     d.verificationStatus === "pending" ||
     d.verificationStatus === "in_review";
+  const rejected = d.verificationStatus === "rejected";
+  const canDecide = pending || rejected;
 
   const fullAddress = formatFullAddress(d, org);
   const mapsUrl = googleMapsUrl(d.lat ?? org?.lat ?? null, d.lng ?? org?.lng ?? null);
   const addressVerified = d.addressVerificationStatus === "verified";
+  const evidenceUrl =
+    localPreview?.url ?? d.addressVerificationEvidenceUrl ?? null;
+  const evidenceIsVideo = localPreview
+    ? localPreview.isVideo
+    : /\.(mp4|webm|mov)(\?|$)/i.test(
+        d.addressVerificationEvidenceKey ?? "",
+      ) ||
+      /\.(mp4|webm|mov)(\?|$)/i.test(
+        d.addressVerificationEvidenceUrl ?? "",
+      );
+  const hasEvidence = Boolean(
+    evidenceUrl || d.addressVerificationEvidenceKey,
+  );
 
   return (
     <aside className="flex max-h-[calc(100vh-8rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
@@ -336,14 +445,33 @@ function DetailPanel({
           </div>
           <div className="min-w-0">
             <p className="truncate font-semibold">
-              {d.firstName} {d.lastName}
+              {enterprise && org?.name
+                ? org.name
+                : `${d.firstName} ${d.lastName}`}
             </p>
-            <p className="truncate text-sm text-muted-foreground">
-              {d.user?.email ?? "—"}
-            </p>
-            <p className="truncate text-sm text-muted-foreground">
-              {d.phone ?? "Sin teléfono"}
-            </p>
+            {enterprise ? (
+              <>
+                <p className="truncate text-sm text-muted-foreground">
+                  {org?.legalRepName?.trim() ||
+                    `${d.firstName} ${d.lastName}`.trim()}
+                </p>
+                <p className="truncate text-sm text-muted-foreground">
+                  {d.user?.email ?? "—"}
+                </p>
+                <p className="truncate text-sm text-muted-foreground">
+                  {org?.businessPhone ?? d.phone ?? "Sin teléfono"}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="truncate text-sm text-muted-foreground">
+                  {d.user?.email ?? "—"}
+                </p>
+                <p className="truncate text-sm text-muted-foreground">
+                  {d.phone ?? "Sin teléfono"}
+                </p>
+              </>
+            )}
             <div className="mt-2">
               <TypeBadge doctor={d} />
             </div>
@@ -352,37 +480,106 @@ function DetailPanel({
       </div>
 
       <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
-        <section>
-          <h3 className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            Información general
-          </h3>
-          <dl className="space-y-2 text-sm">
-            {(
-              [
-                ["Tipo de usuario", accountTypeLabel(d)],
-                ["Especialidad", d.specialty],
-                ["N.° licencia", d.licenseNumber],
-                ["Registro médico", d.medicalRegistry],
-                ["Institución", d.graduationInstitution ?? d.educationEntity],
-                ["País", d.country],
-                ["Ciudad", d.city],
-                ["Departamento", d.department],
-              ] as const
-            ).map(([label, value]) => (
-              <div key={label} className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">{label}</dt>
-                <dd className="text-right font-medium">
-                  {value?.trim() || "—"}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </section>
+        {!enterprise ? (
+          <section>
+            <h3 className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Información general
+            </h3>
+            <dl className="space-y-2 text-sm">
+              {(
+                [
+                  ["Tipo de usuario", accountTypeLabel(d)],
+                  ["Especialidad", d.specialty],
+                  ["N.° licencia", d.licenseNumber],
+                  ["Registro médico", d.medicalRegistry],
+                  ["Institución", d.graduationInstitution ?? d.educationEntity],
+                  ["País", d.country],
+                  ["Ciudad", d.city],
+                  ["Departamento", d.department],
+                ] as const
+              ).map(([label, value]) => (
+                <div key={label} className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">{label}</dt>
+                  <dd className="text-right font-medium">
+                    {value?.trim() || "—"}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ) : null}
+
+        {enterprise && org ? (
+          <section className="space-y-3">
+            <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Información de empresa
+            </h3>
+            <dl className="space-y-2 text-sm">
+              {(
+                [
+                  ["Nombre empresa", org.name],
+                  [
+                    "Subtipo",
+                    org.type === "empresa_aliada"
+                      ? "Empresa aliada"
+                      : "Membresía empresa",
+                  ],
+                  ["CIIU", org.ciiuCode],
+                  ["Correo empresarial", org.businessEmail],
+                  ["Teléfono empresarial", org.businessPhone],
+                  ["Sitio web", org.website],
+                  ["Empleados (aprox.)", org.employeeCountRange],
+                  ["Representante legal", org.legalRepName],
+                  [
+                    "Doc. representante",
+                    org.legalRepDocType || org.legalRepDocNumber
+                      ? `${org.legalRepDocType ?? ""} ${org.legalRepDocNumber ?? ""}`.trim()
+                      : null,
+                  ],
+                ] as const
+              ).map(([label, value]) => (
+                <div key={label} className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">{label}</dt>
+                  <dd className="text-right font-medium">
+                    {(value ?? "").toString().trim() || "—"}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <div className="space-y-2">
+              <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                Documentos de empresa
+              </p>
+              <DocRow
+                title="Cédula del representante legal"
+                url={org.legalRepCedulaDocUrl}
+                fileKey={org.legalRepCedulaDocKey}
+              />
+              <DocRow
+                title="RUT de la empresa"
+                url={org.rutDocUrl}
+                fileKey={org.rutDocKey}
+              />
+              <DocRow
+                title="Certificado de existencia y representación legal"
+                url={org.existenceCertDocUrl}
+                fileKey={org.existenceCertDocKey}
+              />
+            </div>
+          </section>
+        ) : enterprise ? (
+          <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            Cuenta empresa sin organización asociada o sin datos comerciales
+            cargados.
+          </p>
+        ) : null}
 
         <section className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">
           <div className="flex items-start justify-between gap-2">
             <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              Dirección registrada y verificada
+              {enterprise
+                ? "Dirección de la sede"
+                : "Dirección registrada y verificada"}
             </h3>
             {addressVerified ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
@@ -429,16 +626,43 @@ function DetailPanel({
                 ))}
               </dl>
               <div className="flex flex-wrap gap-2 pt-1">
-                {d.addressVerificationEvidenceUrl ? (
-                  <a
-                    href={d.addressVerificationEvidenceUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted/50"
-                  >
-                    <MessageSquare className="size-4 text-primary" />
-                    Ver evidencia
-                  </a>
+                {evidenceUrl ? (
+                  evidenceIsVideo ? (
+                    <div className="w-full overflow-hidden rounded-xl border border-border bg-card">
+                      <video
+                        src={evidenceUrl}
+                        controls
+                        className="max-h-48 w-full bg-black object-contain"
+                      />
+                      <a
+                        href={evidenceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center justify-center gap-2 border-t border-border px-3 py-2 text-sm font-medium text-primary hover:bg-muted/50"
+                      >
+                        <Video className="size-4" />
+                        Abrir video
+                      </a>
+                    </div>
+                  ) : (
+                    <a
+                      href={evidenceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block w-full overflow-hidden rounded-xl border border-border bg-card"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={evidenceUrl}
+                        alt="Evidencia de dirección"
+                        className="max-h-48 w-full object-contain bg-muted/30"
+                      />
+                      <span className="flex items-center justify-center gap-2 border-t border-border px-3 py-2 text-sm font-medium text-primary hover:bg-muted/50">
+                        <Eye className="size-4" />
+                        Ver evidencia
+                      </span>
+                    </a>
+                  )
                 ) : (
                   <span className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card px-3 py-2 text-sm text-muted-foreground">
                     <MessageSquare className="size-4" />
@@ -457,8 +681,72 @@ function DetailPanel({
                   </a>
                 ) : null}
               </div>
+
               {!addressVerified ? (
-                <div className="space-y-2 border-t border-border pt-3">
+                <div className="space-y-3 border-t border-border pt-3">
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-foreground">
+                      Evidencia (imagen o video corto)
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      JPG/PNG/WebP o video MP4/WebM/MOV de hasta 60 s · máx. 25 MB
+                    </p>
+                    <input
+                      ref={evidenceInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
+                      className="sr-only"
+                      onChange={(e) =>
+                        void handleEvidenceFile(e.target.files?.[0])
+                      }
+                    />
+                    <button
+                      type="button"
+                      disabled={
+                        uploadEvidence.isPending || deleteEvidence.isPending
+                      }
+                      onClick={() => evidenceInputRef.current?.click()}
+                      className={cn(
+                        "flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-3 py-5 text-sm transition-colors",
+                        uploadEvidence.isPending
+                          ? "border-primary/40 bg-primary/5 text-primary"
+                          : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:bg-muted/40",
+                      )}
+                    >
+                      {uploadEvidence.isPending ? (
+                        <>
+                          <Upload className="size-5 animate-bounce" />
+                          Subiendo evidencia…
+                        </>
+                      ) : (
+                        <>
+                          <span className="flex items-center gap-2">
+                            <ImagePlus className="size-5" />
+                            <Video className="size-5" />
+                          </span>
+                          {hasEvidence
+                            ? "Reemplazar evidencia"
+                            : "Subir imagen o video corto"}
+                        </>
+                      )}
+                    </button>
+                    {hasEvidence ? (
+                      <button
+                        type="button"
+                        disabled={
+                          uploadEvidence.isPending || deleteEvidence.isPending
+                        }
+                        onClick={() => void handleDeleteEvidence()}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                      >
+                        <Trash2 className="size-4" />
+                        {deleteEvidence.isPending
+                          ? "Eliminando…"
+                          : "Eliminar evidencia"}
+                      </button>
+                    ) : null}
+                  </div>
+
                   <p className="text-xs text-muted-foreground">
                     Confirma la existencia real de la locación física.
                   </p>
@@ -473,132 +761,81 @@ function DetailPanel({
                   >
                     <option value="google_maps">Google Maps</option>
                     <option value="visit">Visita presencial</option>
-                    <option value="photo_evidence">Evidencia fotográfica</option>
+                    <option value="photo_evidence">
+                      Evidencia fotográfica / video
+                    </option>
                   </select>
                   <Button
                     type="button"
                     variant="outline"
                     className="w-full"
-                    disabled={addressVerify.isPending}
+                    disabled={
+                      addressVerify.isPending ||
+                      (addressMethod === "photo_evidence" && !hasEvidence)
+                    }
                     onClick={() => void markAddressVerified()}
                   >
                     Marcar dirección verificada
                   </Button>
+                  {addressMethod === "photo_evidence" && !hasEvidence ? (
+                    <p className="text-xs text-amber-700">
+                      Sube una imagen o video corto antes de verificar con este
+                      método.
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
             </>
           ) : (
             <p className="text-sm text-muted-foreground">
-              El profesional no ha registrado una dirección con coordenadas.
+              {enterprise
+                ? "La empresa no ha registrado una dirección con coordenadas."
+                : "El profesional no ha registrado una dirección con coordenadas."}
             </p>
           )}
         </section>
 
-        <section className="space-y-2">
-          <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            Documentos del profesional
-          </h3>
-          <DocRow
-            title="Documento de identidad"
-            url={d.cedulaDocUrl}
-            fileKey={d.cedulaDocKey}
-          />
-          <DocRow
-            title="Tarjeta profesional / registro"
-            url={d.medicalRegistryDocUrl}
-            fileKey={d.medicalRegistryDocKey}
-          />
-          <DocRow
-            title="Diploma"
-            url={d.diplomaDocUrl}
-            fileKey={d.diplomaDocKey}
-          />
-        </section>
-
-        {enterprise ? (
-          <section className="space-y-3">
+        {!enterprise ? (
+          <section className="space-y-2">
             <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              Información de empresa
+              Documentos del profesional
             </h3>
-            {!org ? (
-              <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                Cuenta Enterprise sin organización asociada o sin datos
-                comerciales cargados.
-              </p>
-            ) : (
-              <>
-                <dl className="space-y-2 text-sm">
-                  {(
-                    [
-                      ["Nombre empresa", org.name],
-                      [
-                        "Subtipo",
-                        org.type === "empresa_aliada"
-                          ? "Empresa aliada"
-                          : "Membresía empresa",
-                      ],
-                      ["CIIU", org.ciiuCode],
-                      ["Correo empresarial", org.businessEmail],
-                      ["Teléfono empresarial", org.businessPhone],
-                      ["Sitio web", org.website],
-                      ["Empleados (aprox.)", org.employeeCountRange],
-                      ["Representante legal", org.legalRepName],
-                      [
-                        "Doc. representante",
-                        org.legalRepDocType || org.legalRepDocNumber
-                          ? `${org.legalRepDocType ?? ""} ${org.legalRepDocNumber ?? ""}`.trim()
-                          : null,
-                      ],
-                    ] as const
-                  ).map(([label, value]) => (
-                    <div key={label} className="flex justify-between gap-3">
-                      <dt className="text-muted-foreground">{label}</dt>
-                      <dd className="text-right font-medium">
-                        {(value ?? "").toString().trim() || "—"}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                    Documentos de empresa
-                  </p>
-                  <DocRow
-                    title="Cédula del representante legal"
-                    url={org.legalRepCedulaDocUrl}
-                    fileKey={org.legalRepCedulaDocKey}
-                  />
-                  <DocRow
-                    title="RUT de la empresa"
-                    url={org.rutDocUrl}
-                    fileKey={org.rutDocKey}
-                  />
-                  <DocRow
-                    title="Certificado de existencia y representación legal"
-                    url={org.existenceCertDocUrl}
-                    fileKey={org.existenceCertDocKey}
-                  />
-                </div>
-              </>
-            )}
+            <DocRow
+              title="Documento de identidad"
+              url={d.cedulaDocUrl}
+              fileKey={d.cedulaDocKey}
+            />
+            <DocRow
+              title="Tarjeta profesional / registro"
+              url={d.medicalRegistryDocUrl}
+              fileKey={d.medicalRegistryDocKey}
+            />
+            <DocRow
+              title="Diploma"
+              url={d.diplomaDocUrl}
+              fileKey={d.diplomaDocKey}
+            />
           </section>
         ) : null}
 
-        {pending ? (
+        {canDecide ? (
           <section>
             <h3 className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              Observaciones (opcional)
+              Observaciones {rejected ? "(recomendadas)" : "(opcional)"}
             </h3>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value.slice(0, 500))}
               placeholder={
-                enterprise
-                  ? "Indica qué debe corregir el profesional o la empresa…"
-                  : "Indica qué debe corregir el profesional…"
+                rejected
+                  ? enterprise
+                    ? "Motivo del cambio de estado o qué debe corregir la empresa…"
+                    : "Motivo del cambio de estado o qué debe corregir el profesional…"
+                  : enterprise
+                    ? "Indica qué debe corregir la empresa…"
+                    : "Indica qué debe corregir el profesional…"
               }
               className="min-h-24 w-full resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-              required
             />
             <p className="mt-1 text-right text-xs text-muted-foreground">
               {note.length}/500 · Obligatoria al solicitar ajustes
@@ -619,17 +856,29 @@ function DetailPanel({
         {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
       </div>
 
-      {pending ? (
+      {canDecide ? (
         <div className="flex flex-wrap gap-2 border-t border-border bg-muted/30 px-4 py-3">
-          <Button
-            type="button"
-            variant="outline"
-            className="border-destructive/40 text-destructive hover:bg-destructive/10"
-            disabled={verify.isPending}
-            onClick={() => void decide("rejected")}
-          >
-            Rechazar
-          </Button>
+          {pending ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="border-destructive/40 text-destructive hover:bg-destructive/10"
+              disabled={verify.isPending}
+              onClick={() => void decide("rejected")}
+            >
+              Rechazar
+            </Button>
+          ) : null}
+          {rejected ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={verify.isPending}
+              onClick={() => void decide("pending")}
+            >
+              Volver a pendiente
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="outline"
@@ -686,7 +935,7 @@ export function VerificationDashboard({
       }
       if (!q) return true;
       const hay =
-        `${d.firstName} ${d.lastName} ${d.user?.email ?? ""} ${d.specialty ?? ""}`.toLowerCase();
+        `${d.firstName} ${d.lastName} ${d.user?.email ?? ""} ${d.specialty ?? ""} ${d.organization?.name ?? ""}`.toLowerCase();
       return hay.includes(q);
     });
   }, [doctors, search, specialtyFilter, status]);
@@ -889,11 +1138,20 @@ export function VerificationDashboard({
                             </div>
                             <div className="min-w-0">
                               <p className="truncate font-medium">
-                                {d.firstName} {d.lastName}
+                                {isEnterpriseDoctor(d) && d.organization?.name
+                                  ? d.organization.name
+                                  : `${d.firstName} ${d.lastName}`}
                               </p>
                               <p className="truncate text-xs text-muted-foreground">
-                                {d.user?.email ?? "—"}
+                                {isEnterpriseDoctor(d) && d.organization?.legalRepName
+                                  ? d.organization.legalRepName
+                                  : (d.user?.email ?? "—")}
                               </p>
+                              {isEnterpriseDoctor(d) ? (
+                                <p className="truncate text-xs text-muted-foreground">
+                                  {d.user?.email ?? "—"}
+                                </p>
+                              ) : null}
                             </div>
                           </div>
                         </td>
@@ -955,20 +1213,23 @@ export function VerificationDashboard({
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <h3 className="text-sm font-semibold">Criterios de verificación</h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          Se valida que la información sea coherente, esté completa y que la
-          dirección registrada tenga existencia real.
+          {criteria?.enterprise
+            ? "Se valida que los datos comerciales y documentos legales de la empresa estén completos y que la sede tenga existencia real."
+            : "Se valida que la información sea coherente, esté completa y que la dirección registrada tenga existencia real."}
           {criteriaDoctor ? (
             <>
               {" "}
               Mostrando estado de{" "}
               <span className="font-medium text-foreground">
-                {criteriaDoctor.firstName} {criteriaDoctor.lastName}
+                {isEnterpriseDoctor(criteriaDoctor) && criteriaDoctor.organization?.name
+                  ? criteriaDoctor.organization.name
+                  : `${criteriaDoctor.firstName} ${criteriaDoctor.lastName}`}
               </span>
               .
             </>
           ) : null}
         </p>
-        <div className="mt-4 grid gap-4 lg:grid-cols-5">
+        <div className="mt-4 grid gap-4 lg:grid-cols-4">
           {(
             [
               {
@@ -977,6 +1238,8 @@ export function VerificationDashboard({
                 status: criteria?.coherentInfo ?? "pending",
                 icon: ShieldCheck,
                 highlight: false,
+                enterpriseOnly: false,
+                professionalOnly: true,
               },
               {
                 title: "Documentos legibles y válidos",
@@ -984,26 +1247,47 @@ export function VerificationDashboard({
                 status: criteria?.validDocs ?? "pending",
                 icon: ShieldCheck,
                 highlight: false,
+                enterpriseOnly: false,
+                professionalOnly: true,
               },
               {
-                title: "Datos de empresa (Enterprise)",
-                desc: "Razón social, NIT, CIIU y documentos legales verificados.",
-                status:
-                  criteria && !criteria.enterprise
-                    ? "fulfilled"
-                    : (criteria?.enterpriseData ?? "pending"),
+                title: "Datos de la empresa",
+                desc: "Razón social, CIIU, representante legal y documentos legales.",
+                status: criteria?.enterpriseData ?? "pending",
                 icon: ShieldCheck,
                 highlight: false,
+                enterpriseOnly: true,
+                professionalOnly: false,
+              },
+              {
+                title: "Documentos legales de empresa",
+                desc: "Cédula del representante, RUT y certificado de existencia.",
+                status: criteria?.validDocs ?? "pending",
+                icon: ShieldCheck,
+                highlight: false,
+                enterpriseOnly: true,
+                professionalOnly: false,
               },
               {
                 title: "Dirección verificada",
-                desc: "Existencia real de locación física confirmada.",
+                desc: criteria?.enterprise
+                  ? "Existencia real de la sede confirmada."
+                  : "Existencia real de locación física confirmada.",
                 status: criteria?.addressVerified ?? "pending",
                 icon: MapPin,
                 highlight: criteria?.addressVerified === "in_review",
+                enterpriseOnly: false,
+                professionalOnly: false,
               },
             ] as const
-          ).map(({ title, desc, status, icon: Icon, highlight }) => (
+          )
+            .filter((card) =>
+              criteria?.enterprise
+                ? card.enterpriseOnly ||
+                  (!card.enterpriseOnly && !card.professionalOnly)
+                : !card.enterpriseOnly,
+            )
+            .map(({ title, desc, status, icon: Icon, highlight }) => (
               <div
                 key={title}
                 className={cn(

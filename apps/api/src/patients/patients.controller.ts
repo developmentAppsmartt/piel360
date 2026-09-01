@@ -52,8 +52,11 @@ export class PatientsController {
   }
 
   @Get('patients')
-  findAll(@CurrentUser() user: JwtPayload) {
-    return this.patientsService.findAll(user);
+  findAll(
+    @CurrentUser() user: JwtPayload,
+    @Query('professionalUserId') professionalUserId?: string,
+  ) {
+    return this.patientsService.findAll(user, { professionalUserId });
   }
 
   @Post('patients/:id/analysis-requests')

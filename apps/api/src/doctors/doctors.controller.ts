@@ -1,16 +1,18 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
   Post,
   Query,
+  UploadedFile,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { ClinicalPanelRoles } from '../auth/clinical-panel.roles.decorator';
@@ -132,5 +134,28 @@ export class DoctorsController {
     @Body() dto: UpdateDoctorAddressVerificationDto,
   ) {
     return this.doctorsService.updateAddressVerification(id, dto);
+  }
+
+  @Post('admin/doctors/:id/address-verification/evidence')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('validate_doctor')
+  @UseInterceptors(
+    FileInterceptor('evidence', {
+      storage: memoryStorage(),
+      limits: { fileSize: 25 * 1024 * 1024 },
+    }),
+  )
+  uploadAddressEvidence(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.doctorsService.uploadAddressVerificationEvidence(id, file);
+  }
+
+  @Delete('admin/doctors/:id/address-verification/evidence')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('validate_doctor')
+  deleteAddressEvidence(@Param('id') id: string) {
+    return this.doctorsService.deleteAddressVerificationEvidence(id);
   }
 }
