@@ -15,6 +15,7 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
     scroll: { flex: 1 },
     scrollContent: {
       paddingHorizontal: 16,
+      paddingTop: 18,
       paddingBottom: 28,
       gap: 18,
     },

@@ -161,33 +161,62 @@ export function findYoucamMaskUrl(
   );
 }
 
+export function analysisPhotoUrl(
+  detail: AnalysisDetail | undefined,
+): string | null {
+  if (!detail) return null;
+  if (detail.hasOriginalPhoto && detail.imageUrl) return detail.imageUrl;
+  if (detail.youcamTaskId) return null;
+  return detail.coloredUrl ?? detail.imageUrl ?? detail.maskedUrl ?? null;
+}
+
+/** @deprecated Preferir analysisPhotoUrl + máscara superpuesta. */
+export function analysisPreviewUrl(
+  detail: AnalysisDetail | undefined,
+): string | null {
+  return analysisPhotoUrl(detail);
+}
+
+function maskUrlFromRaw(
+  detail: AnalysisDetail,
+  type: string,
+  region?: string | null,
+): string | null {
+  const output = (detail.aiRawResponse as YoucamRawResponse | undefined)
+    ?.output;
+  if (!output?.length) return null;
+  const normalized = region ?? DEFAULT_REGION;
+  const match =
+    output.find((item) => item.type === type && item.region === normalized) ??
+    output.find(
+      (item) =>
+        item.type === type && (!item.region || item.region === DEFAULT_REGION),
+    ) ??
+    output.find((item) => item.type === type);
+  const url = match?.mask_urls?.[0];
+  return typeof url === "string" && url.length > 0 ? url : null;
+}
+
 /** Imagen de la métrica priorizando la región general (`whole`). */
 export function youcamMetricMaskUrl(
   detail: AnalysisDetail | undefined,
   metricType: string,
 ): string | null {
-  if (!detail?.masks?.length) return null;
+  if (!detail) return null;
 
   const metrics = parseYoucamMetrics(
     detail.aiRawResponse as YoucamRawResponse | undefined,
   );
   const candidates = metrics.filter((m) => m.type === metricType);
+  const whole =
+    candidates.find((m) => !m.region || m.region === DEFAULT_REGION) ??
+    candidates[0];
+  const region = whole?.region ?? DEFAULT_REGION;
 
-  if (candidates.length > 0) {
-    const whole =
-      candidates.find((m) => !m.region || m.region === DEFAULT_REGION) ??
-      candidates[0];
-    const url = findYoucamMaskUrl(detail.masks, metricType, whole.region);
+  if (detail.masks?.length) {
+    const url = findYoucamMaskUrl(detail.masks, metricType, region);
     if (url) return url;
   }
 
-  return findYoucamMaskUrl(detail.masks, metricType, DEFAULT_REGION);
-}
-
-export function analysisPreviewUrl(
-  detail: AnalysisDetail | undefined,
-): string | null {
-  if (!detail) return null;
-  if (detail.hasOriginalPhoto && detail.imageUrl) return detail.imageUrl;
-  return detail.coloredUrl ?? detail.imageUrl ?? detail.maskedUrl ?? null;
+  return maskUrlFromRaw(detail, metricType, region);
 }

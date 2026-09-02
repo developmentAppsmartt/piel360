@@ -7,6 +7,7 @@ import { LoginView } from '../views/auth/login/LoginView';
 import { RegisterView } from '../views/auth/register/RegisterView';
 import { ForgotPasswordView } from '../views/auth/forgot-password/ForgotPasswordView';
 import { MainTabNavigator } from './MainTabNavigator';
+import { PhoneVerificationView } from '../views/auth/phone-verification/PhoneVerificationView';
 
 export type AuthStackParamList = {
   Login: undefined;
@@ -23,7 +24,13 @@ const AppStack = createNativeStackNavigator<AppStackParamList>();
 
 function AuthNavigator() {
   return (
-    <AuthStack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
+    <AuthStack.Navigator
+      screenOptions={{
+        headerShown: false,
+        animation: 'fade',
+        contentStyle: { backgroundColor: 'transparent' },
+      }}
+    >
       <AuthStack.Screen name="Login" component={LoginView} />
       <AuthStack.Screen name="Register" component={RegisterView} />
       <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordView} />
@@ -40,7 +47,7 @@ function AppNavigator() {
 }
 
 export function RootNavigator() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, needsPhoneVerification } = useAuth();
   const branding = useBranding();
 
   if (isLoading) {
@@ -60,7 +67,11 @@ export function RootNavigator() {
 
   return (
     <NavigationContainer>
-      {user ? <AppNavigator /> : <AuthNavigator />}
+      {user ? (
+        needsPhoneVerification ? <PhoneVerificationView /> : <AppNavigator />
+      ) : (
+        <AuthNavigator />
+      )}
     </NavigationContainer>
   );
 }

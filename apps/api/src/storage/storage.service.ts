@@ -12,6 +12,8 @@ import { mkdir, unlink, writeFile } from 'fs/promises';
 import { dirname, join, normalize, resolve } from 'path';
 
 const SIGNED_URL_TTL_SECONDS = 3600;
+/** SigV4 no permite presigned URLs de más de 7 días con credenciales IAM. */
+const MAX_SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7;
 
 /**
  * Reemplaza `Storage::disk('public')` de Laravel (MIGRACION.md §2.1) — Railway
@@ -131,14 +133,24 @@ export class StorageService {
     key: string,
     expiresInSeconds = SIGNED_URL_TTL_SECONDS,
   ): Promise<string> {
+    const expiresIn = Math.min(
+      Math.max(1, expiresInSeconds),
+      MAX_SIGNED_URL_TTL_SECONDS,
+    );
     // Si el archivo quedó en disco (driver local o fallback por S3 caído), servir local.
-    if (this.forceLocal || !this.client || this.localExists(key)) {
+    if (this.forceLocal || !this.client) {
+      if (!this.localExists(key)) {
+        throw new Error(`Archivo local no encontrado: ${key}`);
+      }
+      return this.localPublicUrl(key);
+    }
+    if (this.localExists(key)) {
       return this.localPublicUrl(key);
     }
     try {
       const command = new GetObjectCommand({ Bucket: this.bucket, Key: key });
       return await getSignedUrl(this.client, command, {
-        expiresIn: expiresInSeconds,
+        expiresIn,
       });
     } catch (err) {
       if (this.localExists(key)) {

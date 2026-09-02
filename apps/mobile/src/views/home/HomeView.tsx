@@ -9,9 +9,7 @@ import {
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppIcon } from '../../components/AppIcon';
-import { BrandLogo } from '../../components/BrandLogo';
 import { Icons } from '../../components/icons';
 import { useAuth } from '../../context/AuthContext';
 import { useBranding } from '../../context/BrandingContext';
@@ -35,6 +33,8 @@ import { SkiniverAnalysisFlow } from '../analyses/skiniver-flow/SkiniverAnalysis
 import { YoucamAnalysisFlow } from '../analyses/youcam-flow/YoucamAnalysisFlow';
 import { AccountInfoView } from '../account/AccountInfoView';
 import { AnalysisDetailView } from '../doctor/analyses/AnalysisDetailView';
+import { DoctorHeader } from '../doctor/patients/components/DoctorHeader';
+import { createDoctorPatientsStyles } from '../doctor/patients/styles/patients.styles';
 import {
   AccountDrawer,
   type AccountMenuId,
@@ -45,6 +45,11 @@ import {
   patientDisplayName,
 } from '../profile/data/patient';
 import { createHomeStyles } from './styles/home.styles';
+import { SkinCareTipsView } from './SkinCareTipsView';
+import {
+  isDermatologyDiseaseAnalysis,
+  SkinDiseasesView,
+} from './SkinDiseasesView';
 
 type PatientFlowKind = 'youcam' | 'skiniver' | 'fitzpatrick';
 
@@ -66,7 +71,9 @@ type Overlay =
   | 'premios'
   | 'acuerdo'
   | 'soporte'
-  | 'acerca';
+  | 'acerca'
+  | 'tips'
+  | 'diseases';
 
 const OVERLAY_COPY: Record<
   Exclude<Overlay, null | 'config'>,
@@ -205,11 +212,13 @@ export function HomeView({
   onPendingRequestConsumed,
   onConsentContinue,
 }: HomeViewProps) {
-  const insets = useSafeAreaInsets();
   const { logout } = useAuth();
   const branding = useBranding();
   const styles = useMemo(() => createHomeStyles(branding.colors), [branding.colors]);
-  const onDark = branding.colors.textOnDark;
+  const headerStyles = useMemo(
+    () => createDoctorPatientsStyles(branding.colors),
+    [branding.colors],
+  );
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -222,6 +231,11 @@ export function HomeView({
   const [loading, setLoading] = useState(true);
   const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(
     null,
+  );
+
+  const diseaseAnalyses = useMemo(
+    () => analyses.filter(isDermatologyDiseaseAnalysis),
+    [analyses],
   );
 
   useEffect(() => {
@@ -448,6 +462,24 @@ export function HomeView({
         patient={patient}
         onBack={() => setOverlay(null)}
         onSave={handleSaveProfile}
+        onOpenMessages={onOpenMessages}
+      />
+    );
+  }
+
+  if (overlay === 'tips') {
+    return <SkinCareTipsView onBack={() => setOverlay(null)} />;
+  }
+
+  if (overlay === 'diseases') {
+    return (
+      <SkinDiseasesView
+        analyses={diseaseAnalyses}
+        onBack={() => setOverlay(null)}
+        onOpenAnalysis={(id) => {
+          setOverlay(null);
+          setSelectedAnalysisId(id);
+        }}
       />
     );
   }
@@ -459,6 +491,8 @@ export function HomeView({
         title={copy.title}
         body={copy.body}
         onBack={() => setOverlay(null)}
+        onOpenMessages={onOpenMessages}
+        onOpenProfile={onOpenProfile}
       />
     );
   }
@@ -472,44 +506,13 @@ export function HomeView({
   return (
     <View style={styles.screen}>
       <StatusBar style="light" />
-      <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 10) }]}>
-        <BrandLogo height={32} />
-        <View style={styles.topActions}>
-          <Pressable
-            hitSlop={8}
-            accessibilityLabel="Premios"
-            onPress={() => setOverlay('premios')}
-          >
-            <AppIcon icon={Icons.gift} size={22} color={onDark} />
-          </Pressable>
-          <Pressable
-            hitSlop={8}
-            accessibilityLabel="Notificaciones"
-            onPress={() =>
-              Alert.alert(
-                'Notificaciones',
-                'Las notificaciones se conectarán en una próxima versión.',
-              )
-            }
-          >
-            <AppIcon icon={Icons.bell} size={22} color={onDark} />
-          </Pressable>
-          <Pressable
-            hitSlop={8}
-            accessibilityLabel="Chat con mi médico"
-            onPress={() => onOpenMessages?.()}
-          >
-            <AppIcon icon={Icons.chat} size={22} color={onDark} />
-          </Pressable>
-          <Pressable
-            hitSlop={8}
-            accessibilityLabel="Mi cuenta"
-            onPress={() => setMenuOpen(true)}
-          >
-            <AppIcon icon={Icons.menu} size={24} color={onDark} />
-          </Pressable>
-        </View>
-      </View>
+      <DoctorHeader
+        styles={headerStyles}
+        messageCount={1}
+        onOpenMenu={() => setMenuOpen(true)}
+        onOpenMessages={onOpenMessages}
+        onOpenGift={() => setOverlay('premios')}
+      />
 
       {loading ? (
         <View style={styles.centered}>
@@ -554,19 +557,21 @@ export function HomeView({
               </Text>
               {doc ? <Text style={styles.profileMeta}>{doc}</Text> : null}
               <Text style={styles.profileMeta}>
-                Edad: {ageFromBirth(patient?.birthDate ?? null)}
+                Edad cronológica: {ageFromBirth(patient?.birthDate ?? null)}
               </Text>
+              {patient?.lastSkinAgeYears != null ? (
+                <Text style={styles.profileMeta}>
+                  Salud de la piel: {Math.round(patient.lastSkinAgeYears)} años
+                </Text>
+              ) : null}
             </View>
           </Pressable>
 
           <Pressable
             style={styles.linkCard}
-            onPress={() =>
-              Alert.alert(
-                'Consejos',
-                'Contenido de consejos. Se conectará al CMS/API.',
-              )
-            }
+            onPress={() => setOverlay('tips')}
+            accessibilityRole="button"
+            accessibilityLabel="Consejos para el cuidado de la piel"
           >
             <View style={styles.linkIconWrap}>
               <AppIcon
@@ -585,29 +590,28 @@ export function HomeView({
             />
           </Pressable>
 
-          <Pressable
-            style={styles.linkCard}
-            onPress={() =>
-              Alert.alert(
-                'Enfermedades',
-                'Enciclopedia de enfermedades. Se conectará al servicio.',
-              )
-            }
-          >
-            <View style={styles.linkIconWrap}>
+          {diseaseAnalyses.length > 0 ? (
+            <Pressable
+              style={styles.linkCard}
+              onPress={() => setOverlay('diseases')}
+              accessibilityRole="button"
+              accessibilityLabel="Enfermedades de la piel"
+            >
+              <View style={styles.linkIconWrap}>
+                <AppIcon
+                  icon={Icons.prescription}
+                  size={22}
+                  color={branding.colors.primary}
+                />
+              </View>
+              <Text style={styles.linkLabel}>Enfermedades de la piel</Text>
               <AppIcon
-                icon={Icons.prescription}
-                size={22}
-                color={branding.colors.primary}
+                icon={Icons.chevronRight}
+                size={20}
+                color={branding.colors.muted}
               />
-            </View>
-            <Text style={styles.linkLabel}>Enfermedades de la piel</Text>
-            <AppIcon
-              icon={Icons.chevronRight}
-              size={20}
-              color={branding.colors.muted}
-            />
-          </Pressable>
+            </Pressable>
+          ) : null}
 
           <View style={styles.historyHeader}>
             <Text style={styles.historyTitle}>Histórico Análisis</Text>

@@ -167,7 +167,7 @@ export function VerificationStatusBadge({ status }: { status: string }) {
 
 export function RoleBadge({ name }: { name: string }) {
   const styles: Record<string, string> = {
-    superadmin: "bg-violet-50 text-violet-700",
+    superadmin: "bg-primary/10 text-primary",
     monitor: "bg-sky-50 text-sky-700",
     empresa: "bg-cyan-50 text-cyan-800",
     doctor: "bg-primary/10 text-primary",

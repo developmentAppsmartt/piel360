@@ -71,7 +71,7 @@ export function RoleVisibilityPreview({
             {summary.adminNavItems.map((item) => (
               <li
                 key={item.key}
-                className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-800"
+                className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
               >
                 {item.label}
               </li>

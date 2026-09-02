@@ -15,6 +15,32 @@ export const PATIENT_MASCOT_OPTIONS = [
   { value: "none", label: "Ninguna" },
 ] as const;
 
+export const PATIENT_BIRTH_TYPE_OPTIONS = [
+  { value: "normal", label: "Nacimiento Normal" },
+  { value: "cesarean", label: "Nacimiento por Cesárea" },
+] as const;
+
+export const PATIENT_EXERCISE_HABIT_OPTIONS = [
+  { value: "regular", label: "Sí, regularmente" },
+  { value: "sometimes", label: "A veces" },
+  { value: "never", label: "No, nunca" },
+] as const;
+
+export const PATIENT_EXERCISE_DAYS_OPTIONS = [
+  { value: "1-2", label: "1-2 días" },
+  { value: "3-4", label: "3-4 días" },
+  { value: "5-6", label: "5-6 días" },
+  { value: "7", label: "7 días" },
+  { value: "none", label: "Ninguno" },
+] as const;
+
+export const PATIENT_EXERCISE_DURATION_OPTIONS = [
+  { value: "lt30", label: "Menos de 30 min" },
+  { value: "30-60", label: "30-60 min" },
+  { value: "60-90", label: "60-90 min" },
+  { value: "gt90", label: "Más de 90 min" },
+] as const;
+
 export const PATIENT_SKIN_OPTIONS = [
   { value: "normal", label: "Normal" },
   { value: "dry", label: "Seca" },

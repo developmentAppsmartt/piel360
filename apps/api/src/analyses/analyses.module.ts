@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { DoctorsModule } from '../doctors/doctors.module';
 import { PatientsModule } from '../patients/patients.module';
+import { SkinAgeRulesModule } from '../skin-age-rules/skin-age-rules.module';
 import { SkiniverModule } from '../skiniver/skiniver.module';
 import { StorageModule } from '../storage/storage.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
@@ -21,6 +22,7 @@ import { ANALYSIS_IMAGES_QUEUE, ENCYCLOPEDIA_QUEUE } from './queues';
     OrganizationsModule,
     DoctorsModule,
     PatientsModule,
+    SkinAgeRulesModule,
     SkiniverModule,
     SubscriptionsModule,
     StorageModule,

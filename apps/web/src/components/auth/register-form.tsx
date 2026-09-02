@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { registerAction, type AuthActionState } from "@/lib/actions/auth";
 import { sendPhoneOtpAction, verifyPhoneOtpAction } from "@/lib/actions/phone-otp";
 import { TextField } from "./text-field";
+import { GoogleContinueButton } from "./google-continue-button";
 
 const initialState: AuthActionState = {};
 
@@ -62,6 +63,19 @@ export function RegisterForm({
 
   return (
     <form action={formAction} className="w-full max-w-sm space-y-4">
+      <GoogleContinueButton
+        role={role}
+        label={
+          role === "doctor"
+            ? "Registrarme con Google"
+            : "Registrarme con Google"
+        }
+      />
+      <div className="flex items-center gap-3 py-1">
+        <div className="h-px flex-1 bg-zinc-200" />
+        <span className="text-xs text-zinc-400">o con email</span>
+        <div className="h-px flex-1 bg-zinc-200" />
+      </div>
       <div className="grid grid-cols-2 gap-4">
         <TextField label="Nombre" id="firstName" name="firstName" required autoComplete="given-name" />
         <TextField label="Apellido" id="lastName" name="lastName" required autoComplete="family-name" />

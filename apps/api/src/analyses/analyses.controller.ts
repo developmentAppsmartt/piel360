@@ -16,6 +16,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import type { JwtPayload } from '../auth/types';
+import { SkinAgeRulesService } from '../skin-age-rules/skin-age-rules.service';
 import { AnalysesService } from './analyses.service';
 import { ConfirmAnalysisDto } from './dto/confirm-analysis.dto';
 import { CreateAnalysisDto } from './dto/create-analysis.dto';
@@ -27,7 +28,10 @@ interface UploadedImage {
 @Controller('analyses')
 @UseGuards(JwtAuthGuard)
 export class AnalysesController {
-  constructor(private readonly analysesService: AnalysesService) {}
+  constructor(
+    private readonly analysesService: AnalysesService,
+    private readonly skinAgeRulesService: SkinAgeRulesService,
+  ) {}
 
   @Post()
   @UseInterceptors(FileInterceptor('image'))
@@ -47,6 +51,18 @@ export class AnalysesController {
   @Get()
   findAll(@CurrentUser() user: JwtPayload) {
     return this.analysesService.findAll(user);
+  }
+
+  /** Recomendaciones + catálogo del médico del paciente (doctor y paciente). */
+  @Get(':id/care-recommendations')
+  careRecommendations(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.skinAgeRulesService.careRecommendationsForAnalysis(
+      user.sub,
+      id,
+    );
   }
 
   @Get(':id')

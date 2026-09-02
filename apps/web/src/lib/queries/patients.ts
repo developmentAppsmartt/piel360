@@ -20,8 +20,18 @@ export interface Patient {
   birthDate: string | null;
   gender: string | null;
   mascotType: string | null;
+  birthType: string | null;
+  exerciseHabit: string | null;
+  exerciseDaysPerWeek: string | null;
+  exerciseSessionDuration: string | null;
   skinType: string | null;
   fitzpatrickType: string | null;
+  lastSkinAgeYears?: number | null;
+  lastChronologicalAgeYears?: number | null;
+  lastSkinAgeDifference?: number | null;
+  lastSkinAgeAt?: string | null;
+  lat?: number | string | null;
+  lng?: number | string | null;
   createdAt: string;
   updatedAt: string;
   /** Solo en listados del owner empresa. */
@@ -81,9 +91,15 @@ export interface PatientInput {
   docType?: string;
   docNumber?: string;
   address?: string;
+  lat?: number;
+  lng?: number;
   birthDate?: string;
   gender?: string;
   mascotType?: string;
+  birthType?: string;
+  exerciseHabit?: string;
+  exerciseDaysPerWeek?: string;
+  exerciseSessionDuration?: string;
   skinType?: string;
   fitzpatrickType?: string;
 }

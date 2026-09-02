@@ -7,6 +7,12 @@ import { cn } from "@/lib/utils";
 import type { AnalysisDetail } from "@/lib/queries/analyses";
 import { YOUCAM_METRIC_LABELS, youcamSkinTypeLabel } from "@/lib/youcam-metric-labels";
 import {
+  chronologicalAgeYears,
+  formatSignedYears,
+  skinAgeDifference,
+  skinAgeDifferenceMessage,
+} from "@/lib/skin-age";
+import {
   parseYoucamMetrics,
   YOUCAM_MAIN_METRIC_TYPES,
   youcamOverallScore,
@@ -162,7 +168,13 @@ export function YoucamReportView({
   const [preferRaw, setPreferRaw] = useState(false);
   const scores = useMemo(() => youcamScoresByType(metrics, preferRaw), [metrics, preferRaw]);
   const overall = youcamOverallScore(metrics);
-  const skinAge = youcamSkinAge(metrics);
+  const skinAge = analysis.skinAgeYears ?? youcamSkinAge(metrics);
+  const chronologicalAge =
+    analysis.chronologicalAgeYears ??
+    chronologicalAgeYears(analysis.patient?.birthDate, analysis.createdAt);
+  const ageDiff =
+    analysis.skinAgeDifference ??
+    skinAgeDifference(skinAge, chronologicalAge);
   const skinType = youcamSkinType(metrics);
   const band = overall != null ? youcamScoreBand(overall) : null;
   const name =
@@ -286,9 +298,43 @@ export function YoucamReportView({
           <p>
             Edad de tu piel:{" "}
             <span className="font-semibold">
-              {skinAge != null ? Math.round(skinAge) : "—"}
+              {skinAge != null ? `${Math.round(skinAge)} años` : "—"}
             </span>
           </p>
+          <p>
+            Edad cronológica:{" "}
+            <span className="font-semibold text-muted-foreground">
+              {chronologicalAge != null ? `${chronologicalAge} años` : "—"}
+            </span>
+          </p>
+          {ageDiff != null ? (
+            <>
+              <p
+                className={cn(
+                  "font-semibold",
+                  ageDiff < 0
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : ageDiff > 0
+                      ? "text-red-600 dark:text-red-400"
+                      : "text-muted-foreground",
+                )}
+              >
+                Diferencia: {formatSignedYears(ageDiff)}
+              </p>
+              <p
+                className={cn(
+                  "font-medium",
+                  ageDiff < 0
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : ageDiff > 0
+                      ? "text-red-600 dark:text-red-400"
+                      : "text-muted-foreground",
+                )}
+              >
+                {skinAgeDifferenceMessage(ageDiff)}
+              </p>
+            </>
+          ) : null}
           {band ? (
             <p className="font-semibold text-primary">
               Su piel está en el {youcamScoreBandLabel(band).toLowerCase()}

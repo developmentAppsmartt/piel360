@@ -13,6 +13,7 @@ import {
   type TeamMemberPermission,
 } from '@piel360/shared';
 import { Prisma } from '@prisma/client';
+import { assertDocumentNumberAvailable } from '../common/document-number.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { DoctorsService } from '../doctors/doctors.service';
 import { isEnterpriseDoctor } from '../doctors/doctor-account.util';
@@ -231,6 +232,17 @@ export class OrganizationsService {
       data.legalRepDocType = dto.legalRepDocType.trim() || null;
     if (dto.legalRepDocNumber !== undefined)
       data.legalRepDocNumber = dto.legalRepDocNumber.trim() || null;
+
+    if (dto.legalRepDocNumber !== undefined) {
+      const ownerDoctor = await this.prisma.doctor.findUnique({
+        where: { userId: BigInt(ownerUserId) },
+        select: { id: true },
+      });
+      await assertDocumentNumberAvailable(this.prisma, dto.legalRepDocNumber, {
+        organizationId: org.id,
+        doctorId: ownerDoctor?.id,
+      });
+    }
 
     await this.prisma.organization.update({
       where: { id: org.id },

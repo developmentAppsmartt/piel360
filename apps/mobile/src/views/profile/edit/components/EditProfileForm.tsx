@@ -22,8 +22,18 @@ import {
   patientsService,
   type UpdatePatientInput,
 } from '../../../../services/patients.service';
+import { PhoneOtpSection } from '../../../../components/auth/PhoneOtpSection';
+import {
+  combinePhoneDigits,
+  splitPhoneDigits,
+} from '../../../../lib/phone';
 import type { PatientAnalysisSummary } from '../../../../types/analysis';
 import type { PatientProfile } from '../../../../types/patient';
+import { chronologicalAgeYears } from '../../../../data/skinAge';
+import {
+  PatientActivityFields,
+  PatientBirthTypeField,
+} from '../../../doctor/create-patient/components/PatientLifestyleFields';
 import { createEditProfileStyles } from '../styles/editProfile.styles';
 
 function toDateInput(iso: string | null | undefined): string {
@@ -65,11 +75,19 @@ export function EditProfileForm({
     [branding.colors],
   );
 
+  const initialPhone = combinePhoneDigits(
+    patient.areaCode ?? '57',
+    patient.phone ?? '',
+  );
+  const initialSplit = splitPhoneDigits(initialPhone);
+
   const [firstName, setFirstName] = useState(patient.firstName ?? '');
   const [lastName, setLastName] = useState(patient.lastName ?? '');
   const [email, setEmail] = useState(patient.email ?? '');
-  const [areaCode, setAreaCode] = useState(patient.areaCode ?? '+57');
-  const [phone, setPhone] = useState(patient.phone ?? '');
+  const [phonePrefix, setPhonePrefix] = useState(initialSplit.prefix);
+  const [phoneNational, setPhoneNational] = useState(initialSplit.national);
+  const [originalPhoneDigits, setOriginalPhoneDigits] = useState(initialPhone);
+  const [phoneTicket, setPhoneTicket] = useState<string | null>(null);
   const [docType, setDocType] = useState(patient.docType ?? 'CC');
   const [docNumber, setDocNumber] = useState(patient.docNumber ?? '');
   const [birthDate, setBirthDate] = useState(toDateInput(patient.birthDate));
@@ -78,6 +96,14 @@ export function EditProfileForm({
   const [lat, setLat] = useState<number | null>(() => toCoord(patient.lat));
   const [lng, setLng] = useState<number | null>(() => toCoord(patient.lng));
   const [mascotType, setMascotType] = useState(patient.mascotType ?? '');
+  const [birthType, setBirthType] = useState(patient.birthType ?? '');
+  const [exerciseHabit, setExerciseHabit] = useState(patient.exerciseHabit ?? '');
+  const [exerciseDaysPerWeek, setExerciseDaysPerWeek] = useState(
+    patient.exerciseDaysPerWeek ?? '',
+  );
+  const [exerciseSessionDuration, setExerciseSessionDuration] = useState(
+    patient.exerciseSessionDuration ?? '',
+  );
   const [skinType, setSkinType] = useState(patient.skinType ?? '');
   const [fitzpatrickType, setFitzpatrickType] = useState(() =>
     resolveLatestFitzpatrickType(patient, analyses ?? []),
@@ -126,18 +152,30 @@ export function EditProfileForm({
       return;
     }
 
+    const fullPhone = combinePhoneDigits(phonePrefix, phoneNational);
+    const phoneChanged = fullPhone !== originalPhoneDigits;
+    if (phoneChanged && !phoneTicket) {
+      setError('Verifica tu nuevo celular con el código SMS antes de guardar.');
+      return;
+    }
+
     const input: UpdatePatientInput = {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
-      phone: optional(phone),
-      areaCode: optional(areaCode),
+      phone: optional(phoneNational),
+      areaCode: optional(`+${phonePrefix.replace(/\D/g, '')}`),
+      ...(phoneChanged && phoneTicket ? { phoneTicket } : {}),
       docType: optional(docType),
       docNumber: optional(docNumber),
       address: optional(address),
       ...(lat != null && lng != null ? { lat, lng } : {}),
       birthDate: optional(birthDate),
       gender: optional(gender),
+      birthType: optional(birthType),
       mascotType: optional(mascotType),
+      exerciseHabit: optional(exerciseHabit),
+      exerciseDaysPerWeek: optional(exerciseDaysPerWeek),
+      exerciseSessionDuration: optional(exerciseSessionDuration),
       skinType: optional(skinType),
       fitzpatrickType: optional(fitzpatrickType),
     };
@@ -148,6 +186,10 @@ export function EditProfileForm({
     setSubmitting(true);
     try {
       await onSubmit(input);
+      if (fullPhone) {
+        setOriginalPhoneDigits(fullPhone);
+        setPhoneTicket(null);
+      }
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -239,26 +281,21 @@ export function EditProfileForm({
           </View>
         </View>
 
-        <View style={styles.row}>
-          <View style={[styles.field, { width: 90 }]}>
-            <Text style={styles.label}>Cód. área</Text>
-            <TextInput
-              style={styles.input}
-              value={areaCode}
-              onChangeText={setAreaCode}
-              editable={!submitting}
-            />
-          </View>
-          <View style={[styles.field, styles.half]}>
-            <Text style={styles.label}>Teléfono</Text>
-            <TextInput
-              style={styles.input}
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-              editable={!submitting}
-            />
-          </View>
+        <View style={styles.field}>
+          <Text style={styles.label}>Celular</Text>
+          <PhoneOtpSection
+            prefix={phonePrefix}
+            national={phoneNational}
+            onPrefixChange={setPhonePrefix}
+            onNationalChange={setPhoneNational}
+            originalPhoneDigits={originalPhoneDigits}
+            phoneTicket={phoneTicket}
+            onPhoneTicketChange={setPhoneTicket}
+            mode="profile"
+            variant="card"
+            disabled={submitting}
+            primaryColor={primary}
+          />
         </View>
 
         <View style={styles.field}>
@@ -271,7 +308,30 @@ export function EditProfileForm({
             placeholderTextColor="#9CA3AF"
             editable={!submitting}
           />
+          {chronologicalAgeYears(birthDate || null, new Date()) != null ? (
+            <Text style={styles.hint}>
+              Edad cronológica:{' '}
+              {chronologicalAgeYears(birthDate, new Date())} años
+            </Text>
+          ) : (
+            <Text style={styles.hint}>
+              Se usa como edad cronológica en el análisis de salud de la piel.
+            </Text>
+          )}
         </View>
+
+        <PatientBirthTypeField
+          values={{
+            birthType,
+            exerciseHabit,
+            exerciseDaysPerWeek,
+            exerciseSessionDuration,
+          }}
+          onChange={(patch) => {
+            if (patch.birthType != null) setBirthType(patch.birthType);
+          }}
+          disabled={submitting}
+        />
 
         <View style={styles.field}>
           <Text style={styles.label}>Correo</Text>
@@ -333,6 +393,25 @@ export function EditProfileForm({
             })}
           </View>
         </View>
+
+        <PatientActivityFields
+          values={{
+            birthType,
+            exerciseHabit,
+            exerciseDaysPerWeek,
+            exerciseSessionDuration,
+          }}
+          onChange={(patch) => {
+            if (patch.exerciseHabit != null) setExerciseHabit(patch.exerciseHabit);
+            if (patch.exerciseDaysPerWeek != null) {
+              setExerciseDaysPerWeek(patch.exerciseDaysPerWeek);
+            }
+            if (patch.exerciseSessionDuration != null) {
+              setExerciseSessionDuration(patch.exerciseSessionDuration);
+            }
+          }}
+          disabled={submitting}
+        />
 
         <View style={styles.field}>
           <Text style={styles.label}>Tipo de piel</Text>

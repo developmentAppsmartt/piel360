@@ -11,6 +11,7 @@ import { Icons } from '../../components/icons';
 import { useBranding } from '../../context/BrandingContext';
 import { nosologiesService } from '../../services/nosologies.service';
 import type { NosologyCategory, NosologyItem } from '../../types/nosology';
+import { AppModuleChrome } from '../shared/AppModuleChrome';
 import { NosologySearchBar } from './components/NosologySearchBar';
 import {
   NosologyCategoryRow,
@@ -83,36 +84,8 @@ export function NosologyPicker({
   }
 
   return (
-    <View style={[styles.screen, { backgroundColor: branding.colors.primary }]}>
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 10) }]}>
-        <Pressable
-          style={styles.headerIconBtn}
-          onPress={goBackLevel}
-          accessibilityLabel="Volver"
-        >
-          <AppIcon icon={Icons.back} size={22} color={onDark} />
-        </Pressable>
-        <Text
-          style={{
-            flex: 1,
-            color: onDark,
-            fontWeight: '800',
-            fontSize: 16,
-            textAlign: 'center',
-          }}
-          numberOfLines={1}
-        >
-          {title}
-        </Text>
-        <Pressable
-          style={styles.headerIconBtn}
-          onPress={onCancel}
-          accessibilityLabel="Cerrar"
-        >
-          <AppIcon icon={Icons.close} size={20} color={onDark} />
-        </Pressable>
-      </View>
-
+    <View style={styles.screen}>
+      <AppModuleChrome showBack onBack={goBackLevel}>
       <View style={styles.body}>
         <View style={styles.titleRow}>
           {activeCategoryId ? (
@@ -125,7 +98,7 @@ export function NosologyPicker({
             </Pressable>
           ) : null}
           <Text style={styles.title}>
-            {activeCategory ? activeCategory.name : 'Lista de nosologías'}
+            {activeCategory ? activeCategory.name : title}
           </Text>
         </View>
         <Text style={styles.hint}>
@@ -204,6 +177,7 @@ export function NosologyPicker({
           </Pressable>
         </View>
       </View>
+      </AppModuleChrome>
     </View>
   );
 }

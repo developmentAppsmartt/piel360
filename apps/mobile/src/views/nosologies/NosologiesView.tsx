@@ -6,7 +6,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppIcon } from '../../components/AppIcon';
 import { Icons } from '../../components/icons';
@@ -16,6 +15,7 @@ import { nosologiesService } from '../../services/nosologies.service';
 import type { NosologyCategory } from '../../types/nosology';
 import { AccountDrawer } from '../doctor/patients/components/AccountDrawer';
 import { PaymentsView } from '../doctor/payments/PaymentsView';
+import { AppModuleChrome } from '../shared/AppModuleChrome';
 import { NosologySearchBar } from './components/NosologySearchBar';
 import {
   NosologyCategoryRow,
@@ -108,46 +108,11 @@ export function NosologiesView({
 
   return (
     <View style={styles.screen}>
-      <StatusBar style="light" />
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 10) }]}>
-        <View style={styles.headerLeft}>
-          <View
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: 'rgba(255,255,255,0.2)',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <AppIcon icon={Icons.account} size={20} color={onDark} />
-          </View>
-        </View>
-        <View style={styles.headerActions}>
-          <Pressable style={styles.headerIconBtn} accessibilityLabel="Premios">
-            <AppIcon icon={Icons.gift} size={20} color={onDark} />
-          </Pressable>
-          <Pressable
-            style={styles.headerIconBtn}
-            onPress={onOpenMessages}
-            accessibilityLabel="Mensajes"
-          >
-            <AppIcon icon={Icons.chat} size={20} color={onDark} />
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>1</Text>
-            </View>
-          </Pressable>
-          <Pressable
-            style={styles.headerIconBtn}
-            onPress={() => setMenuOpen(true)}
-            accessibilityLabel="Menú"
-          >
-            <AppIcon icon={Icons.menu} size={22} color={onDark} />
-          </Pressable>
-        </View>
-      </View>
-
+      <AppModuleChrome
+        onOpenMessages={onOpenMessages}
+        onOpenProfile={onOpenProfile}
+        onSubscription={() => setShowingPayments(true)}
+      >
       <View style={styles.body}>
         <View style={styles.titleRow}>
           {activeCategoryId ? (
@@ -247,12 +212,7 @@ export function NosologiesView({
           </Pressable>
         </View>
       </View>
-
-      <AccountDrawer
-        visible={menuOpen}
-        onClose={() => setMenuOpen(false)}
-        onSelect={handleMenuSelect}
-      />
+      </AppModuleChrome>
     </View>
   );
 }

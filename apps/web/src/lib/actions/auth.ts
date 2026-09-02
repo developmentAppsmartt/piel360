@@ -115,3 +115,53 @@ export async function logoutAction() {
   await clearSessionCookies();
   redirect("/");
 }
+
+/**
+ * Canjea el código de un solo uso del callback de Google OAuth
+ * (`/auth/google/callback?code=…`) por cookies de sesión.
+ */
+export async function exchangeGoogleCodeAction(
+  code: string,
+  expectedRole?: "doctor" | "patient",
+): Promise<AuthActionState> {
+  if (!code.trim()) {
+    return { error: "Falta el código de Google." };
+  }
+
+  let result: AuthResponse;
+  try {
+    result = await apiFetch<AuthResponse>("/auth/google/exchange", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    });
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.message };
+    return { error: "No se pudo completar el inicio con Google." };
+  }
+
+  await setSessionCookies(result.accessToken, result.refreshToken);
+
+  if (expectedRole === "doctor" && result.user.role === "empresa") {
+    await clearSessionCookies();
+    return {
+      error:
+        "Esta cuenta es empresarial. Usa el inicio de sesión para empresas.",
+    };
+  }
+  if (expectedRole === "patient" && result.user.role !== "patient") {
+    await clearSessionCookies();
+    return {
+      error:
+        "Esta cuenta no es de paciente. Usa el inicio de sesión correspondiente.",
+    };
+  }
+  if (expectedRole === "doctor" && result.user.role === "patient") {
+    await clearSessionCookies();
+    return {
+      error:
+        "Esta cuenta de Google ya está registrada como paciente. Usa el acceso de paciente o contacta soporte.",
+    };
+  }
+
+  redirect(homeForUser(result.user));
+}

@@ -26,6 +26,11 @@ export class UpdatePatientDto {
   @IsString()
   phone?: string;
 
+  /** Ticket OTP al cambiar o confirmar el celular. */
+  @IsOptional()
+  @IsString()
+  phoneTicket?: string;
+
   @IsOptional()
   @IsString()
   areaCode?: string;
@@ -68,6 +73,22 @@ export class UpdatePatientDto {
   @IsOptional()
   @IsString()
   mascotType?: string;
+
+  @IsOptional()
+  @IsString()
+  birthType?: string;
+
+  @IsOptional()
+  @IsString()
+  exerciseHabit?: string;
+
+  @IsOptional()
+  @IsString()
+  exerciseDaysPerWeek?: string;
+
+  @IsOptional()
+  @IsString()
+  exerciseSessionDuration?: string;
 
   @IsOptional()
   @IsString()

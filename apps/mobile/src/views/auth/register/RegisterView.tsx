@@ -4,13 +4,16 @@ import {
   Platform,
   ScrollView,
   Text,
+  View,
+  useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import type { AuthStackParamList } from '../../../navigation/RootNavigator';
 import { useBranding } from '../../../context/BrandingContext';
 import { BrandLogo } from '../../../components/BrandLogo';
+import { useDeviceLayout } from '../../../styles/deviceLayout';
 import { AuthBackground } from '../login/components/AuthBackground';
 import {
   RegisterForm,
@@ -39,6 +42,13 @@ export function RegisterView({ navigation }: Props) {
   const onStepChange = useCallback((next: RegisterStep) => {
     setStep(next);
   }, []);
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const { isTablet, isLandscape } = useDeviceLayout();
+  const scrollMinHeight =
+    isTablet && isLandscape
+      ? Math.max(height - insets.top - insets.bottom, 480)
+      : undefined;
 
   return (
     <AuthBackground>
@@ -49,15 +59,20 @@ export function RegisterView({ navigation }: Props) {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <ScrollView
-            contentContainerStyle={
-              isCard ? styles.scrollContentCard : styles.scrollContent
-            }
+            style={styles.scroll}
+            contentContainerStyle={[
+              isCard ? styles.scrollContentCard : styles.scrollContent,
+              { flexGrow: 1 },
+              scrollMinHeight != null ? { minHeight: scrollMinHeight } : null,
+            ]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
             {!isCard ? (
               <>
-                <BrandLogo height={44} style={styles.logo} />
+                <View style={styles.logoWrap}>
+                  <BrandLogo height={120} style={styles.logo} />
+                </View>
                 <Text style={styles.subtitle}>
                   Registro de paciente. Completa los pasos para crear tu cuenta.
                 </Text>

@@ -7,6 +7,7 @@ import {
   formatPatientPhone,
   patientDisplayName,
 } from './patient';
+import { formatSignedYears, chronologicalAgeYears } from '../../../data/skinAge';
 
 export type ProfileRowKind = 'nav' | 'toggle' | 'info';
 
@@ -92,6 +93,48 @@ function formatMascot(value: string | null | undefined): string {
     dog: 'Perro',
     cat: 'Gato',
     other: 'Otro',
+  };
+  return labels[value] ?? value;
+}
+
+function formatBirthType(value: string | null | undefined): string {
+  if (!value) return EMPTY;
+  const labels: Record<string, string> = {
+    normal: 'Nacimiento Normal',
+    cesarean: 'Nacimiento por Cesárea',
+  };
+  return labels[value] ?? value;
+}
+
+function formatExerciseHabit(value: string | null | undefined): string {
+  if (!value) return EMPTY;
+  const labels: Record<string, string> = {
+    regular: 'Sí, regularmente',
+    sometimes: 'A veces',
+    never: 'No, nunca',
+  };
+  return labels[value] ?? value;
+}
+
+function formatExerciseDays(value: string | null | undefined): string {
+  if (!value) return EMPTY;
+  const labels: Record<string, string> = {
+    '1-2': '1-2 días',
+    '3-4': '3-4 días',
+    '5-6': '5-6 días',
+    '7': '7 días',
+    none: 'Ninguno',
+  };
+  return labels[value] ?? value;
+}
+
+function formatExerciseDuration(value: string | null | undefined): string {
+  if (!value) return EMPTY;
+  const labels: Record<string, string> = {
+    lt30: 'Menos de 30 min',
+    '30-60': '30-60 min',
+    '60-90': '60-90 min',
+    gt90: 'Más de 90 min',
   };
   return labels[value] ?? value;
 }
@@ -321,6 +364,16 @@ function buildPatientSections(patient?: PatientProfileDisplay | null): ProfileSe
           icon: 'calendar',
         },
         {
+          id: 'chrono_age',
+          label: 'Edad cronológica',
+          value:
+            chronologicalAgeYears(patient?.birthDate, new Date()) != null
+              ? `${chronologicalAgeYears(patient?.birthDate, new Date())} años`
+              : EMPTY,
+          kind: 'info',
+          icon: 'calendar',
+        },
+        {
           id: 'gender',
           label: 'Género',
           value: formatGender(patient?.gender),
@@ -341,6 +394,41 @@ function buildPatientSections(patient?: PatientProfileDisplay | null): ProfileSe
       title: 'Información clínica',
       rows: [
         {
+          id: 'birth_type',
+          label: 'Tipo de nacimiento',
+          value: formatBirthType(patient?.birthType),
+          kind: 'nav',
+          icon: 'calendar',
+        },
+        {
+          id: 'mascot_type',
+          label: 'Mascotas',
+          value: formatMascot(patient?.mascotType),
+          kind: 'nav',
+          icon: 'paw',
+        },
+        {
+          id: 'exercise_habit',
+          label: 'Ejercicio regular',
+          value: formatExerciseHabit(patient?.exerciseHabit),
+          kind: 'nav',
+          icon: 'clock',
+        },
+        {
+          id: 'exercise_days',
+          label: 'Días de actividad',
+          value: formatExerciseDays(patient?.exerciseDaysPerWeek),
+          kind: 'info',
+          icon: 'calendar',
+        },
+        {
+          id: 'exercise_duration',
+          label: 'Duración de sesión',
+          value: formatExerciseDuration(patient?.exerciseSessionDuration),
+          kind: 'info',
+          icon: 'clock',
+        },
+        {
           id: 'skin_type',
           label: 'Tipo de piel',
           value: formatSkinType(patient?.skinType),
@@ -355,11 +443,23 @@ function buildPatientSections(patient?: PatientProfileDisplay | null): ProfileSe
           icon: 'skin',
         },
         {
-          id: 'mascot_type',
-          label: 'Mascotas',
-          value: formatMascot(patient?.mascotType),
-          kind: 'nav',
-          icon: 'paw',
+          id: 'skin_age',
+          label: 'Salud de la piel (años)',
+          value:
+            patient?.lastSkinAgeYears != null
+              ? `${Math.round(patient.lastSkinAgeYears)} años`
+              : EMPTY,
+          kind: 'info',
+          icon: 'skin',
+        },
+        {
+          id: 'skin_age_diff',
+          label: 'Diferencia de edad de piel',
+          value:
+            patient?.lastSkinAgeDifference != null
+              ? formatSignedYears(patient.lastSkinAgeDifference)
+              : EMPTY,
+          kind: 'info',
         },
         {
           id: 'survey',

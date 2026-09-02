@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ModuleCard } from "@/components/ui/module-card";
 import { RecommendationsPanel } from "@/components/analyses/recommendations-panel";
 import { youcamMetricCopy } from "@/lib/youcam-metric-copy";
@@ -17,6 +17,12 @@ import {
   type YoucamRawResponse,
 } from "@/lib/youcam-metrics";
 import { cn } from "@/lib/utils";
+import {
+  chronologicalAgeYears,
+  formatSignedYears,
+  skinAgeDifference,
+  skinAgeDifferenceMessage,
+} from "@/lib/skin-age";
 
 // hd_pore/hd_wrinkle/hd_skin_type traen varias regiones bajo el mismo `type`
 // (ej. hd_wrinkle: forehead/glabellar/crowfeet/periocular/nasolabial/marionette/whole).
@@ -25,6 +31,25 @@ import { cn } from "@/lib/utils";
 // por completo, colapsadas a un solo chip por `type`.
 const MULTI_REGION_TYPES = new Set(["hd_wrinkle", "hd_pore", "hd_skin_type"]);
 const DEFAULT_REGION = "whole";
+const MIN_IMAGE_ZOOM = 1;
+const MAX_IMAGE_ZOOM = 2.5;
+const IMAGE_ZOOM_STEP = 0.25;
+const ZERO_PAN = { x: 0, y: 0 };
+
+function clampImagePan(
+  pan: { x: number; y: number },
+  zoom: number,
+  width: number,
+  height: number,
+) {
+  if (zoom <= MIN_IMAGE_ZOOM || width <= 0 || height <= 0) return ZERO_PAN;
+  const maxX = (width * zoom - width) / 2;
+  const maxY = (height * zoom - height) / 2;
+  return {
+    x: Math.min(maxX, Math.max(-maxX, pan.x)),
+    y: Math.min(maxY, Math.max(-maxY, pan.y)),
+  };
+}
 
 // Capas superpuestas en el chip "Salud de la piel" (overview) — ojeras,
 // firmeza, enrojecimiento, bolsas, surco, poros/manchas/arrugas general.
@@ -187,7 +212,13 @@ export function YoucamResultsSection({
     [analysis.aiRawResponse],
   );
   const overall = youcamOverallScore(metrics);
-  const skinAge = youcamSkinAge(metrics);
+  const skinAge = analysis.skinAgeYears ?? youcamSkinAge(metrics);
+  const chronologicalAge =
+    analysis.chronologicalAgeYears ??
+    chronologicalAgeYears(analysis.patient?.birthDate, analysis.createdAt);
+  const ageDiff =
+    analysis.skinAgeDifference ??
+    skinAgeDifference(skinAge, chronologicalAge);
   const skinType = youcamSkinType(metrics);
   const [preferRaw, setPreferRaw] = useState(false);
   const chips = useMemo(
@@ -201,6 +232,16 @@ export function YoucamResultsSection({
 
   const [selectedType, setSelectedType] = useState("overview");
   const [selectedRegion, setSelectedRegion] = useState(DEFAULT_REGION);
+  const [imageZoom, setImageZoom] = useState(MIN_IMAGE_ZOOM);
+  const [imagePan, setImagePan] = useState(ZERO_PAN);
+  const viewerRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+  const lastPos = useRef({ x: 0, y: 0 });
+  const panRef = useRef(imagePan);
+  const zoomRef = useRef(imageZoom);
+  panRef.current = imagePan;
+  zoomRef.current = imageZoom;
+  const canPan = imageZoom > MIN_IMAGE_ZOOM;
   const selected = chips.find((c) => c.type === selectedType) ?? chips[0] ?? null;
   const activeRegion = selected?.regions?.find((r) => r.region === selectedRegion) ?? null;
   const isOverview = selected?.type === "overview";
@@ -220,28 +261,117 @@ export function YoucamResultsSection({
     setSelectedRegion(DEFAULT_REGION);
   }
 
+  function changeImageZoom(next: number) {
+    const zoom = Math.min(
+      MAX_IMAGE_ZOOM,
+      Math.max(MIN_IMAGE_ZOOM, +next.toFixed(2)),
+    );
+    const rect = viewerRef.current?.getBoundingClientRect();
+    setImageZoom(zoom);
+    setImagePan((pan) =>
+      clampImagePan(
+        zoom <= MIN_IMAGE_ZOOM ? ZERO_PAN : pan,
+        zoom,
+        rect?.width ?? 0,
+        rect?.height ?? 0,
+      ),
+    );
+  }
+
+  function onViewerPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (!canPan || e.button !== 0) return;
+    dragging.current = true;
+    lastPos.current = { x: e.clientX, y: e.clientY };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+
+  function onViewerPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!dragging.current) return;
+    const dx = e.clientX - lastPos.current.x;
+    const dy = e.clientY - lastPos.current.y;
+    lastPos.current = { x: e.clientX, y: e.clientY };
+    const rect = viewerRef.current?.getBoundingClientRect();
+    setImagePan(
+      clampImagePan(
+        { x: panRef.current.x + dx, y: panRef.current.y + dy },
+        zoomRef.current,
+        rect?.width ?? 0,
+        rect?.height ?? 0,
+      ),
+    );
+  }
+
+  function endViewerDrag(e: React.PointerEvent<HTMLDivElement>) {
+    if (!dragging.current) return;
+    dragging.current = false;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  }
+
+  const scorePct =
+    overall != null ? Math.max(0, Math.min(100, overall)) : 0;
+  const diffClass =
+    ageDiff == null
+      ? "text-muted-foreground"
+      : ageDiff < 0
+        ? "text-emerald-600 dark:text-emerald-400"
+        : ageDiff > 0
+          ? "text-red-600 dark:text-red-400"
+          : "text-muted-foreground";
+
   return (
     <div className="space-y-4">
       <ModuleCard className="space-y-2 bg-sky-50/80 p-4 dark:bg-sky-950/20">
         <p className="text-sm">
           Salud de la piel (años):{" "}
+          <span className="font-semibold text-primary">
+            {skinAge != null ? `${Math.round(skinAge)} años` : "—"}
+          </span>
           <span className="font-semibold text-muted-foreground">
-            {skinAge != null ? Math.round(skinAge) : "—"}
+            {" "}
+            (Edad cronológica):{" "}
+            {chronologicalAge != null ? `${chronologicalAge} años` : "—"}
           </span>
         </p>
         <p className="text-sm">
           Puntaje de la piel:{" "}
           <span className="font-semibold text-muted-foreground">
-            {overall != null ? Math.round(overall) : "—"}
+            {overall != null ? `${Math.round(overall)} / 100` : "—"}
           </span>
         </p>
         {overall != null ? (
-          <div className="h-2 overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-primary transition-all"
-              style={{ width: `${Math.max(0, Math.min(100, overall))}%` }}
-            />
+          <div className="space-y-1">
+            <div className="relative h-4">
+              {scorePct < 96 ? (
+                <span
+                  className="absolute top-0 -translate-x-1/2 text-[11px] font-bold text-primary"
+                  style={{ left: `${scorePct}%` }}
+                >
+                  {Math.round(overall)}
+                </span>
+              ) : null}
+              <span className="absolute top-0 right-0 text-[11px] font-bold text-muted-foreground">
+                100
+              </span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${scorePct}%` }}
+              />
+            </div>
           </div>
+        ) : null}
+        {ageDiff != null ? (
+          <>
+            <p className={cn("text-sm font-semibold", diffClass)}>
+              Diferencia: {formatSignedYears(ageDiff)}
+            </p>
+            <p className={cn("text-sm font-medium", diffClass)}>
+              {skinAgeDifferenceMessage(ageDiff)}
+            </p>
+          </>
         ) : null}
         <p className="text-sm">
           Tipo de piel:{" "}
@@ -252,7 +382,23 @@ export function YoucamResultsSection({
       </ModuleCard>
 
       <ModuleCard className="overflow-hidden p-0">
-        <div className="relative aspect-[4/5] max-h-[420px] w-full bg-muted">
+        <div
+          ref={viewerRef}
+          className={cn(
+            "relative aspect-[4/5] max-h-[420px] w-full overflow-hidden bg-muted touch-none select-none",
+            canPan ? "cursor-grab active:cursor-grabbing" : "cursor-default",
+          )}
+          onPointerDown={onViewerPointerDown}
+          onPointerMove={onViewerPointerMove}
+          onPointerUp={endViewerDrag}
+          onPointerCancel={endViewerDrag}
+        >
+          <div
+            className="absolute inset-0 origin-center"
+            style={{
+              transform: `translate(${imagePan.x}px, ${imagePan.y}px) scale(${imageZoom})`,
+            }}
+          >
           {showBase ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -293,8 +439,33 @@ export function YoucamResultsSection({
               las métricas y el reporte.
             </div>
           )}
+          </div>
+          {showBase || maskUrl ? (
+            <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
+              <button
+                type="button"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => changeImageZoom(imageZoom + IMAGE_ZOOM_STEP)}
+                disabled={imageZoom >= MAX_IMAGE_ZOOM}
+                aria-label="Acercar imagen"
+                className="flex size-9 items-center justify-center rounded-full border border-black/10 bg-white/90 text-lg font-bold text-foreground shadow-sm disabled:opacity-40"
+              >
+                +
+              </button>
+              <button
+                type="button"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => changeImageZoom(imageZoom - IMAGE_ZOOM_STEP)}
+                disabled={imageZoom <= MIN_IMAGE_ZOOM}
+                aria-label="Alejar imagen"
+                className="flex size-9 items-center justify-center rounded-full border border-black/10 bg-white/90 text-lg font-bold text-foreground shadow-sm disabled:opacity-40"
+              >
+                −
+              </button>
+            </div>
+          ) : null}
           {badgeLabel ? (
-            <span className="absolute bottom-3 left-3 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+            <span className="absolute bottom-3 left-3 z-10 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
               {badgeLabel}
             </span>
           ) : null}

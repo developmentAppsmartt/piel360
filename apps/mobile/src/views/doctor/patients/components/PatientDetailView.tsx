@@ -31,6 +31,7 @@ import {
 import { subscriptionsService } from '../../../../services/subscriptions.service';
 import type { PatientAnalysisSummary } from '../../../../types/analysis';
 import type { PatientProfile } from '../../../../types/patient';
+import { formatSignedYears } from '../../../../data/skinAge';
 import type { Subscription } from '../../../../types/subscription';
 import {
   formatPatientDocument,
@@ -327,8 +328,18 @@ export function PatientDetailView({
                     {doc ? `  ·  ${doc}` : ''}
                   </Text>
                   <Text style={styles.meta}>
-                    Edad: {ageFromBirth(patient.birthDate)}
+                    Edad cronológica: {ageFromBirth(patient.birthDate)}
+                    {ageFromBirth(patient.birthDate) !== '—' ? ' años' : ''}
                   </Text>
+                  {patient.lastSkinAgeYears != null ? (
+                    <Text style={styles.meta}>
+                      Salud de la piel:{' '}
+                      {Math.round(patient.lastSkinAgeYears)} años
+                      {patient.lastSkinAgeDifference != null
+                        ? `  ·  Diferencia: ${formatSignedYears(patient.lastSkinAgeDifference)}`
+                        : ''}
+                    </Text>
+                  ) : null}
 
                   <View style={styles.newAnalysisSection}>
                     <Text style={styles.newAnalysisHint}>Nuevo análisis</Text>

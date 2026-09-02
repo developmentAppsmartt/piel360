@@ -65,7 +65,7 @@ function TypeBadge({ doctor }: { doctor: Doctor }) {
       className={cn(
         "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold",
         enterprise
-          ? "bg-violet-50 text-violet-700"
+          ? "bg-primary/10 text-primary"
           : "bg-sky-50 text-sky-700",
       )}
     >

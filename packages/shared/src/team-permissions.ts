@@ -11,9 +11,14 @@ export const TEAM_PERMISSION_CLINICAL_MODULES: Record<
   patients: ["clinical.patients"],
   analyses: ["clinical.analyses"],
   products: ["clinical.products"],
-  routines: ["clinical.routines"],
+  routines: ["clinical.routines", "clinical.skin_age_rules"],
   treatments: ["clinical.routines"],
-  billing: ["clinical.plans", "clinical.billing", "clinical.consumption"],
+  billing: [
+    "clinical.plans",
+    "clinical.billing",
+    "clinical.consumption",
+    "clinical.email_templates",
+  ],
   reports: ["clinical.reports"],
 };
 
@@ -75,6 +80,13 @@ export function teamPermissionAllowsNavHref(
   if (href.startsWith("/doctor/productos")) {
     return teamPermissions?.includes("products") ?? false;
   }
+  if (href.startsWith("/doctor/reglas-edad-piel")) {
+    return (
+      (teamPermissions?.includes("routines") ||
+        teamPermissions?.includes("treatments")) ??
+      false
+    );
+  }
   if (href.startsWith("/doctor/rutinas")) {
     return (
       (teamPermissions?.includes("routines") ||
@@ -85,7 +97,8 @@ export function teamPermissionAllowsNavHref(
   if (
     href.startsWith("/doctor/planes") ||
     href.startsWith("/doctor/facturacion") ||
-    href.startsWith("/doctor/consumo")
+    href.startsWith("/doctor/consumo") ||
+    href.startsWith("/doctor/plantillas-correo")
   ) {
     return teamPermissions?.includes("billing") ?? false;
   }

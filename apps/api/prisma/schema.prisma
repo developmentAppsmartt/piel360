@@ -129,6 +129,9 @@ model Doctor {
   routines            Routine[]
   treatmentCategories TreatmentCategory[]
   treatments          Treatment[]
+  skinAgeRules        SkinAgeRule[]
+  emailTemplates      EmailTemplate[]
+  emailTemplateVariables EmailTemplateVariable[]
 
   @@map("doctors")
 }
@@ -229,8 +232,23 @@ model Patient {
   docNumber         String?   @map("doc_number")
   address           String?
   mascotType        String?   @map("mascot_type")
+  /** normal | cesarean */
+  birthType         String?   @map("birth_type")
+  /** regular | sometimes | never */
+  exerciseHabit     String?   @map("exercise_habit")
+  /** 1-2 | 3-4 | 5-6 | 7 | none */
+  exerciseDaysPerWeek String? @map("exercise_days_per_week")
+  /** lt30 | 30-60 | 60-90 | gt90 */
+  exerciseSessionDuration String? @map("exercise_session_duration")
   skinType          String?   @map("skin_type")
   fitzpatrickType   String?   @map("fitzpatrick_type")
+  /** Último snapshot YouCam: salud de la piel (años). */
+  lastSkinAgeYears          Float?    @map("last_skin_age_years")
+  /** Edad cronológica al momento de ese análisis. */
+  lastChronologicalAgeYears Int?      @map("last_chronological_age_years")
+  /** saludPiel − edadCronológica (negativo = más joven). */
+  lastSkinAgeDifference     Int?      @map("last_skin_age_difference")
+  lastSkinAgeAt             DateTime? @map("last_skin_age_at")
   lat               Decimal?  @db.Decimal(10, 8)
   lng               Decimal?  @db.Decimal(11, 8)
   regions           Json?
@@ -296,6 +314,12 @@ model Analysis {
   /** Visible para el paciente vinculado (Patient.userId) en su home/historial. */
   sharedWithPatient Boolean   @default(false) @map("shared_with_patient")
   sharedAt          DateTime? @map("shared_at")
+  /** Salud de la piel (años) YouCam, redondeada. */
+  skinAgeYears          Float? @map("skin_age_years")
+  /** Edad cronológica del paciente en la fecha del análisis. */
+  chronologicalAgeYears Int?   @map("chronological_age_years")
+  /** skinAgeYears − chronologicalAgeYears (negativo = piel más joven). */
+  skinAgeDifference     Int?   @map("skin_age_difference")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
@@ -815,6 +839,72 @@ model TreatmentProduct {
   @@index([treatmentId])
   @@index([productId])
   @@map("treatment_products")
+}
+
+/** Reglas inteligentes: edad de piel vs edad cronológica del paciente.
+ * diferencia = edadPiel − edadCronológica (negativo = piel más joven). */
+model SkinAgeRule {
+  id                   BigInt   @id @default(autoincrement())
+  doctorId             BigInt   @map("doctor_id")
+  label                String
+  description          String?  @db.Text
+  minDifference        Int      @map("min_difference")
+  maxDifference        Int      @map("max_difference")
+  /** low | medium | high | very_high */
+  priority             String   @default("medium")
+  /** green | blue | orange | amber | red — decoración UI */
+  colorKey             String   @default("blue") @map("color_key")
+  sortOrder            Int      @default(0) @map("sort_order")
+  isActive             Boolean  @default(true) @map("is_active")
+  routineIds           Json     @default("[]") @map("routine_ids")
+  treatmentIds         Json     @default("[]") @map("treatment_ids")
+  productGroupIds      Json     @default("[]") @map("product_group_ids")
+  supplementGroupIds   Json     @default("[]") @map("supplement_group_ids")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId, sortOrder])
+  @@map("skin_age_rules")
+}
+
+/** Plantillas de correo del profesional/empresa (bienvenida, planes, informes…). */
+model EmailTemplate {
+  id        BigInt   @id @default(autoincrement())
+  doctorId  BigInt   @map("doctor_id")
+  /** welcome | plan_acquired | report_ready | custom */
+  kind      String
+  name      String
+  subject   String
+  preheader String?  @db.Text
+  bodyHtml  String   @map("body_html") @db.Text
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId])
+  @@map("email_templates")
+}
+
+/** Variables personalizadas de plantillas de correo (además de las del sistema). */
+model EmailTemplateVariable {
+  id          BigInt   @id @default(autoincrement())
+  doctorId    BigInt   @map("doctor_id")
+  /** Token insertable, p. ej. {promo_code} */
+  key         String
+  description String
+  sampleValue String?  @map("sample_value")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@unique([doctorId, key])
+  @@index([doctorId])
+  @@map("email_template_variables")
 }
 
 /** Recargas manuales de la bolsa global de unidades (p. ej. Skiniver). */

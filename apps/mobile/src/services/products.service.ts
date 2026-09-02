@@ -17,6 +17,7 @@ export type CatalogProduct = {
   productDescription: string | null;
   productUrl: string | null;
   imageUrl: string | null;
+  productType?: 'product' | 'supplement';
   enablePrice: boolean;
   pricingType: 'fixed' | 'variable' | null;
   currencyCode: string;

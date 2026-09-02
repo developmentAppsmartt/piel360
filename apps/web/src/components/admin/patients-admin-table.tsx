@@ -50,6 +50,21 @@ const columns = [
     header: "Fototipo",
     cell: (info) => info.getValue() ?? "—",
   }),
+  columnHelper.accessor("lastSkinAgeYears", {
+    header: "Salud de la piel",
+    cell: (info) => {
+      const years = info.getValue();
+      return years != null ? `${Math.round(years)} años` : "—";
+    },
+  }),
+  columnHelper.accessor("lastSkinAgeDifference", {
+    header: "Diferencia",
+    cell: (info) => {
+      const diff = info.getValue();
+      if (diff == null) return "—";
+      return diff > 0 ? `+${diff}` : String(diff);
+    },
+  }),
   columnHelper.accessor("createdAt", {
     header: "Creado el",
     cell: (info) => new Date(info.getValue()).toLocaleDateString("es-CO"),

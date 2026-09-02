@@ -24,6 +24,7 @@ import {
   XCircle,
   GraduationCap,
   Briefcase,
+  Sparkles,
 } from "lucide-react";
 import type { NavItem } from "@/components/layout/nav-items";
 import { adminNavPermission } from "@/lib/admin-panel-permissions";
@@ -124,7 +125,7 @@ export const adminNav: NavItem[] = [
     permissionsAny: adminNavPermission("admin.billing"),
   },
   {
-    label: "Doctores",
+    label: "Profesionales",
     href: "/admin/doctores",
     icon: Stethoscope,
     permissionsAny: adminNavPermission("admin.doctors"),
@@ -146,6 +147,12 @@ export const adminNav: NavItem[] = [
     href: "/admin/consumo",
     icon: BarChart3,
     permissionsAny: adminNavPermission("admin.analysis_consumption"),
+  },
+  {
+    label: "Reglas por edad de piel",
+    href: "/admin/reglas-edad-piel",
+    icon: Sparkles,
+    permissionsAny: adminNavPermission("admin.skin_age_rules"),
   },
   {
     label: "Configuración",

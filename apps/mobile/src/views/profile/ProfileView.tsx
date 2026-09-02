@@ -8,7 +8,6 @@ import {
   View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../../context/AuthContext';
 import { useBranding } from '../../context/BrandingContext';
 import { ApiError } from '../../services/api.client';
@@ -27,15 +26,16 @@ import { isClinicalPanelRole, isDoctorVerificationActive } from '../../types/aut
 import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { buildProfileContent } from './data/profileContent';
 import { EditProfileView } from './edit/EditProfileView';
-import { ProfileHeaderBar } from './components/ProfileHeaderBar';
 import { ProfileIdentity } from './components/ProfileIdentity';
 import { ProfileSection } from './components/ProfileSection';
 import { createProfileStyles } from './styles/profile.styles';
+import { AppModuleChrome } from '../shared/AppModuleChrome';
 
 type EditDoctorViewComponent = typeof import('../doctor/profile/EditDoctorView').EditDoctorView;
 
 type ProfileViewProps = {
   onBack?: () => void;
+  onOpenMessages?: () => void;
 };
 
 function initialToggles(
@@ -76,7 +76,7 @@ const DOCTOR_EDITABLE = new Set([
   'education',
 ]);
 
-export function ProfileView({ onBack }: ProfileViewProps) {
+export function ProfileView({ onBack, onOpenMessages }: ProfileViewProps) {
   const { user, logout, patchUser } = useAuth();
   const branding = useBranding();
   const styles = useMemo(
@@ -286,13 +286,22 @@ export function ProfileView({ onBack }: ProfileViewProps) {
   if (editing && isDoctor && doctor) {
     if (!EditDoctorView) {
       return (
-        <View
-          style={[
-            styles.screen,
-            { alignItems: 'center', justifyContent: 'center' },
-          ]}
-        >
-          <ActivityIndicator size="large" color={branding.colors.primary} />
+        <View style={styles.screen}>
+          <AppModuleChrome
+            showBack
+            onBack={() => setEditing(false)}
+            onOpenMessages={onOpenMessages}
+          >
+            <View
+              style={{
+                flex: 1,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <ActivityIndicator size="large" color={branding.colors.primary} />
+            </View>
+          </AppModuleChrome>
         </View>
       );
     }
@@ -301,6 +310,7 @@ export function ProfileView({ onBack }: ProfileViewProps) {
         doctor={doctor}
         onBack={() => setEditing(false)}
         onSave={handleSaveDoctor}
+        onOpenMessages={onOpenMessages}
       />
     );
   }
@@ -311,27 +321,38 @@ export function ProfileView({ onBack }: ProfileViewProps) {
         patient={patient}
         onBack={() => setEditing(false)}
         onSave={handleSavePatient}
+        onOpenMessages={onOpenMessages}
       />
     );
   }
 
   if (loading) {
     return (
-      <View
-        style={[
-          styles.screen,
-          { alignItems: 'center', justifyContent: 'center' },
-        ]}
-      >
-        <ActivityIndicator size="large" color={branding.colors.primary} />
+      <View style={styles.screen}>
+        <AppModuleChrome
+          showBack={Boolean(onBack)}
+          onBack={onBack}
+          onOpenMessages={onOpenMessages}
+          onConfig={handleEdit}
+        >
+          <View
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <ActivityIndicator size="large" color={branding.colors.primary} />
+          </View>
+        </AppModuleChrome>
       </View>
     );
   }
 
   return (
     <View style={styles.screen}>
-      <StatusBar style="light" />
-      <ProfileHeaderBar styles={styles} onBack={onBack} onEdit={handleEdit} />
+      <AppModuleChrome
+        showBack={Boolean(onBack)}
+        onBack={onBack}
+        onOpenMessages={onOpenMessages}
+        onConfig={handleEdit}
+      >
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -396,6 +417,7 @@ export function ProfileView({ onBack }: ProfileViewProps) {
           </Pressable>
         </View>
       </ScrollView>
+      </AppModuleChrome>
     </View>
   );
 }

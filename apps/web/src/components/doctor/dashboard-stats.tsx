@@ -38,8 +38,8 @@ export function DashboardStats({
       hint: "Ver pacientes",
       href: "/doctor/pacientes",
       icon: Users,
-      accent: "text-violet-600",
-      iconBg: "bg-violet-100 text-violet-600",
+      accent: "text-primary",
+      iconBg: "bg-primary/10 text-primary",
     },
     {
       label: "Pendientes de confirmar",

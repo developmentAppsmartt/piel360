@@ -20,7 +20,7 @@ const SCOPE_LABELS: Record<PermissionScope, string> = {
 };
 
 const SCOPE_STYLES: Record<PermissionScope, string> = {
-  admin_menu: "bg-violet-50 text-violet-700",
+  admin_menu: "bg-primary/10 text-primary",
   clinical_menu: "bg-sky-50 text-sky-700",
   api_only: "bg-muted text-muted-foreground",
 };

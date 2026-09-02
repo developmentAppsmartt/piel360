@@ -31,9 +31,9 @@ export type AppBranding = {
 export const DEFAULT_BRANDING: AppBranding = {
   appName: 'Piel360',
   colors: {
-    primary: '#6C4EE3',
-    primaryDark: '#5538C9',
-    secondary: '#2F6FED',
+    primary: '#1E5A9E',
+    primaryDark: '#0F3D73',
+    secondary: '#3B82C4',
     text: '#1A1A1A',
     textOnDark: '#FFFFFF',
     muted: '#6B7280',
@@ -42,6 +42,6 @@ export const DEFAULT_BRANDING: AppBranding = {
     inputBackground: 'rgba(255,255,255,0.94)',
     overlay: 'rgba(11, 10, 18, 0.55)',
   },
-  loginHeroImage: require('../../assets/login-hero.png'),
+  loginHeroImage: require('../../assets/login.png'),
   logoImage: require('../../assets/logo-piel360.png'),
 };

@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { LayeredAnalysisImage } from "@/components/patients/layered-analysis-image";
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 3;
@@ -92,14 +93,16 @@ function PanZoomViewport({
 function ZoomablePane({
   label,
   date,
-  url,
+  photoUrl,
+  maskUrl,
   zoom,
   pan,
   onPanChange,
 }: {
   label: string;
   date?: string;
-  url: string | null;
+  photoUrl: string | null;
+  maskUrl: string | null;
   zoom: number;
   pan: Pan;
   onPanChange: (pan: Pan) => void;
@@ -119,17 +122,13 @@ function ZoomablePane({
         onPanChange={onPanChange}
         className="relative min-h-60 flex-1 rounded-xl border border-border bg-muted/20"
       >
-        {url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={url}
-            alt={label}
-            draggable={false}
-            className="pointer-events-none max-h-[55vh] max-w-full object-contain"
-          />
-        ) : (
-          <p className="text-sm text-muted-foreground">Sin imagen</p>
-        )}
+        <LayeredAnalysisImage
+          photoUrl={photoUrl}
+          maskUrl={maskUrl}
+          alt={label}
+          fit="contain"
+          className="size-full min-h-60"
+        />
       </PanZoomViewport>
     </div>
   );
@@ -140,8 +139,10 @@ export function ComparisonImageModal({
   onOpenChange,
   title = "Comparación de imágenes",
   subtitle,
-  initialUrl,
-  currentUrl,
+  initialPhotoUrl,
+  initialMaskUrl,
+  currentPhotoUrl,
+  currentMaskUrl,
   initialLabel = "Inicial",
   currentLabel = "Actual",
   initialDate,
@@ -152,8 +153,10 @@ export function ComparisonImageModal({
   onOpenChange: (open: boolean) => void;
   title?: string;
   subtitle?: string;
-  initialUrl: string | null;
-  currentUrl: string | null;
+  initialPhotoUrl: string | null;
+  initialMaskUrl: string | null;
+  currentPhotoUrl: string | null;
+  currentMaskUrl: string | null;
   initialLabel?: string;
   currentLabel?: string;
   initialDate?: string;
@@ -254,7 +257,8 @@ export function ComparisonImageModal({
             <ZoomablePane
               label={initialLabel}
               date={initialDate}
-              url={initialUrl}
+              photoUrl={initialPhotoUrl}
+              maskUrl={initialMaskUrl}
               zoom={zoom}
               pan={initialPan}
               onPanChange={setInitialPan}
@@ -262,7 +266,8 @@ export function ComparisonImageModal({
             <ZoomablePane
               label={currentLabel}
               date={currentDate}
-              url={currentUrl}
+              photoUrl={currentPhotoUrl}
+              maskUrl={currentMaskUrl}
               zoom={zoom}
               pan={currentPan}
               onPanChange={setCurrentPan}
@@ -281,27 +286,23 @@ export function ComparisonImageModal({
               className="relative mx-auto aspect-[3/4] w-full max-w-md rounded-xl border border-border bg-muted/20"
             >
               <div className="relative size-full max-w-md">
-                {initialUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={initialUrl}
-                    alt={initialLabel}
-                    draggable={false}
-                    className="pointer-events-none absolute inset-0 size-full object-contain"
-                  />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-                    Sin imagen inicial
+                <LayeredAnalysisImage
+                  photoUrl={initialPhotoUrl}
+                  maskUrl={initialMaskUrl}
+                  alt={initialLabel}
+                  fit="contain"
+                  className="absolute inset-0 size-full"
+                />
+                {currentPhotoUrl || currentMaskUrl ? (
+                  <div className="absolute inset-0 opacity-55 mix-blend-multiply">
+                    <LayeredAnalysisImage
+                      photoUrl={currentPhotoUrl}
+                      maskUrl={currentMaskUrl}
+                      alt={currentLabel}
+                      fit="contain"
+                      className="size-full bg-transparent"
+                    />
                   </div>
-                )}
-                {currentUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={currentUrl}
-                    alt={currentLabel}
-                    draggable={false}
-                    className="pointer-events-none absolute inset-0 size-full object-contain opacity-55 mix-blend-multiply"
-                  />
                 ) : null}
               </div>
             </PanZoomViewport>
@@ -313,8 +314,10 @@ export function ComparisonImageModal({
 }
 
 export type ComparisonImageModalState = {
-  initialUrl: string | null;
-  currentUrl: string | null;
+  initialPhotoUrl: string | null;
+  initialMaskUrl: string | null;
+  currentPhotoUrl: string | null;
+  currentMaskUrl: string | null;
   initialLabel?: string;
   currentLabel?: string;
   initialDate?: string;

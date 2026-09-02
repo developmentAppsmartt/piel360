@@ -27,6 +27,11 @@ export class UpdateDoctorDto {
   })
   phone?: string;
 
+  /** Ticket OTP emitido tras verificar SMS cuando el celular cambia. */
+  @IsOptional()
+  @IsString()
+  phoneTicket?: string;
+
   @IsOptional()
   @IsString()
   docType?: string;

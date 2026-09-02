@@ -8,6 +8,7 @@ export type UpdatePatientInput = {
   email?: string;
   phone?: string;
   areaCode?: string;
+  phoneTicket?: string;
   docType?: string;
   docNumber?: string;
   address?: string;
@@ -16,6 +17,10 @@ export type UpdatePatientInput = {
   birthDate?: string;
   gender?: string;
   mascotType?: string;
+  birthType?: string;
+  exerciseHabit?: string;
+  exerciseDaysPerWeek?: string;
+  exerciseSessionDuration?: string;
   skinType?: string;
   fitzpatrickType?: string;
 };
@@ -35,6 +40,10 @@ export type CreatePatientInput = {
   birthDate?: string;
   gender?: string;
   mascotType?: string;
+  birthType?: string;
+  exerciseHabit?: string;
+  exerciseDaysPerWeek?: string;
+  exerciseSessionDuration?: string;
   skinType?: string;
   fitzpatrickType?: string;
 };

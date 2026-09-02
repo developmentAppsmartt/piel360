@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
+import { assertDocumentNumberAvailable } from '../common/document-number.util';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateModeratorDto } from './dto/create-moderator.dto';
 
@@ -36,6 +37,7 @@ export class ModeratorsService {
 
     const password = await argon2.hash(dto.password);
     const phone = dto.phone?.trim() || null;
+    await assertDocumentNumberAvailable(this.prisma, dto.docNumber);
 
     const user = await this.prisma.user.create({
       data: {

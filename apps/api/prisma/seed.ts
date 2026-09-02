@@ -1,7 +1,7 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
-import { ADMIN_COMPONENTS, MONITOR_COMPONENT_SLUGS, EMPRESA_ROLE_PERMISSIONS, CLINICAL_COMPONENTS, EMPRESA_CLINICAL_COMPONENT_SLUGS } from '@piel360/shared';
+import { ADMIN_COMPONENTS, MONITOR_COMPONENT_SLUGS, EMPRESA_ROLE_PERMISSIONS, CLINICAL_COMPONENTS, EMPRESA_CLINICAL_COMPONENT_SLUGS, PROFESSIONAL_ROLE_API_PERMISSIONS, PROFESSIONAL_CLINICAL_COMPONENT_SLUGS } from '@piel360/shared';
 
 // Prisma 7: el cliente necesita un driver adapter explícito (ver src/prisma/prisma.service.ts).
 const adapter = new PrismaPg({
@@ -379,10 +379,11 @@ async function main() {
 
   for (const [index, role] of specialtyRoles.entries()) {
     const item = specialtyDefinitions[index];
-    await ensureRolePermissions(
-      role.id,
-      item.perms.map((name) => ({ name })),
-    );
+    await ensureRolePermissions(role.id, [
+      ...PROFESSIONAL_ROLE_API_PERMISSIONS.map((name) => ({ name })),
+      ...PROFESSIONAL_CLINICAL_COMPONENT_SLUGS.map((slug) => ({ slug })),
+      ...item.perms.map((name) => ({ name })),
+    ]);
 
     await prisma.doctorSpecialty.upsert({
       where: { slug: item.slug },

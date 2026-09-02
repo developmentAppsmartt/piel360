@@ -47,10 +47,15 @@ export function resolveUserPrimaryPanel(
   permissions: string[],
   options?: { hasPatientProfile?: boolean },
 ): PrimaryPanel {
+  const activeRoles = roles.filter((role) => role.isActive);
+  const roleNames = activeRoles.map((role) => role.name);
+  if (roleNames.includes("superadmin") || roleNames.includes("monitor")) {
+    return "admin";
+  }
+
   const inferred = inferPrimaryPanelFromPermissions(permissions);
   if (inferred) return inferred;
 
-  const activeRoles = roles.filter((role) => role.isActive);
   const panels = activeRoles
     .map((role) => role.primaryPanel)
     .filter(isPrimaryPanel);

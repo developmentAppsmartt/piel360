@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { Calendar, ChevronDown, Mail, Phone, Plus, User } from "lucide-react";
+import { Calendar, Mail, Pencil, Phone, Plus, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ModuleCard } from "@/components/ui/module-card";
 import type { Patient } from "@/lib/queries/patients";
+import { chronologicalAgeYears, formatSignedYears } from "@/lib/skin-age";
 import {
+  patientEditPath,
   patientsListPath,
   type PatientsPanel,
 } from "@/lib/patients-panel";
@@ -87,6 +89,30 @@ export function PatientProfileShell({
               </div>
               <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
                 <div>
+                  <p className="text-xs text-muted-foreground">Edad cronológica</p>
+                  <p className="font-medium">
+                    {chronologicalAgeYears(patient.birthDate, new Date()) != null
+                      ? `${chronologicalAgeYears(patient.birthDate, new Date())} años`
+                      : "Sin registrar"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Salud de la piel</p>
+                  <p className="font-medium">
+                    {patient.lastSkinAgeYears != null
+                      ? `${Math.round(patient.lastSkinAgeYears)} años`
+                      : "Sin análisis"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Diferencia de edad</p>
+                  <p className="font-medium">
+                    {patient.lastSkinAgeDifference != null
+                      ? formatSignedYears(patient.lastSkinAgeDifference)
+                      : "—"}
+                  </p>
+                </div>
+                <div>
                   <p className="text-xs text-muted-foreground">Fototipo</p>
                   <p className="font-medium">
                     {patient.fitzpatrickType
@@ -103,6 +129,28 @@ export function PatientProfileShell({
                 <div>
                   <p className="text-xs text-muted-foreground">Tipo de piel</p>
                   <p className="font-medium">{patient.skinType ?? "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Tipo de nacimiento</p>
+                  <p className="font-medium">
+                    {patient.birthType === "cesarean"
+                      ? "Cesárea"
+                      : patient.birthType === "normal"
+                        ? "Normal"
+                        : "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Actividad física</p>
+                  <p className="font-medium">
+                    {patient.exerciseHabit === "regular"
+                      ? "Regular"
+                      : patient.exerciseHabit === "sometimes"
+                        ? "A veces"
+                        : patient.exerciseHabit === "never"
+                          ? "Nunca"
+                          : "—"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -121,9 +169,14 @@ export function PatientProfileShell({
                 Nuevo análisis
               </Button>
             ) : null}
-            <Button variant="outline" className="gap-1.5">
-              Ver perfil completo
-              <ChevronDown className="size-4" />
+            <Button
+              variant="outline"
+              className="gap-1.5"
+              nativeButton={false}
+              render={<Link href={patientEditPath(panel, patient.id)} />}
+            >
+              <Pencil className="size-4" />
+              Ver y editar perfil
             </Button>
           </div>
         </div>

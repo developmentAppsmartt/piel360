@@ -63,10 +63,16 @@ export interface AnalysisDetail {
   // muerto (placeholder interno) que no debe mostrarse.
   hasOriginalPhoto: boolean;
   createdAt: string;
+  skinAgeYears?: number | null;
+  chronologicalAgeYears?: number | null;
+  skinAgeDifference?: number | null;
   patient?: {
     id: string;
     firstName: string;
     lastName: string;
+    birthDate?: string | null;
+    skinType?: string | null;
+    fitzpatrickType?: string | null;
   } | null;
 }
 

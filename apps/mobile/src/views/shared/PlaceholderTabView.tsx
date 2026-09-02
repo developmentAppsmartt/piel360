@@ -1,13 +1,21 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useBranding } from '../../context/BrandingContext';
+import { AppModuleChrome } from './AppModuleChrome';
 
 type PlaceholderTabViewProps = {
   title: string;
   description: string;
+  onOpenMessages?: () => void;
+  onOpenProfile?: () => void;
 };
 
-export function PlaceholderTabView({ title, description }: PlaceholderTabViewProps) {
+export function PlaceholderTabView({
+  title,
+  description,
+  onOpenMessages,
+  onOpenProfile,
+}: PlaceholderTabViewProps) {
   const branding = useBranding();
   const styles = useMemo(
     () =>
@@ -15,6 +23,9 @@ export function PlaceholderTabView({ title, description }: PlaceholderTabViewPro
         container: {
           flex: 1,
           backgroundColor: '#F3F4F6',
+        },
+        body: {
+          flex: 1,
           alignItems: 'center',
           justifyContent: 'center',
           paddingHorizontal: 28,
@@ -37,8 +48,15 @@ export function PlaceholderTabView({ title, description }: PlaceholderTabViewPro
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.description}>{description}</Text>
+      <AppModuleChrome
+        onOpenMessages={onOpenMessages}
+        onOpenProfile={onOpenProfile}
+      >
+        <View style={styles.body}>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.description}>{description}</Text>
+        </View>
+      </AppModuleChrome>
     </View>
   );
 }

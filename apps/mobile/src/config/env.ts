@@ -67,3 +67,9 @@ export function getApiBaseUrl(): string {
 export function getGoogleMapsApiKey(): string {
   return process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() ?? '';
 }
+
+/** Pruebas: omitir pantalla "Verifica tu celular" tras login. */
+export function isPhoneVerificationSkipped(): boolean {
+  const raw = process.env.EXPO_PUBLIC_SKIP_PHONE_VERIFICATION?.trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes';
+}

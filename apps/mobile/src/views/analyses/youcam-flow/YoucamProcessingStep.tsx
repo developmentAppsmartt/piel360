@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useBranding } from '../../../context/BrandingContext';
+import { useDeviceLayout } from '../../../styles/deviceLayout';
 import { analysesService } from '../../../services/analyses.service';
 import { ApiError } from '../../../services/api.client';
 import { youcamService } from '../../../services/youcam.service';
@@ -35,6 +36,14 @@ export function YoucamProcessingStep({
   onError,
 }: YoucamProcessingStepProps) {
   const branding = useBranding();
+  const { conventionScale, isTablet } = useDeviceLayout();
+  const scale = isTablet ? conventionScale : 1;
+  const size = Math.round(220 * scale);
+  const stroke = Math.max(10, Math.round(10 * scale));
+  const innerGap = Math.round(18 * scale);
+  const stageSize = Math.round(260 * scale);
+  const dashOn = Math.max(6, Math.round(6 * scale));
+  const dashOff = Math.max(10, Math.round(10 * scale));
   const spin = useRef(new Animated.Value(0)).current;
   const [label, setLabel] = useState('Analizando tu piel…');
   const cancelled = useRef(false);
@@ -105,14 +114,13 @@ export function YoucamProcessingStep({
     outputRange: ['0deg', '360deg'],
   });
 
-  const size = 220;
-  const stroke = 10;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
+  const dotSize = Math.max(5, Math.round(5 * scale));
 
   return (
     <View style={styles.root}>
-      <View style={styles.stage}>
+      <View style={[styles.stage, { width: stageSize, height: stageSize }]}>
         <Animated.View style={{ transform: [{ rotate }] }}>
           <Svg width={size} height={size}>
             <Defs>
@@ -128,12 +136,12 @@ export function YoucamProcessingStep({
               stroke="rgba(255,255,255,0.15)"
               strokeWidth={stroke}
               fill="none"
-              strokeDasharray="6 10"
+              strokeDasharray={`${dashOn} ${dashOff}`}
             />
             <Circle
               cx={size / 2}
               cy={size / 2}
-              r={r - 18}
+              r={r - innerGap}
               stroke="url(#g)"
               strokeWidth={stroke + 4}
               fill="none"
@@ -143,7 +151,7 @@ export function YoucamProcessingStep({
             <Circle
               cx={size / 2}
               cy={size / 2}
-              r={r - 18}
+              r={r - innerGap}
               stroke="url(#g)"
               strokeWidth={stroke + 4}
               fill="none"
@@ -154,14 +162,33 @@ export function YoucamProcessingStep({
           </Svg>
         </Animated.View>
 
-        <View style={styles.dots}>
+        <View
+          style={[
+            styles.dots,
+            {
+              width: Math.round(56 * scale),
+              height: Math.round(68 * scale),
+              gap: Math.max(4, Math.round(4 * scale)),
+            },
+          ]}
+        >
           {Array.from({ length: 30 }).map((_, i) => (
-            <View key={i} style={styles.dot} />
+            <View
+              key={i}
+              style={[
+                styles.dot,
+                {
+                  width: dotSize,
+                  height: dotSize,
+                  borderRadius: dotSize / 2,
+                },
+              ]}
+            />
           ))}
         </View>
       </View>
 
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, isTablet && { fontSize: 19 }]}>{label}</Text>
       <Text style={[styles.powered, { color: branding.colors.primary }]}>
         Powered by Piel360
       </Text>

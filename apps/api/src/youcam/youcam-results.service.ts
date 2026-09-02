@@ -6,6 +6,10 @@ import { StorageService } from '../storage/storage.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { youcamMaskKey } from './mask-key.util';
 import { normalizeYoucamResults } from './youcam-normalize.util';
+import {
+  patientLatestSkinAgeData,
+  snapshotFromAnalysis,
+} from './skin-age-persist.util';
 
 const YOUCAM_PROVIDER_SLUG = 'youcam';
 
@@ -30,16 +34,37 @@ export class YoucamResultsService {
   ): Promise<void> {
     const analysis = await this.prisma.analysis.findUniqueOrThrow({
       where: { id: analysisId },
+      include: { patient: { select: { birthDate: true, lastSkinAgeAt: true } } },
     });
     if (analysis.isValid) return; // ya lo procesó la otra vía
+
+    const snap = snapshotFromAnalysis({
+      aiRawResponse: results,
+      birthDate: analysis.patient.birthDate,
+      analysisDate: analysis.createdAt,
+    });
+    const patientSkinAge = patientLatestSkinAgeData(
+      analysis.patient,
+      analysis.createdAt,
+      snap,
+    );
 
     await this.prisma.analysis.update({
       where: { id: analysisId },
       data: {
         isValid: true,
         aiRawResponse: results as unknown as Prisma.InputJsonValue,
+        skinAgeYears: snap.skinAgeYears,
+        chronologicalAgeYears: snap.chronologicalAgeYears,
+        skinAgeDifference: snap.skinAgeDifference,
       },
     });
+    if (patientSkinAge) {
+      await this.prisma.patient.update({
+        where: { id: analysis.patientId },
+        data: patientSkinAge,
+      });
+    }
 
     for (const item of results.output ?? []) {
       if (item.mask_urls?.length) {

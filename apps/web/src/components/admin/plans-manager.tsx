@@ -37,7 +37,7 @@ function PlanTypeBadge({ planType }: { planType?: string }) {
         "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
         isIndividual
           ? "bg-sky-50 text-sky-700"
-          : "bg-violet-50 text-violet-700",
+          : "bg-primary/10 text-primary",
       )}
     >
       {isIndividual ? "Individual" : "Empresas"}
@@ -75,7 +75,7 @@ function PlanStatusBadge({
 
 function PlanAvatar({ slug }: { slug: string }) {
   const styles: Record<string, string> = {
-    skiniver: "bg-violet-100 text-violet-700",
+    skiniver: "bg-primary/15 text-primary",
     youcam: "bg-fuchsia-100 text-fuchsia-700",
     fitzpatrick: "bg-amber-100 text-amber-700",
   };

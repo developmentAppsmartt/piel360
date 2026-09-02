@@ -3,8 +3,16 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { CloudUpload } from "lucide-react";
 import { AddressLocationPicker } from "@/components/maps";
+import {
+  combinePhoneParts,
+  isValidE164Digits,
+  splitPhoneDigits,
+} from "@/components/auth/auth-form-primitives";
+import { PhoneOtpField } from "@/components/auth/phone-otp-field";
 import { Button } from "@/components/ui/button";
+import { verifyPhoneOtpAction } from "@/lib/actions/phone-otp";
 import { ApiError } from "@/lib/api-error";
+import { sendPhoneOtpForProfile } from "@/lib/phone-otp-client";
 import {
   isEnterpriseDoctor,
   useMyDoctorProfile,
@@ -142,7 +150,6 @@ function profileToForm(p: MyDoctorProfile) {
     firstName: p.firstName ?? "",
     lastName: p.lastName ?? "",
     email: p.user?.email ?? "",
-    phone: p.phone ?? "",
     docType: p.docType ?? "CC",
     docNumber: p.docNumber ?? "",
     gender: p.gender ?? "",
@@ -184,9 +191,21 @@ export function DoctorProfileForm() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savingAll, setSavingAll] = useState(false);
+  const [phonePrefix, setPhonePrefix] = useState("57");
+  const [phoneNational, setPhoneNational] = useState("");
+  const [originalPhoneDigits, setOriginalPhoneDigits] = useState("");
+  const [phoneTicket, setPhoneTicket] = useState<string | null>(null);
 
   useEffect(() => {
-    if (query.data) setForm(profileToForm(query.data));
+    if (query.data) {
+      setForm(profileToForm(query.data));
+      const split = splitPhoneDigits(query.data.phone ?? "");
+      const normalized = combinePhoneParts(split.prefix, split.national);
+      setOriginalPhoneDigits(normalized);
+      setPhonePrefix(split.prefix);
+      setPhoneNational(split.national);
+      setPhoneTicket(null);
+    }
   }, [query.data]);
 
   const displayForm = form ?? (query.data ? profileToForm(query.data) : null);
@@ -204,11 +223,17 @@ export function DoctorProfileForm() {
     setMessage(null);
     setError(null);
 
-    const phone = digitsOnly(displayForm.phone);
-    if (phone && !/^\d{10,15}$/.test(phone)) {
+    const phone = combinePhoneParts(phonePrefix, phoneNational);
+    if (phone && !isValidE164Digits(phone)) {
       setError(
-        "Celular inválido — usa solo dígitos, con indicativo de país (10 a 15).",
+        "Celular inválido — revisa el prefijo (ej. 57) y el número (10 a 15 dígitos en total).",
       );
+      return;
+    }
+
+    const phoneChanged = phone !== originalPhoneDigits;
+    if (phoneChanged && phone && !phoneTicket) {
+      setError("Verifica tu nuevo celular con el código SMS antes de guardar.");
       return;
     }
 
@@ -219,6 +244,7 @@ export function DoctorProfileForm() {
       firstName: displayForm.firstName.trim(),
       lastName: displayForm.lastName.trim(),
       phone: phone || undefined,
+      ...(phoneChanged && phoneTicket ? { phoneTicket } : {}),
       docType: displayForm.docType || undefined,
       docNumber: displayForm.docNumber.trim() || undefined,
       ...(showCompany
@@ -246,6 +272,11 @@ export function DoctorProfileForm() {
     setSavingAll(true);
     try {
       await mutation.mutateAsync(payload);
+
+      if (phone) {
+        setOriginalPhoneDigits(phone);
+        setPhoneTicket(null);
+      }
 
       if (cedula || medicalRegistryDoc || diploma) {
         const docs = new FormData();
@@ -379,12 +410,17 @@ export function DoctorProfileForm() {
           <input className={inputClass} value={displayForm.email} disabled readOnly />
         </Field>
         <Field label="Celular">
-          <input
-            className={inputClass}
-            type="tel"
-            value={displayForm.phone}
-            onChange={(e) => set("phone", e.target.value)}
-            placeholder="+57 300 000 0000"
+          <PhoneOtpField
+            phonePrefix={phonePrefix}
+            phoneNational={phoneNational}
+            onPrefixChange={setPhonePrefix}
+            onNationalChange={setPhoneNational}
+            originalPhoneDigits={originalPhoneDigits}
+            phoneTicket={phoneTicket}
+            onPhoneTicketChange={setPhoneTicket}
+            sendOtp={sendPhoneOtpForProfile}
+            verifyOtp={verifyPhoneOtpAction}
+            inputClass={inputClass}
           />
         </Field>
         <Field label="Tipo de documento">

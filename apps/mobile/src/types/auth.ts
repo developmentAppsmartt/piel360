@@ -54,7 +54,18 @@ export type RegisterPatientPayload = {
   password: string;
   firstName: string;
   lastName: string;
+  phone: string;
+  phoneTicket: string;
   emailTicket?: string;
+};
+
+export type MeUserDetails = {
+  id: string;
+  email: string;
+  phone: string | null;
+  phoneVerifiedAt: string | null;
+  patient?: { id: string } | null;
+  doctor?: { id: string; phone: string | null } | null;
 };
 
 /** @deprecated Preferir RegisterPatientPayload */

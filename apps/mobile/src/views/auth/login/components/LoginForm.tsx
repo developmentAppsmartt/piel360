@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Pressable,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { AppIcon } from '../../../../components/AppIcon';
@@ -12,6 +11,9 @@ import { useAuth } from '../../../../context/AuthContext';
 import { useBranding } from '../../../../context/BrandingContext';
 import { ApiError } from '../../../../services/api.client';
 import { AuthConsent } from './AuthConsent';
+import { AuthGradientButton } from './AuthGradientButton';
+import { LoginIconField } from './LoginIconField';
+import { AUTH_THEME } from '../../authTheme';
 import { createLoginStyles } from '../styles/login.styles';
 
 type LoginFormProps = {
@@ -32,9 +34,8 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const primary = branding.colors.primary;
+  const primary = AUTH_THEME.purple;
   const onDark = branding.colors.textOnDark;
-  const text = branding.colors.text;
 
   async function onSubmitSignIn() {
     setError(null);
@@ -108,55 +109,58 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
         </Pressable>
       </View>
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Correo electrónico</Text>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="email-address"
-          autoComplete="email"
-          textContentType="emailAddress"
-          placeholder="tu@email.com"
-          placeholderTextColor="#9CA3AF"
-          editable={!submitting}
-        />
+      <View style={styles.dividerRow}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.dividerText}>o continúa con tu cuenta</Text>
+        <View style={styles.dividerLine} />
       </View>
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Clave</Text>
-        <View style={styles.inputWithIcon}>
-          <TextInput
-            style={styles.inputFlex}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={!showPassword}
-            autoComplete="password"
-            textContentType="password"
-            placeholder="••••••••"
-            placeholderTextColor="#9CA3AF"
-            editable={!submitting}
-          />
+      <LoginIconField
+        styles={styles}
+        label="Correo electrónico"
+        icon={Icons.mail}
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="email-address"
+        autoComplete="email"
+        textContentType="emailAddress"
+        placeholder="tu@correo.com"
+        editable={!submitting}
+      />
+
+      <LoginIconField
+        styles={styles}
+        label="Contraseña"
+        icon={Icons.lock}
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry={!showPassword}
+        autoComplete="password"
+        textContentType="password"
+        placeholder="••••••••"
+        editable={!submitting}
+        endAdornment={
           <Pressable
             onPress={() => setShowPassword((v) => !v)}
+            hitSlop={8}
             accessibilityLabel={
               showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'
             }
           >
             <AppIcon
               icon={showPassword ? Icons.eyeOff : Icons.eye}
-              size={22}
-              color={text}
+              size={20}
+              color="#64748B"
             />
           </Pressable>
-        </View>
-      </View>
+        }
+      />
 
       <View style={styles.forgotRow}>
         <Pressable onPress={onGoForgotPassword} hitSlop={8}>
-          <Text style={styles.link}>¿Olvidaste contraseña?</Text>
+          <Text style={styles.link}>¿Olvidaste tu contraseña?</Text>
         </Pressable>
       </View>
 
@@ -173,26 +177,42 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Pressable
-        style={[styles.button, submitting && styles.buttonDisabled]}
+      <View style={styles.featureRow}>
+        <View style={[styles.featureCard, styles.featureCardBorder]}>
+          <AppIcon icon={Icons.clipboardCheck} size={20} color={AUTH_THEME.accent} />
+          <Text style={styles.featureTitle}>Seguro y confiable</Text>
+          <Text style={styles.featureText}>
+            Tus datos están protegidos con los más altos estándares.
+          </Text>
+        </View>
+        <View style={styles.featureCard}>
+          <AppIcon icon={Icons.heartPulse} size={20} color={AUTH_THEME.accent} />
+          <Text style={styles.featureTitle}>Resultados medibles</Text>
+          <Text style={styles.featureText}>
+            Información precisa para decisiones más inteligentes.
+          </Text>
+        </View>
+      </View>
+
+      <AuthGradientButton
+        label="Iniciar sesión"
         onPress={onSubmitSignIn}
         disabled={submitting}
-      >
-        {submitting ? (
-          <ActivityIndicator color={onDark} />
-        ) : (
-          <Text style={styles.buttonText}>Acceso</Text>
-        )}
-      </Pressable>
+        loading={submitting}
+        styles={styles}
+      />
 
       <Text style={styles.footer}>
         ¿No tienes una cuenta?{' '}
         <Text style={styles.link} onPress={onGoRegister}>
-          Registro
+          Regístrate
         </Text>
       </Text>
 
-      <Text style={styles.compliance}>GDPR · HIPAA · ISO 13485</Text>
+      <View style={styles.complianceRow}>
+        <AppIcon icon={Icons.lock} size={12} color="rgba(255,255,255,0.55)" />
+        <Text style={styles.compliance}>Cumplimos con GDPR · HIPAA · ISO 13485</Text>
+      </View>
     </View>
   );
 }

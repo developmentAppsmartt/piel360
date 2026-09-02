@@ -17,8 +17,16 @@ export type PatientProfile = {
   docNumber: string | null;
   address: string | null;
   mascotType: string | null;
+  birthType: string | null;
+  exerciseHabit: string | null;
+  exerciseDaysPerWeek: string | null;
+  exerciseSessionDuration: string | null;
   skinType: string | null;
   fitzpatrickType: string | null;
+  lastSkinAgeYears?: number | null;
+  lastChronologicalAgeYears?: number | null;
+  lastSkinAgeDifference?: number | null;
+  lastSkinAgeAt?: string | null;
   lat: number | null;
   lng: number | null;
   regions: unknown | null;
@@ -42,8 +50,15 @@ export type PatientProfileDisplay = Pick<
   | 'docNumber'
   | 'address'
   | 'mascotType'
+  | 'birthType'
+  | 'exerciseHabit'
+  | 'exerciseDaysPerWeek'
+  | 'exerciseSessionDuration'
   | 'skinType'
   | 'fitzpatrickType'
+  | 'lastSkinAgeYears'
+  | 'lastChronologicalAgeYears'
+  | 'lastSkinAgeDifference'
   | 'surveyCompletedAt'
 >;
 

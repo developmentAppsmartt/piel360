@@ -14,19 +14,24 @@ export function createDoctorPatientsStyles(colors: AppBranding['colors']) {
     },
     header: {
       backgroundColor: colors.primary,
-      paddingHorizontal: 14,
+      paddingHorizontal: 12,
       paddingBottom: 12,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
     },
     headerLeft: {
       flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 6,
       minWidth: 0,
       paddingRight: 8,
+    },
+    headerLogo: {
+      flexShrink: 1,
     },
     headerBack: {
       color: colors.textOnDark,

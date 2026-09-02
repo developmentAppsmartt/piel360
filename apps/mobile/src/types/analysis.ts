@@ -118,10 +118,14 @@ export type AnalysisDetail = {
     | null;
   createdAt: string;
   updatedAt: string;
+  skinAgeYears?: number | null;
+  chronologicalAgeYears?: number | null;
+  skinAgeDifference?: number | null;
   patient?: {
     id: string;
     firstName: string;
     lastName: string;
+    birthDate?: string | null;
     skinType?: string | null;
     fitzpatrickType?: string | null;
   } | null;

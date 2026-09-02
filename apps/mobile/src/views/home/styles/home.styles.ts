@@ -275,5 +275,106 @@ export function createHomeStyles(colors: AppBranding['colors']) {
       fontSize: 16,
       fontWeight: '700',
     },
+    tipsHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingBottom: 12,
+      paddingTop: 8,
+      backgroundColor: colors.primaryDark,
+    },
+    tipsBackBtn: {
+      padding: 4,
+    },
+    tipsHeaderTitle: {
+      color: colors.textOnDark,
+      fontSize: 17,
+      fontWeight: '800',
+    },
+    tipsStatsRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 14,
+    },
+    tipsStat: {
+      flex: 1,
+      backgroundColor: '#F8FAFC',
+      borderRadius: 12,
+      padding: 10,
+    },
+    tipsStatLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.muted,
+      marginBottom: 4,
+    },
+    tipsStatValue: {
+      fontSize: 14,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    tipsRuleCard: {
+      backgroundColor: '#FFFFFF',
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: 'rgba(30, 90, 158, 0.2)',
+      ...appShadow({ opacity: 0.05, radius: 8, offsetY: 2, elevation: 2 }),
+    },
+    tipsRuleEyebrow: {
+      fontSize: 11,
+      fontWeight: '800',
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+      color: colors.primary,
+      marginBottom: 4,
+    },
+    tipsRuleTitle: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    tipsRuleDesc: {
+      marginTop: 6,
+      fontSize: 13,
+      lineHeight: 19,
+      color: colors.muted,
+    },
+    tipsSection: {
+      gap: 8,
+    },
+    tipsSectionTitle: {
+      fontSize: 14,
+      fontWeight: '800',
+    },
+    tipsEmpty: {
+      fontSize: 13,
+      color: colors.muted,
+      paddingVertical: 4,
+    },
+    tipsItemCard: {
+      backgroundColor: '#FFFFFF',
+      borderRadius: 14,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: '#EEF0F3',
+    },
+    tipsItemTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    tipsItemSub: {
+      marginTop: 4,
+      fontSize: 12,
+      color: colors.muted,
+      lineHeight: 17,
+    },
+    tipsError: {
+      color: '#B91C1C',
+      fontSize: 13,
+      fontWeight: '600',
+    },
   });
 }

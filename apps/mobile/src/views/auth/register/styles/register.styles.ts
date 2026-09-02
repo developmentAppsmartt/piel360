@@ -1,17 +1,21 @@
 import type { AppBranding } from '../../../../config/branding.defaults';
 import { StyleSheet } from 'react-native';
+import { AUTH_THEME } from '../../authTheme';
 
 export function createRegisterStyles(colors: AppBranding['colors']) {
   return StyleSheet.create({
     safe: {
       flex: 1,
+      backgroundColor: 'transparent',
+    },
+    scroll: {
+      flex: 1,
+      backgroundColor: 'transparent',
     },
     scrollContent: {
-      flexGrow: 1,
-      justifyContent: 'flex-end',
-      paddingHorizontal: 24,
-      paddingBottom: 28,
-      paddingTop: 16,
+      paddingHorizontal: 20,
+      paddingTop: 24,
+      paddingBottom: 32,
     },
     scrollContentCard: {
       flexGrow: 1,
@@ -20,8 +24,13 @@ export function createRegisterStyles(colors: AppBranding['colors']) {
       paddingBottom: 28,
       paddingTop: 12,
     },
+    logoWrap: {
+      alignItems: 'center',
+      marginBottom: 8,
+      width: '100%',
+    },
     logo: {
-      marginBottom: 10,
+      marginBottom: 0,
     },
     brand: {
       fontSize: 36,
@@ -38,7 +47,7 @@ export function createRegisterStyles(colors: AppBranding['colors']) {
       marginBottom: 18,
     },
     welcomeBannerCard: {
-      backgroundColor: colors.primary,
+      backgroundColor: AUTH_THEME.purple,
       borderRadius: 16,
       paddingHorizontal: 16,
       paddingVertical: 14,
@@ -61,6 +70,8 @@ export function createRegisterStyles(colors: AppBranding['colors']) {
       color: 'rgba(255,255,255,0.82)',
       marginBottom: 22,
       maxWidth: 320,
+      textAlign: 'center',
+      alignSelf: 'center',
     },
     stepHint: {
       color: 'rgba(255,255,255,0.65)',
@@ -112,7 +123,7 @@ export function createRegisterStyles(colors: AppBranding['colors']) {
       fontWeight: '500',
     },
     labelDark: {
-      color: colors.primaryDark,
+      color: AUTH_THEME.navy,
       fontSize: 13,
       marginBottom: 6,
       fontWeight: '600',
@@ -123,7 +134,7 @@ export function createRegisterStyles(colors: AppBranding['colors']) {
       fontWeight: '500',
     },
     labelInlineDark: {
-      color: colors.primaryDark,
+      color: AUTH_THEME.navy,
       fontSize: 13,
       fontWeight: '600',
     },
@@ -134,7 +145,7 @@ export function createRegisterStyles(colors: AppBranding['colors']) {
       textDecorationLine: 'underline',
     },
     allowLinkDark: {
-      color: colors.secondary,
+      color: AUTH_THEME.accent,
       fontSize: 13,
       fontWeight: '700',
       textDecorationLine: 'underline',
@@ -148,7 +159,7 @@ export function createRegisterStyles(colors: AppBranding['colors']) {
       marginBottom: 8,
     },
     whyLinkDark: {
-      color: colors.secondary,
+      color: AUTH_THEME.accent,
       fontSize: 13,
       fontWeight: '600',
       textDecorationLine: 'underline',
@@ -178,8 +189,8 @@ export function createRegisterStyles(colors: AppBranding['colors']) {
       backgroundColor: '#F9FAFB',
     },
     chipActive: {
-      borderColor: colors.primary,
-      backgroundColor: colors.primary,
+      borderColor: AUTH_THEME.purple,
+      backgroundColor: AUTH_THEME.purple,
     },
     chipText: {
       color: 'rgba(255,255,255,0.85)',
@@ -248,7 +259,7 @@ export function createRegisterStyles(colors: AppBranding['colors']) {
       marginTop: 4,
     },
     button: {
-      backgroundColor: colors.primary,
+      backgroundColor: AUTH_THEME.purple,
       borderRadius: 14,
       paddingVertical: 16,
       alignItems: 'center',
@@ -264,7 +275,7 @@ export function createRegisterStyles(colors: AppBranding['colors']) {
       flex: 1,
     },
     buttonSecondaryCard: {
-      backgroundColor: colors.secondary,
+      backgroundColor: AUTH_THEME.purpleMid,
       borderRadius: 14,
       paddingVertical: 16,
       alignItems: 'center',
@@ -310,7 +321,7 @@ export function createRegisterStyles(colors: AppBranding['colors']) {
       flexShrink: 1,
     },
     footerLinkDark: {
-      color: colors.secondary,
+      color: AUTH_THEME.accent,
       fontSize: 14,
       fontWeight: '600',
       textDecorationLine: 'underline',
@@ -318,7 +329,7 @@ export function createRegisterStyles(colors: AppBranding['colors']) {
     },
     // Survey intro
     skinIntro: {
-      backgroundColor: colors.secondary,
+      backgroundColor: AUTH_THEME.purpleMid,
       borderRadius: 28,
       paddingHorizontal: 24,
       paddingVertical: 48,
@@ -360,7 +371,7 @@ export function createRegisterStyles(colors: AppBranding['colors']) {
       alignItems: 'center',
     },
     skinIntroButtonText: {
-      color: colors.primaryDark,
+      color: AUTH_THEME.navy,
       fontSize: 17,
       fontWeight: '800',
     },
@@ -383,7 +394,7 @@ export function createRegisterStyles(colors: AppBranding['colors']) {
       backgroundColor: '#D1D5DB',
     },
     progressDotActive: {
-      backgroundColor: colors.primary,
+      backgroundColor: AUTH_THEME.purple,
       width: 12,
       height: 12,
       borderRadius: 6,
@@ -422,8 +433,8 @@ export function createRegisterStyles(colors: AppBranding['colors']) {
       gap: 12,
     },
     optionRowActive: {
-      borderColor: colors.primary,
-      backgroundColor: 'rgba(108, 78, 227, 0.08)',
+      borderColor: AUTH_THEME.purple,
+      backgroundColor: 'rgba(124, 92, 255, 0.08)',
     },
     optionRowContent: {
       flex: 1,
@@ -458,13 +469,13 @@ export function createRegisterStyles(colors: AppBranding['colors']) {
       justifyContent: 'center',
     },
     radioOuterActive: {
-      borderColor: colors.primary,
+      borderColor: AUTH_THEME.purple,
     },
     radioInner: {
       width: 12,
       height: 12,
       borderRadius: 6,
-      backgroundColor: colors.primary,
+      backgroundColor: AUTH_THEME.purple,
     },
   });
 }

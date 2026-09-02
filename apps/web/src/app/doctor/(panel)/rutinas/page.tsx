@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Pencil, PlusIcon, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Pencil, PlusIcon, Sparkles, Trash2 } from "lucide-react";
 import { createColumnHelper } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -99,6 +99,10 @@ export default function RutinasPage() {
         </div>
         <div className="flex items-center gap-2">
           <RoutineOnboarding />
+          <Button variant="outline" nativeButton={false} render={<Link href="/doctor/reglas-edad-piel" />}>
+            <Sparkles className="mr-2 size-4" />
+            Reglas por edad de piel
+          </Button>
           {activeTab === "rutinas" && (
             <Button nativeButton={false} render={<Link href="/doctor/rutinas/nueva" />}>
               <PlusIcon className="mr-2 size-4" />

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   Text,
@@ -19,7 +18,14 @@ import {
 } from '../../../../data/surveyQuestions';
 import { ApiError } from '../../../../services/api.client';
 import { patientsService } from '../../../../services/patients.service';
+import { PhoneOtpSection } from '../../../../components/auth/PhoneOtpSection';
+import {
+  combinePhoneDigits,
+  isValidE164Digits,
+} from '../../../../lib/phone';
 import { AuthConsent } from '../../login/components/AuthConsent';
+import { AuthGradientButton } from '../../login/components/AuthGradientButton';
+import { AUTH_THEME } from '../../authTheme';
 import { createLoginStyles } from '../../login/styles/login.styles';
 import { createRegisterStyles } from '../styles/register.styles';
 import { SkinIntroStep } from './SkinIntroStep';
@@ -77,8 +83,9 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
   const [lastName, setLastName] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [gender, setGender] = useState<string>('male');
-  const [areaCode, setAreaCode] = useState('');
+  const [areaCode, setAreaCode] = useState('57');
   const [phone, setPhone] = useState('');
+  const [phoneTicket, setPhoneTicket] = useState<string | null>(null);
   const [location, setLocation] = useState('');
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
@@ -89,7 +96,7 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const primary = branding.colors.primary;
+  const primary = AUTH_THEME.purple;
   const onDark = branding.colors.textOnDark;
   const text = branding.colors.text;
 
@@ -134,6 +141,16 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
   }
 
   function goContactNext() {
+    setError(null);
+    const fullPhone = combinePhoneDigits(areaCode, phone);
+    if (!isValidE164Digits(fullPhone)) {
+      setError('Revisa el prefijo y el número de celular.');
+      return;
+    }
+    if (!phoneTicket) {
+      setError('Verifica tu celular con el código SMS.');
+      return;
+    }
     goTo('skinIntro');
   }
 
@@ -147,11 +164,14 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
 
     setSubmitting(true);
     try {
+      const fullPhone = combinePhoneDigits(areaCode, phone);
       await registerPatient({
         email: email.trim().toLowerCase(),
         password,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
+        phone: fullPhone,
+        phoneTicket: phoneTicket!,
       });
 
       const patient = await patientsService.getMyPatient();
@@ -162,7 +182,7 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
         await patientsService.update(patient.id, {
           ...(iso ? { birthDate: iso } : {}),
           gender: gender || undefined,
-          areaCode: areaCode.trim() || undefined,
+          areaCode: `+${areaCode.replace(/\D/g, '')}`,
           phone: phone.trim() || undefined,
           address: location.trim() || undefined,
           ...(lat != null && lng != null ? { lat, lng } : {}),
@@ -275,17 +295,13 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <Pressable
-          style={[styles.button, submitting && styles.buttonDisabled]}
+        <AuthGradientButton
+          label="Continuar"
           onPress={goCredentialsNext}
           disabled={submitting}
-        >
-          {submitting ? (
-            <ActivityIndicator color={onDark} />
-          ) : (
-            <Text style={styles.buttonText}>CONTINUAR</Text>
-          )}
-        </Pressable>
+          loading={submitting}
+          styles={consentStyles}
+        />
 
         <Text style={styles.footer}>
           ¿Ya tienes cuenta?{' '}
@@ -389,12 +405,12 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
           <Pressable onPress={onGoLogin}>
             <Text style={styles.footerLinkDark}>Tengo una cuenta</Text>
           </Pressable>
-          <Pressable
-            style={[styles.button, { flex: 0, minWidth: 140, marginTop: 0 }]}
+          <AuthGradientButton
+            label="Siguiente"
             onPress={goProfileNext}
-          >
-            <Text style={styles.buttonText}>Siguiente</Text>
-          </Pressable>
+            styles={consentStyles}
+            containerStyle={{ flex: 0, minWidth: 140, marginTop: 0 }}
+          />
         </View>
       </View>
     );
@@ -405,38 +421,21 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
       <View style={styles.card}>
         <Text style={styles.stepHintDark}>CONTACTO</Text>
 
-        <View style={styles.row}>
-          <View style={[styles.field, styles.areaCode]}>
-            <Text style={styles.labelDark}>Código área</Text>
-            <TextInput
-              style={styles.inputCard}
-              value={areaCode}
-              onChangeText={setAreaCode}
-              keyboardType="phone-pad"
-              placeholder="+57"
-              placeholderTextColor="#9CA3AF"
-              editable={!submitting}
-            />
-          </View>
-          <View style={[styles.field, styles.phoneFlex]}>
-            <Text style={styles.labelDark}>Teléfono</Text>
-            <View style={styles.inputWithIconCard}>
-              <TextInput
-                style={styles.inputFlex}
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-                autoComplete="tel"
-                textContentType="telephoneNumber"
-                placeholder="3001234567"
-                placeholderTextColor="#9CA3AF"
-                editable={!submitting}
-              />
-              {phone.trim().length >= 7 ? (
-                <AppIcon icon={Icons.check} size={20} color="#16A34A" />
-              ) : null}
-            </View>
-          </View>
+        <View style={styles.field}>
+          <Text style={styles.labelDark}>Celular</Text>
+          <PhoneOtpSection
+            prefix={areaCode}
+            national={phone}
+            onPrefixChange={setAreaCode}
+            onNationalChange={setPhone}
+            originalPhoneDigits=""
+            phoneTicket={phoneTicket}
+            onPhoneTicketChange={setPhoneTicket}
+            mode="register"
+            variant="card"
+            disabled={submitting}
+            primaryColor={AUTH_THEME.purple}
+          />
         </View>
 
         <View style={styles.field}>
@@ -472,13 +471,13 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
           >
             <Text style={styles.buttonText}>Anterior</Text>
           </Pressable>
-          <Pressable
-            style={[styles.button, submitting && styles.buttonDisabled]}
+          <AuthGradientButton
+            label="Siguiente"
             onPress={goContactNext}
             disabled={submitting}
-          >
-            <Text style={styles.buttonText}>Siguiente</Text>
-          </Pressable>
+            styles={consentStyles}
+            containerStyle={{ flex: 1, marginTop: 0 }}
+          />
         </View>
       </View>
     );
@@ -552,22 +551,14 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
           >
             <Text style={styles.buttonText}>Anterior</Text>
           </Pressable>
-          <Pressable
-            style={[
-              styles.button,
-              (!selected || submitting) && styles.buttonDisabled,
-            ]}
+          <AuthGradientButton
+            label={isLast ? 'Finalizar' : 'Siguiente'}
             onPress={goSurveyNext}
             disabled={!selected || submitting}
-          >
-            {submitting && isLast ? (
-              <ActivityIndicator color={onDark} />
-            ) : (
-              <Text style={styles.buttonText}>
-                {isLast ? 'Finalizar' : 'Siguiente'}
-              </Text>
-            )}
-          </Pressable>
+            loading={submitting && isLast}
+            styles={consentStyles}
+            containerStyle={{ flex: 1, marginTop: 0 }}
+          />
         </View>
       </View>
     </View>
