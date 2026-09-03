@@ -142,6 +142,7 @@ export type DoctorProfileInput = {
   firstName?: string;
   lastName?: string;
   phone?: string;
+  phoneTicket?: string;
   docType?: string;
   docNumber?: string;
   birthDate?: string;

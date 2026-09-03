@@ -1,20 +1,27 @@
-import { Logo } from "@/components/layout/logo";
-import { LoginForm } from "@/components/auth/login-form";
 import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
+import { LoginForm } from "@/components/auth/login-form";
+import { LoginPageShell } from "@/components/auth/login-page-shell";
 
-// Sin auto-registro: los admins se crean por seed o desde el propio panel admin.
 export default function AdminLoginPage() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 p-16">
-      <Logo className="h-12" />
-      <h1 className="text-2xl font-semibold">Ingresar como administrador</h1>
-      <p className="max-w-sm text-center text-sm text-muted-foreground">
-        Acceso al backoffice de Piel360
-      </p>
-      <LoginForm role="superadmin" />
-      <Link href="/administrador" className="text-sm text-zinc-500 underline">
-        Volver
-      </Link>
-    </main>
+    <LoginPageShell
+      title="Soy Administrador"
+      description="Gestiona usuarios, planes, configuraciones y permisos de la plataforma."
+      icon={ShieldCheck}
+      accountPrompt={
+        <span>
+          ¿No tienes cuenta?{" "}
+          <span className="font-medium text-primary">Solicita acceso con tu administrador</span>
+        </span>
+      }
+      footer={
+        <Link href="/" className="text-sm text-slate-500 underline-offset-2 hover:text-primary hover:underline">
+          Volver al inicio
+        </Link>
+      }
+    >
+      <LoginForm role="superadmin" showForgotPassword={false} />
+    </LoginPageShell>
   );
 }

@@ -103,7 +103,11 @@ export function useDeleteCategory() {
 
 // ─── Productos ─────────────────────────────────────────────────────────────────
 
-export function useProducts(categoryId?: string, productType?: ProductType) {
+export function useProducts(
+  categoryId?: string,
+  productType?: ProductType,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: ["products", categoryId, productType],
     queryFn: () => {
@@ -113,6 +117,7 @@ export function useProducts(categoryId?: string, productType?: ProductType) {
       const query = params.toString();
       return apiClientFetch<Product[]>(query ? `/products?${query}` : "/products");
     },
+    enabled: options?.enabled ?? true,
   });
 }
 

@@ -18,6 +18,11 @@ import {
 } from '../../../../data/patientFormOptions';
 import type { CreatePatientInput } from '../../../../services/patients.service';
 import { createCreatePatientStyles } from '../styles/createPatient.styles';
+import { chronologicalAgeYears } from '../../../../data/skinAge';
+import {
+  PatientActivityFields,
+  PatientBirthTypeField,
+} from './PatientLifestyleFields';
 
 export type CreatePatientFormValues = CreatePatientInput;
 
@@ -46,6 +51,10 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
   const [phone, setPhone] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [mascotType, setMascotType] = useState('');
+  const [birthType, setBirthType] = useState('');
+  const [exerciseHabit, setExerciseHabit] = useState('');
+  const [exerciseDaysPerWeek, setExerciseDaysPerWeek] = useState('');
+  const [exerciseSessionDuration, setExerciseSessionDuration] = useState('');
   const [skinType, setSkinType] = useState('');
   const [fitzpatrickType, setFitz] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -94,7 +103,11 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
       areaCode: opt(areaCode),
       phone: opt(phone),
       birthDate: opt(birthDate),
+      birthType: opt(birthType),
       mascotType: opt(mascotType),
+      exerciseHabit: opt(exerciseHabit),
+      exerciseDaysPerWeek: opt(exerciseDaysPerWeek),
+      exerciseSessionDuration: opt(exerciseSessionDuration),
       skinType: opt(skinType),
       fitzpatrickType: opt(fitzpatrickType),
     });
@@ -244,7 +257,29 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
             placeholder="1976-06-12"
             placeholderTextColor="#9CA3AF"
           />
+          {chronologicalAgeYears(birthDate || null, new Date()) != null ? (
+            <Text style={styles.hint}>
+              Edad cronológica:{' '}
+              {chronologicalAgeYears(birthDate, new Date())} años
+            </Text>
+          ) : (
+            <Text style={styles.hint}>
+              Se usa como edad cronológica en el análisis de salud de la piel.
+            </Text>
+          )}
         </View>
+
+        <PatientBirthTypeField
+          values={{
+            birthType,
+            exerciseHabit,
+            exerciseDaysPerWeek,
+            exerciseSessionDuration,
+          }}
+          onChange={(patch) => {
+            if (patch.birthType != null) setBirthType(patch.birthType);
+          }}
+        />
 
         <View style={styles.field}>
           <Text style={styles.label}>Mascota</Text>
@@ -272,6 +307,24 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
             })}
           </View>
         </View>
+
+        <PatientActivityFields
+          values={{
+            birthType,
+            exerciseHabit,
+            exerciseDaysPerWeek,
+            exerciseSessionDuration,
+          }}
+          onChange={(patch) => {
+            if (patch.exerciseHabit != null) setExerciseHabit(patch.exerciseHabit);
+            if (patch.exerciseDaysPerWeek != null) {
+              setExerciseDaysPerWeek(patch.exerciseDaysPerWeek);
+            }
+            if (patch.exerciseSessionDuration != null) {
+              setExerciseSessionDuration(patch.exerciseSessionDuration);
+            }
+          }}
+        />
 
         <View style={styles.field}>
           <Text style={styles.label}>Tipo de piel</Text>

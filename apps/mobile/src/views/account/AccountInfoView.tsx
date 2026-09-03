@@ -1,20 +1,24 @@
 import { useMemo } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppIcon } from '../../components/AppIcon';
-import { Icons } from '../../components/icons';
+import { ScrollView, Text, View } from 'react-native';
 import { useBranding } from '../../context/BrandingContext';
+import { AppModuleChrome } from '../shared/AppModuleChrome';
 import { createAccountInfoStyles } from './styles/accountInfo.styles';
 
 type AccountInfoViewProps = {
   title: string;
   body: string;
   onBack: () => void;
+  onOpenMessages?: () => void;
+  onOpenProfile?: () => void;
 };
 
-export function AccountInfoView({ title, body, onBack }: AccountInfoViewProps) {
-  const insets = useSafeAreaInsets();
+export function AccountInfoView({
+  title,
+  body,
+  onBack,
+  onOpenMessages,
+  onOpenProfile,
+}: AccountInfoViewProps) {
   const branding = useBranding();
   const styles = useMemo(
     () => createAccountInfoStyles(branding.colors),
@@ -23,22 +27,26 @@ export function AccountInfoView({ title, body, onBack }: AccountInfoViewProps) {
 
   return (
     <View style={styles.screen}>
-      <StatusBar style="dark" />
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) }]}>
-        <Pressable
-          onPress={onBack}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-        >
-          <AppIcon icon={Icons.back} size={28} color={branding.colors.text} />
-        </Pressable>
-        <Text style={styles.headerTitle}>{title}</Text>
-        <View style={styles.headerSide} />
-      </View>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.body}>{body}</Text>
-      </ScrollView>
+      <AppModuleChrome
+        showBack
+        onBack={onBack}
+        onOpenMessages={onOpenMessages}
+        onOpenProfile={onOpenProfile}
+      >
+        <ScrollView contentContainerStyle={styles.content}>
+          <Text
+            style={{
+              fontSize: 20,
+              fontWeight: '700',
+              color: branding.colors.text,
+              marginBottom: 12,
+            }}
+          >
+            {title}
+          </Text>
+          <Text style={styles.body}>{body}</Text>
+        </ScrollView>
+      </AppModuleChrome>
     </View>
   );
 }

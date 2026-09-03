@@ -11,3 +11,7 @@ export function patientDetailPath(panel: PatientsPanel, patientId: string) {
 export function patientComparisonsPath(panel: PatientsPanel, patientId: string) {
   return `${patientDetailPath(panel, patientId)}/comparaciones`;
 }
+
+export function patientEditPath(panel: PatientsPanel, patientId: string) {
+  return `${patientDetailPath(panel, patientId)}/editar`;
+}

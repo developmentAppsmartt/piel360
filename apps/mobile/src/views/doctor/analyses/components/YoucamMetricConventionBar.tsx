@@ -41,7 +41,9 @@ export function YoucamMetricConventionBar({
         </View>
       ) : null}
       {!convention.hideScaleLabels ? (
-        <Text style={styles.conventionHigh}>{convention.highLabel}</Text>
+        <Text style={styles.conventionHigh} numberOfLines={2}>
+          {convention.highLabel}
+        </Text>
       ) : null}
       <View style={styles.conventionBar}>
         <LinearGradient
@@ -60,7 +62,9 @@ export function YoucamMetricConventionBar({
         />
       </View>
       {!convention.hideScaleLabels ? (
-        <Text style={styles.conventionLow}>{convention.lowLabel}</Text>
+        <Text style={styles.conventionLow} numberOfLines={2}>
+          {convention.lowLabel}
+        </Text>
       ) : null}
     </View>
   );

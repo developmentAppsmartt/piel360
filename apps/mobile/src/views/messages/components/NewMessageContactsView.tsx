@@ -6,19 +6,19 @@ import {
   Text,
   View,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppIcon } from '../../../components/AppIcon';
 import { Icons } from '../../../components/icons';
 import { useBranding } from '../../../context/BrandingContext';
 import { ApiError } from '../../../services/api.client';
 import { messagesService } from '../../../services/messages.service';
 import type { MessageContact } from '../../../types/messages';
+import { AppModuleChrome } from '../../shared/AppModuleChrome';
 import { createMessagesStyles } from '../styles/messages.styles';
 
 type NewMessageContactsViewProps = {
   onBack: () => void;
   onStarted: (conversationId: string) => void;
+  onOpenProfile?: () => void;
 };
 
 function initials(name: string) {
@@ -33,8 +33,8 @@ function initials(name: string) {
 export function NewMessageContactsView({
   onBack,
   onStarted,
+  onOpenProfile,
 }: NewMessageContactsViewProps) {
-  const insets = useSafeAreaInsets();
   const branding = useBranding();
   const styles = useMemo(
     () => createMessagesStyles(branding.colors),
@@ -86,75 +86,81 @@ export function NewMessageContactsView({
     }
   }
 
-  const onDark = branding.colors.textOnDark;
   const primary = branding.colors.primary;
 
   return (
     <View style={styles.screen}>
-      <StatusBar style="light" />
-      <View
-        style={[styles.header, { paddingTop: Math.max(insets.top, 10) }]}
+      <AppModuleChrome
+        showBack
+        onBack={onBack}
+        onOpenProfile={onOpenProfile}
       >
-        <Pressable onPress={onBack} hitSlop={8} accessibilityLabel="Volver">
-          <AppIcon icon={Icons.back} size={26} color={onDark} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Nuevo mensaje</Text>
-        <View style={{ width: 26 }} />
-      </View>
-
-      {loading ? (
-        <View style={styles.empty}>
-          <ActivityIndicator color={primary} />
-        </View>
-      ) : (
-        <FlatList
-          data={contacts}
-          keyExtractor={(item) => `${item.kind}-${item.id}`}
-          contentContainerStyle={styles.listContent}
-          ListHeaderComponent={
-            error ? (
-              <Text style={{ color: branding.colors.error, marginBottom: 8 }}>
-                {error}
-              </Text>
-            ) : null
-          }
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyText}>
-                No hay contactos disponibles. El chat solo es entre doctor y
-                sus pacientes asignados.
-              </Text>
-            </View>
-          }
-          renderItem={({ item }) => (
-            <Pressable
-              style={styles.card}
-              onPress={() => void startChat(item)}
-              disabled={startingId != null}
-            >
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{initials(item.name)}</Text>
-              </View>
-              <View style={styles.cardBody}>
-                <Text style={styles.cardName}>{item.name}</Text>
-                <Text style={styles.cardPreview}>
-                  {item.kind === 'doctor' ? 'Doctor' : 'Paciente'}
-                  {item.email ? ` · ${item.email}` : ''}
+        <Text
+          style={{
+            paddingHorizontal: 16,
+            paddingTop: 14,
+            paddingBottom: 4,
+            fontSize: 18,
+            fontWeight: '700',
+            color: branding.colors.text,
+          }}
+        >
+          Nuevo mensaje
+        </Text>
+        {loading ? (
+          <View style={styles.empty}>
+            <ActivityIndicator color={primary} />
+          </View>
+        ) : (
+          <FlatList
+            data={contacts}
+            keyExtractor={(item) => `${item.kind}-${item.id}`}
+            contentContainerStyle={styles.listContent}
+            ListHeaderComponent={
+              error ? (
+                <Text style={{ color: branding.colors.error, marginBottom: 8 }}>
+                  {error}
+                </Text>
+              ) : null
+            }
+            ListEmptyComponent={
+              <View style={styles.empty}>
+                <Text style={styles.emptyText}>
+                  No hay contactos disponibles. El chat solo es entre doctor y
+                  sus pacientes asignados.
                 </Text>
               </View>
-              {startingId === item.id ? (
-                <ActivityIndicator color={primary} />
-              ) : (
-                <AppIcon
-                  icon={Icons.chevronRight}
-                  size={20}
-                  color={branding.colors.muted}
-                />
-              )}
-            </Pressable>
-          )}
-        />
-      )}
+            }
+            renderItem={({ item }) => (
+              <Pressable
+                style={styles.card}
+                onPress={() => void startChat(item)}
+                disabled={startingId != null}
+              >
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{initials(item.name)}</Text>
+                </View>
+                <View style={styles.cardBody}>
+                  <Text style={styles.cardName}>{item.name}</Text>
+                  <Text style={styles.cardPreview}>
+                    {item.kind === 'doctor' ? 'Doctor' : 'Paciente'}
+                    {item.email ? ` · ${item.email}` : ''}
+                  </Text>
+                </View>
+                {startingId === item.id ? (
+                  <ActivityIndicator color={primary} />
+                ) : (
+                  <AppIcon
+                    icon={Icons.chevronRight}
+                    size={20}
+                    color={branding.colors.muted}
+                  />
+                )}
+              </Pressable>
+            )}
+          />
+        )}
+      </AppModuleChrome>
     </View>
   );
 }

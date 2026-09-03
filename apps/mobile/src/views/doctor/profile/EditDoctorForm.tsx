@@ -18,6 +18,12 @@ import type {
   DoctorProfile,
   UpdateDoctorInput,
 } from '../../../services/doctors.service';
+import { PhoneOtpSection } from '../../../components/auth/PhoneOtpSection';
+import {
+  combinePhoneDigits,
+  isValidE164Digits,
+  splitPhoneDigits,
+} from '../../../lib/phone';
 import { createEditProfileStyles } from '../../profile/edit/styles/editProfile.styles';
 
 function toDateInput(iso: string | null | undefined): string {
@@ -30,10 +36,6 @@ function toDateInput(iso: string | null | undefined): string {
 function optional(value: string): string | undefined {
   const trimmed = value.trim();
   return trimmed ? trimmed : undefined;
-}
-
-function digitsOnly(value: string): string {
-  return value.replace(/\D/g, '');
 }
 
 function toCoord(value: string | number | null | undefined): number | null {
@@ -54,9 +56,16 @@ export function EditDoctorForm({ doctor, onSubmit }: EditDoctorFormProps) {
     [branding.colors],
   );
 
+  const initialSplit = splitPhoneDigits(doctor.phone ?? '');
+
   const [firstName, setFirstName] = useState(doctor.firstName ?? '');
   const [lastName, setLastName] = useState(doctor.lastName ?? '');
-  const [phone, setPhone] = useState(doctor.phone ?? '');
+  const [phonePrefix, setPhonePrefix] = useState(initialSplit.prefix);
+  const [phoneNational, setPhoneNational] = useState(initialSplit.national);
+  const [originalPhoneDigits, setOriginalPhoneDigits] = useState(() =>
+    combinePhoneDigits(initialSplit.prefix, initialSplit.national),
+  );
+  const [phoneTicket, setPhoneTicket] = useState<string | null>(null);
   const [docType, setDocType] = useState(doctor.docType ?? 'CC');
   const [docNumber, setDocNumber] = useState(doctor.docNumber ?? '');
   const [birthDate, setBirthDate] = useState(toDateInput(doctor.birthDate));
@@ -97,11 +106,16 @@ export function EditDoctorForm({ doctor, onSubmit }: EditDoctorFormProps) {
       setError('Fecha inválida. Usa el formato AAAA-MM-DD.');
       return;
     }
-    const phoneDigits = digitsOnly(phone);
-    if (phoneDigits && !/^\d{10,15}$/.test(phoneDigits)) {
+    const phoneDigits = combinePhoneDigits(phonePrefix, phoneNational);
+    if (phoneDigits && !isValidE164Digits(phoneDigits)) {
       setError(
-        'Celular inválido — solo dígitos, con indicativo de país (10 a 15).',
+        'Celular inválido — revisa el prefijo y el número (10 a 15 dígitos).',
       );
+      return;
+    }
+    const phoneChanged = phoneDigits !== originalPhoneDigits;
+    if (phoneChanged && !phoneTicket) {
+      setError('Verifica tu nuevo celular con el código SMS antes de guardar.');
       return;
     }
 
@@ -109,6 +123,7 @@ export function EditDoctorForm({ doctor, onSubmit }: EditDoctorFormProps) {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       phone: phoneDigits || undefined,
+      ...(phoneChanged && phoneTicket ? { phoneTicket } : {}),
       docType: optional(docType),
       docNumber: optional(docNumber),
       birthDate: optional(birthDate),
@@ -128,6 +143,10 @@ export function EditDoctorForm({ doctor, onSubmit }: EditDoctorFormProps) {
     setSubmitting(true);
     try {
       await onSubmit(input);
+      if (phoneDigits) {
+        setOriginalPhoneDigits(phoneDigits);
+        setPhoneTicket(null);
+      }
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -245,16 +264,19 @@ export function EditDoctorForm({ doctor, onSubmit }: EditDoctorFormProps) {
 
         <View style={styles.field}>
           <Text style={styles.label}>Celular</Text>
-          <TextInput
-            style={styles.input}
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-            editable={!submitting}
-            placeholder="573001234567"
-            placeholderTextColor={branding.colors.muted}
+          <PhoneOtpSection
+            prefix={phonePrefix}
+            national={phoneNational}
+            onPrefixChange={setPhonePrefix}
+            onNationalChange={setPhoneNational}
+            originalPhoneDigits={originalPhoneDigits}
+            phoneTicket={phoneTicket}
+            onPhoneTicketChange={setPhoneTicket}
+            mode="profile"
+            variant="card"
+            disabled={submitting}
+            primaryColor={branding.colors.primary}
           />
-          <Text style={styles.hint}>Solo dígitos, con indicativo (10–15).</Text>
         </View>
       </View>
 

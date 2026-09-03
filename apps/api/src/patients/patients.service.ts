@@ -10,6 +10,9 @@ import * as argon2 from 'argon2';
 import { DOCTOR_PANEL_ROLES, type Role } from '@piel360/shared';
 import { AnalysisImageUrlsService } from '../analyses/analysis-image-urls.service';
 import type { JwtPayload } from '../auth/types';
+import { assertDocumentNumberAvailable } from '../common/document-number.util';
+import { combinePhoneDigits } from '../common/phone.util';
+import { AuthService } from '../auth/auth.service';
 import { DoctorsService } from '../doctors/doctors.service';
 import { OrgContextService } from '../organizations/org-context.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -23,6 +26,19 @@ function isDoctorPanelRole(role: Role): boolean {
   return (DOCTOR_PANEL_ROLES as readonly Role[]).includes(role);
 }
 
+/** Admin de plataforma: listado global de pacientes (panel /admin/pacientes). */
+function isPlatformAdmin(user: JwtPayload): boolean {
+  if (user.role === 'superadmin' || user.role === 'monitor') return true;
+  if (
+    user.roleSlugs?.includes('superadmin') ||
+    user.roleSlugs?.includes('monitor')
+  ) {
+    return true;
+  }
+  if (user.primaryPanel === 'admin') return true;
+  return user.permissions?.includes('admin.patients') === true;
+}
+
 @Injectable()
 export class PatientsService {
   constructor(
@@ -31,6 +47,7 @@ export class PatientsService {
     private readonly orgContext: OrgContextService,
     private readonly imageUrls: AnalysisImageUrlsService,
     private readonly storage: StorageService,
+    private readonly authService: AuthService,
   ) {}
 
   /** Scoping (MIGRACION.md §2.5/§2.6): doctor/empresa solo ve los suyos,
@@ -40,7 +57,7 @@ export class PatientsService {
     currentUser: JwtPayload,
     options?: { professionalUserId?: string },
   ) {
-    if (currentUser.role === 'superadmin') {
+    if (isPlatformAdmin(currentUser)) {
       const rows = await this.prisma.patient.findMany({
         include: { user: { select: { avatarKey: true } } },
         orderBy: { id: 'asc' },
@@ -109,6 +126,11 @@ export class PatientsService {
     });
     if (!patient) throw new NotFoundException('Paciente no encontrado');
 
+    // Superadmin/monitor no tienen perfil doctor; no pasar por scope de equipo.
+    if (isPlatformAdmin(currentUser)) {
+      return this.withAvatarUrl(patient, true);
+    }
+
     if (isDoctorPanelRole(currentUser.role)) {
       await this.orgContext.assertTeamPermissionForUser(
         currentUser.sub,
@@ -140,6 +162,8 @@ export class PatientsService {
     const { birthDate, password, email, ...rest } = dto;
     const emailNorm = email?.trim().toLowerCase() || undefined;
     const wantsLogin = !!(emailNorm || password);
+
+    await assertDocumentNumberAvailable(this.prisma, dto.docNumber);
 
     if (wantsLogin) {
       if (!emailNorm) {
@@ -223,17 +247,80 @@ export class PatientsService {
 
   async update(id: string, dto: UpdatePatientDto, currentUser: JwtPayload) {
     const patient = await this.findOne(id, currentUser);
-    const { birthDate, ...rest } = dto;
+    const { birthDate, phone, areaCode, phoneTicket, ...rest } = dto;
+    if (dto.docNumber !== undefined) {
+      await assertDocumentNumberAvailable(this.prisma, dto.docNumber, {
+        patientId: patient.id,
+      });
+    }
+
+    const nextArea = areaCode !== undefined ? areaCode : patient.areaCode;
+    const nextNational = phone !== undefined ? phone : patient.phone;
+    const normalized = combinePhoneDigits(nextArea, nextNational);
+    const currentNormalized = combinePhoneDigits(
+      patient.areaCode,
+      patient.phone,
+    );
+    const userCurrentPhone = patient.userId
+      ? (
+          await this.prisma.user.findUnique({
+            where: { id: patient.userId },
+            select: { phone: true },
+          })
+        )?.phone?.replace(/\D/g, '') ?? ''
+      : '';
+    const referencePhone = userCurrentPhone || currentNormalized;
+
+    let phoneVerifiedAt: Date | undefined;
+    const phoneFieldsTouched = phone !== undefined || areaCode !== undefined;
+
+    if ((phoneFieldsTouched || phoneTicket) && normalized) {
+      if (normalized !== referencePhone) {
+        if (!phoneTicket?.trim()) {
+          throw new BadRequestException(
+            'Debes verificar el nuevo celular con el código enviado por SMS.',
+          );
+        }
+        await this.authService.assertAndConsumePhoneTicket(
+          phoneTicket,
+          normalized,
+        );
+        phoneVerifiedAt = new Date();
+      } else if (phoneTicket?.trim()) {
+        await this.authService.assertAndConsumePhoneTicket(
+          phoneTicket,
+          normalized,
+        );
+        phoneVerifiedAt = new Date();
+      }
+    }
+
     const updated = await this.prisma.patient.update({
       where: { id: patient.id },
       data: {
         ...rest,
+        ...(phone !== undefined ? { phone } : {}),
+        ...(areaCode !== undefined ? { areaCode } : {}),
         ...(birthDate !== undefined
           ? { birthDate: birthDate ? new Date(birthDate) : null }
           : {}),
       },
       include: { user: { select: { avatarKey: true } } },
     });
+
+    if (
+      patient.userId &&
+      (phoneVerifiedAt || (phoneFieldsTouched && normalized))
+    ) {
+      await this.prisma.user.update({
+        where: { id: patient.userId },
+        data: {
+          ...(normalized ? { phone: normalized } : {}),
+          ...(phoneVerifiedAt ? { phoneVerifiedAt } : {}),
+        },
+      });
+    }
+
     return this.withAvatarUrl(updated);
   }
 
@@ -488,7 +575,7 @@ export class PatientsService {
     patient: { doctorId: bigint | null; userId: bigint | null },
     currentUser: JwtPayload,
   ) {
-    if (currentUser.role === 'superadmin') return;
+    if (isPlatformAdmin(currentUser)) return;
 
     if (isDoctorPanelRole(currentUser.role)) {
       await this.orgContext.assertTeamPermissionForUser(

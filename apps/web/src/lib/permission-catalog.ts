@@ -41,7 +41,7 @@ const ACTION_LABELS: Record<string, string> = {
 
 const RESOURCE_META: Record<string, { label: string; icon: LucideIcon; order: number }> = {
   user: { label: "Usuarios", icon: Users, order: 10 },
-  doctor: { label: "Doctores", icon: Stethoscope, order: 20 },
+  doctor: { label: "Profesionales", icon: Stethoscope, order: 20 },
   patient: { label: "Pacientes", icon: UserRound, order: 30 },
   analysis: { label: "Análisis", icon: ClipboardList, order: 40 },
   analysis_consumption: { label: "Consumo de análisis", icon: BarChart3, order: 45 },

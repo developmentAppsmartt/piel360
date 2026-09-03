@@ -107,6 +107,12 @@ export function PaymentsView({
         messageCount={1}
         onOpenMenu={onOpenMenu}
         onOpenMessages={onOpenMessages}
+        onOpenGift={() =>
+          Alert.alert(
+            'Premios',
+            'Aquí verás recompensas y beneficios de Piel 360. Este módulo se activará en una próxima versión.',
+          )
+        }
       />
 
       <View style={styles.card}>

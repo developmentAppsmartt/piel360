@@ -124,7 +124,7 @@ export function UsersManager() {
         </ModuleCard>
         <ModuleCard className="p-4">
           <p className="text-xs font-medium text-muted-foreground">Superadmins</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-violet-600">{stats.admins}</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-primary">{stats.admins}</p>
         </ModuleCard>
       </div>
 

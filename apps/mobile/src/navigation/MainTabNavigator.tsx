@@ -178,13 +178,18 @@ export function MainTabNavigator() {
           <PlaceholderTabView
             title="Agenda"
             description="Aquí verás citas y disponibilidad (mock). Se conectará al servicio de agenda."
+            onOpenMessages={() => setActiveTab('chat')}
+            onOpenProfile={() => setActiveTab('profile')}
           />
         ) : null}
         {doctorActive && activeTab === 'chat' ? (
-          <MessagesView onThreadOpenChange={setChatThreadOpen} />
+          <MessagesView
+            onThreadOpenChange={setChatThreadOpen}
+            onOpenProfile={() => setActiveTab('profile')}
+          />
         ) : null}
         {activeTab === 'profile' || (isDoctor && !doctorActive) ? (
-          <ProfileView />
+          <ProfileView onOpenMessages={() => setActiveTab('chat')} />
         ) : null}
       </View>
 

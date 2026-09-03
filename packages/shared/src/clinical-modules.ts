@@ -94,6 +94,20 @@ export const CLINICAL_MODULES: readonly ClinicalModuleDef[] = [
     permissionNames: ["view_any_encyclopedia_entry", "view_encyclopedia_entry"],
   },
   {
+    key: "clinical.skin_age_rules",
+    label: "Reglas por edad de piel",
+    href: "/doctor/reglas-edad-piel",
+    sortOrder: 101,
+    permissionNames: ["view_any_encyclopedia_entry", "view_encyclopedia_entry"],
+  },
+  {
+    key: "clinical.email_templates",
+    label: "Plantillas de correo",
+    href: "/doctor/plantillas-correo",
+    sortOrder: 102,
+    permissionNames: ["view_any_plan", "view_plan", "view_any_subscription", "view_subscription"],
+  },
+  {
     key: "clinical.team",
     label: "Configuración · Equipo",
     href: "/doctor/configuracion/equipos",

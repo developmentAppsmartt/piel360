@@ -18,6 +18,11 @@ import { StorageService } from '../storage/storage.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
 import { getAnalysisProviderIdBySlug } from '../plans/plan-providers.util';
+import {
+  patientLatestSkinAgeData,
+  snapshotFromAnalysis,
+  snapshotHasValues,
+} from '../youcam/skin-age-persist.util';
 import type { JwtPayload } from '../auth/types';
 import { AnalysisImageUrlsService } from './analysis-image-urls.service';
 import type { ConfirmAnalysisDto } from './dto/confirm-analysis.dto';
@@ -269,7 +274,8 @@ export class AnalysesService {
     });
     if (!analysis) throw new NotFoundException('Análisis no encontrado');
     await this.assertCanAccess(analysis, currentUser);
-    return this.imageUrls.withImageUrls(analysis);
+    const withSnapshot = await this.persistSkinAgeSnapshotIfMissing(analysis);
+    return this.imageUrls.withImageUrls(withSnapshot);
   }
 
   async confirm(id: string, dto: ConfirmAnalysisDto, currentUser: JwtPayload) {
@@ -344,6 +350,64 @@ export class AnalysesService {
       include: { patient: true },
     });
     return this.imageUrls.withImageUrls(updated);
+  }
+
+  /** Rellena el snapshot en análisis YouCam antiguos que aún no lo tienen. */
+  private async persistSkinAgeSnapshotIfMissing<
+    T extends {
+      id: bigint;
+      patientId: bigint;
+      youcamTaskId: string | null;
+      isValid: boolean;
+      aiRawResponse: Prisma.JsonValue | null;
+      createdAt: Date;
+      skinAgeYears: number | null;
+      chronologicalAgeYears: number | null;
+      skinAgeDifference: number | null;
+      patient: {
+        birthDate: Date | null;
+        lastSkinAgeAt: Date | null;
+      };
+    },
+  >(analysis: T): Promise<T> {
+    if (!analysis.youcamTaskId || !analysis.isValid) return analysis;
+    if (
+      analysis.skinAgeYears != null &&
+      analysis.chronologicalAgeYears != null &&
+      analysis.skinAgeDifference != null
+    ) {
+      return analysis;
+    }
+
+    const snap = snapshotFromAnalysis({
+      aiRawResponse: analysis.aiRawResponse,
+      birthDate: analysis.patient.birthDate,
+      analysisDate: analysis.createdAt,
+    });
+    if (!snapshotHasValues(snap)) return analysis;
+
+    const patientSkinAge = patientLatestSkinAgeData(
+      analysis.patient,
+      analysis.createdAt,
+      snap,
+    );
+
+    const updated = await this.prisma.analysis.update({
+      where: { id: analysis.id },
+      data: {
+        skinAgeYears: snap.skinAgeYears,
+        chronologicalAgeYears: snap.chronologicalAgeYears,
+        skinAgeDifference: snap.skinAgeDifference,
+      },
+      include: { patient: true },
+    });
+    if (patientSkinAge) {
+      await this.prisma.patient.update({
+        where: { id: analysis.patientId },
+        data: patientSkinAge,
+      });
+    }
+    return updated as unknown as T;
   }
 
   private async assertCanAccess(

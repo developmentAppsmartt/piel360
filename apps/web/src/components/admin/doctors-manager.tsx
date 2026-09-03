@@ -97,7 +97,7 @@ export function DoctorsManager() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Doctores</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Profesionales</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Profesionales registrados en Piel 360: individuales, empresas y empresas aliadas.
         </p>
@@ -105,7 +105,7 @@ export function DoctorsManager() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <ModuleCard className="p-4">
-          <p className="text-xs font-medium text-muted-foreground">Total doctores</p>
+          <p className="text-xs font-medium text-muted-foreground">Total profesionales</p>
           <p className="mt-1 text-2xl font-bold tabular-nums">{stats.total}</p>
         </ModuleCard>
         <ModuleCard className="p-4">
@@ -146,7 +146,7 @@ export function DoctorsManager() {
 
       <ModuleCard className="overflow-hidden p-0">
         <div className="flex flex-col gap-4 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between">
-          <ModuleCardTitle>Lista de doctores</ModuleCardTitle>
+          <ModuleCardTitle>Lista de profesionales</ModuleCardTitle>
           <AdminSearchInput
             value={search}
             onChange={(value) => {
@@ -158,16 +158,16 @@ export function DoctorsManager() {
         </div>
 
         {doctors.isLoading ? (
-          <p className="p-5 text-sm text-muted-foreground">Cargando doctores…</p>
+          <p className="p-5 text-sm text-muted-foreground">Cargando profesionales…</p>
         ) : doctors.error ? (
-          <p className="p-5 text-sm text-destructive">No se pudo cargar la lista de doctores.</p>
+          <p className="p-5 text-sm text-destructive">No se pudo cargar la lista de profesionales.</p>
         ) : (
           <>
             <div className="overflow-x-auto">
               <table className="w-full min-w-200 text-left text-sm">
                 <thead className="border-b border-border bg-muted/30 text-xs tracking-wide text-muted-foreground uppercase">
                   <tr>
-                    <th className="px-4 py-3 font-semibold">Doctor</th>
+                    <th className="px-4 py-3 font-semibold">Profesional</th>
                     <th className="px-4 py-3 font-semibold">Tipo de cuenta</th>
                     <th className="px-4 py-3 font-semibold">Especialidad</th>
                     <th className="px-4 py-3 font-semibold">Ubicación</th>
@@ -180,7 +180,7 @@ export function DoctorsManager() {
                   {rows.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
-                        No hay doctores en esta categoría.
+                        No hay profesionales en esta categoría.
                       </td>
                     </tr>
                   ) : (

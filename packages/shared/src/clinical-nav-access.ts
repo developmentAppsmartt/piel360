@@ -42,6 +42,16 @@ export const CLINICAL_MODULE_LEGACY_ACTIONS: Record<string, readonly string[]> =
   "clinical.reports": ["view_any_analysis", "view_analysis"],
   "clinical.products": ["view_any_patient", "view_patient"],
   "clinical.routines": ["view_any_encyclopedia_entry", "view_encyclopedia_entry"],
+  "clinical.skin_age_rules": [
+    "view_any_encyclopedia_entry",
+    "view_encyclopedia_entry",
+  ],
+  "clinical.email_templates": [
+    "view_any_plan",
+    "view_plan",
+    "view_any_subscription",
+    "view_subscription",
+  ],
   "clinical.settings": ["view_organization", "view_doctor", "update_doctor"],
   "clinical.settings.account": ["view_organization", "view_doctor", "update_doctor"],
   "clinical.settings.team": [

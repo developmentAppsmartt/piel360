@@ -41,7 +41,7 @@
   },
   "scripts": {
     "start": "expo start",
-    "android": "expo run:android",
+    "android": "bash scripts/run-android-debug.sh",
     "android:release": "bash scripts/run-android-release.sh",
     "android:apk": "bash scripts/run-android-release.sh --apk-only",
     "ios": "expo run:ios",

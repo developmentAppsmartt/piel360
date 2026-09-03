@@ -1,5 +1,10 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
+import {
+  patientLatestSkinAgeData,
+  snapshotFromAnalysis,
+  snapshotHasValues,
+} from '../src/youcam/skin-age-persist.util';
 import { normalizeYoucamResults, readOutput } from '../src/youcam/youcam-normalize.util';
 
 // Prisma 7: el cliente necesita un driver adapter explícito (ver src/prisma/prisma.service.ts).
@@ -13,7 +18,13 @@ const YOUCAM_PROVIDER_SLUG = 'youcam';
 async function backfillAnalysis(analysisId: bigint, providerId: bigint | null) {
   const analysis = await prisma.analysis.findUnique({
     where: { id: analysisId },
-    select: { id: true, aiRawResponse: true },
+    select: {
+      id: true,
+      patientId: true,
+      aiRawResponse: true,
+      createdAt: true,
+      patient: { select: { birthDate: true, lastSkinAgeAt: true } },
+    },
   });
 
   if (!analysis) {
@@ -42,8 +53,38 @@ async function backfillAnalysis(analysisId: bigint, providerId: bigint | null) {
         analysis.aiRawResponse,
       );
 
+      const snap = snapshotFromAnalysis({
+        aiRawResponse: analysis.aiRawResponse,
+        birthDate: analysis.patient.birthDate,
+        analysisDate: analysis.createdAt,
+      });
+      if (snapshotHasValues(snap)) {
+        await tx.analysis.update({
+          where: { id: analysisId },
+          data: {
+            skinAgeYears: snap.skinAgeYears,
+            chronologicalAgeYears: snap.chronologicalAgeYears,
+            skinAgeDifference: snap.skinAgeDifference,
+          },
+        });
+        const patientSkinAge = patientLatestSkinAgeData(
+          analysis.patient,
+          analysis.createdAt,
+          snap,
+        );
+        if (patientSkinAge) {
+          await tx.patient.update({
+            where: { id: analysis.patientId },
+            data: patientSkinAge,
+          });
+        }
+      }
+
       console.log(
-        `  ✓ Análisis ${analysisId}: ${counts.results} resultados, ${counts.masks} máscaras`,
+        `  ✓ Análisis ${analysisId}: ${counts.results} resultados, ${counts.masks} máscaras` +
+          (snap.skinAgeDifference != null
+            ? `, diferencia edad ${snap.skinAgeDifference}`
+            : ''),
       );
       return counts;
     },

@@ -22,6 +22,17 @@ export function adminRouteAllowed(
 ): boolean {
   if (pathname === "/admin" || pathname === "/admin/login") return true;
 
+  if (
+    pathname === "/admin/reglas-edad-piel" ||
+    pathname.startsWith("/admin/reglas-edad-piel/")
+  ) {
+    return hasAnyPermission(userPermissions, [
+      "admin.skin_age_rules",
+      "clinical.skin_age_rules",
+      "clinical.routines",
+    ]);
+  }
+
   const matchingRules = ADMIN_ROUTE_RULES.filter(
     (entry) =>
       pathname === entry.prefix || pathname.startsWith(`${entry.prefix}/`),

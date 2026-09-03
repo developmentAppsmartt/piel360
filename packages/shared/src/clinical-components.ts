@@ -60,6 +60,18 @@ export const CLINICAL_COMPONENTS: readonly ClinicalComponentDef[] = [
     sortOrder: 100,
   },
   {
+    slug: "clinical.skin_age_rules",
+    label: "Reglas por edad de piel",
+    href: "/doctor/reglas-edad-piel",
+    sortOrder: 101,
+  },
+  {
+    slug: "clinical.email_templates",
+    label: "Plantillas de correo",
+    href: "/doctor/plantillas-correo",
+    sortOrder: 102,
+  },
+  {
     slug: "clinical.settings",
     label: "Configuración",
     href: "/doctor/configuracion",
@@ -103,6 +115,8 @@ export const EMPRESA_CLINICAL_COMPONENT_SLUGS = [
   "clinical.reports",
   "clinical.products",
   "clinical.routines",
+  "clinical.skin_age_rules",
+  "clinical.email_templates",
   "clinical.settings",
   "clinical.settings.account",
   "clinical.settings.team",

@@ -75,6 +75,22 @@ export class CreatePatientDto {
 
   @IsOptional()
   @IsString()
+  birthType?: string;
+
+  @IsOptional()
+  @IsString()
+  exerciseHabit?: string;
+
+  @IsOptional()
+  @IsString()
+  exerciseDaysPerWeek?: string;
+
+  @IsOptional()
+  @IsString()
+  exerciseSessionDuration?: string;
+
+  @IsOptional()
+  @IsString()
   skinType?: string;
 
   @IsOptional()

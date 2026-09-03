@@ -41,6 +41,7 @@ export const ADMIN_MODULE_LEGACY_ACTIONS: Record<string, readonly string[]> = {
     "view_any_analysis_consumption",
     "view_analysis_consumption",
   ],
+  "admin.skin_age_rules": [],
   "admin.verification.pending": ["validate_doctor", "view_any_doctor"],
   "admin.verification.verified": ["validate_doctor", "view_any_doctor"],
   "admin.verification.rejected": ["validate_doctor", "view_any_doctor"],

@@ -1,18 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Text,
   View,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useBranding } from '../../context/BrandingContext';
 import { ApiError } from '../../services/api.client';
 import { messagesService } from '../../services/messages.service';
 import type { Conversation, MessageTab } from '../../types/messages';
+import { AppModuleChrome } from '../shared/AppModuleChrome';
 import { ConversationCard } from './components/ConversationCard';
-import { MessagesHeader } from './components/MessagesHeader';
 import { MessagesTabs } from './components/MessagesTabs';
 import { NewMessageContactsView } from './components/NewMessageContactsView';
 import { NewMessageFab } from './components/NewMessageFab';
@@ -21,9 +19,13 @@ import { createMessagesStyles } from './styles/messages.styles';
 
 type MessagesViewProps = {
   onThreadOpenChange?: (open: boolean) => void;
+  onOpenProfile?: () => void;
 };
 
-export function MessagesView({ onThreadOpenChange }: MessagesViewProps) {
+export function MessagesView({
+  onThreadOpenChange,
+  onOpenProfile,
+}: MessagesViewProps) {
   const branding = useBranding();
   const styles = useMemo(
     () => createMessagesStyles(branding.colors),
@@ -71,6 +73,7 @@ export function MessagesView({ onThreadOpenChange }: MessagesViewProps) {
           setPickingContact(false);
           setActiveId(id);
         }}
+        onOpenProfile={onOpenProfile}
       />
     );
   }
@@ -87,54 +90,50 @@ export function MessagesView({ onThreadOpenChange }: MessagesViewProps) {
           setActiveId(null);
           void reload();
         }}
+        onOpenProfile={onOpenProfile}
       />
     );
   }
 
   return (
     <View style={styles.screen}>
-      <StatusBar style="light" />
-      <MessagesHeader
-        styles={styles}
-        onSearch={() =>
-          Alert.alert('Buscar', 'La búsqueda de conversaciones llegará pronto.')
-        }
-      />
-      <MessagesTabs styles={styles} active={tab} onChange={setTab} />
-      {loading ? (
-        <View style={styles.empty}>
-          <ActivityIndicator color={branding.colors.primary} />
-        </View>
-      ) : (
-        <FlatList
-          data={items}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          ListHeaderComponent={
-            error ? (
-              <Text style={{ color: branding.colors.error, marginBottom: 8 }}>
-                {error}
-              </Text>
-            ) : null
-          }
-          renderItem={({ item }) => (
-            <ConversationCard
-              styles={styles}
-              conversation={item}
-              onPress={() => setActiveId(item.id)}
-            />
-          )}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyText}>
-                No hay conversaciones en esta carpeta. Pulsa + para iniciar un
-                chat.
-              </Text>
-            </View>
-          }
-        />
-      )}
-      <NewMessageFab styles={styles} onPress={() => setPickingContact(true)} />
+      <AppModuleChrome onOpenProfile={onOpenProfile}>
+        <MessagesTabs styles={styles} active={tab} onChange={setTab} />
+        {loading ? (
+          <View style={styles.empty}>
+            <ActivityIndicator color={branding.colors.primary} />
+          </View>
+        ) : (
+          <FlatList
+            data={items}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            ListHeaderComponent={
+              error ? (
+                <Text style={{ color: branding.colors.error, marginBottom: 8 }}>
+                  {error}
+                </Text>
+              ) : null
+            }
+            renderItem={({ item }) => (
+              <ConversationCard
+                styles={styles}
+                conversation={item}
+                onPress={() => setActiveId(item.id)}
+              />
+            )}
+            ListEmptyComponent={
+              <View style={styles.empty}>
+                <Text style={styles.emptyText}>
+                  No hay conversaciones en esta carpeta. Pulsa + para iniciar un
+                  chat.
+                </Text>
+              </View>
+            }
+          />
+        )}
+        <NewMessageFab styles={styles} onPress={() => setPickingContact(true)} />
+      </AppModuleChrome>
     </View>
   );
 }

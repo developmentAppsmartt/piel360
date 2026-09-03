@@ -5,21 +5,33 @@ import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
+import { AddressLocationPicker } from "@/components/maps";
 import { Button } from "@/components/ui/button";
 import { ModuleCard, ModuleCardDescription, ModuleCardTitle } from "@/components/ui/module-card";
 import { ApiError } from "@/lib/api-error";
 import {
+  PATIENT_BIRTH_TYPE_OPTIONS,
   PATIENT_DOC_TYPES,
+  PATIENT_EXERCISE_DAYS_OPTIONS,
+  PATIENT_EXERCISE_DURATION_OPTIONS,
+  PATIENT_EXERCISE_HABIT_OPTIONS,
   PATIENT_FITZ_OPTIONS,
   PATIENT_GENDER_OPTIONS,
   PATIENT_MASCOT_OPTIONS,
   PATIENT_SKIN_OPTIONS,
 } from "@/lib/patient-form-options";
 import type { Patient, PatientInput } from "@/lib/queries/patients";
+import { chronologicalAgeYears } from "@/lib/skin-age";
 import { cn } from "@/lib/utils";
 
 const inputClass =
   "h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-primary/50 focus:ring-2 focus:ring-primary/20";
+
+function toCoord(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
 
 function createPatientSchema(isCreate: boolean) {
   return z
@@ -33,6 +45,8 @@ function createPatientSchema(isCreate: boolean) {
       docNumber: z.string(),
       gender: z.string(),
       address: z.string(),
+      lat: z.number().nullable(),
+      lng: z.number().nullable(),
       areaCode: z.string(),
       phone: z.string(),
       birthDate: z.union([
@@ -40,6 +54,10 @@ function createPatientSchema(isCreate: boolean) {
         z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
       ]),
       mascotType: z.string(),
+      birthType: z.string(),
+      exerciseHabit: z.string(),
+      exerciseDaysPerWeek: z.string(),
+      exerciseSessionDuration: z.string(),
       skinType: z.string(),
       fitzpatrickType: z.string(),
     })
@@ -87,10 +105,17 @@ function toInput(values: PatientFormValues, isCreate: boolean): PatientInput {
     docNumber: opt(values.docNumber),
     gender: opt(values.gender),
     address: opt(values.address),
+    ...(values.lat != null && values.lng != null
+      ? { lat: values.lat, lng: values.lng }
+      : {}),
     areaCode: opt(values.areaCode),
     phone: opt(values.phone),
     birthDate: opt(values.birthDate),
+    birthType: opt(values.birthType),
     mascotType: opt(values.mascotType),
+    exerciseHabit: opt(values.exerciseHabit),
+    exerciseDaysPerWeek: opt(values.exerciseDaysPerWeek),
+    exerciseSessionDuration: opt(values.exerciseSessionDuration),
     skinType: opt(values.skinType),
     fitzpatrickType: opt(values.fitzpatrickType),
   };
@@ -178,6 +203,7 @@ export function PatientForm({
     handleSubmit,
     control,
     watch,
+    setValue,
     setError,
     formState: { errors, isSubmitting },
   } = useForm<PatientFormValues>({
@@ -192,10 +218,16 @@ export function PatientForm({
       docNumber: defaultValues?.docNumber ?? "",
       gender: defaultValues?.gender ?? "",
       address: defaultValues?.address ?? "",
+      lat: toCoord(defaultValues?.lat),
+      lng: toCoord(defaultValues?.lng),
       areaCode: defaultValues?.areaCode ?? "+57",
       phone: defaultValues?.phone ?? "",
       birthDate: toDateInput(defaultValues?.birthDate),
+      birthType: defaultValues?.birthType ?? "",
       mascotType: defaultValues?.mascotType ?? "",
+      exerciseHabit: defaultValues?.exerciseHabit ?? "",
+      exerciseDaysPerWeek: defaultValues?.exerciseDaysPerWeek ?? "",
+      exerciseSessionDuration: defaultValues?.exerciseSessionDuration ?? "",
       skinType: defaultValues?.skinType ?? "",
       fitzpatrickType: defaultValues?.fitzpatrickType ?? "",
     },
@@ -203,6 +235,11 @@ export function PatientForm({
 
   const fitz = watch("fitzpatrickType");
   const createAppAccess = watch("createAppAccess");
+  const birthDateValue = watch("birthDate");
+  const addressValue = watch("address");
+  const latValue = watch("lat");
+  const lngValue = watch("lng");
+  const chronologicalAge = chronologicalAgeYears(birthDateValue || null, new Date());
   const fitzHint = PATIENT_FITZ_OPTIONS.find((f) => f.value === fitz)?.hint;
 
   const submit = handleSubmit(async (values) => {
@@ -275,10 +312,28 @@ export function PatientForm({
         <FormField
           label="Fecha de nacimiento"
           id="birthDate"
-          hint="Se usa para reportes y seguimiento clínico."
+          hint={
+            chronologicalAge != null
+              ? `Edad cronológica: ${chronologicalAge} años. Se usa en el análisis de salud de la piel y en el CRM.`
+              : "Se usa como edad cronológica en el análisis de salud de la piel y en el CRM."
+          }
           error={errors.birthDate?.message}
         >
           <input id="birthDate" type="date" className={inputClass} {...register("birthDate")} />
+        </FormField>
+
+        <FormField label="Tipo de nacimiento" id="birthType">
+          <Controller
+            name="birthType"
+            control={control}
+            render={({ field }) => (
+              <ChipGroup
+                options={PATIENT_BIRTH_TYPE_OPTIONS}
+                value={field.value}
+                onChange={field.onChange}
+              />
+            )}
+          />
         </FormField>
       </ModuleCard>
 
@@ -286,13 +341,22 @@ export function PatientForm({
         <div>
           <ModuleCardTitle>Contacto</ModuleCardTitle>
           <ModuleCardDescription className="mt-1">
-            Dirección y teléfono para comunicación con el paciente.
+            Ubicación en el mapa y teléfono para comunicación con el paciente.
           </ModuleCardDescription>
         </div>
 
-        <FormField label="Dirección" id="address">
-          <input id="address" className={inputClass} {...register("address")} />
-        </FormField>
+        <AddressLocationPicker
+          value={{
+            address: addressValue,
+            lat: latValue,
+            lng: lngValue,
+          }}
+          onChange={(next) => {
+            setValue("address", next.address, { shouldDirty: true });
+            setValue("lat", next.lat, { shouldDirty: true });
+            setValue("lng", next.lng, { shouldDirty: true });
+          }}
+        />
 
         <div className="grid gap-4 sm:grid-cols-[110px_1fr]">
           <FormField label="Indicativo" id="areaCode">
@@ -403,6 +467,63 @@ export function PatientForm({
             )}
           />
         </FormField>
+
+        <div className="space-y-4 rounded-2xl border border-border/70 bg-muted/20 p-4">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Actividad física</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Datos opcionales sobre ejercicio o deporte regular.
+            </p>
+          </div>
+          <FormField
+            label="¿Realiza algún tipo de ejercicio o deporte de forma regular?"
+            id="exerciseHabit"
+          >
+            <Controller
+              name="exerciseHabit"
+              control={control}
+              render={({ field }) => (
+                <ChipGroup
+                  options={PATIENT_EXERCISE_HABIT_OPTIONS}
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              )}
+            />
+          </FormField>
+          <FormField
+            label="¿Cuántos días a la semana dedica a estas actividades?"
+            id="exerciseDaysPerWeek"
+          >
+            <Controller
+              name="exerciseDaysPerWeek"
+              control={control}
+              render={({ field }) => (
+                <ChipGroup
+                  options={PATIENT_EXERCISE_DAYS_OPTIONS}
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              )}
+            />
+          </FormField>
+          <FormField
+            label="¿Cuánto tiempo dura cada sesión de entrenamiento?"
+            id="exerciseSessionDuration"
+          >
+            <Controller
+              name="exerciseSessionDuration"
+              control={control}
+              render={({ field }) => (
+                <ChipGroup
+                  options={PATIENT_EXERCISE_DURATION_OPTIONS}
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              )}
+            />
+          </FormField>
+        </div>
 
         <FormField label="Tipo de piel" id="skinType">
           <Controller

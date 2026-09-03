@@ -15,6 +15,8 @@ type SkinTypeConventionStyles = {
   skinTypeLegendText: StyleProp<TextStyle>;
   skinTypeZoneDash: StyleProp<ViewStyle>;
   skinTypeZoneSolid: StyleProp<ViewStyle>;
+  skinTypeZoneDashRow: StyleProp<ViewStyle>;
+  skinTypeZoneDashSeg: StyleProp<ViewStyle>;
   skinTypeDot: StyleProp<ViewStyle>;
 };
 
@@ -22,31 +24,23 @@ type YoucamSkinTypeConventionBarProps = {
   styles: SkinTypeConventionStyles;
 };
 
-function ZoneLine({ dashed }: { dashed: boolean }) {
+function ZoneLine({
+  dashed,
+  styles,
+}: {
+  dashed: boolean;
+  styles: Pick<
+    SkinTypeConventionStyles,
+    'skinTypeZoneSolid' | 'skinTypeZoneDashRow' | 'skinTypeZoneDashSeg'
+  >;
+}) {
   if (!dashed) {
-    return (
-      <View
-        style={{
-          width: 12,
-          height: 1.5,
-          borderRadius: 1,
-          backgroundColor: '#222222',
-        }}
-      />
-    );
+    return <View style={styles.skinTypeZoneSolid} />;
   }
   return (
-    <View style={{ width: 12, flexDirection: 'row', alignItems: 'center', gap: 1.5 }}>
+    <View style={styles.skinTypeZoneDashRow}>
       {[0, 1, 2].map((i) => (
-        <View
-          key={i}
-          style={{
-            width: 2.5,
-            height: 1.5,
-            borderRadius: 1,
-            backgroundColor: '#222222',
-          }}
-        />
+        <View key={i} style={styles.skinTypeZoneDashSeg} />
       ))}
     </View>
   );
@@ -77,7 +71,7 @@ export function YoucamSkinTypeConventionBar({
       <View style={styles.skinTypeLegendBox}>
         {YOUCAM_SKIN_TYPE_ZONES.map((zone) => (
           <View key={zone.key} style={styles.skinTypeLegendRow}>
-            <ZoneLine dashed={zone.lineStyle === 'dashed'} />
+            <ZoneLine dashed={zone.lineStyle === 'dashed'} styles={styles} />
             <Text style={styles.skinTypeLegendText}>{zone.label}</Text>
           </View>
         ))}

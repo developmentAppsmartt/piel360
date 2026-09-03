@@ -21,6 +21,12 @@ import {
   youcamMetricLabel,
   youcamSkinTypeLabel,
 } from '../../../data/youcamMetricLabels';
+import {
+  chronologicalAgeYears,
+  formatSignedYears,
+  skinAgeDifference,
+  skinAgeDifferenceMessage,
+} from '../../../data/skinAge';
 import { analysesService } from '../../../services/analyses.service';
 import { ApiError } from '../../../services/api.client';
 import type {
@@ -242,7 +248,13 @@ export function YoucamReportView({
     [metrics, preferRaw],
   );
   const overall = youcamOverallScore(metrics);
-  const skinAge = youcamSkinAge(metrics);
+  const skinAge = analysis.skinAgeYears ?? youcamSkinAge(metrics);
+  const chronologicalAge =
+    analysis.chronologicalAgeYears ??
+    chronologicalAgeYears(analysis.patient?.birthDate, analysis.createdAt);
+  const ageDiff =
+    analysis.skinAgeDifference ??
+    skinAgeDifference(skinAge, chronologicalAge);
   const skinType = youcamSkinType(metrics);
   const skinTypeLabel = skinType ? youcamSkinTypeLabel(skinType) : null;
   const band = overall != null ? youcamScoreBand(overall) : null;
@@ -460,8 +472,41 @@ export function YoucamReportView({
               {overall != null ? Math.round(overall) : '—'}
             </Text>
             <Text style={styles.reportMetaText}>
-              Edad de tu piel: {skinAge != null ? Math.round(skinAge) : '—'}
+              Edad de tu piel:{' '}
+              {skinAge != null ? `${Math.round(skinAge)} años` : '—'}
             </Text>
+            <Text style={styles.reportMetaMuted}>
+              Edad cronológica:{' '}
+              {chronologicalAge != null ? `${chronologicalAge} años` : '—'}
+            </Text>
+            {ageDiff != null ? (
+              <>
+                <Text
+                  style={[
+                    styles.reportMetaText,
+                    ageDiff < 0
+                      ? styles.summaryPositive
+                      : ageDiff > 0
+                        ? styles.summaryAged
+                        : styles.summaryNeutral,
+                  ]}
+                >
+                  Diferencia: {formatSignedYears(ageDiff)}
+                </Text>
+                <Text
+                  style={[
+                    styles.summaryMessage,
+                    ageDiff < 0
+                      ? styles.summaryPositive
+                      : ageDiff > 0
+                        ? styles.summaryAged
+                        : styles.summaryNeutral,
+                  ]}
+                >
+                  {skinAgeDifferenceMessage(ageDiff)}
+                </Text>
+              </>
+            ) : null}
             {band ? (
               <Text style={styles.bandLabel}>
                 Su piel está en el {youcamScoreBandLabel(band).toLowerCase()}

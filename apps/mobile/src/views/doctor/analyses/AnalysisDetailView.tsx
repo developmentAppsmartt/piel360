@@ -66,6 +66,7 @@ async function enrichAnalysisPatient(
   let skinType = detail.patient?.skinType ?? null;
   let firstName = detail.patient?.firstName ?? '';
   let lastName = detail.patient?.lastName ?? '';
+  let birthDate = detail.patient?.birthDate ?? null;
 
   try {
     const profile = await patientsService.getById(detail.patientId);
@@ -74,6 +75,7 @@ async function enrichAnalysisPatient(
     skinType = profile.skinType ?? skinType;
     // Perfil solo como respaldo; el confirmado manda.
     fitzpatrickType = profile.fitzpatrickType ?? null;
+    birthDate = profile.birthDate ?? birthDate;
   } catch {
     // Si falla el perfil, seguimos con historial.
   }
@@ -109,6 +111,7 @@ async function enrichAnalysisPatient(
       id: detail.patientId,
       firstName,
       lastName,
+      birthDate,
       skinType,
       fitzpatrickType,
     },

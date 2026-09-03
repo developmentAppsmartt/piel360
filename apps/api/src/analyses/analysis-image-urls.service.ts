@@ -128,6 +128,7 @@ export class AnalysisImageUrlsService {
 
   private async signIfPresent(key: string | null): Promise<string | null> {
     if (!key) return null;
+    if (key === 'youcam') return null;
     try {
       return await this.storage.getSignedUrl(key);
     } catch (error) {

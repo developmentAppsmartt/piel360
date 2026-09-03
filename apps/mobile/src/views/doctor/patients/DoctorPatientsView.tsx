@@ -278,6 +278,12 @@ export function DoctorPatientsView({
         messageCount={1}
         onOpenMenu={() => setMenuOpen(true)}
         onOpenMessages={onOpenMessages}
+        onOpenGift={() =>
+          Alert.alert(
+            'Premios',
+            'Aquí verás recompensas y beneficios de Piel 360. Este módulo se activará en una próxima versión.',
+          )
+        }
       />
 
       {loading ? (

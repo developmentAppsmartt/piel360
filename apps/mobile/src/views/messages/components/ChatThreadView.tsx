@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useBranding } from '../../../context/BrandingContext';
 import { useAuth } from '../../../context/AuthContext';
 import { isClinicalPanelUser } from '../../../types/auth';
 import { ApiError } from '../../../services/api.client';
 import { messagesService } from '../../../services/messages.service';
 import type { Conversation } from '../../../types/messages';
+import { AppModuleChrome } from '../../shared/AppModuleChrome';
 import { ChatBubble } from './ChatBubble';
 import { ChatComposer } from './ChatComposer';
 import { ChatHeader } from './ChatHeader';
@@ -17,12 +17,14 @@ type ChatThreadViewProps = {
   conversationId: string;
   onBack: () => void;
   onDeleted?: () => void;
+  onOpenProfile?: () => void;
 };
 
 export function ChatThreadView({
   conversationId,
   onBack,
   onDeleted,
+  onOpenProfile,
 }: ChatThreadViewProps) {
   const branding = useBranding();
   const { user } = useAuth();
@@ -141,17 +143,24 @@ export function ChatThreadView({
   }
 
   if (!conversation) {
-    return <View style={styles.screen} />;
+    return (
+      <View style={styles.screen}>
+        <AppModuleChrome
+          showBack
+          onBack={onBack}
+          onOpenProfile={onOpenProfile}
+        />
+      </View>
+    );
   }
 
   return (
     <View style={styles.screen}>
-      <StatusBar style="light" />
+      <AppModuleChrome showBack onBack={onBack} onOpenProfile={onOpenProfile}>
       <ChatHeader
         styles={styles}
         name={conversation.peerName}
         initials={conversation.peerInitials}
-        onBack={onBack}
         onMore={openOptions}
       />
       <FlatList
@@ -226,6 +235,7 @@ export function ChatThreadView({
           }
         }}
       />
+      </AppModuleChrome>
     </View>
   );
 }

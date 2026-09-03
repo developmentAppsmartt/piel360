@@ -36,6 +36,22 @@ export function clinicalRouteAllowed(
   if (pathname.startsWith("/doctor/configuracion/referidos")) {
     return hasAnyPermission(userPermissions, ["clinical.settings.referrals"]);
   }
+  if (
+    pathname === "/doctor/reglas-edad-piel" ||
+    pathname.startsWith("/doctor/reglas-edad-piel/") ||
+    pathname.startsWith("/doctor/rutinas/reglas-edad-piel")
+  ) {
+    return hasAnyPermission(userPermissions, [
+      "clinical.skin_age_rules",
+      "clinical.routines",
+    ]);
+  }
+  if (
+    pathname === "/doctor/plantillas-correo" ||
+    pathname.startsWith("/doctor/plantillas-correo/")
+  ) {
+    return hasAnyPermission(userPermissions, ["clinical.email_templates"]);
+  }
 
   const matchingRules = CLINICAL_ROUTE_RULES.filter(
     (entry) =>

@@ -6,10 +6,12 @@ import { useRouter } from "next/navigation";
 import { CloudUpload } from "lucide-react";
 import { LocationPickerSection, useLocationPicker } from "@/components/auth/location-picker-section";
 import {
+  combinePhoneParts,
   digitsOnly,
   Field,
   inputClass,
-  normalizePhoneDigits,
+  isValidE164Digits,
+  PhoneSplitInputs,
   splitFullName,
 } from "@/components/auth/auth-form-primitives";
 import {
@@ -22,6 +24,7 @@ import { ApiError } from "@/lib/api-error";
 import { registerDoctorWithDocuments } from "@/lib/doctor-register-client";
 import { useLaborTechnicianProfiles } from "@/lib/queries/labor-technician-profiles";
 import { useSpecialties } from "@/lib/queries/specialties";
+import { GoogleContinueButton } from "@/components/auth/google-continue-button";
 
 const DOC_TYPES = ["CC", "CE", "TI", "PA"] as const;
 
@@ -72,7 +75,8 @@ export function DoctorRegisterForm() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [phoneDisplay, setPhoneDisplay] = useState("");
+  const [phonePrefix, setPhonePrefix] = useState("57");
+  const [phoneNational, setPhoneNational] = useState("");
   const [docType, setDocType] = useState<string>(DOC_TYPES[0]);
   const [docNumber, setDocNumber] = useState("");
   const [gender, setGender] = useState("");
@@ -88,8 +92,11 @@ export function DoctorRegisterForm() {
   const [medicalRegistryDoc, setMedicalRegistryDoc] = useState<File | null>(null);
   const [diploma, setDiploma] = useState<File | null>(null);
 
-  const phone = digitsOnly(phoneDisplay);
-  const phoneValid = /^\d{10,15}$/.test(phone);
+  const phone = combinePhoneParts(phonePrefix, phoneNational);
+  const phoneValid =
+    digitsOnly(phonePrefix).length >= 1 &&
+    digitsOnly(phoneNational).length >= 7 &&
+    isValidE164Digits(phone);
 
   const [otpCode, setOtpCode] = useState("");
   const [phoneTicket, setPhoneTicket] = useState<string | null>(null);
@@ -129,7 +136,7 @@ export function DoctorRegisterForm() {
       return;
     }
     setPhoneTicket(result.ticket);
-    setVerifiedPhone(normalizePhoneDigits(phone));
+    setVerifiedPhone(phone);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -138,7 +145,7 @@ export function DoctorRegisterForm() {
     if (!phoneValid) {
       setState({
         error:
-          "Celular inválido — usa solo dígitos, con indicativo de país (10 a 15).",
+          "Celular inválido — revisa el prefijo (ej. 57) y el número (10 a 15 dígitos en total).",
       });
       return;
     }
@@ -178,7 +185,7 @@ export function DoctorRegisterForm() {
     const resolvedSpecialty =
       professionalKind === "labor" ? laborProfile.trim() : specialty.trim();
 
-    const phoneForRegister = verifiedPhone ?? normalizePhoneDigits(phoneDisplay);
+    const phoneForRegister = verifiedPhone ?? phone;
 
     setIsPending(true);
     try {
@@ -244,6 +251,13 @@ export function DoctorRegisterForm() {
         </p>
       </div>
 
+      <GoogleContinueButton role="doctor" label="Registrarme con Google" />
+      <div className="flex items-center gap-3">
+        <div className="h-px flex-1 bg-zinc-200" />
+        <span className="text-xs text-zinc-400">o completa el formulario</span>
+        <div className="h-px flex-1 bg-zinc-200" />
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Nombre completo" required>
           <input
@@ -268,18 +282,18 @@ export function DoctorRegisterForm() {
         </Field>
         <Field label="Celular" required>
           <div className="space-y-2">
-            <input
-              className={inputClass}
-              type="tel"
-              placeholder="+57 300 000 0000"
-              value={phoneDisplay}
+            <PhoneSplitInputs
+              prefix={phonePrefix}
+              nationalNumber={phoneNational}
               disabled={phoneTicket != null}
-              onChange={(e) => {
-                setPhoneDisplay(e.target.value);
+              onPrefixChange={(value) => {
+                setPhonePrefix(value);
                 if (otpSent) resetPhoneVerification();
               }}
-              required
-              autoComplete="tel"
+              onNationalChange={(value) => {
+                setPhoneNational(value);
+                if (otpSent) resetPhoneVerification();
+              }}
             />
             {phoneTicket == null && (
               <button
@@ -298,7 +312,7 @@ export function DoctorRegisterForm() {
             {otpSent && phoneTicket == null && (
               <div className="space-y-2 rounded-lg border border-zinc-200 p-2.5">
                 <p className="text-xs text-zinc-500">
-                  Te enviamos un código por SMS a {phone}.
+                  Te enviamos un código por SMS a +{phone}.
                 </p>
                 <input
                   className={inputClass}

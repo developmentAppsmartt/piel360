@@ -10,6 +10,8 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import {
   isMobileLoginAllowed,
+  OAUTH_DOCTOR_DEFAULT_ROLE,
+  OAUTH_DOCTOR_DEFAULT_SPECIALTY,
   parseTeamMemberPermissions,
   resolveUserPrimaryPanel,
   TEAM_MEMBER_PERMISSIONS,
@@ -23,6 +25,7 @@ import * as argon2 from 'argon2';
 import { Prisma } from '@prisma/client';
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { Redis } from 'ioredis';
+import { assertDocumentNumberAvailable } from '../common/document-number.util';
 import { MailService } from '../mail/mail.service';
 import { SmsService } from '../sms/sms.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -35,6 +38,7 @@ import type { RegisterPatientDto } from './dto/register-patient.dto';
 import type { ResetPasswordDto } from './dto/reset-password.dto';
 import type { SendOtpDto } from './dto/send-otp.dto';
 import type { VerifyOtpDto } from './dto/verify-otp.dto';
+import type { ConfirmPhoneVerificationDto } from './dto/confirm-phone-verification.dto';
 import type { SendPhoneOtpDto } from './dto/send-phone-otp.dto';
 import type { VerifyPhoneOtpDto } from './dto/verify-phone-otp.dto';
 import type { GoogleProfile } from './google.strategy';
@@ -128,6 +132,7 @@ export class AuthService implements OnModuleDestroy {
       await this.assertPhoneTicket(dto.phoneTicket, phone);
     }
     await this.assertEmailAvailable(email);
+    await assertDocumentNumberAvailable(this.prisma, dto.docNumber);
     const password = await argon2.hash(dto.password);
     const membershipType: MembershipType = 'solo_doctor';
 
@@ -227,6 +232,7 @@ export class AuthService implements OnModuleDestroy {
     }
     await this.assertPhoneTicket(dto.phoneTicket, phone);
     await this.assertEmailAvailable(dto.email);
+    await assertDocumentNumberAvailable(this.prisma, dto.legalRepDocNumber);
     const password = await argon2.hash(dto.password);
 
     const membershipType = dto.membershipType;
@@ -497,11 +503,9 @@ export class AuthService implements OnModuleDestroy {
   } as const;
 
   /**
-   * Crea o loguea un usuario vía Google. Regla de seguridad (MIGRACION.md §2.2):
-   * el perfil profesional no recibe el rol RBAC legacy `doctor` — solo se crea
-   * el registro en `doctors` y el JWT expone `role: doctor` para el panel hasta
-   * que el usuario complete especialidad (mismo criterio que registerDoctor).
-   * `patient` sí puede agregarse a una cuenta existente que aún no lo tenga.
+   * Crea o loguea un usuario vía Google.
+   * Profesional: rol `medico_general` por defecto, verificationStatus `pending`
+   * (moderador debe aprobar). Paciente: rol `patient`.
    */
   async loginOrRegisterWithGoogle(
     profile: GoogleProfile,
@@ -526,6 +530,7 @@ export class AuthService implements OnModuleDestroy {
           lastName: profile.lastName,
           ...(isDoctorIntent
             ? {
+                roles: { connect: [{ name: OAUTH_DOCTOR_DEFAULT_ROLE }] },
                 doctor: {
                   create: {
                     firstName: profile.firstName,
@@ -534,6 +539,7 @@ export class AuthService implements OnModuleDestroy {
                     empresa: false,
                     empresaReferida: false,
                     verificationStatus: 'pending',
+                    specialty: OAUTH_DOCTOR_DEFAULT_SPECIALTY,
                   },
                 },
               }
@@ -553,6 +559,10 @@ export class AuthService implements OnModuleDestroy {
 
       const session = this.resolveSessionContext(user);
       return this.buildAuthResult(user, session, client);
+    }
+
+    if (profile.roleIntent === 'doctor') {
+      await this.bootstrapGoogleDoctor(existing.id, profile);
     }
 
     const roleNames = existing.roles.map((r) => r.name);
@@ -588,10 +598,81 @@ export class AuthService implements OnModuleDestroy {
             data: updateData,
             include: this.authUserInclude,
           })
-        : existing;
+        : profile.roleIntent === 'doctor'
+          ? await this.prisma.user.findUniqueOrThrow({
+              where: { id: existing.id },
+              include: this.authUserInclude,
+            })
+          : existing;
 
     const session = this.resolveSessionContext(user);
     return this.buildAuthResult(user, session, client);
+  }
+
+  /** Perfil profesional mínimo tras OAuth: rol por defecto y verificación pendiente. */
+  private async bootstrapGoogleDoctor(
+    userId: bigint,
+    profile: GoogleProfile,
+  ): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        doctor: true,
+        roles: {
+          include: { specialty: true, laborTechnicianProfile: true },
+        },
+      },
+    });
+    if (!user) return;
+
+    const hasProfessionalRole = user.roles.some(
+      (role) => role.specialty || role.laborTechnicianProfile,
+    );
+
+    if (!user.doctor) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          googleId: profile.googleId,
+          ...(!hasProfessionalRole
+            ? { roles: { connect: [{ name: OAUTH_DOCTOR_DEFAULT_ROLE }] } }
+            : {}),
+          doctor: {
+            create: {
+              firstName: profile.firstName,
+              lastName: profile.lastName,
+              membershipType: 'solo_doctor',
+              empresa: false,
+              empresaReferida: false,
+              verificationStatus: 'pending',
+              specialty: OAUTH_DOCTOR_DEFAULT_SPECIALTY,
+            },
+          },
+        },
+      });
+      return;
+    }
+
+    if (!user.googleId || !hasProfessionalRole) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          ...(profile.googleId && !user.googleId
+            ? { googleId: profile.googleId }
+            : {}),
+          ...(!hasProfessionalRole
+            ? { roles: { connect: [{ name: OAUTH_DOCTOR_DEFAULT_ROLE }] } }
+            : {}),
+        },
+      });
+    }
+
+    if (!user.doctor.specialty?.trim()) {
+      await this.prisma.doctor.update({
+        where: { id: user.doctor.id },
+        data: { specialty: OAUTH_DOCTOR_DEFAULT_SPECIALTY },
+      });
+    }
   }
 
   /** Guarda el resultado de auth bajo un código de un solo uso (Redis, TTL
@@ -776,10 +857,13 @@ export class AuthService implements OnModuleDestroy {
    * generamos y guardamos nosotros, mismo patrón exacto que el OTP de email
    * (sendOtp/verifyOtp): 5 dígitos en Redis con intentos/expiración.
    */
-  async sendPhoneOtp(dto: SendPhoneOtpDto): Promise<{ ok: true }> {
+  async sendPhoneOtp(
+    dto: SendPhoneOtpDto,
+    exceptUserId?: bigint,
+  ): Promise<{ ok: true }> {
     const phone = this.normalizePhoneDigits(dto.phone);
     const existing = await this.prisma.user.findFirst({ where: { phone } });
-    if (existing) {
+    if (existing && (!exceptUserId || existing.id !== exceptUserId)) {
       throw new ConflictException('Ya existe una cuenta con ese teléfono');
     }
 
@@ -800,6 +884,67 @@ export class AuthService implements OnModuleDestroy {
     if (!this.config.get<string>('ALTIRIA_API_KEY')) {
       // Local/dev sin credenciales de Altiria: deja el código en logs del API.
       console.warn(`[OTP phone] ${phone} → ${code}`);
+    }
+
+    return { ok: true };
+  }
+
+  async sendPhoneOtpForAuthenticatedUser(
+    userId: string,
+    dto: SendPhoneOtpDto,
+  ): Promise<{ ok: true }> {
+    return this.sendPhoneOtp(dto, BigInt(userId));
+  }
+
+  async assertAndConsumePhoneTicket(
+    ticket: string,
+    phone: string,
+  ): Promise<void> {
+    await this.consumePhoneTicket(ticket, phone);
+  }
+
+  async confirmPhoneVerification(
+    userId: string,
+    dto: ConfirmPhoneVerificationDto,
+  ): Promise<{ ok: true }> {
+    const phone = this.normalizePhoneDigits(dto.phone);
+    await this.assertAndConsumePhoneTicket(dto.phoneTicket, phone);
+
+    await this.prisma.user.update({
+      where: { id: BigInt(userId) },
+      data: {
+        phone,
+        phoneVerifiedAt: new Date(),
+      },
+    });
+
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { userId: BigInt(userId) },
+    });
+    if (doctor) {
+      await this.prisma.doctor.update({
+        where: { id: doctor.id },
+        data: { phone },
+      });
+    }
+
+    const patient = await this.prisma.patient.findUnique({
+      where: { userId: BigInt(userId) },
+    });
+    if (patient) {
+      const split =
+        phone.startsWith('57') && phone.length >= 12
+          ? { prefix: '57', national: phone.slice(2) }
+          : phone.length >= 11
+            ? { prefix: phone.slice(0, 2), national: phone.slice(2) }
+            : { prefix: '57', national: phone };
+      await this.prisma.patient.update({
+        where: { id: patient.id },
+        data: {
+          phone: split.national,
+          areaCode: `+${split.prefix}`,
+        },
+      });
     }
 
     return { ok: true };
@@ -959,16 +1104,17 @@ export class AuthService implements OnModuleDestroy {
   /** Prioridad JWT legacy para flags móviles y verificación doctor. */
   private resolveRole(user: AuthUser, primaryPanel: PrimaryPanel): Role {
     const names = user.roles.map((r) => r.name);
-    const match = ROLE_PRIORITY.find((role) => names.includes(role));
+    // Plataforma: siempre ganan, aunque el primaryPanel sea clinical por permisos mixtos.
+    if (names.includes('superadmin')) return 'superadmin';
+    if (names.includes('monitor')) return 'monitor';
+
     if (primaryPanel === 'patient') return 'patient';
+    if (names.includes('empresa') || user.doctor?.empresa) return 'empresa';
     if (primaryPanel === 'admin') {
-      if (names.includes('monitor')) return 'monitor';
-      if (names.includes('superadmin')) return 'superadmin';
-      if (names.includes('empresa') || user.doctor?.empresa) return 'empresa';
       if (user.doctor) return 'doctor';
       return 'doctor';
     }
-    if (names.includes('empresa') || user.doctor?.empresa) return 'empresa';
+    const match = ROLE_PRIORITY.find((role) => names.includes(role));
     if (match === 'doctor' || match === 'empresa') return match;
     if (user.doctor) return 'doctor';
     return 'doctor';

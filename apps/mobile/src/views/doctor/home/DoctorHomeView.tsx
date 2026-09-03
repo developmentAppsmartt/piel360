@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppIcon } from '../../../components/AppIcon';
 import { Icons, type AppIconName } from '../../../components/icons';
 import { useAuth } from '../../../context/AuthContext';
@@ -30,8 +29,10 @@ import { patientDisplayName } from '../../../types/patient';
 import { resolveMediaUrl } from '../../../utils/mediaUrl';
 import { AnalysisDetailView } from '../analyses/AnalysisDetailView';
 import { AccountDrawer } from '../patients/components/AccountDrawer';
+import { DoctorHeader } from '../patients/components/DoctorHeader';
 import { PaymentsView } from '../payments/PaymentsView';
 import { createDoctorHomeStyles } from './styles/home.styles';
+import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
 
 const DOCTOR_AVATAR = require('../../../../assets/doctor-avatar.png');
 
@@ -75,11 +76,14 @@ export function DoctorHomeView({
   onOpenMessages,
   onOpenProfile,
 }: DoctorHomeViewProps) {
-  const insets = useSafeAreaInsets();
   const branding = useBranding();
   const { user, logout } = useAuth();
   const styles = useMemo(
     () => createDoctorHomeStyles(branding.colors),
+    [branding.colors],
+  );
+  const headerStyles = useMemo(
+    () => createDoctorPatientsStyles(branding.colors),
     [branding.colors],
   );
 
@@ -250,13 +254,22 @@ export function DoctorHomeView({
 
   return (
     <View style={styles.screen}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
+      <DoctorHeader
+        styles={headerStyles}
+        messageCount={1}
+        onOpenMenu={() => setMenuOpen(true)}
+        onOpenMessages={onOpenMessages}
+        onOpenGift={() =>
+          Alert.alert(
+            'Premios',
+            'Aquí verás recompensas y beneficios de Piel 360. Este módulo se activará en una próxima versión.',
+          )
+        }
+      />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingTop: Math.max(insets.top, 12) + 8 },
-        ]}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -271,7 +284,7 @@ export function DoctorHomeView({
         <View style={styles.topRow}>
           <Pressable
             style={styles.avatar}
-            onPress={() => setMenuOpen(true)}
+            onPress={onOpenProfile}
             accessibilityLabel="Mi cuenta"
           >
             <Image

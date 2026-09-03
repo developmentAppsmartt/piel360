@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { isPhoneVerificationSkipped } from '../config/env';
 import { authService } from '../services/auth.service';
 import { doctorsService } from '../services/doctors.service';
 import {
@@ -24,34 +25,54 @@ import { isClinicalPanelUser } from '../types/auth';
 type AuthContextValue = {
   user: AuthUser | null;
   isLoading: boolean;
+  needsPhoneVerification: boolean;
   login: (payload: LoginPayload) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   registerPatient: (payload: RegisterPatientPayload) => Promise<void>;
   logout: () => Promise<void>;
-  /** Actualiza campos del usuario en memoria y SecureStore. */
+  completePhoneVerification: () => void;
   patchUser: (partial: Partial<AuthUser>) => Promise<void>;
-  /** Refresca verificationStatus del doctor desde la API. */
   refreshDoctorVerification: () => Promise<string | null>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+async function resolveNeedsPhoneVerification(): Promise<boolean> {
+  if (isPhoneVerificationSkipped()) return false;
+  try {
+    const me = await authService.meDetails();
+    return !me.phoneVerifiedAt;
+  } catch {
+    return false;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [needsPhoneVerification, setNeedsPhoneVerification] = useState(false);
+
+  const syncPhoneVerification = useCallback(async () => {
+    const needs = await resolveNeedsPhoneVerification();
+    setNeedsPhoneVerification(needs);
+    return needs;
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        // Vuelta de OAuth en Expo Web (?code=...).
         const fromGoogle = await completeGoogleLoginFromUrl();
         if (fromGoogle && !cancelled) {
           setUser(fromGoogle.user);
+          void syncPhoneVerification();
           return;
         }
         const sessionUser = await authService.hydrateSession();
-        if (!cancelled) setUser(sessionUser);
+        if (!cancelled && sessionUser) {
+          setUser(sessionUser);
+          void syncPhoneVerification();
+        }
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -59,22 +80,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [syncPhoneVerification]);
 
-  const login = useCallback(async (payload: LoginPayload) => {
-    const result = await authService.login(payload);
-    setUser(result.user);
-  }, []);
+  const login = useCallback(
+    async (payload: LoginPayload) => {
+      const result = await authService.login(payload);
+      setUser(result.user);
+      await syncPhoneVerification();
+    },
+    [syncPhoneVerification],
+  );
 
   const loginWithGoogle = useCallback(async () => {
     const result = await googleLogin();
     setUser(result.user);
-  }, []);
+    await syncPhoneVerification();
+  }, [syncPhoneVerification]);
 
   const registerPatient = useCallback(
     async (payload: RegisterPatientPayload) => {
       const result = await authService.registerPatient(payload);
       setUser(result.user);
+      setNeedsPhoneVerification(false);
     },
     [],
   );
@@ -82,6 +109,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     await authService.logout();
     setUser(null);
+    setNeedsPhoneVerification(false);
+  }, []);
+
+  const completePhoneVerification = useCallback(() => {
+    setNeedsPhoneVerification(false);
   }, []);
 
   const patchUser = useCallback(async (partial: Partial<AuthUser>) => {
@@ -111,20 +143,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       isLoading,
+      needsPhoneVerification,
       login,
       loginWithGoogle,
       registerPatient,
       logout,
+      completePhoneVerification,
       patchUser,
       refreshDoctorVerification,
     }),
     [
       user,
       isLoading,
+      needsPhoneVerification,
       login,
       loginWithGoogle,
       registerPatient,
       logout,
+      completePhoneVerification,
       patchUser,
       refreshDoctorVerification,
     ],

@@ -21,6 +21,7 @@ import {
   ComparisonImageModal,
   type ComparisonImageModalState,
 } from "@/components/patients/comparison-image-modal";
+import { LayeredAnalysisImage } from "@/components/patients/layered-analysis-image";
 import { Button } from "@/components/ui/button";
 import {
   ModuleCard,
@@ -29,7 +30,7 @@ import {
 import { useAnalysis } from "@/lib/queries/analyses";
 import { usePatientAnalyses } from "@/lib/queries/patients";
 import {
-  analysisPreviewUrl,
+  analysisPhotoUrl,
   buildComparisonCategories,
   defaultComparisonPair,
   filterAnalysesByMode,
@@ -78,43 +79,49 @@ function ScoreMini({ score, caption }: { score: number; caption?: string }) {
 
 function SkinThumb({
   label,
-  url,
+  photoUrl,
+  maskUrl,
   onClick,
 }: {
   label: string;
-  url?: string | null;
+  photoUrl?: string | null;
+  maskUrl?: string | null;
   onClick?: () => void;
 }) {
-  if (url) {
+  if (!photoUrl && !maskUrl) {
     return (
-      <button
-        type="button"
-        onClick={onClick}
-        title={`${label} — ampliar`}
-        className="size-14 shrink-0 overflow-hidden rounded-lg border border-border transition hover:ring-2 hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={url} alt={label} className="size-full object-cover" />
-      </button>
+      <div
+        aria-hidden
+        title={label}
+        className="size-14 rounded-lg border border-dashed border-border bg-muted/40"
+      />
     );
   }
   return (
-    <div
-      aria-hidden
-      title={label}
-      className="size-14 rounded-lg border border-dashed border-border bg-muted/40"
-    />
+    <button
+      type="button"
+      onClick={onClick}
+      title={`${label} — ampliar`}
+      className="size-14 shrink-0 overflow-hidden rounded-lg border border-border transition hover:ring-2 hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    >
+      <LayeredAnalysisImage
+        photoUrl={photoUrl}
+        maskUrl={maskUrl}
+        alt={label}
+        className="size-full"
+      />
+    </button>
   );
 }
 
 function ComparisonImage({
   label,
-  url,
+  photoUrl,
   date,
   onClick,
 }: {
   label: string;
-  url?: string | null;
+  photoUrl?: string | null;
   date?: string;
   onClick?: () => void;
 }) {
@@ -123,17 +130,15 @@ function ComparisonImage({
       <button
         type="button"
         onClick={onClick}
-        disabled={!url || !onClick}
+        disabled={!photoUrl || !onClick}
         className="aspect-[3/4] overflow-hidden rounded-xl border border-border bg-muted/30 transition hover:ring-2 hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-default disabled:hover:ring-0"
       >
-        {url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={url} alt={label} className="size-full object-contain" />
-        ) : (
-          <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
-            Sin imagen
-          </div>
-        )}
+        <LayeredAnalysisImage
+          photoUrl={photoUrl}
+          alt={label}
+          fit="contain"
+          className="size-full min-h-48"
+        />
       </button>
       <div className="text-center">
         <p className="text-xs font-semibold">{label}</p>
@@ -213,19 +218,21 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
       : "0.00";
   const overallDeltaLabel = `${overallDelta >= 0 ? "+" : ""}${overallDelta.toFixed(2)}`;
 
-  const initialImageUrl = analysisPreviewUrl(initialDetail.data);
-  const currentImageUrl = analysisPreviewUrl(currentDetail.data);
+  const initialPhotoUrl = analysisPhotoUrl(initialDetail.data);
+  const currentPhotoUrl = analysisPhotoUrl(currentDetail.data);
 
-  const visualMetricType =
-    category === "all" ? (visibleCategories[0]?.id ?? null) : category;
-  const visualInitialUrl =
-    (visualMetricType
-      ? youcamMetricMaskUrl(initialDetail.data, visualMetricType)
-      : null) ?? initialImageUrl;
-  const visualCurrentUrl =
-    (visualMetricType
-      ? youcamMetricMaskUrl(currentDetail.data, visualMetricType)
-      : null) ?? currentImageUrl;
+  const visualMetricType = category === "all" ? null : category;
+  const visualInitialMask = visualMetricType
+    ? youcamMetricMaskUrl(initialDetail.data, visualMetricType)
+    : null;
+  const visualCurrentMask = visualMetricType
+    ? youcamMetricMaskUrl(currentDetail.data, visualMetricType)
+    : null;
+  const hasVisual =
+    !!initialPhotoUrl ||
+    !!currentPhotoUrl ||
+    !!visualInitialMask ||
+    !!visualCurrentMask;
 
   const categoryFilters = [
     { id: "all", label: "Todas" },
@@ -243,7 +250,14 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
     : undefined;
 
   function openImageModal(payload: ComparisonImageModalState) {
-    if (!payload.initialUrl && !payload.currentUrl) return;
+    if (
+      !payload.initialPhotoUrl &&
+      !payload.initialMaskUrl &&
+      !payload.currentPhotoUrl &&
+      !payload.currentMaskUrl
+    ) {
+      return;
+    }
     setImageModal({
       initialLabel: "Inicial",
       currentLabel: "Actual",
@@ -256,8 +270,10 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
 
   function openMetricModal(metricType: string, metricLabel: string) {
     openImageModal({
-      initialUrl: youcamMetricMaskUrl(initialDetail.data, metricType),
-      currentUrl: youcamMetricMaskUrl(currentDetail.data, metricType),
+      initialPhotoUrl,
+      initialMaskUrl: youcamMetricMaskUrl(initialDetail.data, metricType),
+      currentPhotoUrl,
+      currentMaskUrl: youcamMetricMaskUrl(currentDetail.data, metricType),
       subtitle: metricLabel,
     });
   }
@@ -278,8 +294,10 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
           if (!open) setImageModal(null);
         }}
         subtitle={imageModal?.subtitle}
-        initialUrl={imageModal?.initialUrl ?? null}
-        currentUrl={imageModal?.currentUrl ?? null}
+        initialPhotoUrl={imageModal?.initialPhotoUrl ?? null}
+        initialMaskUrl={imageModal?.initialMaskUrl ?? null}
+        currentPhotoUrl={imageModal?.currentPhotoUrl ?? null}
+        currentMaskUrl={imageModal?.currentMaskUrl ?? null}
         initialLabel={imageModal?.initialLabel}
         currentLabel={imageModal?.currentLabel}
         initialDate={imageModal?.initialDate}
@@ -390,24 +408,28 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
           <div className="mt-5 grid gap-6 sm:grid-cols-2">
             <ComparisonImage
               label="Inicial"
-              url={initialImageUrl}
+              photoUrl={initialPhotoUrl}
               date={initialDateLabel}
               onClick={() =>
                 openImageModal({
-                  initialUrl: initialImageUrl,
-                  currentUrl: currentImageUrl,
+                  initialPhotoUrl,
+                  initialMaskUrl: null,
+                  currentPhotoUrl,
+                  currentMaskUrl: null,
                   subtitle: "Comparación dermatológica",
                 })
               }
             />
             <ComparisonImage
               label="Actual"
-              url={currentImageUrl}
+              photoUrl={currentPhotoUrl}
               date={currentDateLabel}
               onClick={() =>
                 openImageModal({
-                  initialUrl: initialImageUrl,
-                  currentUrl: currentImageUrl,
+                  initialPhotoUrl,
+                  initialMaskUrl: null,
+                  currentPhotoUrl,
+                  currentMaskUrl: null,
                   subtitle: "Comparación dermatológica",
                 })
               }
@@ -536,7 +558,11 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
                               <ScoreMini score={row.initialScore} />
                               <SkinThumb
                                 label="Captura inicial"
-                                url={youcamMetricMaskUrl(initialDetail.data, row.id)}
+                                photoUrl={initialPhotoUrl}
+                                maskUrl={youcamMetricMaskUrl(
+                                  initialDetail.data,
+                                  row.id,
+                                )}
                                 onClick={() => openMetricModal(row.id, row.label)}
                               />
                             </div>
@@ -546,7 +572,11 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
                               <ScoreMini score={row.currentScore} />
                               <SkinThumb
                                 label="Captura actual"
-                                url={youcamMetricMaskUrl(currentDetail.data, row.id)}
+                                photoUrl={currentPhotoUrl}
+                                maskUrl={youcamMetricMaskUrl(
+                                  currentDetail.data,
+                                  row.id,
+                                )}
                                 onClick={() => openMetricModal(row.id, row.label)}
                               />
                             </div>
@@ -638,15 +668,18 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
                 type="button"
                 onClick={() =>
                   openImageModal({
-                    initialUrl: visualInitialUrl,
-                    currentUrl: visualCurrentUrl,
+                    initialPhotoUrl,
+                    initialMaskUrl: visualInitialMask,
+                    currentPhotoUrl,
+                    currentMaskUrl: visualCurrentMask,
                     subtitle:
                       categories.find((c) => c.id === visualMetricType)?.label ??
                       "Comparación visual",
                   })
                 }
+                disabled={!hasVisual}
                 className={cn(
-                  "mt-4 w-full overflow-hidden rounded-xl border border-border bg-muted/20 text-left transition hover:ring-2 hover:ring-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                  "mt-4 w-full overflow-hidden rounded-xl border border-border bg-muted/20 text-left transition hover:ring-2 hover:ring-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-default disabled:hover:ring-0",
                   visualMode === "overlay"
                     ? "relative aspect-[3/4]"
                     : "grid grid-cols-2 gap-2 p-2",
@@ -654,52 +687,36 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
               >
                 {visualMode === "side" ? (
                   <>
-                    {visualInitialUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={visualInitialUrl}
-                        alt="Captura inicial"
-                        className="aspect-[3/4] w-full rounded-lg border border-border object-contain"
-                      />
-                    ) : (
-                      <div className="flex aspect-[3/4] items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 text-xs text-muted-foreground">
-                        Sin imagen
-                      </div>
-                    )}
-                    {visualCurrentUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={visualCurrentUrl}
-                        alt="Captura actual"
-                        className="aspect-[3/4] w-full rounded-lg border border-primary/30 object-contain"
-                      />
-                    ) : (
-                      <div className="flex aspect-[3/4] items-center justify-center rounded-lg border border-dashed border-primary/30 bg-primary/5 text-xs text-muted-foreground">
-                        Sin imagen
-                      </div>
-                    )}
+                    <LayeredAnalysisImage
+                      photoUrl={initialPhotoUrl}
+                      maskUrl={visualInitialMask}
+                      alt="Captura inicial"
+                      className="aspect-[3/4] w-full rounded-lg border border-border"
+                    />
+                    <LayeredAnalysisImage
+                      photoUrl={currentPhotoUrl}
+                      maskUrl={visualCurrentMask}
+                      alt="Captura actual"
+                      className="aspect-[3/4] w-full rounded-lg border border-primary/30"
+                    />
                   </>
                 ) : (
                   <>
-                    {visualInitialUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={visualInitialUrl}
-                        alt="Captura inicial"
-                        className="absolute inset-0 size-full object-contain"
-                      />
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
-                        Sin imagen inicial
+                    <LayeredAnalysisImage
+                      photoUrl={initialPhotoUrl}
+                      maskUrl={visualInitialMask}
+                      alt="Captura inicial"
+                      className="absolute inset-0 size-full"
+                    />
+                    {currentPhotoUrl || visualCurrentMask ? (
+                      <div className="absolute inset-0 opacity-55 mix-blend-multiply">
+                        <LayeredAnalysisImage
+                          photoUrl={currentPhotoUrl}
+                          maskUrl={visualCurrentMask}
+                          alt="Captura actual"
+                          className="size-full bg-transparent"
+                        />
                       </div>
-                    )}
-                    {visualCurrentUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={visualCurrentUrl}
-                        alt="Captura actual"
-                        className="absolute inset-0 size-full object-contain opacity-55 mix-blend-multiply"
-                      />
                     ) : null}
                   </>
                 )}

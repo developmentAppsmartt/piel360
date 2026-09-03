@@ -1,20 +1,27 @@
-import { Logo } from "@/components/layout/logo";
-import { LoginForm } from "@/components/auth/login-form";
 import Link from "next/link";
+import { Star } from "lucide-react";
+import { LoginForm } from "@/components/auth/login-form";
+import { LoginPageShell } from "@/components/auth/login-page-shell";
 
-/** Login del moderador — misma API/cookies que `/admin/login`; el rol real lo decide el backend. */
 export default function ModeradorLoginPage() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 p-16">
-      <Logo className="h-12" />
-      <h1 className="text-2xl font-semibold">Ingresar como moderador</h1>
-      <p className="max-w-sm text-center text-sm text-muted-foreground">
-        Panel de verificación de profesionales y empresas
-      </p>
-      <LoginForm role="monitor" />
-      <Link href="/moderador" className="text-sm text-zinc-500 underline">
-        Volver
-      </Link>
-    </main>
+    <LoginPageShell
+      title="Soy Moderador"
+      description="Revisa, modera y supervisa contenido y análisis dentro de la plataforma."
+      icon={Star}
+      accountPrompt={
+        <span>
+          ¿No tienes cuenta?{" "}
+          <span className="font-medium text-primary">Contacta al administrador del sistema</span>
+        </span>
+      }
+      footer={
+        <Link href="/" className="text-sm text-slate-500 underline-offset-2 hover:text-primary hover:underline">
+          Volver al inicio
+        </Link>
+      }
+    >
+      <LoginForm role="monitor" showForgotPassword={false} />
+    </LoginPageShell>
   );
 }

@@ -78,7 +78,7 @@ function BodyModel({
 export function BodySelector3D({
   initialGender = 'female',
   onSelect,
-  primaryColor = '#6c4ee3',
+  primaryColor = '#1e5a9e',
 }: BodySelector3DProps) {
   const [gender, setGender] = useState<Gender>(initialGender);
   const [modelUri, setModelUri] = useState<string | null>(null);

@@ -24,7 +24,7 @@ export const YOUCAM_METRIC_LABELS: Record<string, string> = {
 // bajo el mismo `type` — se usa para distinguirlas en el carrusel y en el
 // selector de subcategorías de YoucamResultsSection.
 export const YOUCAM_REGION_LABELS: Record<string, string> = {
-  whole: "General",
+  whole: "Cara completa",
   forehead: "Frente",
   nose: "Nariz",
   cheek: "Mejillas",

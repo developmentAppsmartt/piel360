@@ -80,7 +80,7 @@ export function BodySelector({
           {marker && (
             <mesh position={marker}>
               <sphereGeometry args={[0.02, 16, 16]} />
-              <meshBasicMaterial color="#6c4ee3" />
+              <meshBasicMaterial color="#1e5a9e" />
             </mesh>
           )}
           <OrbitControls enablePan={false} minDistance={1} maxDistance={5} target={[0, 1.2, 0]} />

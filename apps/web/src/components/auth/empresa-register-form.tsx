@@ -6,10 +6,12 @@ import { useRouter } from "next/navigation";
 import { CloudUpload } from "lucide-react";
 import type { MembershipType } from "@piel360/shared";
 import {
+  combinePhoneParts,
   digitsOnly,
   Field,
   inputClass,
-  normalizePhoneDigits,
+  isValidE164Digits,
+  PhoneSplitInputs,
 } from "@/components/auth/auth-form-primitives";
 import {
   LocationPickerSection,
@@ -83,7 +85,8 @@ export function EmpresaRegisterForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [phoneDisplay, setPhoneDisplay] = useState("");
+  const [phonePrefix, setPhonePrefix] = useState("57");
+  const [phoneNational, setPhoneNational] = useState("");
   const [organizationName, setOrganizationName] = useState("");
   const [ciiuCode, setCiiuCode] = useState("");
   const [businessEmail, setBusinessEmail] = useState("");
@@ -98,8 +101,11 @@ export function EmpresaRegisterForm() {
   const [rut, setRut] = useState<File | null>(null);
   const [existenceCert, setExistenceCert] = useState<File | null>(null);
 
-  const phone = digitsOnly(phoneDisplay);
-  const phoneValid = /^\d{10,15}$/.test(phone);
+  const phone = combinePhoneParts(phonePrefix, phoneNational);
+  const phoneValid =
+    digitsOnly(phonePrefix).length >= 1 &&
+    digitsOnly(phoneNational).length >= 7 &&
+    isValidE164Digits(phone);
 
   const [otpCode, setOtpCode] = useState("");
   const [phoneTicket, setPhoneTicket] = useState<string | null>(null);
@@ -139,7 +145,7 @@ export function EmpresaRegisterForm() {
       return;
     }
     setPhoneTicket(result.ticket);
-    setVerifiedPhone(normalizePhoneDigits(phone));
+    setVerifiedPhone(phone);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -149,7 +155,7 @@ export function EmpresaRegisterForm() {
     if (!phoneValid) {
       setState({
         error:
-          "Celular inválido — usa solo dígitos, con indicativo de país (10 a 15).",
+          "Celular inválido — revisa el prefijo (ej. 57) y el número (10 a 15 dígitos en total).",
       });
       return;
     }
@@ -183,7 +189,7 @@ export function EmpresaRegisterForm() {
       return;
     }
 
-    const phoneForRegister = verifiedPhone ?? normalizePhoneDigits(phoneDisplay);
+    const phoneForRegister = verifiedPhone ?? phone;
 
     setIsPending(true);
     try {
@@ -301,17 +307,18 @@ export function EmpresaRegisterForm() {
 
         <Field label="Celular del representante" required>
           <div className="space-y-2">
-            <input
-              className={inputClass}
-              type="tel"
-              placeholder="+57 300 000 0000"
-              value={phoneDisplay}
+            <PhoneSplitInputs
+              prefix={phonePrefix}
+              nationalNumber={phoneNational}
               disabled={phoneTicket != null}
-              onChange={(e) => {
-                setPhoneDisplay(e.target.value);
+              onPrefixChange={(value) => {
+                setPhonePrefix(value);
                 if (otpSent) resetPhoneVerification();
               }}
-              required
+              onNationalChange={(value) => {
+                setPhoneNational(value);
+                if (otpSent) resetPhoneVerification();
+              }}
             />
             {phoneTicket ? (
               <p className="text-xs text-emerald-600">Celular verificado.</p>
@@ -328,8 +335,11 @@ export function EmpresaRegisterForm() {
                   </button>
                 ) : (
                   <>
+                    <p className="w-full text-xs text-zinc-500">
+                      Código enviado a +{phone}
+                    </p>
                     <input
-                      className={`${inputClass} max-w-[8rem]`}
+                      className={`${inputClass} max-w-32`}
                       placeholder="Código"
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value)}

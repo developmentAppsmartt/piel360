@@ -12,6 +12,7 @@ import {
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { JwtPayload } from '../auth/types';
+import { SkinAgeRulesService } from '../skin-age-rules/skin-age-rules.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { CreateAnalysisRequestDto } from './dto/create-analysis-request.dto';
 import { SurveyDto } from './dto/survey.dto';
@@ -21,7 +22,10 @@ import { PatientsService } from './patients.service';
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class PatientsController {
-  constructor(private readonly patientsService: PatientsService) {}
+  constructor(
+    private readonly patientsService: PatientsService,
+    private readonly skinAgeRulesService: SkinAgeRulesService,
+  ) {}
 
   @Get('me/survey')
   getMySurvey(@CurrentUser() user: JwtPayload) {
@@ -31,6 +35,12 @@ export class PatientsController {
   @Post('me/survey')
   submitMySurvey(@CurrentUser() user: JwtPayload, @Body() dto: SurveyDto) {
     return this.patientsService.submitMySurvey(user.sub, dto);
+  }
+
+  /** Consejos según reglas de edad de piel del médico (app paciente). */
+  @Get('me/skin-care-tips')
+  getMySkinCareTips(@CurrentUser() user: JwtPayload) {
+    return this.skinAgeRulesService.recommendForPatientUser(user.sub);
   }
 
   @Get('me/analysis-requests/pending')

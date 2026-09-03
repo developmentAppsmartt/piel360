@@ -1,12 +1,29 @@
-import { Logo } from "@/components/layout/logo";
+import Link from "next/link";
+import { UserRound } from "lucide-react";
 import { LoginForm } from "@/components/auth/login-form";
+import { LoginPageShell } from "@/components/auth/login-page-shell";
 
 export default function PatientLoginPage() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 p-16">
-      <Logo className="h-12" />
-      <h1 className="text-2xl font-semibold">Ingresar como paciente</h1>
-      <LoginForm role="patient" registerHref="/patient/register" />
-    </main>
+    <LoginPageShell
+      title="Soy Paciente"
+      description="Consulta tus análisis y resultados dermatológicos."
+      icon={UserRound}
+      accountPrompt={
+        <>
+          ¿No tienes cuenta?{" "}
+          <Link href="/patient/register" className="font-medium text-primary underline-offset-2 hover:underline">
+            Regístrate
+          </Link>
+        </>
+      }
+      footer={
+        <Link href="/" className="text-sm text-slate-500 underline-offset-2 hover:text-primary hover:underline">
+          Volver al inicio
+        </Link>
+      }
+    >
+      <LoginForm role="patient" />
+    </LoginPageShell>
   );
 }

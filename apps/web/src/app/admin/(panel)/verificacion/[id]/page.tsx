@@ -92,7 +92,7 @@ export default function VerificacionDoctorPage() {
             {d.firstName} {d.lastName}
           </h1>
           <p className="text-sm text-muted-foreground">{d.user.email}</p>
-          <p className="mt-1 text-sm font-medium text-violet-700">
+          <p className="mt-1 text-sm font-medium text-primary">
             {accountTypeLabel(d)}
           </p>
         </div>

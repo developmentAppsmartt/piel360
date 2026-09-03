@@ -112,7 +112,7 @@ export const ADMIN_COMPONENTS: readonly AdminComponentDef[] = [
   },
   {
     slug: "admin.doctors",
-    label: "Doctores",
+    label: "Profesionales",
     href: "/admin/doctores",
     sortOrder: 120,
   },
@@ -133,6 +133,12 @@ export const ADMIN_COMPONENTS: readonly AdminComponentDef[] = [
     label: "Consumo de análisis",
     href: "/admin/consumo",
     sortOrder: 150,
+  },
+  {
+    slug: "admin.skin_age_rules",
+    label: "Reglas por edad de piel",
+    href: "/admin/reglas-edad-piel",
+    sortOrder: 155,
   },
   {
     slug: "admin.settings",

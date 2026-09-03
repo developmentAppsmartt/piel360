@@ -9,6 +9,8 @@ import { StorageService } from '../storage/storage.service';
 import { MailService } from '../mail/mail.service';
 import type { UpdateDoctorDto } from './dto/update-doctor.dto';
 import type { UpdateDoctorAddressVerificationDto } from './dto/update-doctor-address-verification.dto';
+import { AuthService } from '../auth/auth.service';
+import { assertDocumentNumberAvailable } from '../common/document-number.util';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
 
 const DOC_MIME = new Set([
@@ -25,6 +27,7 @@ export class DoctorsService {
     private readonly storage: StorageService,
     private readonly mail: MailService,
     private readonly specialtyAccess: SpecialtyAccessService,
+    private readonly authService: AuthService,
   ) {}
 
   /** Resuelve el `Doctor.id` a partir del `sub` (User.id) del JWT — usado
@@ -449,6 +452,11 @@ export class DoctorsService {
   async update(id: string, dto: UpdateDoctorDto) {
     const existing = await this.findOne(id);
     const { birthDate, specialty, ...rest } = dto;
+    if (dto.docNumber !== undefined) {
+      await assertDocumentNumberAvailable(this.prisma, dto.docNumber, {
+        doctorId: BigInt(id),
+      });
+    }
     const doctor = await this.prisma.doctor.update({
       where: { id: BigInt(id) },
       data: {
@@ -476,7 +484,52 @@ export class DoctorsService {
         'Las cuentas empresa se editan en Configuración → Información de la empresa.',
       );
     }
-    const { birthDate, firstName, lastName, phone, ...rest } = dto;
+    const { birthDate, firstName, lastName, phone, phoneTicket, ...rest } =
+      dto;
+
+    if (rest.docNumber !== undefined) {
+      await assertDocumentNumberAvailable(this.prisma, rest.docNumber, {
+        doctorId: doctor.id,
+      });
+    }
+
+    let phoneVerifiedAt: Date | undefined;
+    const user = await this.prisma.user.findUnique({
+      where: { id: BigInt(userId) },
+      select: { phone: true },
+    });
+    const currentPhone = (user?.phone ?? doctor.phone ?? '').replace(
+      /\D/g,
+      '',
+    );
+
+    if (phone !== undefined) {
+      const normalized = phone.replace(/\D/g, '');
+      if (normalized !== currentPhone) {
+        if (!phoneTicket?.trim()) {
+          throw new BadRequestException(
+            'Debes verificar el nuevo celular con el código enviado por SMS.',
+          );
+        }
+        await this.authService.assertAndConsumePhoneTicket(
+          phoneTicket,
+          normalized,
+        );
+        phoneVerifiedAt = new Date();
+      } else if (phoneTicket?.trim()) {
+        await this.authService.assertAndConsumePhoneTicket(
+          phoneTicket,
+          normalized,
+        );
+        phoneVerifiedAt = new Date();
+      }
+    } else if (phoneTicket?.trim() && currentPhone) {
+      await this.authService.assertAndConsumePhoneTicket(
+        phoneTicket,
+        currentPhone,
+      );
+      phoneVerifiedAt = new Date();
+    }
 
     const addressFieldsTouched =
       rest.address !== undefined ||
@@ -525,6 +578,7 @@ export class DoctorsService {
       lastName?: string;
       name?: string;
       phone?: string | null;
+      phoneVerifiedAt?: Date;
     } = {};
     if (firstName !== undefined) userPatch.firstName = firstName;
     if (lastName !== undefined) userPatch.lastName = lastName;
@@ -533,6 +587,7 @@ export class DoctorsService {
         `${firstName ?? updated.firstName} ${lastName ?? updated.lastName}`.trim();
     }
     if (phone !== undefined) userPatch.phone = phone;
+    if (phoneVerifiedAt) userPatch.phoneVerifiedAt = phoneVerifiedAt;
 
     if (Object.keys(userPatch).length > 0) {
       await this.prisma.user.update({

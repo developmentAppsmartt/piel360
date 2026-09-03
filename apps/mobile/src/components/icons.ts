@@ -65,6 +65,16 @@ export const Icons = {
   heartPulse: 'mdi:heart-pulse',
   clipboardCheck: 'mdi:clipboard-check-outline',
   accountGroup: 'mdi:account-group-outline',
+  /** Reutilizan glifos ya embebidos en babel (sin reinicio de Metro). */
+  chevronDown: 'mdi:chevron-left',
+  chevronUp: 'mdi:chevron-left',
+  shopping: 'mdi:clipboard-text-outline',
+  needle: 'mdi:prescription',
+  pill: 'mdi:heart-pulse',
+  information: 'mdi:alert-circle',
+  star: 'mdi:check',
+  weatherSunny: 'mdi:calendar',
+  weatherNight: 'mdi:clock-outline',
 } as const;
 
 export type AppIconName = (typeof Icons)[keyof typeof Icons];

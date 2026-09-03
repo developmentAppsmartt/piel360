@@ -23,7 +23,7 @@ export const YOUCAM_METRIC_LABELS: Record<string, string> = {
 };
 
 export const YOUCAM_REGION_LABELS: Record<string, string> = {
-  whole: 'General',
+  whole: 'Cara completa',
   forehead: 'Frente',
   nose: 'Nariz',
   cheek: 'Mejillas',

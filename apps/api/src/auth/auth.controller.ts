@@ -14,6 +14,7 @@ import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './current-user.decorator';
+import { ConfirmPhoneVerificationDto } from './dto/confirm-phone-verification.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDoctorDto } from './dto/register-doctor.dto';
@@ -107,6 +108,26 @@ export class AuthController {
     return this.authService.sendPhoneOtp(dto);
   }
 
+  @Post('me/otp/phone/send')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  sendPhoneOtpForMe(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: SendPhoneOtpDto,
+  ) {
+    return this.authService.sendPhoneOtpForAuthenticatedUser(user.sub, dto);
+  }
+
+  @Post('me/phone/confirm')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  confirmPhoneVerification(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: ConfirmPhoneVerificationDto,
+  ) {
+    return this.authService.confirmPhoneVerification(user.sub, dto);
+  }
+
   @Post('otp/phone/verify')
   @HttpCode(200)
   verifyPhoneOtp(@Body() dto: VerifyPhoneOtpDto) {
@@ -152,18 +173,24 @@ export class AuthController {
     @Req() req: Request & { user: GoogleProfile },
     @Res() res: Response,
   ) {
-    const { platform, redirectUri } = parseOAuthState(req.query.state);
+    const { platform, redirectUri, role } = parseOAuthState(req.query.state);
     const client = platform === 'mobile' ? 'mobile' : 'web';
     const result = await this.authService.loginOrRegisterWithGoogle(
       req.user,
       client,
     );
     const code = await this.authService.createGoogleExchangeCode(result);
+    const roleQuery =
+      role === 'doctor' || role === 'patient'
+        ? `&role=${encodeURIComponent(role)}`
+        : '';
 
     // redirect_uri explícito (Expo web / deep link) tiene prioridad.
     if (redirectUri) {
       const sep = redirectUri.includes('?') ? '&' : '?';
-      res.redirect(`${redirectUri}${sep}code=${encodeURIComponent(code)}`);
+      res.redirect(
+        `${redirectUri}${sep}code=${encodeURIComponent(code)}${roleQuery}`,
+      );
       return;
     }
     if (platform === 'mobile') {
@@ -171,11 +198,15 @@ export class AuthController {
         this.config.get<string>('MOBILE_DEEP_LINK') ||
         'piel360://auth/google/callback';
       const sep = deepLink.includes('?') ? '&' : '?';
-      res.redirect(`${deepLink}${sep}code=${encodeURIComponent(code)}`);
+      res.redirect(
+        `${deepLink}${sep}code=${encodeURIComponent(code)}${roleQuery}`,
+      );
       return;
     }
     const frontendUrl = this.config.getOrThrow<string>('FRONTEND_URL');
-    res.redirect(`${frontendUrl}/auth/google/callback?code=${code}`);
+    res.redirect(
+      `${frontendUrl}/auth/google/callback?code=${encodeURIComponent(code)}${roleQuery}`,
+    );
   }
 
   @Post('google/exchange')

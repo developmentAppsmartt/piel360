@@ -1,7 +1,7 @@
 import { Image, type ImageStyle, type StyleProp } from 'react-native';
 import { useBranding } from '../context/BrandingContext';
 
-/** Proporción del asset logo-piel360.png (612×408). */
+/** Proporción del asset logo-piel360.png (612×408, blanco sobre transparente). */
 const LOGO_ASPECT = 612 / 408;
 
 type BrandLogoProps = {

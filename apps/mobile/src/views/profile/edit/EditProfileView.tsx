@@ -3,15 +3,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Text,
   View,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import type { UpdatePatientInput } from '../../../services/patients.service';
 import type { PatientAnalysisSummary } from '../../../types/analysis';
 import type { PatientProfile } from '../../../types/patient';
 import { useBranding } from '../../../context/BrandingContext';
-import { ProfileHeaderBar } from '../components/ProfileHeaderBar';
-import { createProfileStyles } from '../styles/profile.styles';
+import { AppModuleChrome } from '../../shared/AppModuleChrome';
 import { EditProfileForm } from './components/EditProfileForm';
 import { createEditProfileStyles } from './styles/editProfile.styles';
 
@@ -22,6 +21,7 @@ type EditProfileViewProps = {
   title?: string;
   emailEditable?: boolean;
   analyses?: PatientAnalysisSummary[];
+  onOpenMessages?: () => void;
 };
 
 export function EditProfileView({
@@ -31,12 +31,9 @@ export function EditProfileView({
   title = 'Editar perfil',
   emailEditable = true,
   analyses,
+  onOpenMessages,
 }: EditProfileViewProps) {
   const branding = useBranding();
-  const headerStyles = useMemo(
-    () => createProfileStyles(branding.colors),
-    [branding.colors],
-  );
   const styles = useMemo(
     () => createEditProfileStyles(branding.colors),
     [branding.colors],
@@ -44,32 +41,42 @@ export function EditProfileView({
 
   return (
     <View style={styles.screen}>
-      <StatusBar style="light" />
-      <ProfileHeaderBar
-        styles={headerStyles}
-        title={title}
+      <AppModuleChrome
+        showBack
         onBack={onBack}
-      />
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        onOpenMessages={onOpenMessages}
       >
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          nestedScrollEnabled
-          showsVerticalScrollIndicator={false}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <EditProfileForm
-            patient={patient}
-            onSubmit={onSave}
-            emailEditable={emailEditable}
-            analyses={analyses}
-          />
-        </ScrollView>
-      </KeyboardAvoidingView>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            nestedScrollEnabled
+            showsVerticalScrollIndicator={false}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: '700',
+                color: branding.colors.text,
+                marginBottom: 12,
+              }}
+            >
+              {title}
+            </Text>
+            <EditProfileForm
+              patient={patient}
+              onSubmit={onSave}
+              emailEditable={emailEditable}
+              analyses={analyses}
+            />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </AppModuleChrome>
     </View>
   );
 }
