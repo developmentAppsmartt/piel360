@@ -5,19 +5,22 @@ import {
   youcamSkinTypeLabel,
 } from "@/lib/youcam-metric-labels";
 
-export type ConditionOperator = "lt" | "lte" | "eq" | "gte" | "gt";
+export type ConditionOperator = "lt" | "lte" | "eq" | "gte" | "gt" | "between";
 
 export interface ConditionLike {
   metricType: string;
   region?: string | null;
   operator: string;
   value: number | null;
+  /** Límite superior — solo cuando operator es "between". */
+  valueTo?: number | null;
   /** Solo `hd_skin_type` — categórica, alternativa a `value`. */
   textValue?: string | null;
 }
 
 /** Métricas disponibles para condicionar — las 16 de YouCam más `all`
- * ("Salud de la piel") y `skin_age` ("Salud de la piel (años)"). Incluye
+ * ("Salud de la piel"), `skin_age` ("Salud de la piel (años)") y
+ * `patient_age` (edad cronológica real del paciente). Incluye
  * `hd_skin_type`, categórica — ver `isSkinTypeMetric`. */
 export const CONDITION_METRICS = CONDITIONABLE_METRIC_TYPES;
 
@@ -53,6 +56,7 @@ export const CONDITION_OPERATORS: {
   { value: "eq", symbol: "=", label: "Igual a" },
   { value: "gte", symbol: "≥", label: "Mayor o igual a" },
   { value: "gt", symbol: ">", label: "Mayor que" },
+  { value: "between", symbol: "↔", label: "Entre" },
 ];
 
 export function conditionMetricLabel(metricType: string): string {
@@ -74,6 +78,10 @@ export function conditionSentence(condition: ConditionLike, subjectPhrase: strin
   if (isSkinTypeMetric(condition.metricType)) {
     const value = condition.textValue ? youcamSkinTypeLabel(condition.textValue) : "—";
     return `Se recomienda ${subjectPhrase} cuando ${metric}${region} sea ${value}`;
+  }
+
+  if (condition.operator === "between") {
+    return `Se recomienda ${subjectPhrase} cuando ${metric}${region} esté entre ${condition.value} y ${condition.valueTo}`;
   }
 
   const operator = conditionOperatorLabel(condition.operator).toLowerCase();

@@ -724,12 +724,16 @@ model RoutineCondition {
   metricType String   @map("metric_type")
   /** null = sin región / "whole". */
   region     String?
-  /** "lt" | "lte" | "eq" | "gte" | "gt" — validado en el DTO. */
+  /** "lt" | "lte" | "eq" | "gte" | "gt" | "between" — validado en el DTO. */
   operator   String
-  /** Numérica — null cuando la condición es categórica (ver textValue). */
+  /** Numérica — null cuando la condición es categórica (ver textValue).
+   * Con operator "between" es el límite inferior (ver valueTo). */
   value      Float?
+  /** Límite superior — solo cuando operator es "between" (rango genérico,
+   * cualquier métrica numérica, ej. "edad entre 13 y 18"). */
+  valueTo    Float?   @map("value_to")
   /** Categórica — solo `hd_skin_type` (uno de YOUCAM_SKIN_TYPE_VALUES). Una
-   * condición usa `value` O `textValue`, nunca ambos. */
+   * condición usa `value`(`+valueTo`) O `textValue`, nunca ambos. */
   textValue  String?  @map("text_value")
   createdAt  DateTime @default(now()) @map("created_at")
 
@@ -808,10 +812,13 @@ model TreatmentCondition {
   metricType  String   @map("metric_type")
   region      String?
   operator    String
-  /** Numérica — null cuando la condición es categórica (ver textValue). */
+  /** Numérica — null cuando la condición es categórica (ver textValue).
+   * Con operator "between" es el límite inferior (ver valueTo). */
   value       Float?
+  /** Límite superior — solo cuando operator es "between". */
+  valueTo     Float?   @map("value_to")
   /** Categórica — solo `hd_skin_type` (uno de YOUCAM_SKIN_TYPE_VALUES). Una
-   * condición usa `value` O `textValue`, nunca ambos. */
+   * condición usa `value`(`+valueTo`) O `textValue`, nunca ambos. */
   textValue   String?  @map("text_value")
   createdAt   DateTime @default(now()) @map("created_at")
 

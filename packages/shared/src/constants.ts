@@ -32,14 +32,16 @@ export type YouCamAction = (typeof YOUCAM_DST_ACTIONS)[number];
 
 /**
  * Métricas condicionables en Rutinas/Tratamientos (AnalysisConditionsService)
- * — las 16 de `YOUCAM_DST_ACTIONS` más dos salidas *derivadas* que YouCam
- * también entrega pero que no son un `dst_action` pedido: `all` (puntaje
- * global, "Salud de la piel") y `skin_age` ("Salud de la piel (años)").
+ * — las 16 de `YOUCAM_DST_ACTIONS` más tres salidas *derivadas*: `all`
+ * (puntaje global, "Salud de la piel"), `skin_age` ("Salud de la piel
+ * (años)", diferencia con la edad real) y `patient_age` (edad cronológica
+ * real del paciente, vía `Patient.birthDate` — no viene de YouCam).
  */
 export const CONDITIONABLE_METRIC_TYPES = [
   ...YOUCAM_DST_ACTIONS,
   "all",
   "skin_age",
+  "patient_age",
 ] as const;
 
 /**

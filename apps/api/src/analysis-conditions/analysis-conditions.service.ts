@@ -11,17 +11,23 @@ interface Condition {
   metricType: string;
   region: string | null;
   operator: string;
-  /** Numérica — null cuando la condición es categórica (ver textValue). */
+  /** Numérica — null cuando la condición es categórica (ver textValue).
+   * Con operator "between" es el límite inferior (ver valueTo). */
   value: number | null;
+  /** Límite superior — solo cuando operator es "between". */
+  valueTo?: number | null;
   /** Categórica — solo `hd_skin_type`. */
   textValue?: string | null;
 }
 
-/** "lt" | "lte" | "eq" | "gte" | "gt" (ver dto/condition.dto.ts). */
+/** "lt" | "lte" | "eq" | "gte" | "gt" | "between" (ver dto/condition.dto.ts).
+ * "between" es genérico — sirve para cualquier métrica numérica (rango
+ * acotado, ej. "edad entre 13 y 18"), ambos límites inclusive. */
 export function operatorMatches(
   operator: string,
   score: number,
   value: number,
+  valueTo?: number | null,
 ): boolean {
   switch (operator) {
     case 'lt':
@@ -34,6 +40,8 @@ export function operatorMatches(
       return score >= value;
     case 'gt':
       return score > value;
+    case 'between':
+      return valueTo != null && score >= value && score <= valueTo;
     default:
       return false;
   }
@@ -99,35 +107,49 @@ export class AnalysisConditionsService {
     skinAge: SkinAgeContext,
   ): boolean {
     return conditions.some((condition) => {
-      const result = findResultForCondition(results, condition);
-      if (!result) return false;
-
       // hd_skin_type es categórico ("oily", "dry"...) — igualdad de texto,
       // no tiene sentido "mayor/menor que" un tipo de piel.
       if (condition.metricType === 'hd_skin_type') {
-        if (!condition.textValue || !result.skinType) return false;
+        const result = findResultForCondition(results, condition);
+        if (!result || !condition.textValue || !result.skinType) return false;
         return (
           result.skinType.toLowerCase() === condition.textValue.toLowerCase()
         );
       }
 
-      // skin_age no se compara contra el puntaje crudo — el valor
-      // clínicamente relevante es cuánto más vieja/joven se ve la piel
-      // respecto a la edad real del paciente: edadPiel - edadCronológica.
-      // Negativo = piel más joven; positivo = piel más vieja.
-      if (condition.metricType === 'skin_age') {
+      // patient_age es la edad cronológica real del paciente — no viene de
+      // ningún AnalysisResult de YouCam, se calcula directo de
+      // Patient.birthDate. Con operator "between" (límite genérico, no
+      // solo para edad) se pueden armar rangos acotados como "13 a 18".
+      let score: number | null;
+      if (condition.metricType === 'patient_age') {
         if (!skinAge.patientBirthDate) return false;
-        const skinAgeScore = resolveScore(result);
-        if (skinAgeScore == null || condition.value == null) return false;
-        const diff =
+        score = ageInYears(skinAge.patientBirthDate, skinAge.analysisDate);
+      } else if (condition.metricType === 'skin_age') {
+        // skin_age no se compara contra el puntaje crudo — el valor
+        // clínicamente relevante es cuánto más vieja/joven se ve la piel
+        // respecto a la edad real del paciente: edadPiel - edadCronológica.
+        // Negativo = piel más joven; positivo = piel más vieja.
+        if (!skinAge.patientBirthDate) return false;
+        const result = findResultForCondition(results, condition);
+        const skinAgeScore = result && resolveScore(result);
+        if (skinAgeScore == null) return false;
+        score =
           skinAgeScore -
           ageInYears(skinAge.patientBirthDate, skinAge.analysisDate);
-        return operatorMatches(condition.operator, diff, condition.value);
+      } else {
+        const result = findResultForCondition(results, condition);
+        if (!result) return false;
+        score = resolveScore(result);
       }
 
-      const score = resolveScore(result);
       if (score == null || condition.value == null) return false;
-      return operatorMatches(condition.operator, score, condition.value);
+      return operatorMatches(
+        condition.operator,
+        score,
+        condition.value,
+        condition.valueTo,
+      );
     });
   }
 

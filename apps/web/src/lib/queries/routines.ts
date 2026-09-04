@@ -5,16 +5,19 @@ import { apiClientFetch } from "@/lib/api-client";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
-/** "lt" | "lte" | "eq" | "gte" | "gt" — igual al backend (routine-condition.dto.ts). */
-export type RoutineConditionOperator = "lt" | "lte" | "eq" | "gte" | "gt";
+/** "lt" | "lte" | "eq" | "gte" | "gt" | "between" — igual al backend (routine-condition.dto.ts). */
+export type RoutineConditionOperator = "lt" | "lte" | "eq" | "gte" | "gt" | "between";
 
 export interface RoutineCondition {
   id?: string;
   metricType: string;
   region?: string | null;
   operator: RoutineConditionOperator;
-  /** Numérica — null cuando la condición es categórica (ver textValue). */
+  /** Numérica — null cuando la condición es categórica (ver textValue).
+   * Con operator "between" es el límite inferior (ver valueTo). */
   value: number | null;
+  /** Límite superior — solo cuando operator es "between". */
+  valueTo?: number | null;
   /** Categórica — solo `hd_skin_type`. */
   textValue?: string | null;
 }

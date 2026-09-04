@@ -7,9 +7,14 @@ const REMOVE_SELECTORS =
   'header, footer, nav, #breadcrumbs, #myDiv, .gtranslate-container';
 
 /**
- * Scraper del atlas dermatológico (INTEGRACIONES-IA.md §1.4). Skiniver
- * entrega URLs en ruso (`skinive.ru/...` o `skinive.com/ru/...`); se
- * reescriben a `/es/` antes de cachear.
+ * Scraper del atlas dermatológico (INTEGRACIONES-IA.md §1.4). El
+ * `atlas_page_link` real que manda Skiniver en producción no trae ningún
+ * prefijo de idioma (ej. `skinive.com/dermatlas/...`, que por defecto sirve
+ * inglés) — se reescribe a `/es/` antes de cachear. El parámetro `locale`
+ * de la API de Skiniver (`get_atlas_pages`/`get_atlas_preview`) se probó
+ * contra la API real y no tiene ningún efecto (siempre devuelve ruso), así
+ * que no sirve para esto — el sitio web público de Skiniver sí tiene
+ * contenido real en español (WordPress + Polylang) bajo `/es/`.
  */
 @Injectable()
 export class EncyclopediaService {
@@ -18,9 +23,17 @@ export class EncyclopediaService {
   constructor(private readonly prisma: PrismaService) {}
 
   toSpanishUrl(url: string): string {
-    return url
-      .replace('skinive.ru/', 'skinive.com/es/')
-      .replace('skinive.com/ru/', 'skinive.com/es/');
+    try {
+      const u = new URL(url);
+      u.hostname = 'skinive.com';
+      u.pathname = u.pathname.replace(/^\/(ru|en)(?=\/)/, '');
+      if (!u.pathname.startsWith('/es/')) {
+        u.pathname = `/es${u.pathname}`;
+      }
+      return u.toString();
+    } catch {
+      return url;
+    }
   }
 
   async processUrl(rawUrl: string) {
