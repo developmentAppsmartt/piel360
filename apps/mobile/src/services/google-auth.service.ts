@@ -32,11 +32,15 @@ async function exchangeCode(code: string): Promise<AuthResult> {
   return allowed;
 }
 
-function buildAuthUrl(redirectUri: string, platform: 'mobile' | 'web'): string {
+/**
+ * La app móvil (nativa o Expo web) siempre inicia OAuth como paciente.
+ * `platform=mobile` hace que la API cree perfil patient, no profesional.
+ */
+function buildAuthUrl(redirectUri: string): string {
   return (
     `${getApiBaseUrl()}/auth/google` +
     `?role=${encodeURIComponent('patient')}` +
-    `&platform=${platform}` +
+    `&platform=${encodeURIComponent('mobile')}` +
     `&redirect_uri=${encodeURIComponent(redirectUri)}`
   );
 }
@@ -50,7 +54,7 @@ function loginWithGoogleOnWeb(): Promise<AuthResult> {
     return Promise.reject(new ApiError('Google OAuth no disponible', 400));
   }
   const redirectUri = `${window.location.origin}/`;
-  const authUrl = buildAuthUrl(redirectUri, 'web');
+  const authUrl = buildAuthUrl(redirectUri);
   window.location.assign(authUrl);
   return new Promise(() => {});
 }
@@ -89,7 +93,7 @@ export async function loginWithGoogle(): Promise<AuthResult> {
   }
 
   const redirectUri = Linking.createURL('auth/google/callback');
-  const authUrl = buildAuthUrl(redirectUri, 'mobile');
+  const authUrl = buildAuthUrl(redirectUri);
   const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
 
   if (result.type !== 'success' || !('url' in result) || !result.url) {

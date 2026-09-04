@@ -126,10 +126,10 @@ export function SkinCareTipsView({ onBack }: SkinCareTipsViewProps) {
           {error ? <Text style={styles.tipsError}>{error}</Text> : null}
 
           <View style={styles.welcomeCard}>
-            <Text style={styles.welcomeTitle}>Según tu análisis</Text>
+            <Text style={styles.welcomeTitle}>Según tu último análisis compartido</Text>
             <Text style={styles.welcomeSubtitle}>
-              Comparamos la edad de tu piel con tu edad cronológica y aplicamos
-              las reglas definidas por tu profesional.
+              Usamos el análisis que tu profesional compartió contigo, comparamos
+              la edad de tu piel con tu edad cronológica y aplicamos sus reglas.
             </Text>
             <View style={styles.tipsStatsRow}>
               <View style={styles.tipsStat}>

@@ -91,3 +91,29 @@ export type BodySelection = {
   yCoord: number;
   zCoord: number;
 };
+
+/** Mapea el género del perfil al modelo 3D (hombre/mujer). */
+export function bodyModelGenderFromPatient(
+  gender: string | null | undefined,
+): 'female' | 'male' | null {
+  const g = (gender ?? '').trim().toLowerCase();
+  if (
+    g === 'female' ||
+    g === 'f' ||
+    g === 'mujer' ||
+    g === 'femenino' ||
+    g === 'femenina'
+  ) {
+    return 'female';
+  }
+  if (
+    g === 'male' ||
+    g === 'm' ||
+    g === 'hombre' ||
+    g === 'masculino' ||
+    g === 'masculina'
+  ) {
+    return 'male';
+  }
+  return null;
+}

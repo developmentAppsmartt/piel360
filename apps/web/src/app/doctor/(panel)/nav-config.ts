@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  CalendarDays,
   ClipboardList,
   CreditCard,
   FileBarChart2,
@@ -54,6 +55,12 @@ export const doctorNav: NavItem[] = [
     href: "/doctor/pacientes",
     icon: UserRound,
     permissionsAny: clinicalNavPermission("clinical.patients"),
+  },
+  {
+    label: "Agenda",
+    href: "/doctor/agenda",
+    icon: CalendarDays,
+    permissionsAny: clinicalNavPermission("clinical.agenda"),
   },
   {
     label: "Análisis y resultados",

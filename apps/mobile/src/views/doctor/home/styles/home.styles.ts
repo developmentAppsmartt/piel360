@@ -216,6 +216,73 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
       paddingVertical: 40,
       alignItems: 'center',
     },
+    statsHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 12,
+      paddingTop: 14,
+      paddingBottom: 10,
+      backgroundColor: '#FFFFFF',
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: '#E5E7EB',
+    },
+    statsBackBtn: {
+      width: 40,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    statsTitle: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: '#111827',
+    },
+    statsScroll: {
+      padding: 16,
+      gap: 14,
+      paddingBottom: 32,
+    },
+    statsPieCard: {
+      backgroundColor: '#FFFFFF',
+      borderRadius: 18,
+      padding: 18,
+      gap: 8,
+      ...appShadow,
+    },
+    statsPieHeading: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: '#111827',
+    },
+    statsPieSub: {
+      fontSize: 13,
+      color: colors.muted,
+      marginBottom: 8,
+    },
+    statsMetaRow: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    statsMetaCard: {
+      flex: 1,
+      backgroundColor: '#FFFFFF',
+      borderRadius: 16,
+      paddingVertical: 16,
+      paddingHorizontal: 14,
+      alignItems: 'center',
+      gap: 4,
+      ...appShadow,
+    },
+    statsMetaValue: {
+      fontSize: 24,
+      fontWeight: '800',
+    },
+    statsMetaLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.muted,
+    },
   });
 }
 

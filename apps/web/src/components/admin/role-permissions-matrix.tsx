@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { Permission } from "@/lib/queries/roles";
 import {
-  adminComponentPermissionIds,
   allPermissionIds,
   assignablePermissions,
   clinicalComponentPermissionIds,
@@ -235,7 +234,14 @@ export function RolePermissionsMatrix({
   selectionMode?: SelectionMode;
   loading?: boolean;
 }) {
-  const assignable = useMemo(() => assignablePermissions(permissions), [permissions]);
+  const assignable = useMemo(
+    () =>
+      assignablePermissions(permissions).filter(
+        (permission) =>
+          !(permission.kind === "component" && permission.panel === "admin"),
+      ),
+    [permissions],
+  );
   const sections = useMemo(
     () => groupPermissionsBySection(assignable),
     [assignable],
@@ -248,19 +254,10 @@ export function RolePermissionsMatrix({
     return allPermissionIds(assignable);
   }, [assignable, selectionMode]);
 
-  const adminModuleIds = useMemo(
-    () => adminComponentPermissionIds(assignable),
-    [assignable],
-  );
-
   const clinicalModuleIds = useMemo(
     () => clinicalComponentPermissionIds(assignable),
     [assignable],
   );
-
-  const allAdminModulesSelected =
-    adminModuleIds.length > 0 &&
-    adminModuleIds.every((id) => selected.has(id));
 
   const allClinicalModulesSelected =
     clinicalModuleIds.length > 0 &&
@@ -284,22 +281,6 @@ export function RolePermissionsMatrix({
     for (const key of keys) {
       if (everySelected) next.delete(key);
       else next.add(key);
-    }
-    onChange(next);
-  }
-
-  function selectAdminModules() {
-    const next = new Set(selected);
-    for (const id of adminModuleIds) {
-      next.add(id);
-    }
-    onChange(next);
-  }
-
-  function clearAdminModules() {
-    const next = new Set(selected);
-    for (const id of adminModuleIds) {
-      next.delete(id);
     }
     onChange(next);
   }
@@ -345,18 +326,13 @@ export function RolePermissionsMatrix({
           <button
             type="button"
             className="font-medium text-primary hover:underline"
-            onClick={() => onChange(new Set(allKeys))}
+            onClick={() => {
+              const next = new Set(selected);
+              for (const key of allKeys) next.add(key);
+              onChange(next);
+            }}
           >
             Seleccionar todos
-          </button>
-          <button
-            type="button"
-            className="font-medium text-primary hover:underline"
-            onClick={() =>
-              allAdminModulesSelected ? clearAdminModules() : selectAdminModules()
-            }
-          >
-            {allAdminModulesSelected ? "Quitar módulos admin" : "Módulos admin (superadmin)"}
           </button>
           <button
             type="button"
@@ -374,7 +350,11 @@ export function RolePermissionsMatrix({
           <button
             type="button"
             className="font-medium text-muted-foreground hover:text-foreground"
-            onClick={() => onChange(new Set())}
+            onClick={() => {
+              const next = new Set(selected);
+              for (const key of allKeys) next.delete(key);
+              onChange(next);
+            }}
           >
             Limpiar selección
           </button>
@@ -383,9 +363,7 @@ export function RolePermissionsMatrix({
 
       <div className="space-y-3">
         {sections.map((section, index) => {
-          const isMenuSection =
-            section.title.includes("panel admin") ||
-            section.title.includes("panel clínico");
+          const isMenuSection = section.title.includes("panel clínico");
           const selectedCount = countSelectedInGroups(
             section.groups,
             selected,
@@ -399,7 +377,7 @@ export function RolePermissionsMatrix({
               title={section.title}
               selectedCount={selectedCount}
               totalCount={totalCount}
-              defaultOpen={index === 0}
+              defaultOpen={index === 0 || section.title.includes("acción (API)")}
             >
               {isMenuSection ? (
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -423,6 +401,7 @@ export function RolePermissionsMatrix({
                       selectionMode={selectionMode}
                       onToggle={toggle}
                       onToggleGroup={toggleGroup}
+                      defaultOpen={group.key === "analysis_provider"}
                     />
                   ))}
                 </div>
@@ -437,7 +416,15 @@ export function RolePermissionsMatrix({
           type="checkbox"
           className="size-4 accent-primary"
           checked={allSelected}
-          onChange={() => onChange(allSelected ? new Set() : new Set(allKeys))}
+          onChange={() => {
+            const next = new Set(selected);
+            if (allSelected) {
+              for (const key of allKeys) next.delete(key);
+            } else {
+              for (const key of allKeys) next.add(key);
+            }
+            onChange(next);
+          }}
         />
         Seleccionar todos los permisos ({allKeys.length})
       </label>

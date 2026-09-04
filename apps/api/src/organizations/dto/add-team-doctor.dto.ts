@@ -5,7 +5,6 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  Matches,
   MinLength,
 } from 'class-validator';
 import {
@@ -26,12 +25,6 @@ export class AddTeamDoctorDto {
   @IsString()
   @MinLength(8)
   password!: string;
-
-  @Matches(/^\d{10,15}$/, {
-    message:
-      'Teléfono inválido — usa solo dígitos, con indicativo de país (10 a 15 dígitos)',
-  })
-  phone!: string;
 
   @IsString()
   @IsNotEmpty()

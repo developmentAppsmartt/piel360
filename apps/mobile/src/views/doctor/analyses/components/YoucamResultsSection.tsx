@@ -389,7 +389,8 @@ export function YoucamResultsSection({
     () => resolveSkinTypeChip(analysis, skinType),
     [analysis, skinType],
   );
-  const [preferRaw, setPreferRaw] = useState(false);
+  // Puntuación ajustada (uiScore): la elige el doctor; el paciente no cambia modo.
+  const preferRaw = false;
   const chips = useMemo(
     () =>
       buildChips(
@@ -399,7 +400,7 @@ export function YoucamResultsSection({
         skinTypeChip,
         skinType,
       ),
-    [metrics, analysis.masks, preferRaw, skinTypeChip, skinType],
+    [metrics, analysis.masks, skinTypeChip, skinType],
   );
   const overviewMaskUrls = useMemo(
     () => buildOverviewMaskUrls(metrics, analysis.masks),
@@ -685,7 +686,7 @@ export function YoucamResultsSection({
           />
         ) : null}
         {showBase || maskUrl ? (
-          <View style={styles.zoomControls} pointerEvents="box-none">
+          <View style={[styles.zoomControls, { pointerEvents: 'box-none' }]}>
             <Pressable
               style={[
                 styles.zoomBtn,
@@ -745,35 +746,6 @@ export function YoucamResultsSection({
         </Pressable>
         <Pressable style={styles.actionBtn} onPress={onOpenReport}>
           <Text style={styles.actionBtnText}>Ver reporte de piel</Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.scoreModeRow}>
-        <Pressable
-          style={[styles.scoreModeBtn, !preferRaw && styles.scoreModeBtnOn]}
-          onPress={() => setPreferRaw(false)}
-        >
-          <Text
-            style={[
-              styles.scoreModeText,
-              !preferRaw && styles.scoreModeTextOn,
-            ]}
-          >
-            Puntuación ajustada
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.scoreModeBtn, preferRaw && styles.scoreModeBtnOn]}
-          onPress={() => setPreferRaw(true)}
-        >
-          <Text
-            style={[
-              styles.scoreModeText,
-              preferRaw && styles.scoreModeTextOn,
-            ]}
-          >
-            Puntuación real
-          </Text>
         </Pressable>
       </View>
 

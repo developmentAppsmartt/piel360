@@ -9,7 +9,7 @@ type Props = {
 export function SkinIntroStep({ styles, onStart }: Props) {
   return (
     <View style={styles.skinIntro}>
-      <View style={styles.skinIntroDecor} pointerEvents="none">
+      <View style={[styles.skinIntroDecor, { pointerEvents: 'none' }]}>
         {[0, 1, 2, 3, 4, 5].map((i) => (
           <View
             key={i}

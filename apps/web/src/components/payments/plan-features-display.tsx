@@ -1,5 +1,5 @@
 import { planModuleLabelsFromPermissionNames } from "@/lib/permission-catalog";
-import { PLAN_ROLE_OPTIONS } from "@/lib/plan-roles";
+import { planRoleLabel } from "@/lib/plan-roles";
 
 export type PlanTeamFeatures = {
   maxUsers?: number;
@@ -9,11 +9,13 @@ export type PlanTeamFeatures = {
 
 export function planSpecialtySlots(roleLimits?: Record<string, number>) {
   if (!roleLimits) return [];
-  return PLAN_ROLE_OPTIONS.filter((role) => (roleLimits[role.key] ?? 0) > 0).map((role) => ({
-    key: role.key,
-    label: role.label,
-    count: roleLimits[role.key] ?? 0,
-  }));
+  return Object.entries(roleLimits)
+    .filter(([, count]) => (count ?? 0) > 0)
+    .map(([key, count]) => ({
+      key,
+      label: planRoleLabel(key),
+      count,
+    }));
 }
 
 export function planModuleLabels(modules: string[] = []) {

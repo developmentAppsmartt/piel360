@@ -48,6 +48,7 @@ export default {
     favicon: './assets/favicon.png',
   },
   plugins: [
+    './plugins/with-skin-analysis',
     'expo-secure-store',
     'expo-image',
     'expo-web-browser',

@@ -421,7 +421,11 @@ export class DoctorsService {
   async findMe(userId: string) {
     const doctor = await this.prisma.doctor.findUnique({
       where: { userId: BigInt(userId) },
-      include: { user: { select: { email: true, avatarKey: true } } },
+      include: {
+        user: {
+          select: { email: true, avatarKey: true, phoneVerifiedAt: true },
+        },
+      },
     });
     if (!doctor) {
       throw new ForbiddenException('El usuario no tiene un perfil de doctor');
@@ -496,14 +500,32 @@ export class DoctorsService {
     let phoneVerifiedAt: Date | undefined;
     const user = await this.prisma.user.findUnique({
       where: { id: BigInt(userId) },
-      select: { phone: true },
+      select: { phone: true, phoneVerifiedAt: true },
     });
     const currentPhone = (user?.phone ?? doctor.phone ?? '').replace(
       /\D/g,
       '',
     );
+    const needsPhoneVerification = !user?.phoneVerifiedAt;
 
-    if (phone !== undefined) {
+    if (needsPhoneVerification) {
+      const normalized = (phone ?? '').replace(/\D/g, '');
+      if (!normalized) {
+        throw new BadRequestException(
+          'Debes indicar y verificar tu celular con el código SMS antes de continuar.',
+        );
+      }
+      if (!phoneTicket?.trim()) {
+        throw new BadRequestException(
+          'Debes verificar tu celular con el código enviado por SMS antes de continuar.',
+        );
+      }
+      await this.authService.assertAndConsumePhoneTicket(
+        phoneTicket,
+        normalized,
+      );
+      phoneVerifiedAt = new Date();
+    } else if (phone !== undefined) {
       const normalized = phone.replace(/\D/g, '');
       if (normalized !== currentPhone) {
         if (!phoneTicket?.trim()) {
@@ -570,7 +592,11 @@ export class DoctorsService {
           ? { verificationStatus: 'pending' }
           : {}),
       },
-      include: { user: { select: { email: true, avatarKey: true } } },
+      include: {
+        user: {
+          select: { email: true, avatarKey: true, phoneVerifiedAt: true },
+        },
+      },
     });
 
     const userPatch: {
@@ -705,7 +731,11 @@ export class DoctorsService {
       medicalRegistryDocKey: string | null;
       diplomaDocKey: string | null;
       addressVerificationEvidenceKey?: string | null;
-      user?: { email: string; avatarKey?: string | null } | null;
+      user?: {
+        email: string;
+        avatarKey?: string | null;
+        phoneVerifiedAt?: Date | null;
+      } | null;
     },
   >(doctor: T) {
     const [
@@ -725,6 +755,9 @@ export class DoctorsService {
     return {
       ...rest,
       user: user ? { email: user.email } : null,
+      phoneVerifiedAt: user?.phoneVerifiedAt
+        ? user.phoneVerifiedAt.toISOString()
+        : null,
       avatarUrl,
       cedulaDocUrl,
       medicalRegistryDocUrl,

@@ -26,6 +26,16 @@ export const analysesService = {
     return apiRequest<AnalysisDetail>(`/analyses/${id}`, { auth: true });
   },
 
+  async getProcessingStatus(id: string): Promise<{
+    id: string;
+    isValid: boolean;
+    hasColored: boolean;
+    hasMasked: boolean;
+    error: string | null;
+  }> {
+    return apiRequest(`/analyses/${id}/processing-status`, { auth: true });
+  },
+
   /** Skiniver — `POST /analyses` (dermatológico). */
   async create(input: CreateSkiniverAnalysisInput): Promise<AnalysisDetail> {
     const form = new FormData();
@@ -59,6 +69,14 @@ export const analysesService = {
   /** Doctor/admin: publica el análisis en el historial del paciente. */
   async shareWithPatient(id: string): Promise<AnalysisDetail> {
     return apiRequest<AnalysisDetail>(`/analyses/${id}/share`, {
+      method: 'PATCH',
+      auth: true,
+    });
+  },
+
+  /** Doctor/admin: deja de compartir el análisis con el paciente. */
+  async unshareWithPatient(id: string): Promise<AnalysisDetail> {
+    return apiRequest<AnalysisDetail>(`/analyses/${id}/unshare`, {
       method: 'PATCH',
       auth: true,
     });

@@ -65,6 +65,11 @@ export interface Plan extends PlanPoolAvailability {
   maxUsers: number;
   modules: string[];
   roleLimits: Record<string, number>;
+  /** Límites por bolsa (Skiniver vs Estético/Fototipo). */
+  analysisLimits?: {
+    skiniver?: number;
+    aesthetic?: number;
+  };
   isActive: boolean;
   description: string | null;
   provider: {

@@ -106,6 +106,9 @@ export function useUpdateRole(id: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "roles"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "roles", id] });
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "specialty-plan-permissions"],
+      });
     },
   });
 }

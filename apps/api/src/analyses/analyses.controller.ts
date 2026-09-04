@@ -7,12 +7,15 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { RequirePermission } from '../auth/permissions.decorator';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import type { JwtPayload } from '../auth/types';
@@ -53,6 +56,27 @@ export class AnalysesController {
     return this.analysesService.findAll(user);
   }
 
+  /** Debe ir antes de `:id` para no capturar "consumption" como id. */
+  @Get('consumption')
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('view_analysis_consumption')
+  consumption(
+    @CurrentUser() user: JwtPayload,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.analysesService.getConsumption(user, { from, to });
+  }
+
+  /** Poll de captura: isValid/error sin exponer el resultado clínico. */
+  @Get(':id/processing-status')
+  processingStatus(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.analysesService.getProcessingStatus(id, user);
+  }
+
   /** Recomendaciones + catálogo del médico del paciente (doctor y paciente). */
   @Get(':id/care-recommendations')
   careRecommendations(
@@ -87,5 +111,13 @@ export class AnalysesController {
   @Roles('doctor', 'empresa', 'superadmin')
   share(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.analysesService.shareWithPatient(id, user);
+  }
+
+  /** Deja de publicar el análisis al paciente. */
+  @Patch(':id/unshare')
+  @UseGuards(RolesGuard)
+  @Roles('doctor', 'empresa', 'superadmin')
+  unshare(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.analysesService.unshareWithPatient(id, user);
   }
 }

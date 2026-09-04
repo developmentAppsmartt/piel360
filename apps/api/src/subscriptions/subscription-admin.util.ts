@@ -67,6 +67,10 @@ export function serializeAdminPlan(
     name: enriched.name,
     planType: enriched.planType as 'individual' | 'business',
     analysisLimit: enriched.analysisLimit,
+    analysisLimits:
+      enriched.analysisLimits && typeof enriched.analysisLimits === 'object'
+        ? (enriched.analysisLimits as { skiniver?: number; aesthetic?: number })
+        : {},
     price: enriched.price.toString(),
     durationDays: enriched.durationDays,
     maxUsers: enriched.maxUsers,

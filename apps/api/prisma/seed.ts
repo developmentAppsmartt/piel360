@@ -188,13 +188,32 @@ async function main() {
   ];
 
   await prisma.$transaction(
-    permissionNames.map((name) =>
-      prisma.permission.upsert({
+    permissionNames.map((name) => {
+      const providerLabel =
+        name === 'use_provider_skiniver'
+          ? 'Dermatológico (Skiniver)'
+          : name === 'use_provider_youcam'
+            ? 'Estético (YouCam)'
+            : name === 'use_provider_fitzpatrick'
+              ? 'Fototipo (Fitzpatrick)'
+              : null;
+      return prisma.permission.upsert({
         where: { name },
-        update: { slug: name, isActive: true, kind: 'action' },
-        create: { name, slug: name, isActive: true, kind: 'action' },
-      }),
-    ),
+        update: {
+          slug: name,
+          isActive: true,
+          kind: 'action',
+          ...(providerLabel ? { label: providerLabel } : {}),
+        },
+        create: {
+          name,
+          slug: name,
+          isActive: true,
+          kind: 'action',
+          ...(providerLabel ? { label: providerLabel } : {}),
+        },
+      });
+    }),
   );
 
   await prisma.$transaction(

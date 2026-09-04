@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef } from "react";
 import {
   CalendarDays,
   Download,
@@ -15,24 +15,16 @@ import {
   ModuleCardDescription,
   ModuleCardTitle,
 } from "@/components/ui/module-card";
-import type { DailyConsumption } from "@/lib/mocks/admin-bolsa";
+import type {
+  ConsumptionPool,
+  DailyConsumptionPoint,
+  DailyConsumptionRow,
+} from "@/lib/queries/analysis-consumption";
 import { cn } from "@/lib/utils";
 
-export type ConsumptionPool = {
-  done: number;
-  limit: number;
-  available: number;
-};
+export type ConsumptionRangePreset = "day" | "month" | "custom";
 
-export type DailyPoint = {
-  date: string;
-  aesthetic: number;
-  derm: number;
-};
-
-type Range = "day" | "month" | "custom";
-
-function DualLineChart({ points }: { points: DailyPoint[] }) {
+function DualLineChart({ points }: { points: DailyConsumptionPoint[] }) {
   const w = 640;
   const h = 200;
   const padX = 28;
@@ -49,6 +41,14 @@ function DualLineChart({ points }: { points: DailyPoint[] }) {
     .join(" ");
   const dermLine = points.map((p, i) => `${toX(i)},${toY(p.derm)}`).join(" ");
   const ticks = [0, yMax / 2, yMax];
+
+  if (points.length === 0) {
+    return (
+      <p className="py-10 text-center text-sm text-muted-foreground">
+        No hay análisis en el periodo seleccionado.
+      </p>
+    );
+  }
 
   return (
     <div className="w-full overflow-x-auto">
@@ -165,7 +165,9 @@ function PoolCard({
             <dt className="text-muted-foreground">Realizados:</dt>
             <dd className="font-semibold tabular-nums">
               {pool.done}{" "}
-              <span className="font-medium text-muted-foreground">(100%)</span>
+              <span className="font-medium text-muted-foreground">
+                ({consumedPct.toFixed(1)}%)
+              </span>
             </dd>
           </div>
           <div className="flex flex-wrap gap-x-2">
@@ -193,6 +195,81 @@ function PoolCard({
   );
 }
 
+function formatDisplayDate(iso: string) {
+  const [y, m, d] = iso.split("-");
+  if (!y || !m || !d) return iso;
+  return `${d}/${m}/${y}`;
+}
+
+function formatMonthLabel(yyyyMm: string) {
+  const [y, m] = yyyyMm.split("-").map(Number);
+  if (!y || !m) return yyyyMm;
+  const label = new Date(y, m - 1, 1).toLocaleDateString("es-CO", {
+    month: "long",
+    year: "numeric",
+  });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+/** Campo fecha/mes: clic en todo el control abre el calendario nativo. */
+function CalendarField({
+  label,
+  value,
+  display,
+  onChange,
+  inputType = "date",
+  className,
+}: {
+  label: string;
+  value: string;
+  display: string;
+  onChange: (next: string) => void;
+  inputType?: "date" | "month";
+  className?: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function openPicker() {
+    const el = inputRef.current;
+    if (!el) return;
+    try {
+      el.showPicker();
+    } catch {
+      el.focus();
+      el.click();
+    }
+  }
+
+  return (
+    <div className={cn("block", className)}>
+      <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+        {label}
+      </span>
+      <button
+        type="button"
+        onClick={openPicker}
+        className="relative flex h-9 min-w-[11.5rem] cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-3 text-left text-sm outline-none transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-primary/30"
+      >
+        <CalendarDays className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <span className="truncate font-medium tabular-nums text-foreground">
+          {display || "Seleccionar"}
+        </span>
+        <input
+          ref={inputRef}
+          type={inputType}
+          value={value}
+          onChange={(e) => {
+            if (e.target.value) onChange(e.target.value);
+          }}
+          tabIndex={-1}
+          aria-hidden
+          className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
+        />
+      </button>
+    </div>
+  );
+}
+
 export function AnalysisConsumptionView({
   aesthetic,
   derm,
@@ -200,16 +277,34 @@ export function AnalysisConsumptionView({
   rows,
   subtitle = "Consulta el consumo detallado de análisis de piel estéticos y análisis de imágenes dermatológicas.",
   headerExtra,
+  range,
+  onRangeChange,
+  dayDate,
+  onDayDateChange,
+  monthKey,
+  onMonthKeyChange,
+  dateFrom,
+  dateTo,
+  onCustomDatesChange,
+  isRefreshing = false,
 }: {
   aesthetic: ConsumptionPool;
   derm: ConsumptionPool;
-  daily: DailyPoint[];
-  rows: DailyConsumption[];
+  daily: DailyConsumptionPoint[];
+  rows: DailyConsumptionRow[];
   subtitle?: string;
   headerExtra?: React.ReactNode;
+  range: ConsumptionRangePreset;
+  onRangeChange: (range: ConsumptionRangePreset) => void;
+  dayDate: string;
+  onDayDateChange: (iso: string) => void;
+  monthKey: string;
+  onMonthKeyChange: (yyyyMm: string) => void;
+  dateFrom: string;
+  dateTo: string;
+  onCustomDatesChange: (from: string, to: string) => void;
+  isRefreshing?: boolean;
 }) {
-  const [range, setRange] = useState<Range>("day");
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -218,7 +313,7 @@ export function AnalysisConsumptionView({
           <h1>Consumo de análisis</h1>
           <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">{subtitle}</p>
         </div>
-        <Button type="button" variant="outline" size="sm" className="gap-1.5">
+        <Button type="button" variant="outline" size="sm" className="gap-1.5" disabled>
           <Download className="size-4" />
           Exportar reporte
         </Button>
@@ -229,7 +324,11 @@ export function AnalysisConsumptionView({
           <p className="mb-1.5 text-xs font-medium text-muted-foreground">
             Vista rápida
           </p>
-          <div className="flex flex-wrap gap-1.5">
+          <div
+            className="inline-flex flex-wrap gap-1 rounded-xl border border-border bg-card p-1"
+            role="tablist"
+            aria-label="Periodo"
+          >
             {(
               [
                 ["day", "Día"],
@@ -240,12 +339,14 @@ export function AnalysisConsumptionView({
               <button
                 key={key}
                 type="button"
-                onClick={() => setRange(key)}
+                role="tab"
+                aria-selected={range === key}
+                onClick={() => onRangeChange(key)}
                 className={cn(
-                  "rounded-lg border px-3 py-1.5 text-sm font-semibold transition-colors",
+                  "rounded-lg px-3.5 py-1.5 text-sm font-semibold transition-colors",
                   range === key
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-card hover:bg-muted",
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
                 {label}
@@ -253,30 +354,50 @@ export function AnalysisConsumptionView({
             ))}
           </div>
         </div>
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
-            Fecha
-          </span>
-          <span className="relative inline-flex">
-            <CalendarDays className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              defaultValue="06/07/2026"
-              readOnly
-              className="h-9 w-40 rounded-lg border border-border bg-card pr-3 pl-9 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+
+        {range === "day" ? (
+          <CalendarField
+            label="Fecha"
+            value={dayDate}
+            display={formatDisplayDate(dayDate)}
+            onChange={onDayDateChange}
+          />
+        ) : null}
+
+        {range === "month" ? (
+          <CalendarField
+            label="Mes"
+            inputType="month"
+            value={monthKey}
+            display={formatMonthLabel(monthKey)}
+            onChange={onMonthKeyChange}
+          />
+        ) : null}
+
+        {range === "custom" ? (
+          <>
+            <CalendarField
+              label="Desde"
+              value={dateFrom}
+              display={formatDisplayDate(dateFrom)}
+              onChange={(from) =>
+                onCustomDatesChange(from, dateTo < from ? from : dateTo)
+              }
             />
-          </span>
-        </label>
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
-            Comparar con
-          </span>
-          <select className="h-9 rounded-lg border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30">
-            <option>Sin comparación</option>
-            <option>Mes anterior</option>
-            <option>Misma fecha año pasado</option>
-          </select>
-        </label>
+            <CalendarField
+              label="Hasta"
+              value={dateTo}
+              display={formatDisplayDate(dateTo)}
+              onChange={(to) =>
+                onCustomDatesChange(dateFrom > to ? to : dateFrom, to)
+              }
+            />
+          </>
+        ) : null}
+
+        {isRefreshing ? (
+          <p className="pb-2 text-xs text-muted-foreground">Actualizando…</p>
+        ) : null}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -300,13 +421,6 @@ export function AnalysisConsumptionView({
               Detalle de análisis realizados por día.
             </ModuleCardDescription>
           </div>
-          <label className="text-xs text-muted-foreground">
-            Ver por:{" "}
-            <select className="ml-1 rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground">
-              <option>Cantidad</option>
-              <option>Porcentaje</option>
-            </select>
-          </label>
         </div>
         <div className="mb-3 flex flex-wrap gap-4 text-xs font-medium">
           <span className="inline-flex items-center gap-1.5 text-primary">
@@ -344,54 +458,46 @@ export function AnalysisConsumptionView({
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={r.date} className="border-t border-border hover:bg-muted/20">
-                  <td className="px-4 py-3 font-medium">{r.date}</td>
-                  <td className="px-4 py-3 tabular-nums text-primary">{r.aesthetic}</td>
-                  <td className="px-4 py-3 tabular-nums text-chart-2">{r.derm}</td>
-                  <td className="px-4 py-3 font-semibold tabular-nums">{r.total}</td>
-                  <td className="px-4 py-3 tabular-nums">{r.patients}</td>
-                  <td className="px-4 py-3">{r.professional}</td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      className="rounded-md p-1 text-muted-foreground hover:bg-muted"
-                      aria-label="Acciones"
-                    >
-                      <MoreVertical className="size-4" />
-                    </button>
+              {rows.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={7}
+                    className="px-4 py-8 text-center text-muted-foreground"
+                  >
+                    Sin consumo en este periodo.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                rows.map((r) => (
+                  <tr key={r.date} className="border-t border-border hover:bg-muted/20">
+                    <td className="px-4 py-3 font-medium">{r.date}</td>
+                    <td className="px-4 py-3 tabular-nums text-primary">{r.aesthetic}</td>
+                    <td className="px-4 py-3 tabular-nums text-chart-2">{r.derm}</td>
+                    <td className="px-4 py-3 font-semibold tabular-nums">{r.total}</td>
+                    <td className="px-4 py-3 tabular-nums">{r.patients}</td>
+                    <td className="px-4 py-3">{r.professional}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+                        aria-label="Acciones"
+                        disabled
+                      >
+                        <MoreVertical className="size-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
         <div className="flex items-center justify-between border-t border-border px-4 py-3 text-xs text-muted-foreground">
           <span>
-            Mostrando 1 a {rows.length} de {rows.length} días
+            {rows.length === 0
+              ? "Sin resultados"
+              : `Mostrando 1 a ${rows.length} de ${rows.length} días`}
           </span>
-          <div className="flex gap-1">
-            <button
-              type="button"
-              className="rounded-md border border-border px-2 py-1 hover:bg-muted"
-              disabled
-            >
-              Anterior
-            </button>
-            <button
-              type="button"
-              className="rounded-md border border-primary bg-primary px-2.5 py-1 font-semibold text-primary-foreground"
-            >
-              1
-            </button>
-            <button
-              type="button"
-              className="rounded-md border border-border px-2 py-1 hover:bg-muted"
-              disabled
-            >
-              Siguiente
-            </button>
-          </div>
         </div>
       </ModuleCard>
     </div>

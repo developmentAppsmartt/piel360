@@ -52,6 +52,11 @@ export class CreatePlanDto {
   @IsObject()
   roleLimits?: Record<string, number>;
 
+  /** { skiniver?: number, aesthetic?: number } */
+  @IsOptional()
+  @IsObject()
+  analysisLimits?: { skiniver?: number; aesthetic?: number };
+
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;

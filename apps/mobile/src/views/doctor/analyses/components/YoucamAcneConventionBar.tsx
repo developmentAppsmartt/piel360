@@ -19,7 +19,7 @@ type YoucamAcneConventionBarProps = {
  */
 export function YoucamAcneConventionBar({ styles }: YoucamAcneConventionBarProps) {
   return (
-    <View style={styles.acneConventionWrap} pointerEvents="none">
+    <View style={[styles.acneConventionWrap, { pointerEvents: 'none' }]}>
       <View style={styles.acneConventionPanel}>
         {YOUCAM_ACNE_OVERLAYS.map((item) => (
           <View key={item.key} style={styles.acneConventionRow}>

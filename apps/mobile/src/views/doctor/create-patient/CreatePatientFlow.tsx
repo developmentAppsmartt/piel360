@@ -86,6 +86,7 @@ export function CreatePatientFlow({
     return (
       <SkiniverAnalysisFlow
         patientId={createdId}
+        patientGender={draft?.gender}
         onClose={() => setActiveProvider(null)}
         onAnalysisCreated={() => {
           setActiveProvider(null);

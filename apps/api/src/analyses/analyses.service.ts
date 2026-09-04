@@ -17,7 +17,10 @@ import { SkiniverService } from '../skiniver/skiniver.service';
 import { StorageService } from '../storage/storage.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
-import { getAnalysisProviderIdBySlug } from '../plans/plan-providers.util';
+import {
+  getAnalysisProviderIdBySlug,
+  parsePlanProviderIds,
+} from '../plans/plan-providers.util';
 import {
   patientLatestSkinAgeData,
   snapshotFromAnalysis,
@@ -225,7 +228,38 @@ export class AnalysesService {
       }
     }
 
-    return this.imageUrls.withImageUrls(updated);
+    return this.presentAnalysisResult(updated, currentUser);
+  }
+
+  /** Paciente no recibe payload clínico hasta que el profesional comparta. */
+  private async presentAnalysisResult(
+    analysis: {
+      id: bigint;
+      patientId: bigint;
+      isValid: boolean;
+      sharedWithPatient: boolean;
+      imagePath: string;
+      coloredS3Url?: string | null;
+      maskedS3Url?: string | null;
+      aiRawResponse?: unknown;
+      [key: string]: unknown;
+    },
+    currentUser: JwtPayload,
+  ) {
+    if (
+      currentUser.role === 'patient' &&
+      !analysis.sharedWithPatient
+    ) {
+      return {
+        id: analysis.id.toString(),
+        patientId: analysis.patientId.toString(),
+        isValid: analysis.isValid,
+        sharedWithPatient: false,
+        message:
+          'Análisis enviado a tu profesional. Lo verás cuando lo valide y comparta.',
+      };
+    }
+    return this.imageUrls.withImageUrls(analysis as never);
   }
 
   async findAll(currentUser: JwtPayload) {
@@ -257,6 +291,7 @@ export class AnalysesService {
     }
 
     // Paciente: solo análisis compartidos de su perfil (Patient.userId).
+    // Nunca verá resultados solo por haber ejecutado la captura.
     return this.prisma.analysis.findMany({
       where: {
         sharedWithPatient: true,
@@ -265,6 +300,52 @@ export class AnalysesService {
       include: { patient: true, provider: providerSelect },
       orderBy: { id: 'desc' },
     });
+  }
+
+  /**
+   * Estado liviano para el poll del flujo de captura.
+   * El paciente ejecutor puede consultar si ya terminó, sin ver el resultado.
+   */
+  async getProcessingStatus(id: string, currentUser: JwtPayload) {
+    const analysis = await this.prisma.analysis.findUnique({
+      where: { id: BigInt(id) },
+      include: {
+        patient: { select: { doctorId: true, userId: true } },
+      },
+    });
+    if (!analysis) throw new NotFoundException('Análisis no encontrado');
+
+    const isExecutor = analysis.userId?.toString() === currentUser.sub;
+    const isPatientOwner =
+      analysis.patient.userId?.toString() === currentUser.sub;
+    let doctorOk = false;
+    if (currentUser.role === 'superadmin') {
+      doctorOk = true;
+    } else if (isDoctorPanelRole(currentUser.role)) {
+      doctorOk = await this.orgContext.canAccessPatientDoctorId(
+        currentUser.sub,
+        analysis.patient.doctorId,
+      );
+    }
+    if (!doctorOk && !isExecutor && !isPatientOwner) {
+      throw new ForbiddenException('No puedes consultar este análisis');
+    }
+
+    const raw = analysis.aiRawResponse as
+      | { error?: unknown; message?: string }
+      | null;
+    const error =
+      raw && typeof raw === 'object' && raw.error
+        ? String(raw.message || 'Error en el análisis')
+        : null;
+
+    return {
+      id: analysis.id.toString(),
+      isValid: analysis.isValid,
+      hasColored: Boolean(analysis.coloredS3Url),
+      hasMasked: Boolean(analysis.maskedS3Url),
+      error,
+    };
   }
 
   async findOne(id: string, currentUser: JwtPayload) {
@@ -320,6 +401,168 @@ export class AnalysesService {
   }
 
   /**
+   * Consumo de análisis (estético vs dermatológico): pools de créditos de
+   * suscripciones activas + serie diaria y detalle del rango de fechas.
+   */
+  async getConsumption(
+    currentUser: JwtPayload,
+    query: { from?: string; to?: string } = {},
+  ) {
+    const { from, to } = resolveConsumptionRange(query.from, query.to);
+
+    let analysisWhere: Prisma.AnalysisWhereInput = {
+      createdAt: { gte: from, lte: to },
+    };
+    let subscriptionUserIds: bigint[] | null = null;
+
+    if (currentUser.role === 'superadmin') {
+      // Plataforma completa.
+    } else if (isDoctorPanelRole(currentUser.role)) {
+      await this.orgContext.assertTeamPermissionForUser(
+        currentUser.sub,
+        'billing',
+      );
+      const scope = await this.orgContext.resolvePatientDoctorScope(
+        currentUser.sub,
+      );
+      analysisWhere = {
+        ...analysisWhere,
+        patient: { doctorId: { in: scope.visibleDoctorIds } },
+      };
+      subscriptionUserIds = [scope.ctx.subscriptionUserId];
+    } else {
+      throw new ForbiddenException(
+        'No tienes permiso para consultar el consumo de análisis',
+      );
+    }
+
+    const providers = await this.prisma.analysisProvider.findMany({
+      select: { id: true, slug: true },
+    });
+    const slugById = new Map(providers.map((p) => [p.id.toString(), p.slug]));
+
+    const [analyses, subscriptions] = await Promise.all([
+      this.prisma.analysis.findMany({
+        where: analysisWhere,
+        select: {
+          id: true,
+          createdAt: true,
+          patientId: true,
+          youcamTaskId: true,
+          fitzpatrickTaskId: true,
+          provider: { select: { slug: true } },
+          user: { select: { name: true } },
+        },
+        orderBy: { createdAt: 'asc' },
+      }),
+      this.prisma.subscription.findMany({
+        where: {
+          status: 'active',
+          ...(subscriptionUserIds
+            ? { userId: { in: subscriptionUserIds } }
+            : {}),
+        },
+        include: {
+          plan: true,
+          usages: {
+            select: {
+              quantity: true,
+              analysis: {
+                select: {
+                  youcamTaskId: true,
+                  fitzpatrickTaskId: true,
+                  provider: { select: { slug: true } },
+                },
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const aesthetic = emptyPool();
+    const derm = emptyPool();
+
+    for (const sub of subscriptions) {
+      const buckets = planCreditBuckets(sub.plan, slugById);
+      aesthetic.limit += buckets.aesthetic;
+      derm.limit += buckets.derm;
+
+      for (const usage of sub.usages) {
+        const qty = usage.quantity ?? 1;
+        if (isAestheticAnalysis(usage.analysis)) {
+          aesthetic.done += qty;
+        } else {
+          derm.done += qty;
+        }
+      }
+    }
+
+    aesthetic.available = Math.max(0, aesthetic.limit - aesthetic.done);
+    derm.available = Math.max(0, derm.limit - derm.done);
+
+    const byDay = new Map<
+      string,
+      {
+        aesthetic: number;
+        derm: number;
+        patients: Set<string>;
+        pros: Map<string, number>;
+      }
+    >();
+
+    for (const row of analyses) {
+      const key = dayKey(row.createdAt);
+      let bucket = byDay.get(key);
+      if (!bucket) {
+        bucket = {
+          aesthetic: 0,
+          derm: 0,
+          patients: new Set(),
+          pros: new Map(),
+        };
+        byDay.set(key, bucket);
+      }
+      if (isAestheticAnalysis(row)) bucket.aesthetic += 1;
+      else bucket.derm += 1;
+      bucket.patients.add(row.patientId.toString());
+      const pro = row.user?.name?.trim() || 'Sin asignar';
+      bucket.pros.set(pro, (bucket.pros.get(pro) ?? 0) + 1);
+    }
+
+    const sortedKeys = [...byDay.keys()].sort();
+    const daily = sortedKeys.map((key) => {
+      const b = byDay.get(key)!;
+      return {
+        date: formatDayShort(key),
+        aesthetic: b.aesthetic,
+        derm: b.derm,
+      };
+    });
+
+    const rows = [...sortedKeys].reverse().map((key) => {
+      const b = byDay.get(key)!;
+      return {
+        date: formatDayLong(key),
+        aesthetic: b.aesthetic,
+        derm: b.derm,
+        total: b.aesthetic + b.derm,
+        patients: b.patients.size,
+        professional: topProfessional(b.pros),
+      };
+    });
+
+    return {
+      from: from.toISOString(),
+      to: to.toISOString(),
+      aesthetic,
+      derm,
+      daily,
+      rows,
+    };
+  }
+
+  /**
    * Doctor/admin publica el análisis al paciente vinculado
    * (`Patient.userId`). Sin ese vínculo el paciente no podrá listarlo.
    */
@@ -346,6 +589,33 @@ export class AnalysesService {
       data: {
         sharedWithPatient: true,
         sharedAt: new Date(),
+      },
+      include: { patient: true },
+    });
+    return this.imageUrls.withImageUrls(updated);
+  }
+
+  /**
+   * Doctor/admin deja de publicar el análisis al paciente.
+   * El paciente deja de verlo en su historial y consejos.
+   */
+  async unshareWithPatient(id: string, currentUser: JwtPayload) {
+    const analysis = await this.prisma.analysis.findUnique({
+      where: { id: BigInt(id) },
+      include: { patient: true },
+    });
+    if (!analysis) throw new NotFoundException('Análisis no encontrado');
+    await this.assertCanAccess(analysis, currentUser);
+
+    if (!analysis.sharedWithPatient) {
+      return this.imageUrls.withImageUrls(analysis);
+    }
+
+    const updated = await this.prisma.analysis.update({
+      where: { id: analysis.id },
+      data: {
+        sharedWithPatient: false,
+        sharedAt: null,
       },
       include: { patient: true },
     });
@@ -430,6 +700,8 @@ export class AnalysesService {
     }
 
     // Paciente: solo si el análisis fue compartido y pertenece a su perfil.
+    // Haber ejecutado la captura (userId) NO otorga ver el resultado:
+    // el profesional debe validar y compartir.
     if (
       analysis.sharedWithPatient &&
       analysis.patient.userId?.toString() === currentUser.sub
@@ -437,9 +709,131 @@ export class AnalysesService {
       return;
     }
 
-    // Compat: análisis autoejecutados por el propio paciente (userId = ejecutor).
-    if (analysis.userId?.toString() === currentUser.sub) return;
-
     throw new ForbiddenException('No puedes acceder a este análisis');
   }
+}
+
+const AESTHETIC_PROVIDER_SLUGS = new Set(['youcam', 'fitzpatrick']);
+
+function emptyPool() {
+  return { done: 0, limit: 0, available: 0 };
+}
+
+function isAestheticAnalysis(row: {
+  youcamTaskId?: string | null;
+  fitzpatrickTaskId?: string | null;
+  provider?: { slug: string } | null;
+}): boolean {
+  if (row.youcamTaskId || row.fitzpatrickTaskId) return true;
+  const slug = row.provider?.slug;
+  return slug != null && AESTHETIC_PROVIDER_SLUGS.has(slug);
+}
+
+function planCreditBuckets(
+  plan: {
+    analysisLimit: number;
+    analysisLimits: Prisma.JsonValue;
+    analysisProviderIds: Prisma.JsonValue;
+    analysisProviderId: bigint;
+  },
+  slugById: Map<string, string>,
+): { aesthetic: number; derm: number } {
+  const raw = plan.analysisLimits;
+  const limits =
+    raw && typeof raw === 'object' && !Array.isArray(raw)
+      ? (raw as { skiniver?: number; aesthetic?: number })
+      : {};
+
+  const hasSplit =
+    typeof limits.skiniver === 'number' || typeof limits.aesthetic === 'number';
+  if (hasSplit) {
+    return {
+      aesthetic: Math.max(0, limits.aesthetic ?? 0),
+      derm: Math.max(0, limits.skiniver ?? 0),
+    };
+  }
+
+  const ids = parsePlanProviderIds(plan);
+  const slugs = ids
+    .map((id) => slugById.get(id))
+    .filter((s): s is string => Boolean(s));
+  const hasSkiniver = slugs.includes('skiniver');
+  const hasAesthetic = slugs.some((s) => AESTHETIC_PROVIDER_SLUGS.has(s));
+  const limit = Math.max(0, plan.analysisLimit);
+
+  if (hasSkiniver && !hasAesthetic) return { aesthetic: 0, derm: limit };
+  if (hasAesthetic && !hasSkiniver) return { aesthetic: limit, derm: 0 };
+  if (hasAesthetic) return { aesthetic: limit, derm: 0 };
+  return { aesthetic: 0, derm: limit };
+}
+
+function resolveConsumptionRange(fromRaw?: string, toRaw?: string) {
+  const now = new Date();
+  let from: Date;
+  let to: Date;
+
+  if (fromRaw && toRaw) {
+    from = startOfDay(parseIsoDate(fromRaw));
+    to = endOfDay(parseIsoDate(toRaw));
+  } else if (fromRaw) {
+    from = startOfDay(parseIsoDate(fromRaw));
+    to = endOfDay(from);
+  } else {
+    // Mes calendario actual (UTC local del servidor).
+    from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    to = endOfDay(now);
+  }
+
+  if (from.getTime() > to.getTime()) {
+    throw new BadRequestException(
+      'El rango de fechas es inválido (from > to)',
+    );
+  }
+  return { from, to };
+}
+
+function parseIsoDate(value: string): Date {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) {
+    throw new BadRequestException(`Fecha inválida: ${value}`);
+  }
+  return d;
+}
+
+function startOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+}
+
+function endOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+}
+
+/** Clave estable YYYY-MM-DD en zona local del servidor. */
+function dayKey(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function formatDayShort(key: string) {
+  const [, m, d] = key.split('-');
+  return `${d}/${m}`;
+}
+
+function formatDayLong(key: string) {
+  const [y, m, d] = key.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function topProfessional(counts: Map<string, number>) {
+  let best = 'Sin asignar';
+  let bestN = -1;
+  for (const [name, n] of counts) {
+    if (n > bestN) {
+      best = name;
+      bestN = n;
+    }
+  }
+  return best;
 }

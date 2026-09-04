@@ -10,11 +10,15 @@ export interface SkiniverValidateResponse {
 /** Item de `predict().topn[]`: diagnóstico diferencial (INTEGRACIONES-IA.md §1.3). */
 export interface SkiniverDiagnosisCandidate {
   class: string;
+  /** Id interno Skiniver (ej. "2P_dysplastic_nevus"). */
+  class_raw?: string;
   prob: number;
   risk: string;
   risk_level: RiskLevel;
   desease?: string;
   atlas_page_link?: string;
+  /** Código de lesión / ICD cuando Skiniver lo envía por candidato. */
+  lesion_code?: string;
   /** Texto libre con evaluación/conclusión/diagnóstico/tratamiento/consejo
    * concatenados — ver `parseSkiniverDescription` en el backend. */
   description?: string;

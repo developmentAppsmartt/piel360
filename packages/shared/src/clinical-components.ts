@@ -28,6 +28,12 @@ export const CLINICAL_COMPONENTS: readonly ClinicalComponentDef[] = [
   },
   { slug: "clinical.patients", label: "Pacientes", href: "/doctor/pacientes", sortOrder: 30 },
   {
+    slug: "clinical.agenda",
+    label: "Agenda",
+    href: "/doctor/agenda",
+    sortOrder: 35,
+  },
+  {
     slug: "clinical.analyses",
     label: "Análisis y resultados",
     href: "/doctor/analisis",
@@ -108,6 +114,7 @@ export const EMPRESA_CLINICAL_COMPONENT_SLUGS = [
   "clinical.maps.doctors",
   "clinical.maps.patients",
   "clinical.patients",
+  "clinical.agenda",
   "clinical.analyses",
   "clinical.plans",
   "clinical.consumption",

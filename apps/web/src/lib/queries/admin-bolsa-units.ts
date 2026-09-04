@@ -50,6 +50,7 @@ export type PerfectCorpUnitsResponse = {
     timestamp: string | null;
     targetId: string | null;
     dstActions: string[];
+    note?: string | null;
   }>;
 };
 
@@ -72,6 +73,7 @@ export type SkiniverUnitsResponse = {
   pool: SkiniverUnitPool;
   history: Array<{
     id: string;
+    kind?: string;
     quantity: number;
     expiresAt: string | null;
     note: string | null;

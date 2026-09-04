@@ -8,10 +8,13 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { StatusBar } from 'expo-status-bar';
+import { AppIcon } from '../../../components/AppIcon';
+import { Icons } from '../../../components/icons';
 import { useBranding } from '../../../context/BrandingContext';
 import { ANALYSIS_PROVIDER_STATIC_LABELS } from '../../../data/analysisProviderLabel';
 import {
   BODY_PARTS_INFO,
+  bodyModelGenderFromPatient,
   type BodySelection,
 } from '../../../data/bodyRegions';
 import { DoctorHeader } from '../../doctor/patients/components/DoctorHeader';
@@ -27,6 +30,8 @@ type Step = 'mode' | 'consent' | 'region' | 'capture' | 'processing';
 type SkiniverAnalysisFlowProps = {
   patientId: string;
   patientName?: string;
+  /** Género del paciente (`female` / `male` / etc.) para el modelo 3D. */
+  patientGender?: string | null;
   onClose: () => void;
   onAnalysisCreated: (analysisId: string) => void;
   onOpenMenu?: () => void;
@@ -76,6 +81,7 @@ function shortHeaderTitle(patientName?: string): string {
 export function SkiniverAnalysisFlow({
   patientId,
   patientName,
+  patientGender,
   onClose,
   onAnalysisCreated,
   onOpenMenu,
@@ -90,6 +96,10 @@ export function SkiniverAnalysisFlow({
   const styles = useMemo(
     () => createYoucamFlowStyles(branding.colors),
     [branding.colors],
+  );
+  const modelGender = useMemo(
+    () => bodyModelGenderFromPatient(patientGender),
+    [patientGender],
   );
   const [step, setStep] = useState<Step>(
     skipModeChoice ? 'consent' : 'mode',
@@ -181,7 +191,7 @@ export function SkiniverAnalysisFlow({
       ) : null}
 
       {step === 'region' ? (
-        <View style={[styles.card, { flex: 1, paddingBottom: 12 }]}>
+        <View style={[styles.card, { flex: 1, paddingBottom: 8 }]}>
           <Text style={styles.title}>Marca la zona</Text>
           <Text style={[styles.subtitle, { marginBottom: 10 }]}>
             Selecciona en el modelo 3D la región a analizar.
@@ -189,31 +199,64 @@ export function SkiniverAnalysisFlow({
 
           <View style={{ flex: 1, minHeight: 0 }}>
             <BodySelector3D
+              initialGender={modelGender ?? 'female'}
+              lockGender={modelGender != null}
               onSelect={setSelection}
               primaryColor={branding.colors.primary}
             />
           </View>
 
-          {/* elevation evita que el GLView tape el botón en algunos dispositivos */}
-          <View
-            style={{
-              marginTop: 12,
-              zIndex: 20,
-              elevation: 20,
-              backgroundColor: '#FFFFFF',
-            }}
-          >
+          {/* Acciones debajo del modelo — sin panel/elevation (evita el recuadro) */}
+          <View style={{ marginTop: 12, gap: 10, zIndex: 20 }}>
+            {regionLabel ? (
+              <Text
+                style={{
+                  textAlign: 'center',
+                  fontSize: 13,
+                  fontWeight: '600',
+                  color: branding.colors.muted,
+                }}
+              >
+                Zona seleccionada: {regionLabel}
+              </Text>
+            ) : null}
+
             <Pressable
-              style={[styles.primaryBtn, !selection && { opacity: 0.5 }]}
+              accessibilityRole="button"
+              accessibilityLabel={
+                regionLabel ? `Continuar con ${regionLabel}` : 'Continuar'
+              }
+              style={[
+                styles.primaryBtn,
+                { borderRadius: 999 },
+                !selection && styles.primaryBtnDisabled,
+              ]}
               disabled={!selection}
               onPress={() => setStep('capture')}
             >
-              <Text style={styles.primaryBtnText}>
-                Continuar{regionLabel ? ` · ${regionLabel}` : ''}
-              </Text>
+              <Text style={styles.primaryBtnText}>Continuar</Text>
             </Pressable>
-            <Pressable style={styles.cancel} onPress={onClose}>
-              <Text style={styles.cancelText}>Cancelar</Text>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cancelar"
+              style={{
+                borderRadius: 999,
+                paddingVertical: 14,
+                alignItems: 'center',
+                backgroundColor: 'transparent',
+              }}
+              onPress={onClose}
+            >
+              <Text
+                style={{
+                  color: branding.colors.muted,
+                  fontWeight: '700',
+                  fontSize: 15,
+                }}
+              >
+                Cancelar
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -226,30 +269,87 @@ export function SkiniverAnalysisFlow({
             Enfoca de cerca {regionLabel ?? 'la zona marcada'}. Usa buena luz y
             recorta para que la lesión ocupe el marco.
           </Text>
-          <Pressable
-            style={[styles.primaryBtn, picking && { opacity: 0.7 }]}
-            disabled={picking}
-            onPress={() => void handlePick('camera')}
+
+          <Text
+            style={{
+              marginTop: 8,
+              marginBottom: 16,
+              textAlign: 'center',
+              fontSize: 16,
+              fontWeight: '600',
+              color: '#6B7280',
+            }}
           >
-            {picking ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.primaryBtnText}>Tomar foto enfocada</Text>
-            )}
-          </Pressable>
+            Seleccionar imagen
+          </Text>
+
+          {picking ? (
+            <ActivityIndicator
+              color={branding.colors.primary}
+              style={{ marginVertical: 24 }}
+            />
+          ) : (
+            <View
+              style={{
+                alignItems: 'center',
+                gap: 28,
+                marginBottom: 28,
+              }}
+            >
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Cámara"
+                disabled={picking}
+                onPress={() => void handlePick('camera')}
+                style={{ alignItems: 'center', gap: 10 }}
+              >
+                <AppIcon
+                  icon={Icons.camera}
+                  size={52}
+                  color={branding.colors.primary}
+                />
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontWeight: '600',
+                    color: '#6B7280',
+                  }}
+                >
+                  Cámara
+                </Text>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Galería"
+                disabled={picking}
+                onPress={() => void handlePick('library')}
+                style={{ alignItems: 'center', gap: 10 }}
+              >
+                <AppIcon
+                  icon={Icons.image}
+                  size={52}
+                  color={branding.colors.primary}
+                />
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontWeight: '600',
+                    color: '#6B7280',
+                  }}
+                >
+                  Galería
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
           <Pressable
-            style={[styles.cancel, { marginTop: 10 }]}
-            disabled={picking}
-            onPress={() => void handlePick('library')}
-          >
-            <Text style={styles.cancelText}>Elegir de la galería</Text>
-          </Pressable>
-          <Pressable
-            style={styles.cancel}
+            style={[styles.primaryBtn, { borderRadius: 999 }]}
             disabled={picking}
             onPress={() => setStep('region')}
           >
-            <Text style={styles.cancelText}>Cambiar zona 3D</Text>
+            <Text style={styles.primaryBtnText}>Volver a zona 3D</Text>
           </Pressable>
         </View>
       ) : null}

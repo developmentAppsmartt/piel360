@@ -32,6 +32,7 @@ import { RoutinesModule } from './routines/routines.module';
 import { TreatmentsModule } from './treatments/treatments.module';
 import { SkinAgeRulesModule } from './skin-age-rules/skin-age-rules.module';
 import { EmailTemplatesModule } from './email-templates/email-templates.module';
+import { AgendaModule } from './agenda/agenda.module';
 import { AnalysisConditionsModule } from './analysis-conditions/analysis-conditions.module';
 import { AppConfigModule } from './app-config/app-config.module';
 import { OrganizationsModule } from './organizations/organizations.module';
@@ -87,6 +88,7 @@ import { LaborTechnicianProfilesModule } from './labor-technician-profiles/labor
     TreatmentsModule,
     SkinAgeRulesModule,
     EmailTemplatesModule,
+    AgendaModule,
     AnalysisConditionsModule,
     AppConfigModule,
     OrganizationsModule,

@@ -54,7 +54,7 @@ export function YoucamSkinTypeConventionBar({
   styles,
 }: YoucamSkinTypeConventionBarProps) {
   return (
-    <View style={styles.skinTypeConventionWrap} pointerEvents="none">
+    <View style={[styles.skinTypeConventionWrap, { pointerEvents: 'none' }]}>
       <View style={styles.skinTypeConventionPanel}>
         {YOUCAM_SKIN_TYPE_OVERLAYS.map((item) => (
           <View key={item.key} style={styles.skinTypeMetricCol}>

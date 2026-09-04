@@ -194,13 +194,9 @@ export function RoleEditorForm({
           {mode === "create" ? "Crear rol y permisos" : `Editar ${defaultValues?.label ?? defaultValues?.name}`}
         </h1>
         <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-          Asigna módulos y permisos a cualquier rol del sistema (dermatólogo, empresa,
-          técnico, etc.). Lo que marques aquí define el menú y las acciones de los usuarios
-          con ese rol. Los análisis por especialidad se configuran en{" "}
-          <Link href="/admin/roles/permisos-planes" className="text-primary underline">
-            Permisos de planes
-          </Link>
-          .
+          Asigna módulos clínicos y permisos de acción a cualquier rol del sistema
+          (dermatólogo, empresa, técnico, etc.). Lo que marques aquí define el menú y las
+          acciones de los usuarios con ese rol.
         </p>
       </div>
 

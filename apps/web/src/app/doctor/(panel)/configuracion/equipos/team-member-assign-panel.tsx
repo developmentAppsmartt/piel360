@@ -6,10 +6,8 @@ import { ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-error";
 import {
-  allTeamReferencePermissionKeys,
-  referenceKeysToTeamPermissions,
+  allTeamModuleKeys,
   TEAM_PERMISSION_GROUPS,
-  teamPermissionsToReferenceKeys,
 } from "@/lib/team-reference-permissions";
 
 const inputClass =
@@ -20,7 +18,6 @@ export type TeamMemberFormValues = {
   lastName: string;
   email: string;
   password: string;
-  phone: string;
   professionalKind: "specialty" | "labor" | "";
   specialty: string;
   laborProfile: string;
@@ -36,7 +33,10 @@ type AssignPanelProps = {
   seatsLeft: number;
   saving?: boolean;
   onClose: () => void;
-  onSaveAdd: (values: TeamMemberFormValues, permissions: TeamMemberPermission[]) => Promise<void>;
+  onSaveAdd: (
+    values: TeamMemberFormValues,
+    permissions: TeamMemberPermission[],
+  ) => Promise<void>;
   onSaveEdit: (permissions: TeamMemberPermission[]) => Promise<void>;
 };
 
@@ -102,23 +102,22 @@ export function TeamMemberAssignPanel({
     lastName: "",
     email: "",
     password: "",
-    phone: "",
     professionalKind: "",
     specialty: "",
     laborProfile: "",
     ...defaultValues,
   });
-  const [referencePermissions, setReferencePermissions] = useState<Set<string>>(
-    () => teamPermissionsToReferenceKeys(defaultPermissions),
+  const [modules, setModules] = useState<Set<TeamMemberPermission>>(
+    () => new Set(defaultPermissions),
   );
   const [error, setError] = useState<string | null>(null);
 
-  const allKeys = useMemo(() => allTeamReferencePermissionKeys(), []);
+  const allKeys = useMemo(() => allTeamModuleKeys(), []);
   const allSelected =
-    allKeys.length > 0 && allKeys.every((key) => referencePermissions.has(key));
+    allKeys.length > 0 && allKeys.every((key) => modules.has(key));
 
   useEffect(() => {
-    setReferencePermissions(teamPermissionsToReferenceKeys(defaultPermissions));
+    setModules(new Set(defaultPermissions));
   }, [defaultPermissions]);
 
   useEffect(() => {
@@ -127,8 +126,8 @@ export function TeamMemberAssignPanel({
     }
   }, [defaultValues]);
 
-  function togglePermission(key: string) {
-    setReferencePermissions((prev) => {
+  function toggleModule(key: TeamMemberPermission) {
+    setModules((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
@@ -137,21 +136,20 @@ export function TeamMemberAssignPanel({
   }
 
   function toggleSelectAll() {
-    setReferencePermissions(allSelected ? new Set() : new Set(allKeys));
+    setModules(allSelected ? new Set() : new Set(allKeys));
   }
 
   async function handleSave() {
     setError(null);
-    const permissions = referenceKeysToTeamPermissions(referencePermissions);
+    const permissions = allKeys.filter((key) => modules.has(key));
     try {
       if (mode === "add") {
-        if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim()) {
+        if (
+          !form.firstName.trim() ||
+          !form.lastName.trim() ||
+          !form.email.trim()
+        ) {
           setError("Completa nombre, apellidos y correo.");
-          return;
-        }
-        const phone = form.phone.replace(/\D/g, "");
-        if (!/^\d{10,15}$/.test(phone)) {
-          setError("Celular inválido (10–15 dígitos).");
           return;
         }
         if (form.password.length < 8) {
@@ -159,7 +157,9 @@ export function TeamMemberAssignPanel({
           return;
         }
         if (!form.professionalKind) {
-          setError("Elige si el miembro es especialista médico o técnico laboral.");
+          setError(
+            "Elige si el miembro es especialista médico o técnico laboral.",
+          );
           return;
         }
         if (form.professionalKind === "specialty" && !form.specialty.trim()) {
@@ -170,7 +170,7 @@ export function TeamMemberAssignPanel({
           setError("Selecciona un perfil de técnico laboral.");
           return;
         }
-        await onSaveAdd({ ...form, phone }, permissions);
+        await onSaveAdd(form, permissions);
       } else {
         await onSaveEdit(permissions);
       }
@@ -183,7 +183,9 @@ export function TeamMemberAssignPanel({
     <aside className="flex w-full shrink-0 flex-col rounded-2xl border border-border bg-card shadow-lg lg:w-[420px] lg:max-h-[calc(100vh-10rem)] lg:sticky lg:top-6 lg:overflow-hidden">
       <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
         <div>
-          <h3 className="text-base font-semibold text-foreground">Asignar permisos</h3>
+          <h3 className="text-base font-semibold text-foreground">
+            Asignar permisos
+          </h3>
           {mode === "edit" && memberName ? (
             <p className="mt-1 text-sm text-muted-foreground">{memberName}</p>
           ) : (
@@ -231,17 +233,7 @@ export function TeamMemberAssignPanel({
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium">Celular</span>
-              <input
-                className={inputClass}
-                type="tel"
-                placeholder="573001112233"
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
+            <label className="flex flex-col gap-1 text-sm sm:col-span-2">
               <span className="font-medium">Contraseña temporal</span>
               <input
                 className={inputClass}
@@ -254,16 +246,6 @@ export function TeamMemberAssignPanel({
         ) : null}
 
         <div className="space-y-3">
-          <div>
-            <p className="text-sm font-medium text-foreground">
-              Tipo de profesional <span className="text-destructive">*</span>
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Elige una opción. Los permisos de análisis se aplican según la
-              configuración del administrador para cada perfil.
-            </p>
-          </div>
-
           {mode === "edit" ? (
             <div className="rounded-xl border border-border bg-muted/30 px-3 py-2.5 text-sm">
               <p className="font-medium text-foreground">
@@ -298,8 +280,10 @@ export function TeamMemberAssignPanel({
                       setForm({
                         ...form,
                         professionalKind: option.id,
-                        specialty: option.id === "specialty" ? form.specialty : "",
-                        laborProfile: option.id === "labor" ? form.laborProfile : "",
+                        specialty:
+                          option.id === "specialty" ? form.specialty : "",
+                        laborProfile:
+                          option.id === "labor" ? form.laborProfile : "",
                       })
                     }
                   >
@@ -329,7 +313,9 @@ export function TeamMemberAssignPanel({
                   label="Técnico laboral"
                   required
                   value={form.laborProfile}
-                  onChange={(laborProfile) => setForm({ ...form, laborProfile })}
+                  onChange={(laborProfile) =>
+                    setForm({ ...form, laborProfile })
+                  }
                 >
                   <option value="">Selecciona un técnico laboral</option>
                   {laborProfiles.map((name) => (
@@ -345,55 +331,55 @@ export function TeamMemberAssignPanel({
 
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Define los módulos a los que tendrá acceso este miembro en la
-            plataforma. Solo afectan a este usuario.
+            Activa o desactiva módulos. Puedes dejarlos todos vacíos. Solo
+            afectan a este usuario.
           </p>
 
           <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 px-3 py-2.5 text-sm text-indigo-900">
             <p className="font-medium">Análisis IA</p>
             <p className="mt-0.5 text-xs text-indigo-800/80">
-              Dermatológico, Estético y Fototipo se asignan según la especialidad
-              o el técnico laboral elegido (configuración del administrador en
-              Permisos de planes). No se configuran aquí.
+              Dermatológico, Estético y Fototipo se asignan según la
+              especialidad o el técnico laboral elegido (configuración del
+              administrador en Permisos de planes). No se configuran aquí.
             </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            {TEAM_PERMISSION_GROUPS.map((group) => (
-              <div
-                key={group.key}
-                className="rounded-xl border border-border bg-background p-3 shadow-sm"
-              >
-                <div className="mb-2.5 flex items-center gap-2">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                    <group.icon className="size-4" aria-hidden />
+            {TEAM_PERMISSION_GROUPS.map((group) => {
+              const checked = modules.has(group.key);
+              return (
+                <label
+                  key={group.key}
+                  className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 shadow-sm transition-colors ${
+                    checked
+                      ? "border-primary/40 bg-primary/5"
+                      : "border-border bg-background hover:border-primary/30"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="mt-1 size-4 shrink-0 accent-primary"
+                    checked={checked}
+                    onChange={() => toggleModule(group.key)}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="mb-1 flex items-center gap-2">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                        <group.icon className="size-4" aria-hidden />
+                      </span>
+                      <span className="text-sm font-semibold text-foreground">
+                        {group.label}
+                      </span>
+                    </span>
+                    {group.description ? (
+                      <span className="block text-xs text-muted-foreground">
+                        {group.description}
+                      </span>
+                    ) : null}
                   </span>
-                  <p className="text-sm font-semibold text-foreground">{group.label}</p>
-                </div>
-                <ul className="space-y-2">
-                  {group.items.map((item) => (
-                    <li key={item.key}>
-                      <label className="flex items-start gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          className="mt-0.5 size-4 accent-primary"
-                          checked={referencePermissions.has(item.key)}
-                          onChange={() => togglePermission(item.key)}
-                        />
-                        <span>
-                          <span className="text-foreground">{item.label}</span>
-                          {item.description ? (
-                            <span className="mt-0.5 block text-xs text-muted-foreground">
-                              {item.description}
-                            </span>
-                          ) : null}
-                        </span>
-                      </label>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+                </label>
+              );
+            })}
           </div>
 
           <label className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -441,7 +427,9 @@ export function inferMemberRoleLabel(
   if (!specialty) return "Profesional";
   const lower = specialty.toLowerCase();
   if (lower.includes("dermatolog")) return "Dermatólogo";
-  if (lower.includes("estétic") || lower.includes("estetic")) return "Médico estético";
+  if (lower.includes("estétic") || lower.includes("estetic")) {
+    return "Médico estético";
+  }
   if (lower.includes("cosmet")) return "Esteticista";
   return "Profesional";
 }

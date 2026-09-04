@@ -1,6 +1,5 @@
 import Image from "next/image";
 import type { LucideIcon } from "lucide-react";
-import { Lock } from "lucide-react";
 import type { ReactNode } from "react";
 
 const HERO_IMAGE = {
@@ -24,8 +23,6 @@ export function LoginPageShell({
   footer?: ReactNode;
   accountPrompt?: ReactNode;
 }) {
-  const year = new Date().getFullYear();
-
   return (
     <main className="flex min-h-dvh flex-col items-center bg-[#f4f7fb] px-4 py-6 sm:py-10">
       <div className="relative w-full max-w-[420px] overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.08)]">
@@ -68,19 +65,15 @@ export function LoginPageShell({
           <div className="mt-6">{children}</div>
 
           {accountPrompt ? (
-            <p className="mt-5 text-center text-sm leading-relaxed text-slate-500">{accountPrompt}</p>
+            <p className="mt-5 text-center text-sm leading-relaxed text-slate-500">
+              {accountPrompt}
+            </p>
           ) : null}
-          {footer ? <div className="mt-4 text-center text-sm text-slate-500">{footer}</div> : null}
+          {footer ? (
+            <div className="mt-4 text-center text-sm text-slate-500">{footer}</div>
+          ) : null}
         </div>
       </div>
-
-      <footer className="mt-6 max-w-[420px] space-y-2 px-2 text-center text-xs text-slate-400">
-        <p className="inline-flex items-center justify-center gap-2">
-          <Lock className="size-3.5 shrink-0" aria-hidden />
-          Tu información está protegida con los más altos estándares de seguridad.
-        </p>
-        <p>© {year} PIEL360. Todos los derechos reservados.</p>
-      </footer>
     </main>
   );
 }

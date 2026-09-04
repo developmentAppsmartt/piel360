@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ArrowLeft, Download, FileText } from "lucide-react";
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import { cn } from "@/lib/utils";
@@ -165,8 +165,9 @@ export function YoucamReportView({
       parseYoucamMetrics(analysis.aiRawResponse as YoucamRawResponse | null),
     [analysis.aiRawResponse],
   );
-  const [preferRaw, setPreferRaw] = useState(false);
-  const scores = useMemo(() => youcamScoresByType(metrics, preferRaw), [metrics, preferRaw]);
+  // Puntuación ajustada (uiScore): la elige el doctor; sin toggle en el análisis.
+  const preferRaw = false;
+  const scores = useMemo(() => youcamScoresByType(metrics, preferRaw), [metrics]);
   const overall = youcamOverallScore(metrics);
   const skinAge = analysis.skinAgeYears ?? youcamSkinAge(metrics);
   const chronologicalAge =
@@ -236,33 +237,6 @@ export function YoucamReportView({
             <FileText className="size-4" />
           </button>
         </div>
-      </div>
-
-      <div className="flex justify-end gap-1 text-xs">
-        <button
-          type="button"
-          onClick={() => setPreferRaw(false)}
-          className={cn(
-            "rounded-full border px-3 py-1 font-medium",
-            !preferRaw
-              ? "border-primary bg-primary/10 text-primary"
-              : "border-border bg-card text-muted-foreground",
-          )}
-        >
-          Puntuación ajustada
-        </button>
-        <button
-          type="button"
-          onClick={() => setPreferRaw(true)}
-          className={cn(
-            "rounded-full border px-3 py-1 font-medium",
-            preferRaw
-              ? "border-primary bg-primary/10 text-primary"
-              : "border-border bg-card text-muted-foreground",
-          )}
-        >
-          Puntuación real
-        </button>
       </div>
 
       <ModuleCard className="space-y-4">

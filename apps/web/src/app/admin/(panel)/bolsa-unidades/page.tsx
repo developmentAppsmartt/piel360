@@ -286,8 +286,24 @@ function historyActionLabel(action: string) {
     sign_up_gift: "Regalo registro",
     subscriber_gift: "Regalo suscriptor",
     compensation_from_customer_service: "Compensación",
+    subscription_return: "Cancelación de suscripción",
+    subscription_reserve: "Activación de suscripción",
   };
   return map[action] ?? action.replaceAll("_", " ");
+}
+
+function skiniverMovementStatus(kind: string | undefined, quantity: number) {
+  if (kind === "subscription_return") return "Devolución" as const;
+  if (kind === "subscription_reserve") return "Activación" as const;
+  if (quantity < 0) return "Consumo" as const;
+  return "Activa" as const;
+}
+
+function perfectCorpMovementStatus(action: string, delta: number) {
+  if (action === "subscription_return") return "Devolución" as const;
+  if (action === "subscription_reserve") return "Activación" as const;
+  if (delta < 0) return "Consumo" as const;
+  return "Activa" as const;
 }
 
 function SkiniverRechargeDialog({
@@ -474,9 +490,10 @@ export default function BolsaUnidadesPage() {
         sortAt: h.timestamp ? new Date(h.timestamp).getTime() : 0,
         quantity: Math.abs(h.delta),
         expiresAt: "—",
-        addedBy: historyActionLabel(h.action),
-        status:
-          h.delta > 0 ? ("Activa" as const) : ("Consumo" as const),
+        addedBy: h.note?.trim()
+          ? `${historyActionLabel(h.action)} · ${h.note.trim()}`
+          : historyActionLabel(h.action),
+        status: perfectCorpMovementStatus(h.action, h.delta),
         delta: h.delta,
       }));
 
@@ -486,14 +503,14 @@ export default function BolsaUnidadesPage() {
       unitLabel: "Análisis dermatológico",
       rechargedAt: new Date(h.createdAt).toLocaleString("es-CO"),
       sortAt: new Date(h.createdAt).getTime(),
-      quantity: h.quantity,
+      quantity: Math.abs(h.quantity),
       expiresAt: h.expiresAt
         ? new Date(h.expiresAt).toLocaleDateString("es-CO")
         : "—",
       addedBy: h.note?.trim()
         ? `${h.addedBy} · ${h.note.trim()}`
         : h.addedBy,
-      status: "Activa" as const,
+      status: skiniverMovementStatus(h.kind, h.quantity),
       delta: h.quantity,
     }));
 
@@ -796,9 +813,11 @@ export default function BolsaUnidadesPage() {
                       <td className="px-4 py-3">
                         <Badge
                           className={cn(
-                            row.status === "Consumo"
+                            row.status === "Consumo" || row.status === "Activación"
                               ? "bg-amber-100 text-amber-900 hover:bg-amber-100"
-                              : "bg-emerald-100 text-emerald-800 hover:bg-emerald-100",
+                              : row.status === "Devolución"
+                                ? "bg-sky-100 text-sky-900 hover:bg-sky-100"
+                                : "bg-emerald-100 text-emerald-800 hover:bg-emerald-100",
                           )}
                         >
                           {row.status}

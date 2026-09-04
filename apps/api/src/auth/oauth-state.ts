@@ -19,8 +19,13 @@ const ALLOWED_REDIRECT_PREFIXES = [
   'https://127.0.0.1',
 ] as const;
 
+/** LAN típica de Expo web / Metro (p. ej. http://192.168.x.x:8081). */
+const LAN_HTTP_RE =
+  /^https?:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?(\/|$)/i;
+
 export function isAllowedAppRedirect(uri: string): boolean {
-  return ALLOWED_REDIRECT_PREFIXES.some((p) => uri.startsWith(p));
+  if (ALLOWED_REDIRECT_PREFIXES.some((p) => uri.startsWith(p))) return true;
+  return LAN_HTTP_RE.test(uri);
 }
 
 /** @deprecated Prefer isAllowedAppRedirect */

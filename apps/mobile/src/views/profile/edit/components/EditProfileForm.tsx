@@ -23,6 +23,7 @@ import {
   type UpdatePatientInput,
 } from '../../../../services/patients.service';
 import { PhoneOtpSection } from '../../../../components/auth/PhoneOtpSection';
+import { PhoneSplitInputs } from '../../../../components/auth/PhoneSplitInputs';
 import {
   combinePhoneDigits,
   splitPhoneDigits,
@@ -61,6 +62,8 @@ type EditProfileFormProps = {
   emailEditable?: boolean;
   /** Historial ya cargado (evita un fetch extra desde detalle del paciente). */
   analyses?: PatientAnalysisSummary[];
+  /** Si true (default), al cambiar celular pide OTP por SMS. */
+  requirePhoneOtp?: boolean;
 };
 
 export function EditProfileForm({
@@ -68,6 +71,7 @@ export function EditProfileForm({
   onSubmit,
   emailEditable = true,
   analyses,
+  requirePhoneOtp = true,
 }: EditProfileFormProps) {
   const branding = useBranding();
   const styles = useMemo(
@@ -154,7 +158,7 @@ export function EditProfileForm({
 
     const fullPhone = combinePhoneDigits(phonePrefix, phoneNational);
     const phoneChanged = fullPhone !== originalPhoneDigits;
-    if (phoneChanged && !phoneTicket) {
+    if (requirePhoneOtp && phoneChanged && !phoneTicket) {
       setError('Verifica tu nuevo celular con el código SMS antes de guardar.');
       return;
     }
@@ -164,7 +168,9 @@ export function EditProfileForm({
       lastName: lastName.trim(),
       phone: optional(phoneNational),
       areaCode: optional(`+${phonePrefix.replace(/\D/g, '')}`),
-      ...(phoneChanged && phoneTicket ? { phoneTicket } : {}),
+      ...(requirePhoneOtp && phoneChanged && phoneTicket
+        ? { phoneTicket }
+        : {}),
       docType: optional(docType),
       docNumber: optional(docNumber),
       address: optional(address),
@@ -283,19 +289,35 @@ export function EditProfileForm({
 
         <View style={styles.field}>
           <Text style={styles.label}>Celular</Text>
-          <PhoneOtpSection
-            prefix={phonePrefix}
-            national={phoneNational}
-            onPrefixChange={setPhonePrefix}
-            onNationalChange={setPhoneNational}
-            originalPhoneDigits={originalPhoneDigits}
-            phoneTicket={phoneTicket}
-            onPhoneTicketChange={setPhoneTicket}
-            mode="profile"
-            variant="card"
-            disabled={submitting}
-            primaryColor={primary}
-          />
+          {requirePhoneOtp ? (
+            <>
+              <Text style={styles.hint}>
+                Si cambias el número, te enviaremos un código SMS para
+                verificarlo.
+              </Text>
+              <PhoneOtpSection
+                prefix={phonePrefix}
+                national={phoneNational}
+                onPrefixChange={setPhonePrefix}
+                onNationalChange={setPhoneNational}
+                originalPhoneDigits={originalPhoneDigits}
+                phoneTicket={phoneTicket}
+                onPhoneTicketChange={setPhoneTicket}
+                mode="profile"
+                variant="card"
+                disabled={submitting}
+                primaryColor={primary}
+              />
+            </>
+          ) : (
+            <PhoneSplitInputs
+              prefix={phonePrefix}
+              national={phoneNational}
+              onPrefixChange={setPhonePrefix}
+              onNationalChange={setPhoneNational}
+              disabled={submitting}
+            />
+          )}
         </View>
 
         <View style={styles.field}>

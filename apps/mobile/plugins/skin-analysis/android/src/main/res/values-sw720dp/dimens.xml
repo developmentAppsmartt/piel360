@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- Tablets más grandes (shortest ≥ 720dp) -->
+  <dimen name="skin_oval_width">560dp</dimen>
+  <dimen name="skin_oval_height">747dp</dimen>
+  <dimen name="skin_capture_loader">168dp</dimen>
+</resources>

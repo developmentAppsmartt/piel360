@@ -96,8 +96,11 @@ export class OrgContextService {
     }
 
     const parsed = parseTeamMemberPermissions(membership.permissions);
+    // `null`/ausente → defaults legacy; `[]` explícito → sin módulos.
     const teamPermissions =
-      parsed.length > 0 ? parsed : [...DEFAULT_TEAM_MEMBER_PERMISSIONS];
+      membership.permissions == null
+        ? [...DEFAULT_TEAM_MEMBER_PERMISSIONS]
+        : parsed;
 
     return {
       userId: userIdBig,

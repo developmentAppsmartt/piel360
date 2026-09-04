@@ -1,5 +1,6 @@
 import type { AppBranding } from '../../../../config/branding.defaults';
 import { StyleSheet } from 'react-native';
+import { appShadow } from '../../../../styles/shadow';
 import { AUTH_THEME } from '../../authTheme';
 
 const ACCENT = AUTH_THEME.accent;
@@ -67,11 +68,7 @@ export function createLoginStyles(colors: AppBranding['colors']) {
       paddingVertical: 15,
       paddingHorizontal: 16,
       backgroundColor: '#FFFFFF',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 6,
-      elevation: 2,
+      ...appShadow({ opacity: 0.08, radius: 6, offsetY: 2, elevation: 2 }),
     },
     methodBtnText: {
       fontSize: 15,

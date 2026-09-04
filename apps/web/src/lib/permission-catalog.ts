@@ -1,3 +1,7 @@
+import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
+import type { Permission } from "@/lib/queries/roles";
+import { permissionScope, type PermissionScope } from "@/lib/role-permission-scope";
+import type { AnalysisProviderSlug } from "@piel360/shared";
 import {
   BarChart3,
   BookOpen,
@@ -14,8 +18,6 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import type { Permission } from "@/lib/queries/roles";
-import { permissionScope, type PermissionScope } from "@/lib/role-permission-scope";
 
 const ACTION_ORDER = [
   "view_any",
@@ -105,13 +107,8 @@ export function parsePermissionName(name: string): { action: string; resource: s
 
 function permissionActionLabel(action: string, resource: string, name: string): string {
   if (name.startsWith("use_provider_")) {
-    const slug = name.replace("use_provider_", "");
-    const labels: Record<string, string> = {
-      skiniver: "Dermatológico (Skiniver)",
-      youcam: "Estético (YouCam)",
-      fitzpatrick: "Fototipo (Fitzpatrick)",
-    };
-    return labels[slug] ?? slug;
+    const slug = name.replace("use_provider_", "") as AnalysisProviderSlug;
+    return ANALYSIS_PROVIDER_STATIC_LABELS[slug] ?? slug;
   }
   return ACTION_LABELS[action] ?? action;
 }
@@ -218,30 +215,24 @@ export function groupPermissions(permissions: Permission[]): PermissionGroup[] {
   return groupPermissionsBySection(permissions).flatMap((section) => section.groups);
 }
 
-/** Agrupa permisos en secciones: módulos de menú (uno por tarjeta) + acciones API por recurso. */
+/** Agrupa permisos en secciones: módulos clínicos + acciones API.
+ * Los módulos del panel admin no se exponen aquí: no se asignan a roles
+ * desde esta UI (quedan solo en superadmin vía seed). */
 export function groupPermissionsBySection(
   permissions: Permission[],
 ): PermissionGroupSection[] {
-  const active = assignablePermissions(permissions);
+  const active = assignablePermissions(permissions).filter(
+    (permission) =>
+      !(permission.kind === "component" && permission.panel === "admin"),
+  );
   const components = active.filter((permission) => permission.kind === "component");
   const actions = active.filter((permission) => permission.kind !== "component");
 
   const sections: PermissionGroupSection[] = [];
 
-  const adminComponents = components.filter(
-    (permission) => permission.panel === "admin",
-  );
   const clinicalComponents = components.filter(
     (permission) => permission.panel === "clinical" || permission.panel === "doctor",
   );
-
-  const adminGroups = groupComponentPermissions(adminComponents);
-  if (adminGroups.length > 0) {
-    sections.push({
-      title: "Módulos del panel admin",
-      groups: adminGroups,
-    });
-  }
 
   const clinicalGroups = groupComponentPermissions(clinicalComponents);
   if (clinicalGroups.length > 0) {

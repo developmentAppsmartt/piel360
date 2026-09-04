@@ -12,10 +12,12 @@ import {
 import { isDoctorVerificationActive, isClinicalPanelUser } from '../types/auth';
 import { DoctorHomeView } from '../views/doctor/home/DoctorHomeView';
 import { DoctorPatientsView } from '../views/doctor/patients/DoctorPatientsView';
+import { DoctorAgendaView } from '../views/agenda/DoctorAgendaView';
+import { PatientAgendaView } from '../views/agenda/PatientAgendaView';
 import { HomeView } from '../views/home/HomeView';
 import { MessagesView } from '../views/messages/MessagesView';
+import type { ChatQuickActionId } from '../views/messages/components/ChatQuickActions';
 import { ProfileView } from '../views/profile/ProfileView';
-import { PlaceholderTabView } from '../views/shared/PlaceholderTabView';
 
 type TabKey =
   | 'home'
@@ -29,6 +31,7 @@ type TabKey =
 const DOCTOR_TABS: { key: TabKey; label: string; icon: AppIconName }[] = [
   { key: 'home', label: 'Inicio', icon: Icons.home },
   { key: 'patients', label: 'Pacientes', icon: Icons.accountGroup },
+  { key: 'agenda', label: 'Agenda', icon: Icons.calendar },
   { key: 'chat', label: 'Chat', icon: Icons.chat },
   { key: 'profile', label: 'Perfil', icon: Icons.account },
 ];
@@ -62,16 +65,27 @@ export function MainTabNavigator() {
   const isDoctor = isClinicalPanelUser(user);
   const doctorActive =
     !isDoctor || isDoctorVerificationActive(user?.verificationStatus);
+  const [hasAssignedDoctor, setHasAssignedDoctor] = useState(() =>
+    isClinicalPanelUser(user),
+  );
   const tabs = useMemo(() => {
-    if (!isDoctor) return PATIENT_TABS;
+    if (!isDoctor) {
+      if (hasAssignedDoctor) return PATIENT_TABS;
+      return PATIENT_TABS.filter(
+        (t) => t.key !== 'agenda' && t.key !== 'chat',
+      );
+    }
     return doctorActive ? DOCTOR_TABS : DOCTOR_PENDING_TABS;
-  }, [isDoctor, doctorActive]);
+  }, [isDoctor, doctorActive, hasAssignedDoctor]);
   const [activeTab, setActiveTab] = useState<TabKey>(
     isDoctor && !doctorActive ? 'profile' : 'home',
   );
   const [chatThreadOpen, setChatThreadOpen] = useState(false);
   const [creatingPatient, setCreatingPatient] = useState(false);
   const [consentRequestId, setConsentRequestId] = useState(0);
+  const [homeIntent, setHomeIntent] = useState<'tips' | 'history' | null>(
+    null,
+  );
   const [pendingRequests, setPendingRequests] = useState<AnalysisRequest[]>(
     [],
   );
@@ -88,10 +102,36 @@ export function MainTabNavigator() {
   }, [isDoctor, refreshDoctorVerification]);
 
   useEffect(() => {
+    if (isDoctor) {
+      setHasAssignedDoctor(true);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const mine = await patientsService.getMyPatient();
+        if (!cancelled) setHasAssignedDoctor(Boolean(mine?.doctorId));
+      } catch {
+        if (!cancelled) setHasAssignedDoctor(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isDoctor, activeTab, user?.id]);
+
+  useEffect(() => {
     if (isDoctor && !doctorActive && activeTab !== 'profile') {
       setActiveTab('profile');
     }
   }, [isDoctor, doctorActive, activeTab]);
+
+  useEffect(() => {
+    if (isDoctor || hasAssignedDoctor) return;
+    if (activeTab === 'agenda' || activeTab === 'chat') {
+      setActiveTab('home');
+    }
+  }, [isDoctor, hasAssignedDoctor, activeTab]);
 
   const refreshPendingRequests = useCallback(async () => {
     if (isDoctor) {
@@ -111,6 +151,16 @@ export function MainTabNavigator() {
   }, [refreshPendingRequests, activeTab]);
 
   async function onPatientTabPress(key: TabKey) {
+    if (
+      !hasAssignedDoctor &&
+      (key === 'agenda' || key === 'chat')
+    ) {
+      Alert.alert(
+        'Sin profesional',
+        'Cuando un profesional te asigne a su consulta, podrás usar Agenda y Chat.',
+      );
+      return;
+    }
     if (key === 'analysis') {
       let pending: AnalysisRequest[] = [];
       try {
@@ -145,6 +195,26 @@ export function MainTabNavigator() {
     setActiveTab(key);
   }
 
+  function handleChatQuickAction(id: ChatQuickActionId) {
+    if (id === 'cita') {
+      setActiveTab('agenda');
+      return;
+    }
+    if (isDoctor) {
+      setActiveTab('agenda');
+      return;
+    }
+    if (id === 'receta') {
+      setHomeIntent('tips');
+      setActiveTab('home');
+      return;
+    }
+    if (id === 'resultado') {
+      setHomeIntent('history');
+      setActiveTab('home');
+    }
+  }
+
   return (
     <View style={styles.shell}>
       <View style={styles.content}>
@@ -164,6 +234,8 @@ export function MainTabNavigator() {
               consentRequestId={consentRequestId}
               pendingAnalysisRequests={pendingRequests}
               onPendingRequestConsumed={() => void refreshPendingRequests()}
+              homeIntent={homeIntent}
+              onHomeIntentConsumed={() => setHomeIntent(null)}
             />
           )
         ) : null}
@@ -174,18 +246,24 @@ export function MainTabNavigator() {
             onCreatingChange={setCreatingPatient}
           />
         ) : null}
-        {activeTab === 'agenda' ? (
-          <PlaceholderTabView
-            title="Agenda"
-            description="Aquí verás citas y disponibilidad (mock). Se conectará al servicio de agenda."
-            onOpenMessages={() => setActiveTab('chat')}
-            onOpenProfile={() => setActiveTab('profile')}
-          />
+        {doctorActive && activeTab === 'agenda' && hasAssignedDoctor ? (
+          isDoctor ? (
+            <DoctorAgendaView
+              onOpenMessages={() => setActiveTab('chat')}
+              onOpenProfile={() => setActiveTab('profile')}
+            />
+          ) : (
+            <PatientAgendaView
+              onOpenMessages={() => setActiveTab('chat')}
+              onOpenProfile={() => setActiveTab('profile')}
+            />
+          )
         ) : null}
-        {doctorActive && activeTab === 'chat' ? (
+        {doctorActive && activeTab === 'chat' && (isDoctor || hasAssignedDoctor) ? (
           <MessagesView
             onThreadOpenChange={setChatThreadOpen}
             onOpenProfile={() => setActiveTab('profile')}
+            onQuickAction={handleChatQuickAction}
           />
         ) : null}
         {activeTab === 'profile' || (isDoctor && !doctorActive) ? (

@@ -382,10 +382,9 @@ export class OrganizationsService {
       throw new ConflictException('Ya existe una cuenta con ese email');
     }
 
-    const permissions =
-      dto.permissions && dto.permissions.length > 0
-        ? dto.permissions
-        : [...DEFAULT_TEAM_MEMBER_PERMISSIONS];
+    const permissions = Array.isArray(dto.permissions)
+      ? dto.permissions
+      : [...DEFAULT_TEAM_MEMBER_PERMISSIONS];
 
     const specialty = dto.specialty.trim();
     const professionalRoleSlug =
@@ -402,13 +401,11 @@ export class OrganizationsService {
           name: `${dto.firstName} ${dto.lastName}`.trim(),
           firstName: dto.firstName.trim(),
           lastName: dto.lastName.trim(),
-          phone: dto.phone,
           roles: { connect: [{ name: professionalRoleSlug }] },
           doctor: {
             create: {
               firstName: dto.firstName.trim(),
               lastName: dto.lastName.trim(),
-              phone: dto.phone,
               specialty,
               membershipType: 'solo_doctor',
               empresa: false,

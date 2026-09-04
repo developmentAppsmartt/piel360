@@ -33,8 +33,7 @@ import { DoctorHeader } from '../patients/components/DoctorHeader';
 import { PaymentsView } from '../payments/PaymentsView';
 import { createDoctorHomeStyles } from './styles/home.styles';
 import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
-
-const DOCTOR_AVATAR = require('../../../../assets/doctor-avatar.png');
+import { DoctorStatsView } from './DoctorStatsView';
 
 type DoctorHomeViewProps = {
   onOpenPatients: () => void;
@@ -97,6 +96,7 @@ export function DoctorHomeView({
   const [refreshing, setRefreshing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showingPayments, setShowingPayments] = useState(false);
+  const [showingStats, setShowingStats] = useState(false);
   const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(
     null,
   );
@@ -229,6 +229,19 @@ export function DoctorHomeView({
     );
   }
 
+  if (showingStats) {
+    return (
+      <DoctorStatsView
+        dermatologicoCount={dermatologicoCount}
+        esteticoCount={esteticoCount}
+        fototipoCount={fototipoCount}
+        pendingCount={pendingCount}
+        patientsCount={patients.length}
+        onBack={() => setShowingStats(false)}
+      />
+    );
+  }
+
   if (selectedAnalysisId) {
     const selected = analyses.find((a) => a.id === selectedAnalysisId);
     return (
@@ -287,13 +300,17 @@ export function DoctorHomeView({
             onPress={onOpenProfile}
             accessibilityLabel="Mi cuenta"
           >
-            <Image
-              source={
-                doctorAvatarUrl ? { uri: doctorAvatarUrl } : DOCTOR_AVATAR
-              }
-              style={styles.avatarImage}
-              accessibilityIgnoresInvertColors
-            />
+            {doctorAvatarUrl ? (
+              <Image
+                source={{ uri: doctorAvatarUrl }}
+                style={styles.avatarImage}
+                accessibilityIgnoresInvertColors
+              />
+            ) : (
+              <Text style={styles.avatarText}>
+                {initials(welcomeName.replace(/^Dr\.\s*/i, '')) || 'DR'}
+              </Text>
+            )}
           </Pressable>
           <Pressable
             style={styles.bellBtn}
@@ -356,17 +373,7 @@ export function DoctorHomeView({
                   { label: 'Mis Pacientes', onPress: onOpenPatients },
                   {
                     label: 'Estadísticas',
-                    onPress: () =>
-                      Alert.alert(
-                        'Resumen de análisis',
-                        [
-                          `Dermatológico: ${dermatologicoCount}`,
-                          `Estético: ${esteticoCount}`,
-                          `Fototipo: ${fototipoCount}`,
-                          `Pendientes de confirmar: ${pendingCount}`,
-                          `Total: ${analyses.length}`,
-                        ].join('\n'),
-                      ),
+                    onPress: () => setShowingStats(true),
                   },
                 ] as const
               ).map((action) => (

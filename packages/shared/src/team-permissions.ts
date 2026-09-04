@@ -8,11 +8,13 @@ export const TEAM_PERMISSION_CLINICAL_MODULES: Record<
   TeamMemberPermission,
   readonly string[]
 > = {
-  patients: ["clinical.patients"],
+  patients: ["clinical.patients", "clinical.agenda"],
   analyses: ["clinical.analyses"],
   products: ["clinical.products"],
+  /** Rutinas + reglas por edad de piel (catálogo compartido del owner). */
   routines: ["clinical.routines", "clinical.skin_age_rules"],
-  treatments: ["clinical.routines"],
+  /** Tratamientos también abre rutinas/reglas (mismo hub clínico). */
+  treatments: ["clinical.routines", "clinical.skin_age_rules"],
   billing: [
     "clinical.plans",
     "clinical.billing",
@@ -22,10 +24,14 @@ export const TEAM_PERMISSION_CLINICAL_MODULES: Record<
   reports: ["clinical.reports"],
 };
 
-const CLINICAL_SLUG_TO_TEAM_MODULE = new Map<string, TeamMemberPermission>();
+/** Un slug clínico puede desbloquearse con varios módulos de equipo. */
+const CLINICAL_SLUG_TO_TEAM_MODULES = new Map<string, TeamMemberPermission[]>();
 for (const [module, slugs] of Object.entries(TEAM_PERMISSION_CLINICAL_MODULES)) {
   for (const slug of slugs) {
-    CLINICAL_SLUG_TO_TEAM_MODULE.set(slug, module as TeamMemberPermission);
+    const list = CLINICAL_SLUG_TO_TEAM_MODULES.get(slug) ?? [];
+    const mod = module as TeamMemberPermission;
+    if (!list.includes(mod)) list.push(mod);
+    CLINICAL_SLUG_TO_TEAM_MODULES.set(slug, list);
   }
 }
 
@@ -64,9 +70,9 @@ export function teamPermissionAllowsClinicalSlug(
     );
   }
 
-  const module = CLINICAL_SLUG_TO_TEAM_MODULE.get(clinicalSlug);
-  if (!module) return true;
-  return teamPermissions.includes(module);
+  const modules = CLINICAL_SLUG_TO_TEAM_MODULES.get(clinicalSlug);
+  if (!modules?.length) return true;
+  return modules.some((module) => teamPermissions.includes(module));
 }
 
 export function teamPermissionAllowsNavHref(
@@ -105,7 +111,7 @@ export function teamPermissionAllowsNavHref(
   if (href.startsWith("/doctor/analisis")) {
     return teamPermissions?.includes("analyses") ?? false;
   }
-  if (href.startsWith("/doctor/pacientes")) {
+  if (href.startsWith("/doctor/pacientes") || href.startsWith("/doctor/agenda")) {
     return teamPermissions?.includes("patients") ?? false;
   }
   if (href.startsWith("/doctor/reportes")) {

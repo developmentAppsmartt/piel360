@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- ~72% del shortest width (600dp), misma proporción 3:4 que el teléfono -->
+  <dimen name="skin_oval_width">480dp</dimen>
+  <dimen name="skin_oval_height">640dp</dimen>
+  <dimen name="skin_capture_loader">148dp</dimen>
+</resources>

@@ -9,6 +9,18 @@ cd "$ROOT"
 SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}"
 export PATH="$SDK/platform-tools:$SDK/emulator:$PATH"
 
+# Expo 57 / @expo/env necesita Node >= 18.18 (util.parseEnv). Preferir nvm 22 o 18.20+.
+if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
+  # shellcheck source=/dev/null
+  . "$HOME/.nvm/nvm.sh"
+  if [[ -d "$HOME/.nvm/versions/node/v22.22.0" ]]; then
+    nvm use 22.22.0 >/dev/null
+  elif [[ -d "$HOME/.nvm/versions/node/v18.20.8" ]]; then
+    nvm use 18.20.8 >/dev/null
+  fi
+fi
+echo "Using node $(node -v) ($(command -v node))"
+
 if [[ -z "${JAVA_HOME:-}" || "${JAVA_HOME}" == *jdk-26* ]]; then
   if [[ -x "/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java" ]]; then
     export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"

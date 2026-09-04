@@ -30,7 +30,7 @@ export function YoucamMetricConventionBar({
   const title = convention.badgeLabel ?? youcamMetricLabel(metricType);
 
   return (
-    <View style={styles.conventionWrap} pointerEvents="none">
+    <View style={[styles.conventionWrap, { pointerEvents: 'none' }]}>
       {!convention.hideBarBadge ? (
         <View
           style={[styles.conventionBadge, { backgroundColor: convention.color }]}

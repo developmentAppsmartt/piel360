@@ -55,11 +55,14 @@ export function PlansBrowser({
 
   const activeProvider = providerSlug ?? providers[0] ?? null;
   const visiblePlans =
-    plans.data?.filter((p) => {
-      if (planTypeFilter && (p.planType ?? "business") !== planTypeFilter) return false;
-      if (!activeProvider) return false;
-      return planProviderSlugs(p).includes(activeProvider);
-    }) ?? [];
+    plans.data
+      ?.filter((p) => {
+        if (planTypeFilter && (p.planType ?? "business") !== planTypeFilter) return false;
+        if (!activeProvider) return false;
+        return planProviderSlugs(p).includes(activeProvider);
+      })
+      .slice()
+      .sort((a, b) => Number(b.poolPurchasable) - Number(a.poolPurchasable)) ?? [];
   const activeSubscriptions = subscriptions.data?.filter((s) => s.status === "active") ?? [];
 
   return (
@@ -92,6 +95,13 @@ export function PlansBrowser({
         </p>
       )}
 
+      {!plans.isLoading && providers.length === 0 && (
+        <p className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+          Tu especialidad no tiene tipos de análisis habilitados. Contacta al administrador para
+          activarlos en permisos de planes.
+        </p>
+      )}
+
       {providers.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {providers.map((slug) => (
@@ -112,6 +122,7 @@ export function PlansBrowser({
         {visiblePlans.map((plan) => {
           const labels = planAnalysisLabels(plan);
           const isPackage = labels.length > 1;
+          const canPurchase = plan.poolPurchasable !== false;
           return (
             <div
               key={plan.id}
@@ -136,15 +147,29 @@ export function PlansBrowser({
                   <Badge variant="outline">{labels[0] ?? "Análisis IA"}</Badge>
                 )}
                 <Badge variant="outline">{plan.analysisLimit} análisis incluidos</Badge>
+                {!canPurchase ? (
+                  <Badge variant="destructive" className="text-xs">
+                    Temporalmente no disponible
+                  </Badge>
+                ) : null}
                 <p className="text-2xl font-bold text-foreground">{formatCOP(plan.price)}</p>
                 <p className="text-muted-foreground">Vigencia: {plan.durationDays} días</p>
+                {!canPurchase && plan.poolUnavailableReason ? (
+                  <p className="text-xs text-destructive">{plan.poolUnavailableReason}</p>
+                ) : null}
               </div>
               {isEmpresa ? (
                 <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3">
                   <PlanTeamFeaturesBlock plan={plan} compact />
                 </div>
               ) : null}
-              <WompiCheckoutButton planId={plan.id} label="Suscribirse" />
+              {canPurchase ? (
+                <WompiCheckoutButton planId={plan.id} label="Suscribirse" />
+              ) : (
+                <Button type="button" disabled className="w-full">
+                  No disponible
+                </Button>
+              )}
             </div>
           );
         })}

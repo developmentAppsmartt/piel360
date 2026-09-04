@@ -27,6 +27,7 @@ export const PROFESSIONAL_CLINICAL_COMPONENT_SLUGS = [
   "clinical.maps.doctors",
   "clinical.maps.patients",
   "clinical.patients",
+  "clinical.agenda",
   "clinical.analyses",
   "clinical.plans",
   "clinical.consumption",
