@@ -23,19 +23,21 @@ export interface ConditionRowValues {
   region?: string;
   operator: ConditionOperator;
   value?: string;
+  valueTo?: string;
   textValue?: string;
 }
 
 export function defaultConditionRow(metricType: string = CONDITION_METRICS[0]): ConditionRowValues {
-  return { metricType, region: "", operator: "lte", value: "", textValue: "" };
+  return { metricType, region: "", operator: "lte", value: "", valueTo: "", textValue: "" };
 }
 
 /**
  * Una fila del bloque "Condiciones" de TreatmentForm/RoutineForm — extraído
  * porque ambos formularios son casi idénticos acá (mismo shape de condición,
  * mismo motor de matching por detrás). Métrica + (si tiene sub-regiones)
- * región + valor: numérico para casi todo, categórico (selector de tipo de
- * piel, sin operador) para `hd_skin_type`.
+ * región + valor: numérico para casi todo (con "Entre" mostrando dos
+ * inputs, límite inferior/superior — sirve para cualquier métrica, no solo
+ * edad), categórico (selector de valor, sin operador) para `hd_skin_type`.
  */
 export function ConditionRow({
   index,
@@ -57,6 +59,7 @@ export function ConditionRow({
   const regions = CONDITION_METRIC_REGIONS[metricType];
   const skinType = isSkinTypeMetric(metricType);
   const isSkinAge = metricType === "skin_age";
+  const isBetween = watched?.operator === "between";
 
   return (
     <div className="space-y-2 rounded-lg border border-border bg-card p-3">
@@ -102,7 +105,7 @@ export function ConditionRow({
           ))}
         </select>
       ) : (
-        <div className="grid grid-cols-2 gap-2">
+        <div className={isBetween ? "grid grid-cols-3 gap-2" : "grid grid-cols-2 gap-2"}>
           <select className={inputCls} {...register(`conditions.${index}.operator`)}>
             {CONDITION_OPERATORS.map((op) => (
               <option key={op.value} value={op.value}>
@@ -114,9 +117,18 @@ export function ConditionRow({
             type="number"
             step="0.01"
             className={inputCls}
-            placeholder={isSkinAge ? "Ej: -5 u 8" : "Ej: 70"}
+            placeholder={isBetween ? "Desde" : isSkinAge ? "Ej: -5 u 8" : "Ej: 70"}
             {...register(`conditions.${index}.value`)}
           />
+          {isBetween && (
+            <input
+              type="number"
+              step="0.01"
+              className={inputCls}
+              placeholder="Hasta"
+              {...register(`conditions.${index}.valueTo`)}
+            />
+          )}
         </div>
       )}
 
@@ -129,20 +141,23 @@ export function ConditionRow({
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      {watched && !error && (skinType ? watched.textValue : watched.value) && (
-        <p className="text-xs text-muted-foreground">
-          {conditionSentence(
-            {
-              metricType: watched.metricType,
-              region: watched.region || null,
-              operator: skinType ? "eq" : watched.operator,
-              value: skinType ? null : parseFloat(watched.value ?? "") || 0,
-              textValue: watched.textValue,
-            },
-            subjectPhrase,
-          )}
-        </p>
-      )}
+      {watched &&
+        !error &&
+        (skinType ? watched.textValue : isBetween ? watched.value && watched.valueTo : watched.value) && (
+          <p className="text-xs text-muted-foreground">
+            {conditionSentence(
+              {
+                metricType: watched.metricType,
+                region: watched.region || null,
+                operator: skinType ? "eq" : watched.operator,
+                value: skinType ? null : parseFloat(watched.value ?? "") || 0,
+                valueTo: isBetween ? parseFloat(watched.valueTo ?? "") || 0 : null,
+                textValue: watched.textValue,
+              },
+              subjectPhrase,
+            )}
+          </p>
+        )}
     </div>
   );
 }

@@ -14,15 +14,20 @@ const conditionSchema = z
   .object({
     metricType: z.string().min(1, "Selecciona una métrica"),
     region: z.string().optional(),
-    operator: z.enum(["lt", "lte", "eq", "gte", "gt"]),
+    operator: z.enum(["lt", "lte", "eq", "gte", "gt", "between"]),
     value: z.string().optional(),
+    valueTo: z.string().optional(),
     textValue: z.string().optional(),
   })
   .refine(
-    (c) =>
-      isSkinTypeMetric(c.metricType)
-        ? !!c.textValue
-        : !!c.value && !Number.isNaN(parseFloat(c.value)),
+    (c) => {
+      if (isSkinTypeMetric(c.metricType)) return !!c.textValue;
+      if (!c.value || Number.isNaN(parseFloat(c.value))) return false;
+      if (c.operator === "between") {
+        return !!c.valueTo && !Number.isNaN(parseFloat(c.valueTo));
+      }
+      return true;
+    },
     {
       message: "Selecciona un valor",
       path: ["value"],
@@ -69,6 +74,7 @@ export function RoutineForm({
           region: c.region ?? "",
           operator: c.operator,
           value: c.value != null ? String(c.value) : "",
+          valueTo: c.valueTo != null ? String(c.valueTo) : "",
           textValue: c.textValue ?? "",
         })) ?? [],
     },
@@ -97,6 +103,7 @@ export function RoutineForm({
                 region: c.region || undefined,
                 operator: c.operator,
                 value: parseFloat(c.value ?? ""),
+                valueTo: c.operator === "between" ? parseFloat(c.valueTo ?? "") : undefined,
               },
         ),
       });
