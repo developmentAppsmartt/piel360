@@ -41,9 +41,8 @@ export class PlansService {
     });
     const enriched = await this.enrichPlans(plans);
     const withPool = await this.planPool.enrichPlans(enriched);
-    const purchasable = withPool.filter((plan) => plan.poolPurchasable);
 
-    if (!user || user.role !== 'doctor') return purchasable;
+    if (!user || user.role !== 'doctor') return withPool;
 
     const doctor = await this.prisma.doctor.findUnique({
       where: { userId: BigInt(user.sub) },
@@ -56,7 +55,7 @@ export class PlansService {
 
     const expectedPlanType = doctor && isEnterpriseDoctor(doctor) ? 'business' : 'individual';
 
-    return purchasable.filter((plan) => {
+    return withPool.filter((plan) => {
       if (plan.planType !== expectedPlanType) return false;
       return plan.providers.some((provider) =>
         allowed.includes(provider.slug as (typeof allowed)[number]),
@@ -97,6 +96,7 @@ export class PlansService {
         analysisProviderId: BigInt(providerIds[0]),
         analysisProviderIds: providerIds,
         analysisLimit: dto.analysisLimit,
+        analysisLimits: dto.analysisLimits ?? {},
         price: dto.price,
         durationDays: dto.durationDays,
         maxUsers: isIndividual ? 1 : dto.maxUsers,
@@ -136,6 +136,7 @@ export class PlansService {
         analysisProviderId: BigInt(providerIds[0]),
         analysisProviderIds: providerIds,
         analysisLimit: dto.analysisLimit,
+        analysisLimits: dto.analysisLimits,
         price: dto.price,
         durationDays: dto.durationDays,
         maxUsers: isIndividual ? 1 : dto.maxUsers,

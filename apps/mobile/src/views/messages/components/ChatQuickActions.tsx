@@ -1,9 +1,15 @@
-import { Alert, Pressable, ScrollView, Text } from 'react-native';
+import { Pressable, ScrollView, Text } from 'react-native';
 import { AppIcon } from '../../../components/AppIcon';
 import { Icons, type AppIconName } from '../../../components/icons';
 import type { ChatStyles } from '../styles/chat.styles';
 
-const ACTIONS: { id: string; label: string; icon: AppIconName }[] = [
+export type ChatQuickActionId = 'cita' | 'receta' | 'resultado';
+
+const ACTIONS: {
+  id: ChatQuickActionId;
+  label: string;
+  icon: AppIconName;
+}[] = [
   { id: 'cita', label: 'Agendar Cita', icon: Icons.calendar },
   { id: 'receta', label: 'Ver Receta', icon: Icons.prescription },
   { id: 'resultado', label: 'Ver Resultado', icon: Icons.clipboard },
@@ -11,10 +17,23 @@ const ACTIONS: { id: string; label: string; icon: AppIconName }[] = [
 
 type ChatQuickActionsProps = {
   styles: ChatStyles;
+  onAction?: (id: ChatQuickActionId) => void;
+  /** Si se omite, se muestran las tres acciones. */
+  visibleIds?: ChatQuickActionId[];
 };
 
-export function ChatQuickActions({ styles }: ChatQuickActionsProps) {
+export function ChatQuickActions({
+  styles,
+  onAction,
+  visibleIds,
+}: ChatQuickActionsProps) {
   const onDark = styles.quickChipText.color as string;
+  const actions = visibleIds
+    ? ACTIONS.filter((a) => visibleIds.includes(a.id))
+    : ACTIONS;
+
+  if (actions.length === 0) return null;
+
   return (
     <ScrollView
       horizontal
@@ -23,16 +42,11 @@ export function ChatQuickActions({ styles }: ChatQuickActionsProps) {
       contentContainerStyle={styles.quickActions}
       keyboardShouldPersistTaps="handled"
     >
-      {ACTIONS.map((action) => (
+      {actions.map((action) => (
         <Pressable
           key={action.id}
           style={styles.quickChip}
-          onPress={() =>
-            Alert.alert(
-              action.label,
-              'Esta acción se conectará cuando el módulo correspondiente esté listo.',
-            )
-          }
+          onPress={() => onAction?.(action.id)}
         >
           <AppIcon icon={action.icon} size={14} color={onDark} />
           <Text style={styles.quickChipText}>{action.label}</Text>

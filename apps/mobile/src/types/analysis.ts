@@ -47,21 +47,40 @@ export type YoucamRawResponse = {
 };
 
 export type SkiniverDiagnosisCandidate = {
+  /** Diagnóstico (ej. "Nevus displásico") ← `class`. */
   class: string;
+  /** Identificador interno Skiniver (ej. "2P_dysplastic_nevus") ← `class_raw`. */
+  class_raw?: string;
   prob: number;
   risk: string;
   risk_level?: 'low' | 'medium' | 'high' | string;
+  /** Conclusión / categoría (ej. "Condiciones precancerosas") ← `desease`. */
   desease?: string;
   atlas_page_link?: string;
+  /** Código ICD (ej. "D22") ← `lesion_code` (suele venir en la raíz). */
+  lesion_code?: string;
+  description?: string;
+  /** Campos derivados del texto libre `description`. */
+  riskEvaluation?: string;
+  conclusionText?: string;
+  preciseDiagnosis?: string;
+  treatment?: string;
+  advice?: string;
 };
 
 export type SkiniverRawResponse = {
   class?: string;
-  prob?: number;
+  class_raw?: string;
+  prob?: number | string;
   risk?: string;
+  risk_level?: string;
   high_risk_prob?: number;
   topn?: SkiniverDiagnosisCandidate[];
-  error?: string;
+  lesion_code?: string;
+  desease?: string;
+  description?: string;
+  atlas_page_link?: string;
+  error?: string | null;
   [key: string]: unknown;
 };
 
@@ -79,10 +98,262 @@ export function normalizedProb(prob: number): number {
 }
 
 export function parseSkiniverPrediction(
-  raw: SkiniverRawResponse | null | undefined,
+  raw: SkiniverRawResponse | string | null | undefined,
 ): SkiniverRawResponse | null {
-  if (!raw || typeof raw !== 'object') return null;
+  if (raw == null) return null;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === 'object') {
+        return parsed as SkiniverRawResponse;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+  if (typeof raw !== 'object') return null;
   return raw;
+}
+
+function asTrimmedString(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  return undefined;
+}
+
+function asFiniteNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : undefined;
+  }
+  return undefined;
+}
+
+/**
+ * Parsea el texto libre de `description` de Skiniver (formato real):
+ *
+ *   Evaluación del riesgo|de riesgos: <párrafo>
+ *    Conclusión:
+ *   <prob>% <categoría>
+ *
+ *   Diagnóstico[ preciso]: <texto>
+ *   Tratamiento: <texto>
+ *   Consejo: <texto>
+ */
+export function parseSkiniverDescription(
+  description: string | null | undefined,
+): {
+  riskEvaluation: string;
+  conclusionText: string;
+  preciseDiagnosis: string;
+  treatment: string;
+  advice: string;
+} | null {
+  if (!description?.trim()) return null;
+
+  const riskEvaluation =
+    description
+      .match(
+        /Evaluaci[oó]n\s+del?\s+riesgos?:\s*([\s\S]*?)(?=\n\s*Conclusi[oó]n:)/i,
+      )?.[1]
+      ?.trim() ?? '';
+  const conclusionText =
+    description
+      .match(
+        /Conclusi[oó]n:\s*([\s\S]*?)(?=\n\s*Diagn[oó]stico)/i,
+      )?.[1]
+      ?.trim() ?? '';
+  const preciseDiagnosis =
+    description
+      .match(/Diagn[oó]stico(?:\s+preciso)?:\s*([^\n]+)/i)?.[1]
+      ?.trim() ?? '';
+  const treatment =
+    description.match(/Tratamiento:\s*([^\n]+)/i)?.[1]?.trim() ?? '';
+  const advice = description.match(/Consejo:\s*([^\n]+)/i)?.[1]?.trim() ?? '';
+
+  if (
+    !riskEvaluation &&
+    !conclusionText &&
+    !preciseDiagnosis &&
+    !treatment &&
+    !advice
+  ) {
+    return null;
+  }
+
+  return {
+    riskEvaluation,
+    conclusionText,
+    preciseDiagnosis,
+    treatment,
+    advice,
+  };
+}
+
+function readField(
+  source: Record<string, unknown>,
+  keys: string[],
+): unknown {
+  for (const key of keys) {
+    if (source[key] != null && source[key] !== '') return source[key];
+  }
+  return undefined;
+}
+
+function normalizeCandidate(
+  rawItem: unknown,
+  fallbackCode?: string,
+): SkiniverDiagnosisCandidate | null {
+  if (!rawItem || typeof rawItem !== 'object') return null;
+  const item = rawItem as Record<string, unknown>;
+
+  // Clave → valor (JSON Skiniver real)
+  // class       → diagnóstico
+  // desease     → conclusión / categoría
+  // lesion_code → código ICD (raíz; topn no lo trae)
+  // class_raw   → id interno
+  // description → evaluación / diagnóstico preciso / tratamiento / consejo
+  const diagnosis = asTrimmedString(
+    readField(item, ['class', 'diagnosis', 'diagnostico', 'title', 'name']),
+  );
+  if (!diagnosis) return null;
+
+  const conclusion = asTrimmedString(
+    readField(item, ['desease', 'disease', 'conclusion', 'category']),
+  );
+  const code = asTrimmedString(
+    readField(item, ['lesion_code', 'code', 'icd_code', 'icd']),
+  );
+  const classRaw = asTrimmedString(
+    readField(item, ['class_raw', 'classRaw']),
+  );
+  const prob = asFiniteNumber(readField(item, ['prob', 'probability', 'score']));
+  const risk = asTrimmedString(readField(item, ['risk', 'riesgo'])) ?? '—';
+  const riskLevel = asTrimmedString(
+    readField(item, ['risk_level', 'riskLevel']),
+  );
+  const atlas = asTrimmedString(
+    readField(item, ['atlas_page_link', 'atlas_url']),
+  );
+  const description = asTrimmedString(
+    readField(item, ['description', 'descripcion']),
+  );
+  const parsed = parseSkiniverDescription(description);
+
+  return {
+    class: diagnosis,
+    class_raw: classRaw,
+    prob: prob ?? 0,
+    risk,
+    risk_level: riskLevel,
+    desease: conclusion,
+    lesion_code: code ?? fallbackCode,
+    atlas_page_link: atlas,
+    description,
+    riskEvaluation: parsed?.riskEvaluation || undefined,
+    conclusionText: parsed?.conclusionText || undefined,
+    preciseDiagnosis: parsed?.preciseDiagnosis || undefined,
+    treatment: parsed?.treatment || undefined,
+    advice: parsed?.advice || undefined,
+  };
+}
+
+/**
+ * Extrae los diagnósticos de apoyo desde `ai_raw_response.topn[]`
+ * mapeando claves reales de Skiniver:
+ * - `class` → diagnóstico
+ * - `desease` → conclusión
+ * - `lesion_code` (raíz) → código del resultado principal
+ */
+export function extractSkiniverSupportDiagnoses(
+  raw: SkiniverRawResponse | string | null | undefined,
+  limit = 3,
+): {
+  prediction: SkiniverRawResponse | null;
+  riskLabel: string;
+  highRiskProb: number;
+  items: SkiniverDiagnosisCandidate[];
+} {
+  const prediction = parseSkiniverPrediction(raw);
+  if (!prediction) {
+    return { prediction: null, riskLabel: '—', highRiskProb: 0, items: [] };
+  }
+
+  const root = prediction as Record<string, unknown>;
+  const rootCode = asTrimmedString(
+    readField(root, ['lesion_code', 'code', 'icd_code', 'icd']),
+  );
+  const rootDescription = asTrimmedString(
+    readField(root, ['description', 'descripcion']),
+  );
+  const rootParsed = parseSkiniverDescription(rootDescription);
+
+  const topnRaw = Array.isArray(prediction.topn) ? prediction.topn : [];
+  let items = topnRaw
+    .map((item, index) =>
+      // Solo el 1.er topn hereda lesion_code de la raíz (D22 en el ejemplo).
+      normalizeCandidate(item, index === 0 ? rootCode : undefined),
+    )
+    .filter((item): item is SkiniverDiagnosisCandidate => item != null);
+
+  if (items.length === 0) {
+    const fallback = normalizeCandidate(
+      {
+        class: prediction.class,
+        class_raw: prediction.class_raw,
+        prob: prediction.prob,
+        risk: prediction.risk,
+        risk_level: prediction.risk_level,
+        desease: prediction.desease,
+        lesion_code: rootCode,
+        description: rootDescription,
+        atlas_page_link: prediction.atlas_page_link,
+      },
+      rootCode,
+    );
+    items = fallback ? [fallback] : [];
+  }
+
+  // Si el 1.er topn ya trae preciseDiagnosis, igual asegura lesion_code raíz.
+  if (items[0] && rootCode && !items[0].lesion_code) {
+    items = items.map((item, index) =>
+      index === 0 ? { ...item, lesion_code: rootCode } : item,
+    );
+  }
+
+  if (items[0] && rootParsed && !items[0].preciseDiagnosis) {
+    items = items.map((item, index) =>
+      index === 0
+        ? {
+            ...item,
+            description: item.description ?? rootDescription,
+            riskEvaluation: item.riskEvaluation || rootParsed.riskEvaluation,
+            conclusionText: item.conclusionText || rootParsed.conclusionText,
+            preciseDiagnosis:
+              item.preciseDiagnosis || rootParsed.preciseDiagnosis,
+            treatment: item.treatment || rootParsed.treatment,
+            advice: item.advice || rootParsed.advice,
+            lesion_code: item.lesion_code || rootCode,
+          }
+        : item,
+    );
+  }
+
+  const highRiskRaw = asFiniteNumber(prediction.high_risk_prob) ?? 0;
+
+  return {
+    prediction,
+    riskLabel: asTrimmedString(prediction.risk) ?? '—',
+    highRiskProb: highRiskRaw,
+    items: items.slice(0, Math.max(1, limit)),
+  };
 }
 
 export type AnalysisMask = {

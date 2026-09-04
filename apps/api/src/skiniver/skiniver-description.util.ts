@@ -1,5 +1,6 @@
 export interface ParsedSkiniverDescription {
   riskEvaluation: string;
+  conclusionText: string;
   preciseDiagnosis: string;
   treatment: string;
   advice: string;
@@ -7,34 +8,59 @@ export interface ParsedSkiniverDescription {
 
 /**
  * Skiniver no manda diagnóstico/tratamiento/consejo como claves JSON
- * separadas — los manda todos concatenados dentro de `description` (tanto a
- * nivel de la predicción como por cada candidato de `topn[]`), con un
- * formato de texto fijo (confirmado contra respuestas reales, no
- * documentado en INTEGRACIONES-IA.md):
+ * separadas — los manda concatenados dentro de `description` (predicción
+ * y cada `topn[]`). Formato real observado:
  *
- *   Evaluación de riesgos: <párrafo>
+ *   Evaluación del riesgo|de riesgos: <párrafo>
  *    Conclusión:
- *   <prob>% <class>
+ *   <prob>% <categoría>
  *
  *   Diagnóstico[ preciso]: <texto>
  *   Tratamiento: <texto>
  *   Consejo: <texto>
  *
- * Defensivo a propósito: si Skiniver cambia el formato, devuelve `null` en
- * vez de reventar la respuesta del análisis — el `aiRawResponse` crudo
- * sigue disponible de todas formas.
+ * Defensivo: si el formato cambia, devuelve `null` en vez de romper.
  */
-const DESCRIPTION_PATTERN =
-  /Evaluación de riesgos:\s*([\s\S]*?)\n\s*Conclusión:[\s\S]*?Diagnóstico(?: preciso)?:\s*([^\n]+?)\s*\nTratamiento:\s*([^\n]+?)\s*\nConsejo:\s*([^\n]+?)\s*$/;
-
 export function parseSkiniverDescription(
   description: string | null | undefined,
 ): ParsedSkiniverDescription | null {
-  if (!description) return null;
+  if (!description?.trim()) return null;
 
-  const match = description.match(DESCRIPTION_PATTERN);
-  if (!match) return null;
+  const riskEvaluation =
+    description
+      .match(
+        /Evaluaci[oó]n\s+del?\s+riesgos?:\s*([\s\S]*?)(?=\n\s*Conclusi[oó]n:)/i,
+      )?.[1]
+      ?.trim() ?? '';
+  const conclusionText =
+    description
+      .match(
+        /Conclusi[oó]n:\s*([\s\S]*?)(?=\n\s*Diagn[oó]stico)/i,
+      )?.[1]
+      ?.trim() ?? '';
+  const preciseDiagnosis =
+    description
+      .match(/Diagn[oó]stico(?:\s+preciso)?:\s*([^\n]+)/i)?.[1]
+      ?.trim() ?? '';
+  const treatment =
+    description.match(/Tratamiento:\s*([^\n]+)/i)?.[1]?.trim() ?? '';
+  const advice = description.match(/Consejo:\s*([^\n]+)/i)?.[1]?.trim() ?? '';
 
-  const [, riskEvaluation, preciseDiagnosis, treatment, advice] = match;
-  return { riskEvaluation, preciseDiagnosis, treatment, advice };
+  if (
+    !riskEvaluation &&
+    !conclusionText &&
+    !preciseDiagnosis &&
+    !treatment &&
+    !advice
+  ) {
+    return null;
+  }
+
+  return {
+    riskEvaluation,
+    conclusionText,
+    preciseDiagnosis,
+    treatment,
+    advice,
+  };
 }

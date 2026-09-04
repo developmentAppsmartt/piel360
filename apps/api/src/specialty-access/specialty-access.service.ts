@@ -192,13 +192,16 @@ export class SpecialtyAccessService {
     ]);
 
     const specialtyRows = specialties
-      .filter((specialty) => specialty.role)
+      .filter(
+        (specialty): specialty is typeof specialty & { role: NonNullable<typeof specialty.role> } =>
+          specialty.role != null,
+      )
       .map((specialty) => {
         const permissionNames = new Set(
           specialty.role.permissions.map((p) => p.name),
         );
         return {
-          roleId: specialty.roleId.toString(),
+          roleId: specialty.role.id.toString(),
           roleSlug: specialty.slug,
           label: specialty.name,
           kind: 'specialty' as const,
@@ -207,13 +210,16 @@ export class SpecialtyAccessService {
       });
 
     const laborRows = laborProfiles
-      .filter((profile) => profile.role)
+      .filter(
+        (profile): profile is typeof profile & { role: NonNullable<typeof profile.role> } =>
+          profile.role != null,
+      )
       .map((profile) => {
         const permissionNames = new Set(
-          profile.role!.permissions.map((p) => p.name),
+          profile.role.permissions.map((p) => p.name),
         );
         return {
-          roleId: profile.role!.id.toString(),
+          roleId: profile.role.id.toString(),
           roleSlug: profile.slug,
           label: profile.name,
           kind: 'labor_technician' as const,

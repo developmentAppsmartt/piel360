@@ -220,10 +220,11 @@ export function YoucamResultsSection({
     analysis.skinAgeDifference ??
     skinAgeDifference(skinAge, chronologicalAge);
   const skinType = youcamSkinType(metrics);
-  const [preferRaw, setPreferRaw] = useState(false);
+  // Puntuación ajustada (uiScore): la elige el doctor; sin toggle en el análisis.
+  const preferRaw = false;
   const chips = useMemo(
     () => buildChips(metrics, analysis.masks, preferRaw),
-    [metrics, analysis.masks, preferRaw],
+    [metrics, analysis.masks],
   );
   const overviewMaskUrls = useMemo(
     () => buildOverviewMaskUrls(metrics, analysis.masks),
@@ -486,33 +487,6 @@ export function YoucamResultsSection({
           className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
         >
           Reportes
-        </button>
-      </div>
-
-      <div className="flex justify-end gap-1 text-xs">
-        <button
-          type="button"
-          onClick={() => setPreferRaw(false)}
-          className={cn(
-            "rounded-full border px-3 py-1 font-medium",
-            !preferRaw
-              ? "border-primary bg-primary/10 text-primary"
-              : "border-border bg-card text-muted-foreground",
-          )}
-        >
-          Puntuación ajustada
-        </button>
-        <button
-          type="button"
-          onClick={() => setPreferRaw(true)}
-          className={cn(
-            "rounded-full border px-3 py-1 font-medium",
-            preferRaw
-              ? "border-primary bg-primary/10 text-primary"
-              : "border-border bg-card text-muted-foreground",
-          )}
-        >
-          Puntuación real
         </button>
       </div>
 

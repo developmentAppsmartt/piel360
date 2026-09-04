@@ -24,6 +24,8 @@ type Gender = 'female' | 'male';
 
 type BodySelector3DProps = {
   initialGender?: Gender;
+  /** Si true, no muestra el selector Mujer/Hombre (género del paciente). */
+  lockGender?: boolean;
   onSelect: (selection: BodySelection) => void;
   primaryColor?: string;
 };
@@ -77,6 +79,7 @@ function BodyModel({
  */
 export function BodySelector3D({
   initialGender = 'female',
+  lockGender = false,
   onSelect,
   primaryColor = '#1e5a9e',
 }: BodySelector3DProps) {
@@ -85,6 +88,10 @@ export function BodySelector3D({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [marker, setMarker] = useState<[number, number, number] | null>(null);
   const [regionId, setRegionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setGender(initialGender);
+  }, [initialGender]);
 
   useEffect(() => {
     let cancelled = false;
@@ -133,28 +140,34 @@ export function BodySelector3D({
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.genderRow}>
-        {(['female', 'male'] as const).map((g) => {
-          const active = gender === g;
-          return (
-            <Pressable
-              key={g}
-              onPress={() => setGender(g)}
-              style={[
-                styles.genderBtn,
-                active && {
-                  backgroundColor: primaryColor,
-                  borderColor: primaryColor,
-                },
-              ]}
-            >
-              <Text style={[styles.genderText, active && { color: '#fff' }]}>
-                {g === 'female' ? 'Mujer' : 'Hombre'}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      {!lockGender ? (
+        <View style={styles.genderRow}>
+          {(['female', 'male'] as const).map((g) => {
+            const active = gender === g;
+            return (
+              <Pressable
+                key={g}
+                onPress={() => setGender(g)}
+                style={[
+                  styles.genderBtn,
+                  active && {
+                    backgroundColor: primaryColor,
+                    borderColor: primaryColor,
+                  },
+                ]}
+              >
+                <Text style={[styles.genderText, active && { color: '#fff' }]}>
+                  {g === 'female' ? 'Mujer' : 'Hombre'}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : (
+        <Text style={styles.lockedGender}>
+          Modelo: {gender === 'female' ? 'Mujer' : 'Hombre'}
+        </Text>
+      )}
 
       <View style={styles.canvas}>
         {loadError ? (
@@ -217,6 +230,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   genderText: { fontSize: 14, fontWeight: '600', color: '#334155' },
+  lockedGender: {
+    marginBottom: 8,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748b',
+    textAlign: 'center',
+    flexShrink: 0,
+  },
   canvas: {
     flex: 1,
     minHeight: 220,

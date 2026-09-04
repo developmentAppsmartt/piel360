@@ -1,9 +1,10 @@
-import { NativeModules, Platform } from 'react-native';
+import { NativeModules, Platform, TurboModuleRegistry } from 'react-native';
 
 type SkinAnalysisNative = {
   isAvailable: () => Promise<{
     nativeModule: boolean;
     perfectSdk: boolean;
+    cameraCapture?: boolean;
     platform: string;
   }>;
   startGuidedCapture: () => Promise<{
@@ -15,7 +16,11 @@ type SkinAnalysisNative = {
   }>;
 };
 
-const NativeSkinAnalysis = NativeModules.SkinAnalysis as SkinAnalysisNative | undefined;
+function resolveNativeModule(): SkinAnalysisNative | undefined {
+  const fromTurbo = TurboModuleRegistry.get<SkinAnalysisNative>('SkinAnalysis');
+  if (fromTurbo) return fromTurbo;
+  return NativeModules.SkinAnalysis as SkinAnalysisNative | undefined;
+}
 
 export type GuidedCaptureResult = {
   uri: string;
@@ -27,28 +32,31 @@ export type GuidedCaptureResult = {
 
 export const skinAnalysisNative = {
   isSupported(): boolean {
-    return Platform.OS === 'android' && NativeSkinAnalysis != null;
+    return Platform.OS === 'android' && resolveNativeModule() != null;
   },
 
   async isAvailable() {
-    if (!NativeSkinAnalysis) {
+    const native = resolveNativeModule();
+    if (!native) {
       return {
         nativeModule: false,
         perfectSdk: false,
+        cameraCapture: false,
         platform: Platform.OS,
       };
     }
-    return NativeSkinAnalysis.isAvailable();
+    return native.isAvailable();
   },
 
   async startGuidedCapture(): Promise<GuidedCaptureResult> {
-    if (!NativeSkinAnalysis) {
+    const native = resolveNativeModule();
+    if (!native) {
       throw new Error(
         Platform.OS === 'ios'
           ? 'La captura nativa YouCam aún no está disponible en iOS.'
-          : 'Módulo nativo SkinAnalysis no encontrado. Recompila la app Android (dev client).',
+          : 'Módulo nativo SkinAnalysis no encontrado. Reinstala el APK nativo (no Expo Go).',
       );
     }
-    return NativeSkinAnalysis.startGuidedCapture();
+    return native.startGuidedCapture();
   },
 };

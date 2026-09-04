@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
+  Platform,
   StyleSheet,
   Text,
   View,
@@ -89,10 +90,16 @@ export function SkiniverProcessingStep({
           height: 3,
           backgroundColor: '#FFFFFF',
           opacity: 0.9,
-          shadowColor: branding.colors.primary,
-          shadowOpacity: 0.6,
-          shadowRadius: 8,
-          shadowOffset: { width: 0, height: 0 },
+          ...(Platform.OS === 'web'
+            ? {
+                boxShadow: `0 0 8px ${branding.colors.primary}`,
+              }
+            : {
+                shadowColor: branding.colors.primary,
+                shadowOpacity: 0.6,
+                shadowRadius: 8,
+                shadowOffset: { width: 0, height: 0 },
+              }),
         },
         percent: {
           fontSize: 28,
@@ -190,8 +197,8 @@ export function SkiniverProcessingStep({
         // Las imágenes colored/masked pueden llegar segundos después.
         for (let i = 0; i < IMAGE_POLL_ATTEMPTS; i++) {
           if (cancelled.current) return;
-          const detail = await analysesService.getById(created.id);
-          if (detail.coloredUrl || detail.maskedUrl) break;
+          const status = await analysesService.getProcessingStatus(created.id);
+          if (status.hasColored || status.hasMasked) break;
           await new Promise((r) => setTimeout(r, IMAGE_POLL_MS));
         }
 

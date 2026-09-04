@@ -16,6 +16,7 @@ import { useBranding } from '../../../context/BrandingContext';
 import { ApiError } from '../../../services/api.client';
 import { analysesService } from '../../../services/analyses.service';
 import { patientsService } from '../../../services/patients.service';
+import { confirmAction } from '../../../utils/confirm';
 import type {
   AnalysisDetail,
   FitzpatrickRawResponse,
@@ -238,6 +239,32 @@ export function AnalysisDetailView({
     }
   }
 
+  async function handleUnshare() {
+    if (!analysis || !analysis.sharedWithPatient || sharing) return;
+    const ok = await confirmAction({
+      title: 'Dejar de compartir',
+      message: 'El paciente dejará de ver este análisis en su app. ¿Continuar?',
+      confirmLabel: 'Dejar de compartir',
+      destructive: true,
+    });
+    if (!ok) return;
+
+    setSharing(true);
+    try {
+      const updated = await analysesService.unshareWithPatient(analysis.id);
+      setAnalysis(await enrichAnalysisPatient(updated));
+    } catch (err) {
+      Alert.alert(
+        'No se pudo dejar de compartir',
+        err instanceof ApiError
+          ? err.message
+          : 'Inténtalo de nuevo en unos segundos.',
+      );
+    } finally {
+      setSharing(false);
+    }
+  }
+
   async function handleConfirm(input: {
     isCorrected: boolean;
     finalDiagnosis?: string;
@@ -384,20 +411,28 @@ export function AnalysisDetailView({
                 style={[
                   styles.shareBtn,
                   analysis.sharedWithPatient && styles.shareBtnShared,
-                  (sharing || analysis.sharedWithPatient) &&
-                    !analysis.sharedWithPatient &&
-                    styles.shareBtnDisabled,
+                  sharing && styles.shareBtnDisabled,
                 ]}
-                onPress={handleShare}
-                disabled={sharing || !!analysis.sharedWithPatient}
+                onPress={
+                  analysis.sharedWithPatient ? handleUnshare : handleShare
+                }
+                disabled={sharing}
               >
                 {sharing ? (
-                  <ActivityIndicator color={branding.colors.textOnDark} />
+                  <ActivityIndicator
+                    color={
+                      analysis.sharedWithPatient
+                        ? branding.colors.success
+                        : branding.colors.textOnDark
+                    }
+                  />
                 ) : (
                   <>
                     <AppIcon
                       icon={
-                        analysis.sharedWithPatient ? Icons.check : Icons.share
+                        analysis.sharedWithPatient
+                          ? Icons.eyeOff
+                          : Icons.share
                       }
                       size={18}
                       color={
@@ -414,7 +449,7 @@ export function AnalysisDetailView({
                       ]}
                     >
                       {analysis.sharedWithPatient
-                        ? 'Compartido con el paciente'
+                        ? 'Dejar de compartir'
                         : 'Compartir análisis'}
                     </Text>
                   </>

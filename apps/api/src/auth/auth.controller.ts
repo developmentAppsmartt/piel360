@@ -175,15 +175,25 @@ export class AuthController {
   ) {
     const { platform, redirectUri, role } = parseOAuthState(req.query.state);
     const client = platform === 'mobile' ? 'mobile' : 'web';
+    // App mobile: OAuth siempre como paciente (ignora roleIntent doctor).
+    const googleUser =
+      client === 'mobile'
+        ? { ...req.user, roleIntent: 'patient' as const }
+        : req.user;
     const result = await this.authService.loginOrRegisterWithGoogle(
-      req.user,
+      googleUser,
       client,
     );
     const code = await this.authService.createGoogleExchangeCode(result);
-    const roleQuery =
-      role === 'doctor' || role === 'patient'
-        ? `&role=${encodeURIComponent(role)}`
-        : '';
+    const effectiveRole =
+      client === 'mobile'
+        ? 'patient'
+        : role === 'doctor' || role === 'patient'
+          ? role
+          : undefined;
+    const roleQuery = effectiveRole
+      ? `&role=${encodeURIComponent(effectiveRole)}`
+      : '';
 
     // redirect_uri explícito (Expo web / deep link) tiene prioridad.
     if (redirectUri) {

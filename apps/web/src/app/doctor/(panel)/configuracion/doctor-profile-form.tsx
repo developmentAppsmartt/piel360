@@ -406,7 +406,7 @@ export function DoctorProfileForm() {
             required
           />
         </Field>
-        <Field label="Correo" hint="Solo lectura">
+        <Field label="Correo" >
           <input className={inputClass} value={displayForm.email} disabled readOnly />
         </Field>
         <Field label="Celular">

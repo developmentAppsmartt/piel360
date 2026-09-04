@@ -6,7 +6,6 @@ import { useDeviceLayout } from '../../../styles/deviceLayout';
 import { analysesService } from '../../../services/analyses.service';
 import { ApiError } from '../../../services/api.client';
 import { youcamService } from '../../../services/youcam.service';
-import type { YoucamRawResponse } from '../../../types/analysis';
 
 type YoucamProcessingStepProps = {
   patientId: string;
@@ -17,13 +16,6 @@ type YoucamProcessingStepProps = {
 
 const POLL_MS = 2500;
 const MAX_WAIT_MS = 120_000;
-
-function youcamErrorFromRaw(raw: unknown): string | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const r = raw as YoucamRawResponse;
-  if (r.error) return r.message || 'Error en el análisis estético';
-  return null;
-}
 
 /**
  * Loader estilo Perfect (arcos) mientras se sube y procesa el análisis YouCam.
@@ -76,13 +68,14 @@ export function YoucamProcessingStep({
 
         setLabel('Procesando métricas faciales…');
         while (!cancelled.current && Date.now() - started < MAX_WAIT_MS) {
-          const detail = await analysesService.getById(created.analysisId);
-          const err = youcamErrorFromRaw(detail.aiRawResponse);
-          if (err) {
-            onError(err);
+          const status = await analysesService.getProcessingStatus(
+            created.analysisId,
+          );
+          if (status.error) {
+            onError(status.error);
             return;
           }
-          if (detail.isValid) {
+          if (status.isValid) {
             setLabel('Listo');
             onDone(created.analysisId);
             return;
@@ -90,7 +83,7 @@ export function YoucamProcessingStep({
           await new Promise((r) => setTimeout(r, POLL_MS));
         }
 
-        // Timeout: igual abrimos el detalle (sigue procesando en backend)
+        // Timeout: el análisis sigue en backend; el profesional lo verá.
         onDone(created.analysisId);
       } catch (e) {
         if (cancelled.current) return;

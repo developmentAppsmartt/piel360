@@ -2,10 +2,13 @@ import type { Permission } from "@/lib/queries/roles";
 import { adminNav } from "@/app/admin/(panel)/nav-config";
 import { doctorNav } from "@/app/doctor/(panel)/nav-config";
 import { filterNavByFeatures, type NavItem } from "@/components/layout/nav-items";
+import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import { DOCTOR_PANEL_ACCESS } from "@/lib/doctor-panel-permissions";
 import {
   isPrimaryPanel,
+  providerSlugFromUsagePermission,
   resolveUserPrimaryPanel,
+  type AnalysisProviderSlug,
   type PrimaryPanel,
 } from "@piel360/shared";
 
@@ -139,9 +142,32 @@ export function visibleClinicalNavLabels(
   return visibleClinicalNavItems(permissionSlugs, options).map((item) => item.label);
 }
 
+export type ProviderPreviewItem = {
+  slug: AnalysisProviderSlug;
+  label: string;
+};
+
+export function selectedAnalysisProviders(
+  permissions: Pick<Permission, "name" | "slug" | "isActive">[],
+): ProviderPreviewItem[] {
+  const items: ProviderPreviewItem[] = [];
+  for (const permission of permissions) {
+    if (permission.isActive === false) continue;
+    const slug =
+      providerSlugFromUsagePermission(permission.name) ??
+      providerSlugFromUsagePermission(permission.slug);
+    if (!slug) continue;
+    items.push({
+      slug,
+      label: ANALYSIS_PROVIDER_STATIC_LABELS[slug],
+    });
+  }
+  return items.sort((a, b) => a.label.localeCompare(b.label));
+}
+
 export function roleVisibilitySummary(
   roleName: string,
-  permissions: Pick<Permission, "kind" | "panel" | "slug" | "isActive">[],
+  permissions: Pick<Permission, "kind" | "panel" | "slug" | "name" | "isActive">[],
   primaryPanel?: string | null,
 ): {
   panel: PrimaryPanel;
@@ -149,10 +175,10 @@ export function roleVisibilitySummary(
   adminNavItems: NavPreviewItem[];
   clinicalNavItems: NavPreviewItem[];
   clinicalNavItemsAsEmpresa: NavPreviewItem[];
+  analysisProviders: ProviderPreviewItem[];
 } {
-  const slugs = permissions
-    .filter((permission) => permission.isActive !== false)
-    .map((permission) => permission.slug);
+  const active = permissions.filter((permission) => permission.isActive !== false);
+  const slugs = active.map((permission) => permission.slug);
   const panel = rolePanelContext(roleName, primaryPanel, permissions);
 
   return {
@@ -164,5 +190,6 @@ export function roleVisibilitySummary(
       empresa: true,
       verificationStatus: "active",
     }),
+    analysisProviders: selectedAnalysisProviders(active),
   };
 }

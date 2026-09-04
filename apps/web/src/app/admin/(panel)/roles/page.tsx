@@ -93,14 +93,6 @@ export default function RolesPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            nativeButton={false}
-            render={<Link href="/admin/roles/permisos-planes" />}
-          >
-            Permisos de planes
-          </Button>
           <Button type="button" nativeButton={false} render={<Link href="/admin/roles/nuevo" />}>
             <Plus className="size-4" />
             Crear rol

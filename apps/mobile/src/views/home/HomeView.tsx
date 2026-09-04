@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -62,6 +62,9 @@ type HomeViewProps = {
   pendingAnalysisRequests?: AnalysisRequest[];
   onPendingRequestConsumed?: () => void;
   onConsentContinue?: () => void;
+  /** Navegación desde chat u otros módulos. */
+  homeIntent?: 'tips' | 'history' | null;
+  onHomeIntentConsumed?: () => void;
 };
 
 type Overlay =
@@ -211,6 +214,8 @@ export function HomeView({
   pendingAnalysisRequests = [],
   onPendingRequestConsumed,
   onConsentContinue,
+  homeIntent = null,
+  onHomeIntentConsumed,
 }: HomeViewProps) {
   const { logout } = useAuth();
   const branding = useBranding();
@@ -232,11 +237,32 @@ export function HomeView({
   const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(
     null,
   );
+  const scrollRef = useRef<ScrollView>(null);
+  const historyOffsetY = useRef(0);
 
   const diseaseAnalyses = useMemo(
     () => analyses.filter(isDermatologyDiseaseAnalysis),
     [analyses],
   );
+
+  useEffect(() => {
+    if (!homeIntent) return;
+    setSelectedAnalysisId(null);
+    if (homeIntent === 'tips') {
+      if (analyses.length > 0) setOverlay('tips');
+      onHomeIntentConsumed?.();
+      return;
+    }
+    setOverlay(null);
+    onHomeIntentConsumed?.();
+    const t = setTimeout(() => {
+      scrollRef.current?.scrollTo({
+        y: Math.max(historyOffsetY.current - 12, 0),
+        animated: true,
+      });
+    }, 200);
+    return () => clearTimeout(t);
+  }, [homeIntent, onHomeIntentConsumed, analyses.length]);
 
   useEffect(() => {
     setLocalPending(pendingAnalysisRequests);
@@ -352,7 +378,7 @@ export function HomeView({
     onConsentContinue?.();
   }
 
-  async function handlePatientAnalysisCreated(analysisId: string) {
+  async function handlePatientAnalysisCreated(_analysisId: string) {
     if (activeRequestId) {
       try {
         await patientsService.completeMyAnalysisRequest(activeRequestId);
@@ -366,12 +392,15 @@ export function HomeView({
     setActiveRequestId(null);
     onPendingRequestConsumed?.();
     void loadHome();
+    Alert.alert(
+      'Análisis enviado',
+      'Tu profesional recibirá el resultado para validarlo. Lo verás en tu historial cuando lo comparta contigo.',
+    );
     if (remaining.length > 0) {
       setPickerOpen(true);
       return;
     }
     setPickerOpen(false);
-    setSelectedAnalysisId(analysisId);
   }
 
   if (activeFlow) {
@@ -399,7 +428,10 @@ export function HomeView({
           <YoucamAnalysisFlow {...common} />
         ) : null}
         {activeFlow === 'skiniver' ? (
-          <SkiniverAnalysisFlow {...common} />
+          <SkiniverAnalysisFlow
+            {...common}
+            patientGender={patient.gender}
+          />
         ) : null}
         {activeFlow === 'fitzpatrick' ? (
           <FitzpatrickAnalysisFlow {...common} />
@@ -520,6 +552,7 @@ export function HomeView({
         </View>
       ) : (
         <ScrollView
+          ref={scrollRef}
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -567,28 +600,30 @@ export function HomeView({
             </View>
           </Pressable>
 
-          <Pressable
-            style={styles.linkCard}
-            onPress={() => setOverlay('tips')}
-            accessibilityRole="button"
-            accessibilityLabel="Consejos para el cuidado de la piel"
-          >
-            <View style={styles.linkIconWrap}>
+          {analyses.length > 0 ? (
+            <Pressable
+              style={styles.linkCard}
+              onPress={() => setOverlay('tips')}
+              accessibilityRole="button"
+              accessibilityLabel="Consejos para el cuidado de la piel"
+            >
+              <View style={styles.linkIconWrap}>
+                <AppIcon
+                  icon={Icons.smile}
+                  size={22}
+                  color={branding.colors.primary}
+                />
+              </View>
+              <Text style={styles.linkLabel}>
+                Consejos para el cuidado de la piel
+              </Text>
               <AppIcon
-                icon={Icons.smile}
-                size={22}
-                color={branding.colors.primary}
+                icon={Icons.chevronRight}
+                size={20}
+                color={branding.colors.muted}
               />
-            </View>
-            <Text style={styles.linkLabel}>
-              Consejos para el cuidado de la piel
-            </Text>
-            <AppIcon
-              icon={Icons.chevronRight}
-              size={20}
-              color={branding.colors.muted}
-            />
-          </Pressable>
+            </Pressable>
+          ) : null}
 
           {diseaseAnalyses.length > 0 ? (
             <Pressable
@@ -613,13 +648,17 @@ export function HomeView({
             </Pressable>
           ) : null}
 
-          <View style={styles.historyHeader}>
+          <View
+            style={styles.historyHeader}
+            onLayout={(e) => {
+              historyOffsetY.current = e.nativeEvent.layout.y;
+            }}
+          >
             <Text style={styles.historyTitle}>Histórico Análisis</Text>
             <Pressable
               style={styles.assignLink}
               onPress={() => {
                 onOpenAgenda?.();
-                Alert.alert('Asignar cita', 'Flujo de citas próximamente.');
               }}
             >
               <AppIcon

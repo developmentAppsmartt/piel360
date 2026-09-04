@@ -101,6 +101,12 @@ export function SpecialtyPlanPermissionsMatrix() {
   }));
   const specialtyRows = rows.filter((row) => row.kind !== "labor_technician");
   const laborRows = rows.filter((row) => row.kind === "labor_technician");
+  const mutationError =
+    mutation.error instanceof ApiError
+      ? mutation.error.message
+      : mutation.error
+        ? "No se pudo guardar el permiso del proveedor."
+        : null;
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border">
@@ -157,6 +163,11 @@ export function SpecialtyPlanPermissionsMatrix() {
       {mutation.isPending ? (
         <p className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
           Guardando cambios…
+        </p>
+      ) : null}
+      {mutationError ? (
+        <p className="border-t border-destructive/30 bg-destructive/5 px-4 py-2 text-xs text-destructive">
+          {mutationError}
         </p>
       ) : null}
     </div>

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrgContextService } from '../organizations/org-context.service';
+import { StorageService } from '../storage/storage.service';
 import {
   computeSkinAgeSnapshot,
   readYoucamSkinAgeYears,
@@ -46,13 +47,35 @@ export class SkinAgeRulesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly orgContext: OrgContextService,
+    private readonly storage: StorageService,
   ) {}
 
+  /** Key S3 → URL firmada; deja http(s) tal cual (mismo criterio que Products/Routines). */
+  private async resolveMediaUrl(
+    url: string | null | undefined,
+  ): Promise<string | null> {
+    if (!url) return null;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    try {
+      return await this.storage.getSignedUrl(url);
+    } catch {
+      return url;
+    }
+  }
+
   private async catalogDoctorId(userId: string) {
-    const ctx = await this.orgContext.assertTeamPermissionForUser(
-      userId,
-      'routines',
-    );
+    const ctx = await this.orgContext.resolve(userId);
+    if (ctx.isOrgMember && !ctx.isOrgOwner) {
+      const allowed =
+        ctx.teamPermissions.includes('routines') ||
+        ctx.teamPermissions.includes('treatments');
+      if (!allowed) {
+        throw new ForbiddenException(
+          'No tienes permiso para acceder a este módulo del equipo',
+        );
+      }
+    }
+    // Miembro: catálogo del owner (mismas reglas que productos/tratamientos).
     return ctx.catalogDoctorId;
   }
 
@@ -250,70 +273,88 @@ export class SkinAgeRulesService {
       catalogProducts.map((product) => [product.id.toString(), product] as const),
     );
 
-    const mapTreatmentGroup = (ids: string[]) =>
-      ids
-        .map((id) => treatmentMap.get(id))
-        .filter((treatment): treatment is (typeof treatments)[number] => !!treatment)
-        .map((treatment) => ({
-          id: treatment.id.toString(),
-          name: treatment.name,
-          description: treatment.description,
-          items: treatment.items.map((item) => ({
-            id: item.id.toString(),
-            productId: item.productId.toString(),
-            productName: item.product.productName,
-            productType: item.product.productType,
-            note: item.note,
-            imageUrl: item.product.imageUrl,
-            productUrl: item.product.productUrl,
+    const mapTreatmentGroup = async (ids: string[]) =>
+      Promise.all(
+        ids
+          .map((id) => treatmentMap.get(id))
+          .filter(
+            (treatment): treatment is (typeof treatments)[number] => !!treatment,
+          )
+          .map(async (treatment) => ({
+            id: treatment.id.toString(),
+            name: treatment.name,
+            description: treatment.description,
+            items: await Promise.all(
+              treatment.items.map(async (item) => ({
+                id: item.id.toString(),
+                productId: item.productId.toString(),
+                productName: item.product.productName,
+                productType: item.product.productType,
+                note: item.note,
+                imageUrl: await this.resolveMediaUrl(item.product.imageUrl),
+                productUrl: item.product.productUrl,
+              })),
+            ),
           })),
-        }));
+      );
 
-    const mapCatalogProducts = (ids: string[], productType: 'product' | 'supplement') =>
-      ids
-        .map((id) => productMap.get(id))
-        .filter(
-          (product): product is (typeof catalogProducts)[number] =>
-            !!product && product.productType === productType,
-        )
-        .map((product) => ({
-          id: product.id.toString(),
-          name: product.productName,
-          description: product.productDescription,
-          productType: product.productType,
-          productUrl: product.productUrl,
-          imageUrl: product.imageUrl,
-          items: [
-            {
+    const mapCatalogProducts = async (
+      ids: string[],
+      productType: 'product' | 'supplement',
+    ) =>
+      Promise.all(
+        ids
+          .map((id) => productMap.get(id))
+          .filter(
+            (product): product is (typeof catalogProducts)[number] =>
+              !!product && product.productType === productType,
+          )
+          .map(async (product) => {
+            const imageUrl = await this.resolveMediaUrl(product.imageUrl);
+            return {
               id: product.id.toString(),
-              productId: product.id.toString(),
-              productName: product.productName,
+              name: product.productName,
+              description: product.productDescription,
               productType: product.productType,
-              note: null as string | null,
-              imageUrl: product.imageUrl,
               productUrl: product.productUrl,
-            },
-          ],
-        }));
+              imageUrl,
+              items: [
+                {
+                  id: product.id.toString(),
+                  productId: product.id.toString(),
+                  productName: product.productName,
+                  productType: product.productType,
+                  note: null as string | null,
+                  imageUrl,
+                  productUrl: product.productUrl,
+                },
+              ],
+            };
+          }),
+      );
 
     return {
-      routines: routines.map((routine) => ({
-        id: routine.id.toString(),
-        name: routine.name,
-        description: routine.description,
-        stepsCount: routine.steps.length,
-        steps: routine.steps.map((step) => ({
-          id: step.id.toString(),
-          order: step.order,
-          title: step.title,
-          description: step.description,
-          mediaUrl: step.mediaUrl,
-          mediaType: step.mediaType,
+      routines: await Promise.all(
+        routines.map(async (routine) => ({
+          id: routine.id.toString(),
+          name: routine.name,
+          description: routine.description,
+          stepsCount: routine.steps.length,
+          steps: await Promise.all(
+            routine.steps.map(async (step) => ({
+              id: step.id.toString(),
+              order: step.order,
+              title: step.title,
+              description: step.description,
+              mediaUrl: await this.resolveMediaUrl(step.mediaUrl),
+              mediaType: step.mediaType,
+            })),
+          ),
         })),
-      })),
-      treatments: mapTreatmentGroup(rule.treatmentIds),
-      products: mapCatalogProducts(rule.productGroupIds, 'product'),
-      supplements: mapCatalogProducts(rule.supplementGroupIds, 'supplement'),
+      ),
+      treatments: await mapTreatmentGroup(rule.treatmentIds),
+      products: await mapCatalogProducts(rule.productGroupIds, 'product'),
+      supplements: await mapCatalogProducts(rule.supplementGroupIds, 'supplement'),
     };
   }
 
@@ -392,18 +433,17 @@ export class SkinAgeRulesService {
     const patientUserId = analysis.patient.userId?.toString();
     const isOwnerPatient = patientUserId === userId;
     const sharedOk = isOwnerPatient && analysis.sharedWithPatient;
-    const selfExecuted = analysis.userId?.toString() === userId;
     const doctorOk = await this.orgContext
       .canAccessPatientDoctorId(userId, analysis.patient.doctorId)
       .catch(() => false);
 
-    // Superadmin / doctor del equipo / paciente con análisis compartido o propio.
+    // Superadmin / doctor del equipo / paciente solo si el análisis fue compartido.
     const user = await this.prisma.user.findUnique({
       where: { id: BigInt(userId) },
       include: { roles: true },
     });
     const isSuperadmin = user?.roles.some((r) => r.name === 'superadmin');
-    if (!isSuperadmin && !doctorOk && !sharedOk && !selfExecuted) {
+    if (!isSuperadmin && !doctorOk && !sharedOk) {
       throw new ForbiddenException('No tienes acceso a este análisis');
     }
 
@@ -521,54 +561,64 @@ export class SkinAgeRulesService {
       }),
     ]);
 
-    const mapProduct = (product: (typeof products)[number]) => ({
+    const mapProduct = async (product: (typeof products)[number]) => ({
       id: product.id.toString(),
       name: product.productName,
       description: product.productDescription,
       productType: product.productType,
       productUrl: product.productUrl,
-      imageUrl: product.imageUrl,
+      imageUrl: await this.resolveMediaUrl(product.imageUrl),
       categoryName: product.category?.categoryName ?? null,
     });
 
     return {
-      routines: routines.map((routine) => ({
-        id: routine.id.toString(),
-        name: routine.name,
-        description: routine.description,
-        stepsCount: routine.steps.length,
-        steps: routine.steps.map((step) => ({
-          id: step.id.toString(),
-          order: step.order,
-          title: step.title,
-          description: step.description,
-          mediaUrl: step.mediaUrl,
-          mediaType: step.mediaType,
+      routines: await Promise.all(
+        routines.map(async (routine) => ({
+          id: routine.id.toString(),
+          name: routine.name,
+          description: routine.description,
+          stepsCount: routine.steps.length,
+          steps: await Promise.all(
+            routine.steps.map(async (step) => ({
+              id: step.id.toString(),
+              order: step.order,
+              title: step.title,
+              description: step.description,
+              mediaUrl: await this.resolveMediaUrl(step.mediaUrl),
+              mediaType: step.mediaType,
+            })),
+          ),
         })),
-      })),
-      treatments: treatments
-        .filter((t) => t.categoryId != null)
-        .map((treatment) => ({
-          id: treatment.id.toString(),
-          name: treatment.name,
-          description: treatment.description,
-          categoryName: treatment.category?.categoryName ?? null,
-          items: treatment.items.map((item) => ({
-            id: item.id.toString(),
-            productId: item.productId.toString(),
-            productName: item.product.productName,
-            productType: item.product.productType,
-            note: item.note,
-            imageUrl: item.product.imageUrl,
-            productUrl: item.product.productUrl,
+      ),
+      treatments: await Promise.all(
+        treatments
+          .filter((t) => t.categoryId != null)
+          .map(async (treatment) => ({
+            id: treatment.id.toString(),
+            name: treatment.name,
+            description: treatment.description,
+            categoryName: treatment.category?.categoryName ?? null,
+            items: await Promise.all(
+              treatment.items.map(async (item) => ({
+                id: item.id.toString(),
+                productId: item.productId.toString(),
+                productName: item.product.productName,
+                productType: item.product.productType,
+                note: item.note,
+                imageUrl: await this.resolveMediaUrl(item.product.imageUrl),
+                productUrl: item.product.productUrl,
+              })),
+            ),
           })),
-        })),
-      products: products
-        .filter((p) => (p.productType ?? 'product') === 'product')
-        .map(mapProduct),
-      supplements: products
-        .filter((p) => p.productType === 'supplement')
-        .map(mapProduct),
+      ),
+      products: await Promise.all(
+        products
+          .filter((p) => (p.productType ?? 'product') === 'product')
+          .map(mapProduct),
+      ),
+      supplements: await Promise.all(
+        products.filter((p) => p.productType === 'supplement').map(mapProduct),
+      ),
     };
   }
 
@@ -629,8 +679,8 @@ export class SkinAgeRulesService {
   }
 
   /**
-   * Consejos para el paciente autenticado: usa el último snapshot de edad de
-   * piel y las reglas del médico que lo atiende.
+   * Consejos para el paciente autenticado: usa el **último análisis compartido**
+   * con edad de piel (YouCam). Si no hay, cae al snapshot del paciente.
    */
   async recommendForPatientUser(userId: string) {
     const patient = await this.prisma.patient.findUnique({
@@ -641,36 +691,66 @@ export class SkinAgeRulesService {
     }
     if (!patient.doctorId) {
       return this.emptyRecommendations({
-        skinAgeYears: patient.lastSkinAgeYears ?? null,
-        chronologicalAgeYears: patient.lastChronologicalAgeYears ?? null,
-        skinAgeDifference: patient.lastSkinAgeDifference ?? null,
+        skinAgeYears: null,
+        chronologicalAgeYears: null,
+        skinAgeDifference: null,
         message: 'Este paciente aún no está vinculado a un profesional.',
       });
     }
 
-    let skinAgeYears = patient.lastSkinAgeYears ?? null;
-    let chronologicalAgeYears = patient.lastChronologicalAgeYears ?? null;
-    let skinAgeDifference = patient.lastSkinAgeDifference ?? null;
+    // Reglas/productos viven en el catálogo del owner (si el doctor es equipo).
+    const linkedDoctor = await this.prisma.doctor.findUnique({
+      where: { id: patient.doctorId },
+      select: { userId: true },
+    });
+    const rulesDoctorId = linkedDoctor?.userId
+      ? (await this.orgContext.resolve(linkedDoctor.userId.toString()))
+          .catalogDoctorId
+      : patient.doctorId;
 
-    if (skinAgeDifference == null) {
-      const latest = await this.prisma.analysis.findFirst({
-        where: { patientId: patient.id },
-        orderBy: { createdAt: 'desc' },
+    // Preferir análisis compartidos (más reciente primero) hasta encontrar
+    // uno con edad de piel. Evita que un fototipo/otro tipo posterior tape
+    // el YouCam compartido.
+    const sharedCandidates = await this.prisma.analysis.findMany({
+      where: { patientId: patient.id, sharedWithPatient: true },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      select: {
+        id: true,
+        createdAt: true,
+        skinAgeYears: true,
+        chronologicalAgeYears: true,
+        skinAgeDifference: true,
+        aiRawResponse: true,
+        youcamTaskId: true,
+      },
+    });
+
+    let skinAgeYears: number | null = null;
+    let chronologicalAgeYears: number | null = null;
+    let skinAgeDifference: number | null = null;
+
+    for (const candidate of sharedCandidates) {
+      const fromColumn = candidate.skinAgeYears;
+      const fromRaw = readYoucamSkinAgeYears(candidate.aiRawResponse);
+      const resolvedSkinAge = fromColumn ?? fromRaw;
+      if (resolvedSkinAge == null) continue;
+
+      const snap = computeSkinAgeSnapshot({
+        skinAgeYears: resolvedSkinAge,
+        birthDate: patient.birthDate,
+        analysisDate: candidate.createdAt,
       });
-      if (latest) {
-        const snap = computeSkinAgeSnapshot({
-          skinAgeYears:
-            latest.skinAgeYears ??
-            readYoucamSkinAgeYears(latest.aiRawResponse) ??
-            null,
-          birthDate: patient.birthDate,
-          analysisDate: latest.createdAt,
-        });
-        skinAgeYears = snap.skinAgeYears;
-        chronologicalAgeYears = snap.chronologicalAgeYears;
-        skinAgeDifference = snap.skinAgeDifference;
-      }
+      skinAgeYears = snap.skinAgeYears;
+      chronologicalAgeYears =
+        snap.chronologicalAgeYears ?? candidate.chronologicalAgeYears;
+      skinAgeDifference =
+        snap.skinAgeDifference ?? candidate.skinAgeDifference;
+      break;
     }
+
+    // Solo análisis compartidos alimentan consejos (no lastSkinAge* del CRM,
+    // que se actualiza al completar antes de compartir).
 
     const snapshot = {
       skinAgeYears,
@@ -678,7 +758,9 @@ export class SkinAgeRulesService {
       skinAgeDifference,
       message:
         skinAgeDifference == null
-          ? 'Aún no hay un análisis de edad de piel para generar consejos.'
+          ? sharedCandidates.length === 0
+            ? 'Aún no tienes un análisis compartido por tu profesional.'
+            : 'Aún no hay un análisis de edad de piel compartido para generar consejos.'
           : null,
     };
 
@@ -687,7 +769,7 @@ export class SkinAgeRulesService {
     }
 
     const rules = await this.prisma.skinAgeRule.findMany({
-      where: { doctorId: patient.doctorId, isActive: true },
+      where: { doctorId: rulesDoctorId, isActive: true },
       orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
     });
     const serialized = rules.map((rule) => this.serializeRule(rule));
@@ -701,7 +783,7 @@ export class SkinAgeRulesService {
     }
 
     const recommendations = await this.loadRecommendations(
-      patient.doctorId,
+      rulesDoctorId,
       matched,
     );
     return {

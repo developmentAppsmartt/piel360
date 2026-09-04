@@ -18,16 +18,20 @@ export class SkiniverUnitsService {
 
     const [recharges, history, committed, skiniverProvider] = await Promise.all([
       this.prisma.platformUnitRecharge.findMany({
-        where: { provider: SKINIVER_PROVIDER },
+        where: {
+          provider: SKINIVER_PROVIDER,
+          kind: 'recharge',
+          quantity: { gt: 0 },
+        },
         select: {
           quantity: true,
           expiresAt: true,
         },
       }),
       this.prisma.platformUnitRecharge.findMany({
-        where: { provider: SKINIVER_PROVIDER, quantity: { gt: 0 } },
+        where: { provider: SKINIVER_PROVIDER },
         orderBy: { createdAt: 'desc' },
-        take: 50,
+        take: 80,
         include: {
           createdBy: {
             select: { id: true, email: true, firstName: true, lastName: true },
@@ -44,12 +48,9 @@ export class SkiniverUnitsService {
     const now = Date.now();
     const activeTotal = recharges
       .filter((r) => !r.expiresAt || r.expiresAt.getTime() > now)
-      .filter((r) => r.quantity > 0)
       .reduce((sum, r) => sum + r.quantity, 0);
 
-    const totalPurchased = recharges
-      .filter((r) => r.quantity > 0)
-      .reduce((sum, r) => sum + r.quantity, 0);
+    const totalPurchased = recharges.reduce((sum, r) => sum + r.quantity, 0);
     const available = Math.max(0, activeTotal - committed);
     const expiringSoon = recharges
       .filter(
@@ -77,6 +78,7 @@ export class SkiniverUnitsService {
       },
       history: history.map((r) => ({
         id: r.id.toString(),
+        kind: r.kind,
         quantity: r.quantity,
         expiresAt: r.expiresAt?.toISOString() ?? null,
         note: r.note,
@@ -84,7 +86,9 @@ export class SkiniverUnitsService {
         addedBy: r.createdBy
           ? `${r.createdBy.firstName} ${r.createdBy.lastName}`.trim() ||
             r.createdBy.email
-          : 'Super Admin',
+          : r.kind === 'recharge'
+            ? 'Super Admin'
+            : 'Sistema',
         addedByEmail: r.createdBy?.email ?? null,
       })),
     };
@@ -100,6 +104,7 @@ export class SkiniverUnitsService {
     const row = await this.prisma.platformUnitRecharge.create({
       data: {
         provider: SKINIVER_PROVIDER,
+        kind: 'recharge',
         quantity: dto.quantity,
         expiresAt,
         note: dto.note?.trim() || null,
@@ -114,6 +119,7 @@ export class SkiniverUnitsService {
 
     return {
       id: row.id.toString(),
+      kind: row.kind,
       quantity: row.quantity,
       expiresAt: row.expiresAt?.toISOString() ?? null,
       note: row.note,

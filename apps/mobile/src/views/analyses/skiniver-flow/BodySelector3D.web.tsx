@@ -17,6 +17,7 @@ type Gender = 'female' | 'male';
 
 type BodySelector3DProps = {
   initialGender?: Gender;
+  lockGender?: boolean;
   onSelect: (selection: BodySelection) => void;
   primaryColor?: string;
 };
@@ -73,12 +74,17 @@ function BodyModel({
  */
 export function BodySelector3D({
   initialGender = 'female',
+  lockGender = false,
   onSelect,
   primaryColor = '#1e5a9e',
 }: BodySelector3DProps) {
   const [gender, setGender] = useState<Gender>(initialGender);
   const [marker, setMarker] = useState<THREE.Vector3 | null>(null);
   const [regionId, setRegionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setGender(initialGender);
+  }, [initialGender]);
 
   const url = useMemo(
     () => modelUrl(gender === 'female' ? femaleModule : maleModule),
@@ -103,34 +109,48 @@ export function BodySelector3D({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 360 }}>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-        {(['female', 'male'] as const).map((g) => {
-          const active = gender === g;
-          return (
-            <button
-              key={g}
-              type="button"
-              onClick={() => {
-                setGender(g);
-                setMarker(null);
-                setRegionId(null);
-              }}
-              style={{
-                flex: 1,
-                padding: '10px 0',
-                borderRadius: 10,
-                border: `1px solid ${active ? primaryColor : '#cbd5e1'}`,
-                background: active ? primaryColor : '#fff',
-                color: active ? '#fff' : '#334155',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              {g === 'female' ? 'Mujer' : 'Hombre'}
-            </button>
-          );
-        })}
-      </div>
+      {!lockGender ? (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          {(['female', 'male'] as const).map((g) => {
+            const active = gender === g;
+            return (
+              <button
+                key={g}
+                type="button"
+                onClick={() => {
+                  setGender(g);
+                  setMarker(null);
+                  setRegionId(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px 0',
+                  borderRadius: 10,
+                  border: `1px solid ${active ? primaryColor : '#cbd5e1'}`,
+                  background: active ? primaryColor : '#fff',
+                  color: active ? '#fff' : '#334155',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {g === 'female' ? 'Mujer' : 'Hombre'}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <p
+          style={{
+            marginBottom: 8,
+            fontSize: 13,
+            fontWeight: 600,
+            color: '#64748b',
+            textAlign: 'center',
+          }}
+        >
+          Modelo: {gender === 'female' ? 'Mujer' : 'Hombre'}
+        </p>
+      )}
 
       <div
         style={{

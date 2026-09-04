@@ -163,6 +163,7 @@ export function DoctorPatientsView({
         <SkiniverAnalysisFlow
           patientId={selectedPatient.id}
           patientName={patientDisplayName(selectedPatient)}
+          patientGender={selectedPatient.gender}
           onClose={() => setActiveProvider(null)}
           onAnalysisCreated={(analysisId) => {
             setActiveProvider(null);

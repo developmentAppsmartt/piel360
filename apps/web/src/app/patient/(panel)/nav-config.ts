@@ -1,4 +1,5 @@
 import {
+  CalendarDays,
   ClipboardList,
   CreditCard,
   History,
@@ -10,6 +11,7 @@ import type { NavItem } from "@/components/layout/nav-items";
 
 export const patientNav: NavItem[] = [
   { label: "Inicio", href: "/patient/dashboard", icon: Home },
+  { label: "Agenda", href: "/patient/agenda", icon: CalendarDays },
   { label: "Mis análisis", href: "/patient/analisis", icon: ClipboardList },
   { label: "Auto-análisis", href: "/patient/auto-analisis", icon: ScanFace },
   { label: "Planes y suscripción", href: "/patient/planes", icon: CreditCard },

@@ -16,15 +16,18 @@ import { NewMessageContactsView } from './components/NewMessageContactsView';
 import { NewMessageFab } from './components/NewMessageFab';
 import { ChatThreadView } from './components/ChatThreadView';
 import { createMessagesStyles } from './styles/messages.styles';
+import type { ChatQuickActionId } from './components/ChatQuickActions';
 
 type MessagesViewProps = {
   onThreadOpenChange?: (open: boolean) => void;
   onOpenProfile?: () => void;
+  onQuickAction?: (id: ChatQuickActionId) => void;
 };
 
 export function MessagesView({
   onThreadOpenChange,
   onOpenProfile,
+  onQuickAction,
 }: MessagesViewProps) {
   const branding = useBranding();
   const styles = useMemo(
@@ -91,6 +94,10 @@ export function MessagesView({
           void reload();
         }}
         onOpenProfile={onOpenProfile}
+        onQuickAction={(id) => {
+          setActiveId(null);
+          onQuickAction?.(id);
+        }}
       />
     );
   }

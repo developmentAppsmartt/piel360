@@ -29,6 +29,7 @@ import {
 } from '../../../data/skinAge';
 import { analysesService } from '../../../services/analyses.service';
 import { ApiError } from '../../../services/api.client';
+import { confirmAction } from '../../../utils/confirm';
 import type {
   AnalysisDetail,
   YoucamRawResponse,
@@ -242,10 +243,11 @@ export function YoucamReportView({
       parseYoucamMetrics(analysis.aiRawResponse as YoucamRawResponse | null),
     [analysis.aiRawResponse],
   );
-  const [preferRaw, setPreferRaw] = useState(false);
+  // Puntuación ajustada (uiScore): la elige el doctor; sin toggle en el análisis.
+  const preferRaw = false;
   const scores = useMemo(
     () => youcamScoresByType(metrics, preferRaw),
-    [metrics, preferRaw],
+    [metrics],
   );
   const overall = youcamOverallScore(metrics);
   const skinAge = analysis.skinAgeYears ?? youcamSkinAge(metrics);
@@ -308,8 +310,30 @@ export function YoucamReportView({
     return rows;
   }, [metrics, preferRaw, analysis.masks]);
 
-  async function handleShare() {
-    if (!canShare || analysis.sharedWithPatient) return;
+  async function handleShareToggle() {
+    if (!canShare) return;
+    if (analysis.sharedWithPatient) {
+      const ok = await confirmAction({
+        title: 'Dejar de compartir',
+        message:
+          'El paciente dejará de ver este análisis en su app. ¿Continuar?',
+        confirmLabel: 'Dejar de compartir',
+        destructive: true,
+      });
+      if (!ok) return;
+      try {
+        const updated = await analysesService.unshareWithPatient(analysis.id);
+        onShared?.(updated);
+      } catch (err) {
+        Alert.alert(
+          'No se pudo dejar de compartir',
+          err instanceof ApiError
+            ? err.message
+            : 'Inténtalo de nuevo en unos segundos.',
+        );
+      }
+      return;
+    }
     try {
       const updated = await analysesService.shareWithPatient(analysis.id);
       onShared?.(updated);
@@ -384,10 +408,18 @@ export function YoucamReportView({
               />
             </Pressable>
             {canShare ? (
-              <Pressable style={styles.reportActionBtn} onPress={handleShare}>
+              <Pressable
+                style={styles.reportActionBtn}
+                onPress={handleShareToggle}
+                accessibilityLabel={
+                  analysis.sharedWithPatient
+                    ? 'Dejar de compartir'
+                    : 'Compartir análisis'
+                }
+              >
                 <AppIcon
                   icon={
-                    analysis.sharedWithPatient ? Icons.check : Icons.share
+                    analysis.sharedWithPatient ? Icons.eyeOff : Icons.share
                   }
                   size={18}
                   color={
@@ -403,35 +435,6 @@ export function YoucamReportView({
 
         <ScrollView showsVerticalScrollIndicator={false}>
           <Text style={styles.reportTitle}>Reporte Salud de la Piel</Text>
-
-          <View style={styles.scoreModeRow}>
-            <Pressable
-              style={[styles.scoreModeBtn, !preferRaw && styles.scoreModeBtnOn]}
-              onPress={() => setPreferRaw(false)}
-            >
-              <Text
-                style={[
-                  styles.scoreModeText,
-                  !preferRaw && styles.scoreModeTextOn,
-                ]}
-              >
-                Puntuación ajustada
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.scoreModeBtn, preferRaw && styles.scoreModeBtnOn]}
-              onPress={() => setPreferRaw(true)}
-            >
-              <Text
-                style={[
-                  styles.scoreModeText,
-                  preferRaw && styles.scoreModeTextOn,
-                ]}
-              >
-                Puntuación real
-              </Text>
-            </Pressable>
-          </View>
 
           <View style={styles.reportHeader}>
             <View style={styles.reportAvatar}>

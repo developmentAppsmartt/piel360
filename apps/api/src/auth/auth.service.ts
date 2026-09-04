@@ -504,20 +504,24 @@ export class AuthService implements OnModuleDestroy {
 
   /**
    * Crea o loguea un usuario vía Google.
-   * Profesional: rol `medico_general` por defecto, verificationStatus `pending`
-   * (moderador debe aprobar). Paciente: rol `patient`.
+   * - App mobile: cuentas nuevas **siempre** paciente (nunca profesional).
+   * - Web: `roleIntent=doctor` → profesional pendiente; `patient` → paciente.
    */
   async loginOrRegisterWithGoogle(
     profile: GoogleProfile,
     client: 'mobile' | 'web' = 'web',
   ): Promise<AuthResult> {
+    // La app móvil solo registra pacientes vía Google.
+    const roleIntent =
+      client === 'mobile' ? 'patient' : profile.roleIntent;
+
     const existing = await this.prisma.user.findUnique({
       where: { email: profile.email },
       include: this.authUserInclude,
     });
 
     if (!existing) {
-      const isDoctorIntent = profile.roleIntent === 'doctor';
+      const isDoctorIntent = roleIntent === 'doctor';
       const randomPassword = await argon2.hash(randomBytes(32).toString('hex'));
 
       const user = await this.prisma.user.create({
@@ -561,7 +565,8 @@ export class AuthService implements OnModuleDestroy {
       return this.buildAuthResult(user, session, client);
     }
 
-    if (profile.roleIntent === 'doctor') {
+    // No convertir a profesional desde la app mobile.
+    if (roleIntent === 'doctor' && client !== 'mobile') {
       await this.bootstrapGoogleDoctor(existing.id, profile);
     }
 
@@ -576,10 +581,18 @@ export class AuthService implements OnModuleDestroy {
 
     if (!existing.googleId) updateData.googleId = profile.googleId;
 
-    const wantsPatient = profile.roleIntent === 'patient';
+    const wantsPatient = roleIntent === 'patient';
     const alreadyPatient = roleNames.includes('patient');
-    if (wantsPatient && !alreadyPatient) {
-      updateData.roles = { connect: { name: 'patient' } };
+    // Desde mobile (o intent paciente): asegurar perfil patient si aún no hay
+    // perfil profesional (no mezclar paneles).
+    if (
+      wantsPatient &&
+      !existing.doctor &&
+      (!alreadyPatient || !existing.patient)
+    ) {
+      if (!alreadyPatient) {
+        updateData.roles = { connect: { name: 'patient' } };
+      }
       if (!existing.patient) {
         updateData.patient = {
           create: {
@@ -598,7 +611,7 @@ export class AuthService implements OnModuleDestroy {
             data: updateData,
             include: this.authUserInclude,
           })
-        : profile.roleIntent === 'doctor'
+        : roleIntent === 'doctor' && client !== 'mobile'
           ? await this.prisma.user.findUniqueOrThrow({
               where: { id: existing.id },
               include: this.authUserInclude,

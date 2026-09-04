@@ -98,6 +98,29 @@ export function RoleVisibilityPreview({
         </div>
       ) : null}
 
+      {summary.analysisProviders.length > 0 ? (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Análisis IA habilitados
+          </p>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {summary.analysisProviders.map((item) => (
+              <li
+                key={item.slug}
+                className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800"
+              >
+                {item.label}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Sin proveedores de análisis IA en este rol. Actívalos en «Análisis IA (proveedor)»
+          de la matriz de abajo.
+        </p>
+      )}
+
       {summary.adminNavItems.length === 0 && summary.clinicalNavItems.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           Ningún módulo de menú con la selección actual. Solo aplican permisos de API.

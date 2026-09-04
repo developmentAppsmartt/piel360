@@ -4,10 +4,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  DEFAULT_TEAM_MEMBER_PERMISSIONS,
-  type TeamMemberPermission,
-} from "@piel360/shared";
-import {
   ChevronLeft,
   ChevronRight,
   Crown,
@@ -19,6 +15,7 @@ import {
   UserCog,
   UserPlus,
 } from "lucide-react";
+import type { TeamMemberPermission } from "@piel360/shared";
 import { Button } from "@/components/ui/button";
 import { apiClientFetch } from "@/lib/api-client";
 import { useSpecialties } from "@/lib/queries/specialties";
@@ -158,7 +155,6 @@ export function DoctorEquipoView() {
       lastName: string;
       email: string;
       password: string;
-      phone: string;
       specialty?: string;
       permissions?: TeamMemberPermission[];
     }) =>
@@ -261,7 +257,6 @@ export function DoctorEquipoView() {
         lastName: values.lastName.trim(),
         email: values.email.trim(),
         password: values.password,
-        phone: values.phone,
         specialty: resolveMemberSpecialty(values),
         permissions,
       });
@@ -587,9 +582,7 @@ export function DoctorEquipoView() {
           medicalSpecialties={medicalSpecialties}
           laborProfiles={laborProfiles}
           defaultPermissions={
-            editingMember?.permissions?.length
-              ? editingMember.permissions
-              : [...DEFAULT_TEAM_MEMBER_PERMISSIONS]
+            editingMember ? (editingMember.permissions ?? []) : []
           }
           defaultValues={
             editingMember

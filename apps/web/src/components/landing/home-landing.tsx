@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Lock, ShieldCheck, Star, UserRound } from "lucide-react";
+import { ArrowRight, ShieldCheck, Star, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ACCESS_ROLES = [
@@ -93,17 +93,11 @@ export function HomeLanding() {
             className="object-contain"
             style={{ width: "min(100%, 300px)", height: "auto" }}
           />
-          <p className="mt-2 text-[11px] font-semibold tracking-[0.18em] text-[#3b82c4] uppercase">
-            Explora tu piel, entiende tu salud
-          </p>
-          <p className="mt-2 text-[10px] font-medium tracking-wide text-slate-400 uppercase">
-            Tecnología · Análisis avanzado · Salud dermatológica
-          </p>
         </header>
 
         <main className="flex w-full flex-1 flex-col items-center text-center">
           <h1 className="mt-10 text-3xl font-bold tracking-tight text-[#0f3d73] sm:text-[2rem] lg:mt-12">
-            Bienvenido a <span className="text-[#1e5a9e]">PIEL360</span>
+            Bienvenido
           </h1>
           <p className="mt-3 max-w-xl text-base text-slate-600">
             Plataforma de diagnóstico dermatológico asistido por{" "}
@@ -121,10 +115,8 @@ export function HomeLanding() {
             ))}
           </div>
         </main>
-
         <footer className="mt-10 space-y-2 pb-4 text-center text-xs text-slate-400">
           <p className="inline-flex items-center justify-center gap-2">
-            <Lock className="size-3.5 shrink-0" aria-hidden />
             Tu información está protegida con los más altos estándares de seguridad.
           </p>
           <p>© {year} PIEL360. Todos los derechos reservados.</p>

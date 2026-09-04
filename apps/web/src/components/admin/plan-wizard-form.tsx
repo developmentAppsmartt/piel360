@@ -2,24 +2,28 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, Info, Users } from "lucide-react";
-import { RolePermissionsMatrix } from "@/components/admin/role-permissions-matrix";
 import { TextField } from "@/components/auth/text-field";
 import { Button } from "@/components/ui/button";
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import { ApiError } from "@/lib/api-error";
 import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
-import { usePermissions } from "@/lib/queries/roles";
+import { useAdminLaborTechnicianProfiles } from "@/lib/queries/labor-technician-profiles";
 import { useAnalysisProviders } from "@/lib/queries/plans";
 import type { PlanAdmin, PlanInput, PlanType } from "@/lib/queries/plans";
+import { useAdminSpecialties } from "@/lib/queries/specialties";
+import {
+  planRoleOptionsFromCatalog,
+  type PlanRoleOption,
+  PLAN_ROLE_OPTIONS,
+} from "@/lib/plan-roles";
 import { cn } from "@/lib/utils";
 
 const BUSINESS_WIZARD_STEPS = [
   { id: 1, label: "Información del plan" },
-  { id: 2, label: "Módulos y permisos" },
-  { id: 3, label: "Usuarios permitidos" },
-  { id: 4, label: "Revisión y confirmación" },
+  { id: 2, label: "Usuarios permitidos" },
+  { id: 3, label: "Revisión y confirmación" },
 ] as const;
 
 const INDIVIDUAL_WIZARD_STEPS = [
@@ -32,14 +36,12 @@ function getWizardSteps(planType: PlanType) {
 }
 
 function maxWizardStep(planType: PlanType) {
-  return planType === "individual" ? 2 : 4;
+  return planType === "individual" ? 2 : 3;
 }
 
 function isReviewStep(step: number, planType: PlanType) {
   return step === maxWizardStep(planType);
 }
-
-import { PLAN_ROLE_OPTIONS } from "@/lib/plan-roles";
 
 export type { PlanRoleKey } from "@/lib/plan-roles";
 export { PLAN_ROLE_OPTIONS };
@@ -47,49 +49,107 @@ export { PLAN_ROLE_OPTIONS };
 export type PlanWizardState = {
   name: string;
   analysisProviderIds: string[];
+  /** Límite único (planes individuales). */
   analysisLimit: number;
+  /** Límite bolsa Skiniver (dermatológico). */
+  skiniverLimit: number;
+  /** Límite bolsa Perfect Corp (estético + fototipo). */
+  aestheticLimit: number;
   price: number;
   durationDays: number;
   isActive: boolean;
   description: string;
   maxUsers: number;
-  modules: Set<string>;
   roleLimits: Record<string, number>;
 };
 
 const inputClass =
   "h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20";
 
-function emptyRoleLimits(): Record<string, number> {
-  return Object.fromEntries(PLAN_ROLE_OPTIONS.map((role) => [role.key, 0]));
+function emptyRoleLimits(options: PlanRoleOption[]): Record<string, number> {
+  return Object.fromEntries(options.map((role) => [role.key, 0]));
 }
 
-function stateFromPlan(plan: PlanAdmin): PlanWizardState {
+function parseAnalysisLimits(plan: PlanAdmin): {
+  skiniverLimit: number;
+  aestheticLimit: number;
+} {
+  const limits = plan.analysisLimits ?? {};
+  if (typeof limits.skiniver === "number" || typeof limits.aesthetic === "number") {
+    return {
+      skiniverLimit: limits.skiniver ?? 0,
+      aestheticLimit: limits.aesthetic ?? 0,
+    };
+  }
+  // Planes antiguos: un solo analysisLimit → asignarlo al primer proveedor del paquete.
+  const slugs = (plan.providers ?? [plan.provider]).map((provider) => provider.slug);
+  const hasSkiniver = slugs.includes("skiniver");
+  const hasAesthetic = slugs.some((slug) => slug === "youcam" || slug === "fitzpatrick");
+  if (hasSkiniver && !hasAesthetic) {
+    return { skiniverLimit: plan.analysisLimit, aestheticLimit: 0 };
+  }
+  if (hasAesthetic && !hasSkiniver) {
+    return { skiniverLimit: 0, aestheticLimit: plan.analysisLimit };
+  }
+  return {
+    skiniverLimit: hasSkiniver ? plan.analysisLimit : 0,
+    aestheticLimit: hasAesthetic ? plan.analysisLimit : 0,
+  };
+}
+
+function stateFromPlan(plan: PlanAdmin, roleOptions: PlanRoleOption[]): PlanWizardState {
   const analysisProviderIds =
     plan.analysisProviderIds?.length > 0
       ? plan.analysisProviderIds
       : [plan.analysisProviderId];
+  const { skiniverLimit, aestheticLimit } = parseAnalysisLimits(plan);
 
   return {
     name: plan.name,
     analysisProviderIds,
     analysisLimit: plan.analysisLimit,
+    skiniverLimit,
+    aestheticLimit,
     price: Number(plan.price),
     durationDays: plan.durationDays,
     isActive: plan.isActive,
     description: plan.description ?? "",
     maxUsers: plan.maxUsers ?? 1,
-    modules: new Set(plan.modules ?? []),
-    roleLimits: { ...emptyRoleLimits(), ...(plan.roleLimits ?? {}) },
+    roleLimits: { ...emptyRoleLimits(roleOptions), ...(plan.roleLimits ?? {}) },
   };
 }
 
-function toPlanInput(state: PlanWizardState, planType: PlanType): PlanInput {
+function toPlanInput(
+  state: PlanWizardState,
+  planType: PlanType,
+  providerSlugById: Map<string, string>,
+): PlanInput {
+  const selectedSlugs = state.analysisProviderIds
+    .map((id) => providerSlugById.get(id))
+    .filter((slug): slug is string => Boolean(slug));
+  const hasSkiniver = selectedSlugs.includes("skiniver");
+  const hasAesthetic = selectedSlugs.some(
+    (slug) => slug === "youcam" || slug === "fitzpatrick",
+  );
+
+  const skiniverLimit = hasSkiniver ? state.skiniverLimit : 0;
+  const aestheticLimit = hasAesthetic ? state.aestheticLimit : 0;
+  const analysisLimit =
+    planType === "individual"
+      ? state.analysisLimit
+      : skiniverLimit + aestheticLimit;
+
   const base = {
     name: state.name.trim(),
     analysisProviderIds: state.analysisProviderIds,
     analysisProviderId: state.analysisProviderIds[0],
-    analysisLimit: state.analysisLimit,
+    analysisLimit,
+    analysisLimits:
+      planType === "individual"
+        ? selectedSlugs[0] === "skiniver"
+          ? { skiniver: state.analysisLimit, aesthetic: 0 }
+          : { skiniver: 0, aesthetic: state.analysisLimit }
+        : { skiniver: skiniverLimit, aesthetic: aestheticLimit },
     price: state.price,
     durationDays: state.durationDays,
     isActive: state.isActive,
@@ -109,7 +169,7 @@ function toPlanInput(state: PlanWizardState, planType: PlanType): PlanInput {
   return {
     ...base,
     maxUsers: state.maxUsers,
-    modules: [...state.modules],
+    modules: [],
     roleLimits: state.roleLimits,
   };
 }
@@ -223,46 +283,86 @@ export function PlanWizardForm({
 }) {
   const router = useRouter();
   const providers = useAnalysisProviders();
-  const permissionsQuery = usePermissions();
+  const specialties = useAdminSpecialties();
+  const laborProfiles = useAdminLaborTechnicianProfiles();
   const wizardSteps = getWizardSteps(planType);
   const lastStep = maxWizardStep(planType);
   const isIndividual = planType === "individual";
+
+  const roleOptions = useMemo(
+    () =>
+      planRoleOptionsFromCatalog({
+        specialties: specialties.data,
+        laborProfiles: laborProfiles.data,
+      }),
+    [specialties.data, laborProfiles.data],
+  );
+
   const [step, setStep] = useState(1);
   const [state, setState] = useState<PlanWizardState>(() =>
     defaultValues
-      ? stateFromPlan(defaultValues)
+      ? stateFromPlan(defaultValues, PLAN_ROLE_OPTIONS)
       : {
           name: "",
           analysisProviderIds: [],
-          analysisLimit: 500,
+          analysisLimit: 10,
+          skiniverLimit: 500,
+          aestheticLimit: 500,
           price: 249900,
           durationDays: 30,
           isActive: true,
           description: "",
           maxUsers: isIndividual ? 1 : 10,
-          modules: new Set<string>(),
-          roleLimits: emptyRoleLimits(),
+          roleLimits: emptyRoleLimits(PLAN_ROLE_OPTIONS),
         },
   );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Cuando llega el catálogo de roles, rellena claves faltantes sin pisar valores.
+  useEffect(() => {
+    setState((current) => ({
+      ...current,
+      roleLimits: { ...emptyRoleLimits(roleOptions), ...current.roleLimits },
+    }));
+  }, [roleOptions]);
+
   const assignedRolesTotal = useMemo(
     () => Object.values(state.roleLimits).reduce((sum, value) => sum + (value || 0), 0),
     [state.roleLimits],
   );
+  const seatsRemaining = Math.max(0, state.maxUsers - assignedRolesTotal);
+  const seatsFull = seatsRemaining === 0;
+
+  const providerSlugById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const provider of providers.data ?? []) {
+      map.set(provider.id, provider.slug);
+    }
+    return map;
+  }, [providers.data]);
+
+  const selectedSlugs = useMemo(
+    () =>
+      state.analysisProviderIds
+        .map((id) => providerSlugById.get(id))
+        .filter((slug): slug is string => Boolean(slug)),
+    [state.analysisProviderIds, providerSlugById],
+  );
+  const skiniverEnabled = selectedSlugs.includes("skiniver");
+  const aestheticEnabled = selectedSlugs.some(
+    (slug) => slug === "youcam" || slug === "fitzpatrick",
+  );
 
   const providerLabels = useMemo(() => {
-    const list = providers.data ?? [];
-    return state.analysisProviderIds
-      .map((id) => {
-        const provider = list.find((item) => item.id === id);
-        if (!provider) return null;
-        const slug = provider.slug as keyof typeof ANALYSIS_PROVIDER_STATIC_LABELS;
-        return ANALYSIS_PROVIDER_STATIC_LABELS[slug] ?? provider.name;
-      })
-      .filter((label) => label != null);
-  }, [providers.data, state.analysisProviderIds]);
+    return selectedSlugs.map((slug) => {
+      const key = slug as keyof typeof ANALYSIS_PROVIDER_STATIC_LABELS;
+      return ANALYSIS_PROVIDER_STATIC_LABELS[key] ?? slug;
+    });
+  }, [selectedSlugs]);
+
+  const specialtyRoles = roleOptions.filter((role) => role.group === "specialty");
+  const laborRoles = roleOptions.filter((role) => role.group === "labor");
 
   function toggleBusinessProvider(providerId: string) {
     setState((current) => {
@@ -270,6 +370,20 @@ export function PlanWizardForm({
       if (set.has(providerId)) set.delete(providerId);
       else set.add(providerId);
       return { ...current, analysisProviderIds: [...set] };
+    });
+  }
+
+  function setRoleLimit(key: string, nextRaw: number) {
+    const currentValue = state.roleLimits[key] ?? 0;
+    const next = Math.max(0, nextRaw);
+    const maxAllowed = currentValue + seatsRemaining;
+    const clamped = Math.min(next, maxAllowed);
+    setState({
+      ...state,
+      roleLimits: {
+        ...state.roleLimits,
+        [key]: clamped,
+      },
     });
   }
 
@@ -284,7 +398,26 @@ export function PlanWizardForm({
       if (isIndividual && state.analysisProviderIds.length !== 1) {
         return "El plan individual solo puede incluir un análisis.";
       }
-      if (state.analysisLimit < 0) return "El límite de análisis debe ser mayor o igual a 0.";
+      if (isIndividual && state.analysisLimit < 0) {
+        return "El límite de análisis debe ser mayor o igual a 0.";
+      }
+      if (!isIndividual) {
+        if (skiniverEnabled && state.skiniverLimit < 0) {
+          return "El límite dermatológico debe ser mayor o igual a 0.";
+        }
+        if (aestheticEnabled && state.aestheticLimit < 0) {
+          return "El límite estético/fototipo debe ser mayor o igual a 0.";
+        }
+        if (skiniverEnabled && aestheticEnabled) {
+          if (state.skiniverLimit + state.aestheticLimit < 1) {
+            return "Define al menos un crédito en los límites de análisis.";
+          }
+        } else if (skiniverEnabled && state.skiniverLimit < 1) {
+          return "Define el límite de análisis dermatológico.";
+        } else if (aestheticEnabled && state.aestheticLimit < 1) {
+          return "Define el límite de análisis estético/fototipo.";
+        }
+      }
       if (state.price < 0) return "El precio debe ser mayor o igual a 0.";
       if (state.durationDays < 1) return "La duración debe ser al menos 1 día.";
       if (!isIndividual && state.maxUsers < 1) {
@@ -292,10 +425,7 @@ export function PlanWizardForm({
       }
       if (state.description.length > 300) return "La descripción no puede superar 300 caracteres.";
     }
-    if (!isIndividual && current === 2 && state.modules.size === 0) {
-      return "Selecciona al menos un módulo o permiso.";
-    }
-    if (!isIndividual && current === 3 && assignedRolesTotal > state.maxUsers) {
+    if (!isIndividual && current === 2 && assignedRolesTotal > state.maxUsers) {
       return `La suma de usuarios por rol (${assignedRolesTotal}) supera el máximo del plan (${state.maxUsers}).`;
     }
     return null;
@@ -319,7 +449,7 @@ export function PlanWizardForm({
   async function handleCreate() {
     const validationError = isIndividual
       ? validateStep(1)
-      : validateStep(1) ?? validateStep(2) ?? validateStep(3);
+      : validateStep(1) ?? validateStep(2);
     if (validationError) {
       setError(validationError);
       return;
@@ -327,7 +457,7 @@ export function PlanWizardForm({
     setSaving(true);
     setError(null);
     try {
-      await onSubmit(toPlanInput(state, planType));
+      await onSubmit(toPlanInput(state, planType, providerSlugById));
       router.push("/admin/planes");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo guardar el plan.");
@@ -337,6 +467,41 @@ export function PlanWizardForm({
   }
 
   const planTypeLabel = isIndividual ? "individual" : "empresas";
+
+  function renderRoleInputs(roles: PlanRoleOption[], title: string) {
+    if (roles.length === 0) return null;
+    return (
+      <div className="space-y-3">
+        <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          {title}
+        </p>
+        {roles.map((role) => {
+          const value = state.roleLimits[role.key] ?? 0;
+          const disabled = seatsFull && value === 0;
+          return (
+            <label
+              key={role.key}
+              className={cn(
+                "flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border px-4 py-3 text-sm",
+                disabled && "opacity-60",
+              )}
+            >
+              <span className="font-medium text-foreground">{role.label}</span>
+              <input
+                type="number"
+                min={0}
+                max={value + seatsRemaining}
+                disabled={disabled}
+                className="h-9 w-24 rounded-lg border border-border bg-background px-2 text-right text-sm disabled:cursor-not-allowed disabled:bg-muted"
+                value={value}
+                onChange={(e) => setRoleLimit(role.key, Number(e.target.value) || 0)}
+              />
+            </label>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -360,7 +525,7 @@ export function PlanWizardForm({
         <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
           {isIndividual
             ? "Define nombre, proveedor, límites y precio del plan para un profesional individual."
-            : "Define las características, límites, módulos y usuarios permitidos para este plan."}
+            : "Define las características, límites de análisis y usuarios permitidos para este plan."}
         </p>
       </div>
 
@@ -423,31 +588,81 @@ export function PlanWizardForm({
                             }
                           }}
                         />
-                        <span>
-                          <span className="font-medium text-foreground">{label}</span>
-                        </span>
+                        <span className="font-medium text-foreground">{label}</span>
                       </label>
                     );
                   })}
                 </div>
               </div>
-              <label className="flex flex-col gap-1.5 text-sm">
-                <span className="font-medium">
-                  Límite de análisis IA por mes <span className="text-destructive">*</span>
-                </span>
-                <input
-                  type="number"
-                  min={0}
-                  className={inputClass}
-                  value={state.analysisLimit}
-                  onChange={(e) =>
-                    setState({ ...state, analysisLimit: Number(e.target.value) || 0 })
-                  }
-                />
-                <span className="text-xs text-muted-foreground">
-                  Cantidad máxima de análisis IA disponibles por mes.
-                </span>
-              </label>
+
+              {isIndividual ? (
+                <label className="flex flex-col gap-1.5 text-sm">
+                  <span className="font-medium">
+                    Límite de análisis IA <span className="text-destructive">*</span>
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    className={inputClass}
+                    value={state.analysisLimit}
+                    onChange={(e) =>
+                      setState({ ...state, analysisLimit: Number(e.target.value) || 0 })
+                    }
+                  />
+                </label>
+              ) : (
+                <>
+                  <label className="flex flex-col gap-1.5 text-sm">
+                    <span className="font-medium">
+                      Límite dermatológico (Skiniver){" "}
+                      {skiniverEnabled ? <span className="text-destructive">*</span> : null}
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      disabled={!skiniverEnabled}
+                      className={cn(inputClass, !skiniverEnabled && "cursor-not-allowed bg-muted")}
+                      value={skiniverEnabled ? state.skiniverLimit : 0}
+                      onChange={(e) =>
+                        setState({
+                          ...state,
+                          skiniverLimit: Number(e.target.value) || 0,
+                        })
+                      }
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {skiniverEnabled
+                        ? "Créditos de la bolsa dermatológica."
+                        : "Actívalo seleccionando Piel 360 AI · Dermatológico."}
+                    </span>
+                  </label>
+                  <label className="flex flex-col gap-1.5 text-sm">
+                    <span className="font-medium">
+                      Límite estético / fototipo{" "}
+                      {aestheticEnabled ? <span className="text-destructive">*</span> : null}
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      disabled={!aestheticEnabled}
+                      className={cn(inputClass, !aestheticEnabled && "cursor-not-allowed bg-muted")}
+                      value={aestheticEnabled ? state.aestheticLimit : 0}
+                      onChange={(e) =>
+                        setState({
+                          ...state,
+                          aestheticLimit: Number(e.target.value) || 0,
+                        })
+                      }
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {aestheticEnabled
+                        ? "Créditos compartidos YouCam + Fitzpatrick (bolsa Perfect Corp)."
+                        : "Actívalo seleccionando Estético y/o Fototipo."}
+                    </span>
+                  </label>
+                </>
+              )}
+
               <label className="flex flex-col gap-1.5 text-sm">
                 <span className="font-medium">
                   Precio (COP) <span className="text-destructive">*</span>
@@ -459,7 +674,6 @@ export function PlanWizardForm({
                   value={state.price}
                   onChange={(e) => setState({ ...state, price: Number(e.target.value) || 0 })}
                 />
-                <span className="text-xs text-muted-foreground">Precio mensual del plan.</span>
               </label>
               <label className="flex flex-col gap-1.5 text-sm">
                 <span className="font-medium">
@@ -471,12 +685,12 @@ export function PlanWizardForm({
                   className={inputClass}
                   value={state.durationDays}
                   onChange={(e) =>
-                    setState({ ...state, durationDays: Math.max(1, Number(e.target.value) || 1) })
+                    setState({
+                      ...state,
+                      durationDays: Math.max(1, Number(e.target.value) || 1),
+                    })
                   }
                 />
-                <span className="text-xs text-muted-foreground">
-                  Duración de la suscripción del plan.
-                </span>
               </label>
               <label className="flex items-center gap-2 text-sm md:col-span-2">
                 <input
@@ -515,61 +729,23 @@ export function PlanWizardForm({
       ) : null}
 
       {!isIndividual && step === 2 ? (
-        <ModuleCard className="space-y-4">
-          <div>
-            <ModuleCardTitle>Módulos y permisos</ModuleCardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Selecciona los módulos y acciones que incluirá este plan en la plataforma.
-            </p>
-          </div>
-          <RolePermissionsMatrix
-            permissions={permissionsQuery.data ?? []}
-            selected={state.modules}
-            onChange={(modules) => setState({ ...state, modules })}
-            selectionMode="name"
-            loading={permissionsQuery.isLoading}
-          />
-        </ModuleCard>
-      ) : null}
-
-      {!isIndividual && step === 3 ? (
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <ModuleCard className="space-y-4">
+          <ModuleCard className="space-y-5">
             <div>
               <ModuleCardTitle>Distribución por rol</ModuleCardTitle>
               <p className="mt-1 text-sm text-muted-foreground">
-                Opcionalmente define cuántos usuarios de cada rol puede tener la cuenta.
-                La suma no debe superar el máximo del plan.
+                Define cuántos usuarios de cada especialidad o perfil técnico puede tener la
+                cuenta. Al completar el máximo, los selectores vacíos se deshabilitan.
               </p>
             </div>
-            <div className="space-y-3">
-              {PLAN_ROLE_OPTIONS.map((role) => (
-                <label
-                  key={role.key}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border px-4 py-3 text-sm"
-                >
-                  <span className="font-medium text-foreground">{role.label}</span>
-                  <input
-                    type="number"
-                    min={0}
-                    className="h-9 w-24 rounded-lg border border-border bg-background px-2 text-right text-sm"
-                    value={state.roleLimits[role.key] ?? 0}
-                    onChange={(e) =>
-                      setState({
-                        ...state,
-                        roleLimits: {
-                          ...state.roleLimits,
-                          [role.key]: Math.max(0, Number(e.target.value) || 0),
-                        },
-                      })
-                    }
-                  />
-                </label>
-              ))}
-            </div>
+            {renderRoleInputs(specialtyRoles, "Especialistas / profesionales")}
+            {renderRoleInputs(laborRoles, "Técnicos laborales")}
             <p className="text-sm text-muted-foreground">
               Asignados: <strong>{assignedRolesTotal}</strong> de{" "}
               <strong>{state.maxUsers}</strong> usuarios
+              {seatsFull ? (
+                <span className="ml-2 text-amber-700">· Cupo completo</span>
+              ) : null}
             </p>
           </ModuleCard>
           <UsersAllowedCard
@@ -602,10 +778,33 @@ export function PlanWizardForm({
                     {providerLabels.length > 0 ? providerLabels.join(" · ") : "—"}
                   </dd>
                 </div>
-                <div className="flex justify-between gap-4">
-                  <dt>Análisis IA / mes</dt>
-                  <dd className="text-right font-medium text-foreground">{state.analysisLimit}</dd>
-                </div>
+                {isIndividual ? (
+                  <div className="flex justify-between gap-4">
+                    <dt>Análisis IA</dt>
+                    <dd className="text-right font-medium text-foreground">
+                      {state.analysisLimit}
+                    </dd>
+                  </div>
+                ) : (
+                  <>
+                    {skiniverEnabled ? (
+                      <div className="flex justify-between gap-4">
+                        <dt>Límite dermatológico</dt>
+                        <dd className="text-right font-medium text-foreground">
+                          {state.skiniverLimit}
+                        </dd>
+                      </div>
+                    ) : null}
+                    {aestheticEnabled ? (
+                      <div className="flex justify-between gap-4">
+                        <dt>Límite estético/fototipo</dt>
+                        <dd className="text-right font-medium text-foreground">
+                          {state.aestheticLimit}
+                        </dd>
+                      </div>
+                    ) : null}
+                  </>
+                )}
                 <div className="flex justify-between gap-4">
                   <dt>Precio</dt>
                   <dd className="text-right font-medium text-foreground">
@@ -632,15 +831,11 @@ export function PlanWizardForm({
             </div>
             {!isIndividual ? (
               <div className="rounded-xl border border-border p-4 text-sm">
-                <p className="font-semibold text-foreground">Usuarios y permisos</p>
+                <p className="font-semibold text-foreground">Usuarios</p>
                 <dl className="mt-3 space-y-2 text-muted-foreground">
                   <div className="flex justify-between gap-4">
                     <dt>Usuarios máximos</dt>
                     <dd className="text-right font-medium text-foreground">{state.maxUsers}</dd>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <dt>Permisos seleccionados</dt>
-                    <dd className="text-right font-medium text-foreground">{state.modules.size}</dd>
                   </div>
                   <div className="flex justify-between gap-4">
                     <dt>Usuarios por rol</dt>

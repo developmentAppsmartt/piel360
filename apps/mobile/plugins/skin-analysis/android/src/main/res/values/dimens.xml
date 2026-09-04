@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <dimen name="skin_oval_width">300dp</dimen>
+  <dimen name="skin_oval_height">400dp</dimen>
+  <dimen name="skin_capture_loader">96dp</dimen>
+</resources>

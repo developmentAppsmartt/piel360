@@ -151,7 +151,6 @@ export class SubscriptionsService {
     subscriptionId: bigint,
     plan: Plan,
   ): Promise<void> {
-    await this.planPool.assertPlanPurchasable(plan);
     await this.subscriptionPool.allocateForSubscription(
       this.prisma,
       subscriptionId,
@@ -340,7 +339,17 @@ export class SubscriptionsService {
       (willBeActive && !existing.endsAt);
 
     if (needsPoolAllocation) {
-      await this.planPool.assertPlanPurchasable(nextPlan);
+      const allocation = await this.prisma.subscriptionPoolAllocation.findUnique({
+        where: { subscriptionId: existing.id },
+        select: { returned: true },
+      });
+      // Reactivar tras cancelar solo re-compromete el restante ya devuelto,
+      // no exige el total del plan en bolsa.
+      const isReactivation =
+        activating && allocation != null && allocation.returned > 0;
+      if (!isReactivation) {
+        await this.planPool.assertPlanPurchasable(nextPlan);
+      }
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {

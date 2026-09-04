@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@+id/skin_root"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:background="#000000">
+
+  <androidx.camera.view.PreviewView
+    android:id="@+id/preview_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent" />
+
+  <View
+    android:id="@+id/oval_mask"
+    android:layout_width="@dimen/skin_oval_width"
+    android:layout_height="@dimen/skin_oval_height"
+    android:layout_gravity="center"
+    android:background="@drawable/skin_analysis_oval"
+    android:alpha="0.98" />
+
+  <!-- Guía / countdown del Camera Kit -->
+  <LinearLayout
+    android:id="@+id/guide_block"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_gravity="center"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:paddingHorizontal="24dp">
+
+    <TextView
+      android:id="@+id/guide_text"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:gravity="center"
+      android:shadowColor="#B0000000"
+      android:shadowDx="0"
+      android:shadowDy="1"
+      android:shadowRadius="6"
+      android:text="Inicializando…"
+      android:textColor="#FFFFFF"
+      android:textSize="26sp"
+      android:textStyle="bold" />
+
+    <TextView
+      android:id="@+id/countdown_text"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="4dp"
+      android:gravity="center"
+      android:shadowColor="#B0000000"
+      android:shadowDx="0"
+      android:shadowDy="2"
+      android:shadowRadius="8"
+      android:textColor="#FFFFFF"
+      android:textSize="72sp"
+      android:textStyle="bold"
+      android:visibility="gone" />
+  </LinearLayout>
+
+  <!-- Loader animado (captura / procesando) -->
+  <com.piel360.app.skinanalysis.CapturePulseLoaderView
+    android:id="@+id/capture_loader"
+    android:layout_width="96dp"
+    android:layout_height="96dp"
+    android:layout_gravity="center"
+    android:visibility="gone" />
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_gravity="top"
+    android:orientation="vertical"
+    android:paddingTop="36dp"
+    android:paddingHorizontal="16dp">
+
+    <RelativeLayout
+      android:layout_width="match_parent"
+      android:layout_height="44dp">
+
+      <TextView
+        android:id="@+id/btn_back"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_alignParentStart="true"
+        android:layout_centerVertical="true"
+        android:background="@drawable/skin_analysis_circle_btn"
+        android:gravity="center"
+        android:text="‹"
+        android:textColor="#222222"
+        android:textSize="28sp"
+        android:textStyle="bold" />
+
+      <ImageView
+        android:id="@+id/btn_switch_camera"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_alignParentEnd="true"
+        android:layout_centerVertical="true"
+        android:background="@drawable/skin_analysis_circle_btn"
+        android:contentDescription="Cambiar cámara"
+        android:padding="8dp"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_switch_camera" />
+    </RelativeLayout>
+
+    <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="10dp"
+      android:gravity="center"
+      android:orientation="horizontal"
+      android:weightSum="3">
+
+      <TextView
+        android:id="@+id/badge_lighting"
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:layout_marginEnd="4dp"
+        android:layout_weight="1"
+        android:background="@drawable/skin_badge_pending"
+        android:gravity="center"
+        android:maxLines="2"
+        android:paddingHorizontal="4dp"
+        android:paddingVertical="6dp"
+        android:text="Iluminación"
+        android:textAlignment="center"
+        android:textColor="#FFFFFF"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+
+      <TextView
+        android:id="@+id/badge_pose"
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:layout_marginHorizontal="4dp"
+        android:layout_weight="1"
+        android:background="@drawable/skin_badge_pending"
+        android:gravity="center"
+        android:maxLines="2"
+        android:paddingHorizontal="4dp"
+        android:paddingVertical="6dp"
+        android:text="Mirada recta"
+        android:textAlignment="center"
+        android:textColor="#FFFFFF"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+
+      <TextView
+        android:id="@+id/badge_face"
+        android:layout_width="0dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="4dp"
+        android:layout_weight="1"
+        android:background="@drawable/skin_badge_pending"
+        android:gravity="center"
+        android:maxLines="2"
+        android:paddingHorizontal="4dp"
+        android:paddingVertical="6dp"
+        android:text="Posición de la cara"
+        android:textAlignment="center"
+        android:textColor="#FFFFFF"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+    </LinearLayout>
+  </LinearLayout>
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_gravity="bottom"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingBottom="28dp"
+    android:paddingHorizontal="24dp">
+
+    <!-- Solo visible si el AAR Perfect no carga (último recurso). -->
+    <Button
+      android:id="@+id/btn_capture"
+      android:layout_width="match_parent"
+      android:layout_height="48dp"
+      android:backgroundTint="#6C4EE3"
+      android:enabled="false"
+      android:text="Capturar"
+      android:textAllCaps="false"
+      android:textColor="#FFFFFF"
+      android:visibility="gone" />
+  </LinearLayout>
+
+  <TextView
+    android:id="@+id/status_text"
+    android:layout_width="0dp"
+    android:layout_height="0dp"
+    android:visibility="gone" />
+
+  <TextView
+    android:id="@+id/sdk_badge"
+    android:layout_width="0dp"
+    android:layout_height="0dp"
+    android:visibility="gone" />
+
+  <Button
+    android:id="@+id/btn_cancel"
+    android:layout_width="0dp"
+    android:layout_height="0dp"
+    android:visibility="gone" />
+</FrameLayout>

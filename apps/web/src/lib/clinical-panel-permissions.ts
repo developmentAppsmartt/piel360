@@ -52,6 +52,9 @@ export function clinicalRouteAllowed(
   ) {
     return hasAnyPermission(userPermissions, ["clinical.email_templates"]);
   }
+  if (pathname === "/doctor/agenda" || pathname.startsWith("/doctor/agenda/")) {
+    return hasAnyPermission(userPermissions, ["clinical.agenda"]);
+  }
 
   const matchingRules = CLINICAL_ROUTE_RULES.filter(
     (entry) =>

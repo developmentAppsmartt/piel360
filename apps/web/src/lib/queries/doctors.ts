@@ -15,6 +15,8 @@ export interface Doctor {
   docType: string | null;
   docNumber: string | null;
   phone: string | null;
+  /** ISO date when the user verified their phone via OTP; null if pending. */
+  phoneVerifiedAt?: string | null;
   specialty: string | null;
   medicalRegistry: string | null;
   licenseNumber: string | null;

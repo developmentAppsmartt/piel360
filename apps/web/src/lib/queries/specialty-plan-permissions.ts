@@ -39,10 +39,46 @@ export function useUpdateSpecialtyPlanPermissions() {
           }),
         },
       ),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({
         queryKey: ["admin", "specialty-plan-permissions"],
       });
+      const previous = queryClient.getQueryData<SpecialtyPlanPermissionRow[]>([
+        "admin",
+        "specialty-plan-permissions",
+      ]);
+      if (previous) {
+        queryClient.setQueryData<SpecialtyPlanPermissionRow[]>(
+          ["admin", "specialty-plan-permissions"],
+          previous.map((row) =>
+            row.roleId === input.roleId
+              ? {
+                  ...row,
+                  providers: { ...row.providers, ...input.providers },
+                }
+              : row,
+          ),
+        );
+      }
+      return { previous };
+    },
+    onError: (_err, _input, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          ["admin", "specialty-plan-permissions"],
+          context.previous,
+        );
+      }
+    },
+    onSuccess: (row) => {
+      queryClient.setQueryData<SpecialtyPlanPermissionRow[]>(
+        ["admin", "specialty-plan-permissions"],
+        (current) =>
+          current?.map((item) => (item.roleId === row.roleId ? row : item)) ?? [
+            row,
+          ],
+      );
+      queryClient.invalidateQueries({ queryKey: ["admin", "roles"] });
     },
   });
 }

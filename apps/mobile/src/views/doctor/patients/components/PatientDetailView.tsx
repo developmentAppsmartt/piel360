@@ -251,6 +251,7 @@ export function PatientDetailView({
         title="Datos del paciente"
         emailEditable={false}
         analyses={analyses}
+        requirePhoneOtp={false}
         onBack={() => setEditing(false)}
         onSave={handleSavePatient}
       />
@@ -386,7 +387,7 @@ export function PatientDetailView({
                       onPress={() =>
                         Alert.alert(
                           'Asignar Cita',
-                          'La agenda se conectará próximamente.',
+                          'Usa la pestaña Agenda para proponer una cita a este paciente.',
                         )
                       }
                     >

@@ -136,13 +136,16 @@ export class PatientsService {
         currentUser.sub,
         'patients',
       );
+      await this.assertCanAccess(patient, currentUser);
+      const scope = await this.orgContext.resolvePatientDoctorScope(
+        currentUser.sub,
+      );
+      return this.withAvatarUrl(patient, scope.ctx.isOrgOwner);
     }
 
     await this.assertCanAccess(patient, currentUser);
-    const scope = await this.orgContext.resolvePatientDoctorScope(
-      currentUser.sub,
-    );
-    return this.withAvatarUrl(patient, scope.ctx.isOrgOwner);
+    // Paciente (u otro rol sin perfil doctor): no exigir OrgContext de doctor.
+    return this.withAvatarUrl(patient);
   }
 
   async create(dto: CreatePatientDto, currentUser: JwtPayload) {
@@ -261,21 +264,16 @@ export class PatientsService {
       patient.areaCode,
       patient.phone,
     );
-    const userCurrentPhone = patient.userId
-      ? (
-          await this.prisma.user.findUnique({
-            where: { id: patient.userId },
-            select: { phone: true },
-          })
-        )?.phone?.replace(/\D/g, '') ?? ''
-      : '';
-    const referencePhone = userCurrentPhone || currentNormalized;
+    const phoneChanged = Boolean(normalized) && normalized !== currentNormalized;
+    const isOwnPatient = patient.userId?.toString() === currentUser.sub;
 
     let phoneVerifiedAt: Date | undefined;
     const phoneFieldsTouched = phone !== undefined || areaCode !== undefined;
 
-    if ((phoneFieldsTouched || phoneTicket) && normalized) {
-      if (normalized !== referencePhone) {
+    // Solo el propio paciente debe verificar por OTP al cambiar celular.
+    // El profesional puede actualizar el teléfono del paciente sin SMS.
+    if (isOwnPatient && normalized) {
+      if (phoneChanged) {
         if (!phoneTicket?.trim()) {
           throw new BadRequestException(
             'Debes verificar el nuevo celular con el código enviado por SMS.',

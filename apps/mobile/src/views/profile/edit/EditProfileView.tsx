@@ -22,6 +22,7 @@ type EditProfileViewProps = {
   emailEditable?: boolean;
   analyses?: PatientAnalysisSummary[];
   onOpenMessages?: () => void;
+  requirePhoneOtp?: boolean;
 };
 
 export function EditProfileView({
@@ -32,6 +33,7 @@ export function EditProfileView({
   emailEditable = true,
   analyses,
   onOpenMessages,
+  requirePhoneOtp = true,
 }: EditProfileViewProps) {
   const branding = useBranding();
   const styles = useMemo(
@@ -73,6 +75,7 @@ export function EditProfileView({
               onSubmit={onSave}
               emailEditable={emailEditable}
               analyses={analyses}
+              requirePhoneOtp={requirePhoneOtp}
             />
           </ScrollView>
         </KeyboardAvoidingView>

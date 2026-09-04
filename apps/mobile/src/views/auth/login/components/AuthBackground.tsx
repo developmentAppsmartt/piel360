@@ -18,6 +18,8 @@ const SCRIM_COLORS = [
 
 const SCRIM_LOCATIONS = [0, 0.48, 1] as const;
 
+const noPointer = { pointerEvents: 'none' as const };
+
 export function AuthBackground({ children }: AuthBackgroundProps) {
   const branding = useBranding();
   const { width, height } = useWindowDimensions();
@@ -36,8 +38,7 @@ export function AuthBackground({ children }: AuthBackgroundProps) {
               locations={[0, 0.45, 1]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-              pointerEvents="none"
+              style={[StyleSheet.absoluteFill, noPointer]}
             />
             <View style={styles.content}>{children}</View>
           </View>
@@ -47,18 +48,16 @@ export function AuthBackground({ children }: AuthBackgroundProps) {
               locations={[0, 0.45, 1]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-              pointerEvents="none"
+              style={[StyleSheet.absoluteFill, noPointer]}
             />
             <Image
               source={branding.loginHeroImage}
-              style={styles.heroFill}
+              style={[styles.heroFill, noPointer]}
               resizeMode="cover"
             />
             <LinearGradient
               colors={['rgba(14, 26, 56, 0.15)', 'rgba(0, 0, 0, 0.35)']}
-              style={StyleSheet.absoluteFill}
-              pointerEvents="none"
+              style={[StyleSheet.absoluteFill, noPointer]}
             />
           </View>
         </View>
@@ -73,14 +72,12 @@ export function AuthBackground({ children }: AuthBackgroundProps) {
         locations={[0, 0.45, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.backLayer}
-        pointerEvents="none"
+        style={[styles.backLayer, noPointer]}
       />
       <Image
         source={branding.loginHeroImage}
-        style={[styles.heroImage, { width: heroWidth }]}
+        style={[styles.heroImage, { width: heroWidth }, noPointer]}
         resizeMode="cover"
-        pointerEvents="none"
       />
       <LinearGradient
         colors={[...SCRIM_COLORS]}

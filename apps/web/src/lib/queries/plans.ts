@@ -27,6 +27,10 @@ export interface PlanInput {
   analysisProviderId?: string;
   analysisProviderIds?: string[];
   analysisLimit: number;
+  analysisLimits?: {
+    skiniver?: number;
+    aesthetic?: number;
+  };
   price: number;
   durationDays: number;
   maxUsers: number;

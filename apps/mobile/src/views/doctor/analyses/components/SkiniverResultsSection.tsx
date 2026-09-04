@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -22,7 +22,11 @@ import type {
   SkiniverDiagnosisCandidate,
   SkiniverRawResponse,
 } from '../../../../types/analysis';
-import { normalizedProb, parseSkiniverPrediction } from '../../../../types/analysis';
+import {
+  extractSkiniverSupportDiagnoses,
+  normalizedProb,
+  parseSkiniverDescription,
+} from '../../../../types/analysis';
 import { createAnalysisDetailStyles } from '../styles/analysisDetail.styles';
 import { AnalysisImageCarousel } from './AnalysisImageCarousel';
 import { SkiniverRiskGauge } from './SkiniverRiskGauge';
@@ -59,6 +63,31 @@ function formatStamp(iso: string): string {
   return `${dd}${mm}${yyyy} ${hh}:${min}`;
 }
 
+/** Une campos ya parseados + re-parse de `description` por si el item llega crudo. */
+function enrichCandidate(
+  item: SkiniverDiagnosisCandidate,
+): SkiniverDiagnosisCandidate {
+  if (
+    item.riskEvaluation &&
+    item.preciseDiagnosis &&
+    item.treatment &&
+    item.advice
+  ) {
+    return item;
+  }
+  const parsed = parseSkiniverDescription(item.description);
+  if (!parsed) return item;
+  return {
+    ...item,
+    riskEvaluation: item.riskEvaluation || parsed.riskEvaluation || undefined,
+    conclusionText: item.conclusionText || parsed.conclusionText || undefined,
+    preciseDiagnosis:
+      item.preciseDiagnosis || parsed.preciseDiagnosis || undefined,
+    treatment: item.treatment || parsed.treatment || undefined,
+    advice: item.advice || parsed.advice || undefined,
+  };
+}
+
 function DonutProb({
   prob,
   color,
@@ -70,32 +99,42 @@ function DonutProb({
   const stroke = 5;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
-  const pct = Math.max(0, Math.min(100, prob)) / 100;
-  const offset = c * (1 - pct);
+  const safeProb = Number.isFinite(prob)
+    ? Math.max(0, Math.min(100, prob))
+    : 0;
+  const offset = c * (1 - safeProb / 100);
+  const cx = size / 2;
+  const cy = size / 2;
 
   return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+    <View
+      style={{
+        width: size,
+        height: size,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
       <Svg width={size} height={size} style={{ position: 'absolute' }}>
         <Circle
-          cx={size / 2}
-          cy={size / 2}
+          cx={cx}
+          cy={cy}
           r={r}
           stroke="#E5E7EB"
-          strokeWidth={stroke}
+          strokeWidth={String(stroke)}
           fill="none"
         />
         <Circle
-          cx={size / 2}
-          cy={size / 2}
+          cx={cx}
+          cy={cy}
           r={r}
           stroke={color}
-          strokeWidth={stroke}
+          strokeWidth={String(stroke)}
           fill="none"
           strokeDasharray={`${c} ${c}`}
           strokeDashoffset={offset}
           strokeLinecap="round"
-          rotation={-90}
-          origin={`${size / 2}, ${size / 2}`}
+          transform={`rotate(-90 ${cx} ${cy})`}
         />
       </Svg>
       <Text
@@ -105,7 +144,7 @@ function DonutProb({
           color: '#374151',
         }}
       >
-        {prob.toFixed(1).replace('.', ',')}
+        {safeProb.toFixed(1).replace('.', ',')}
       </Text>
     </View>
   );
@@ -145,9 +184,7 @@ function DiagnosisStatCard({
 
 type SkiniverResultsSectionProps = {
   analysis: AnalysisDetail;
-  /** Pie de la vista detalle (confirmar / corregir). */
   detailFooter?: ReactNode;
-  /** Vista controlada desde el padre (para el botón Volver del header). */
   view?: 'stats' | 'detail';
   onViewChange?: (view: 'stats' | 'detail') => void;
 };
@@ -164,27 +201,25 @@ export function SkiniverResultsSection({
     [branding.colors],
   );
 
-  const prediction = parseSkiniverPrediction(
-    analysis.aiRawResponse as SkiniverRawResponse | null,
+  const extracted = useMemo(
+    () =>
+      extractSkiniverSupportDiagnoses(
+        analysis.aiRawResponse as SkiniverRawResponse | null,
+        3,
+      ),
+    [analysis.aiRawResponse],
   );
 
-  const riskLabel = prediction?.risk ?? analysis.aiDiagnosis ?? '—';
+  const riskLabel =
+    extracted.riskLabel !== '—'
+      ? extracted.riskLabel
+      : analysis.aiDiagnosis ?? '—';
   const gaugePercent = (() => {
-    const raw = prediction?.high_risk_prob ?? analysis.aiProbability ?? 0;
+    const raw = extracted.highRiskProb || analysis.aiProbability || 0;
     return raw <= 1 ? raw * 100 : raw;
   })();
 
-  const topn = Array.isArray(prediction?.topn) ? prediction.topn : [];
-  const fallbackTop: SkiniverDiagnosisCandidate | null = prediction?.class
-    ? {
-        class: prediction.class,
-        prob: prediction.prob ?? analysis.aiProbability ?? 0,
-        risk: prediction.risk ?? '—',
-        desease: undefined,
-        atlas_page_link: undefined,
-      }
-    : null;
-  const list = topn.length > 0 ? topn : fallbackTop ? [fallbackTop] : [];
+  const list = extracted.items;
 
   const [internalView, setInternalView] = useState<'stats' | 'detail'>('stats');
   const view = viewProp ?? internalView;
@@ -193,9 +228,7 @@ export function SkiniverResultsSection({
     if (viewProp === undefined) setInternalView(next);
   }
 
-  const [selected, setSelected] = useState<SkiniverDiagnosisCandidate | null>(
-    null,
-  );
+  const [selectedClass, setSelectedClass] = useState<string | null>(null);
 
   const [storyOpen, setStoryOpen] = useState(false);
   const [storyLoading, setStoryLoading] = useState(false);
@@ -203,10 +236,16 @@ export function SkiniverResultsSection({
   const [storyText, setStoryText] = useState<string | null>(null);
   const [storyError, setStoryError] = useState<string | null>(null);
 
-  const [descLoading, setDescLoading] = useState(false);
-  const [description, setDescription] = useState<string | null>(null);
+  const active = useMemo(() => {
+    const base =
+      (selectedClass
+        ? list.find((item) => item.class === selectedClass)
+        : null) ??
+      list[0] ??
+      null;
+    return base ? enrichCandidate(base) : null;
+  }, [list, selectedClass]);
 
-  const active = selected ?? list[0] ?? null;
   const displayDiagnosis =
     analysis.finalDiagnosis?.trim() ||
     active?.class ||
@@ -219,35 +258,27 @@ export function SkiniverResultsSection({
   const activeProb =
     active != null ? Math.round(normalizedProb(active.prob)) : null;
 
-  useEffect(() => {
-    let cancelled = false;
-    const link = active?.atlas_page_link;
-    if (!link || view !== 'detail') {
-      setDescription(null);
-      return;
-    }
-    setDescLoading(true);
-    (async () => {
-      try {
-        const entry = await encyclopediaService.getByUrl(link);
-        if (!cancelled) {
-          setDescription(
-            entry?.content ? stripHtml(entry.content).slice(0, 900) : null,
-          );
-        }
-      } catch {
-        if (!cancelled) setDescription(null);
-      } finally {
-        if (!cancelled) setDescLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [active?.atlas_page_link, view]);
+  const conclusionLine =
+    active?.conclusionText ||
+    (active?.desease
+      ? activeProb != null
+        ? `${activeProb}% ${active.desease}`
+        : active.desease
+      : null);
+
+  const rootCode =
+    typeof extracted.prediction?.lesion_code === 'string'
+      ? extracted.prediction.lesion_code
+      : undefined;
+  const isPrimaryDiagnosis =
+    !!active &&
+    (!!extracted.prediction?.class
+      ? active.class === extracted.prediction.class
+      : list[0]?.class === active.class);
+  const icdCode = active?.lesion_code || (isPrimaryDiagnosis ? rootCode : undefined);
 
   function openDetail(item: SkiniverDiagnosisCandidate) {
-    setSelected(item);
+    setSelectedClass(item.class);
     setView('detail');
   }
 
@@ -281,6 +312,14 @@ export function SkiniverResultsSection({
   }
 
   if (view === 'detail' && active) {
+    const riskEvalText = active.riskEvaluation?.trim();
+    const hasAdviceBlock = Boolean(
+      conclusionLine ||
+        active.preciseDiagnosis ||
+        active.treatment ||
+        active.advice,
+    );
+
     return (
       <View style={styles.skiniverBlock}>
         <Pressable
@@ -313,11 +352,10 @@ export function SkiniverResultsSection({
         <View style={styles.infoRow}>
           <AppIcon
             icon={Icons.calendarClock}
-            size={20}
-            color={branding.colors.muted}
+            size={22}
+            color={branding.colors.primary}
           />
           <View style={styles.infoRowBody}>
-            <Text style={styles.infoRowLabel}>Fecha</Text>
             <Text style={styles.infoRowValue}>
               {formatStamp(analysis.createdAt)}
             </Text>
@@ -330,98 +368,98 @@ export function SkiniverResultsSection({
             { backgroundColor: banner.bg, borderColor: banner.border },
           ]}
         >
-          <AppIcon icon={Icons.alertCircle} size={20} color={banner.text} />
+          <AppIcon icon={Icons.alertCircle} size={22} color={banner.text} />
           <View style={styles.infoRowBody}>
-            <Text style={[styles.infoRowLabel, { color: banner.text }]}>
-              Nivel de riesgo
-            </Text>
             <Text style={[styles.infoRowValue, { color: banner.text }]}>
-              {active.risk || riskLabel}
+              Nivel de Riesgo: {active.risk || riskLabel}
             </Text>
           </View>
         </View>
 
-        <Pressable style={styles.infoRow} onPress={() => openEncyclopedia(active)}>
+        <Pressable
+          style={styles.infoRow}
+          onPress={() => openEncyclopedia(active)}
+        >
           <AppIcon
-            icon={Icons.document}
-            size={20}
+            icon={Icons.information}
+            size={22}
             color={branding.colors.primary}
           />
           <View style={styles.infoRowBody}>
-            <Text style={styles.infoRowLabel}>
-              {analysis.isCorrected ? 'Diagnóstico corregido' : 'Diagnóstico'}
-            </Text>
             <Text style={styles.infoRowValue}>
               {displayDiagnosis}
               {!analysis.finalDiagnosis && activeProb != null
-                ? `: ${activeProb}%`
+                ? `: ${activeProb} %`
                 : ''}
             </Text>
-            {active?.desease && !analysis.finalDiagnosis ? (
-              <Text style={styles.diagnosisSub}>{active.desease}</Text>
-            ) : null}
-            <Text style={styles.missingNote}>
-              Código ICD: no disponible en la respuesta actual.
+            <Text style={styles.diagnosisSub}>
+              {icdCode
+                ? `Codigo ICD: ${icdCode}`
+                : 'Codigo ICD: no disponible'}
             </Text>
           </View>
-          <AppIcon
-            icon={Icons.chevronRight}
-            size={18}
-            color={branding.colors.muted}
-          />
+          <View style={styles.diagnosisChevronBtn}>
+            <AppIcon icon={Icons.chevronRight} size={16} color="#FFFFFF" />
+          </View>
         </Pressable>
 
         {bodyLabel ? (
           <View style={styles.infoRow}>
             <AppIcon
-              icon={Icons.mapMarker}
-              size={20}
-              color={branding.colors.muted}
+              icon={Icons.account}
+              size={22}
+              color={branding.colors.primary}
             />
             <View style={styles.infoRowBody}>
-              <Text style={styles.infoRowLabel}>Región del cuerpo</Text>
-              <Text style={styles.infoRowValue}>{bodyLabel}</Text>
+              <Text style={styles.infoRowValue}>Region del Cuerpo</Text>
+              <Text style={styles.diagnosisSub}>{bodyLabel}</Text>
             </View>
           </View>
         ) : null}
 
         <View style={styles.descBox}>
-          <Text style={styles.descTitle}>Descripción</Text>
-          {descLoading ? (
-            <ActivityIndicator color={branding.colors.primary} />
-          ) : description ? (
-            <Text style={styles.descBody}>{description}</Text>
+          <Text style={styles.descTitle}>Decripcion:</Text>
+          {riskEvalText ? (
+            <Text style={styles.descBody}>
+              Evaluacion de Riesgos: {riskEvalText}
+            </Text>
           ) : (
             <Text style={styles.missingNote}>
-              Sin descripción estructurada. Se usa la enciclopedia si hay enlace
-              disponible.
+              Sin evaluación de riesgos en la respuesta.
             </Text>
           )}
-        </View>
 
-        <View style={styles.conclusionBox}>
-          <AppIcon
-            icon={Icons.account}
-            size={18}
-            color={branding.colors.primary}
-          />
-          <Text style={styles.conclusionText}>
-            Conclusión
-            {activeProb != null && !analysis.finalDiagnosis
-              ? `: ${activeProb}% `
-              : ': '}
-            {displayDiagnosis}
-          </Text>
-        </View>
-
-        <View style={styles.descBox}>
-          <Text style={styles.descTitle}>
-            Diagnóstico preciso · Tratamiento · Consejo
-          </Text>
-          <Text style={styles.missingNote}>
-            Estos campos aún no llegan en el análisis. El equipo de backend debe
-            enviarlos en la respuesta para mostrarlos aquí.
-          </Text>
+          {hasAdviceBlock ? (
+            <View style={[styles.conclusionBox, { marginTop: 14 }]}>
+              <AppIcon
+                icon={Icons.account}
+                size={20}
+                color={branding.colors.primary}
+              />
+              <View style={{ flex: 1, gap: 6 }}>
+                {conclusionLine ? (
+                  <Text style={styles.conclusionText}>
+                    Conclusion: {conclusionLine}
+                  </Text>
+                ) : null}
+                {active.preciseDiagnosis ? (
+                  <Text style={styles.descBody}>
+                    Diagnóstico preciso: {active.preciseDiagnosis}
+                  </Text>
+                ) : null}
+                {active.treatment ? (
+                  <Text style={styles.descBody}>
+                    Tratamiento: {active.treatment}
+                  </Text>
+                ) : null}
+                {active.advice ? (
+                  <Text style={styles.descBody}>
+                    Consejo: {active.advice}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.observationsBox}>

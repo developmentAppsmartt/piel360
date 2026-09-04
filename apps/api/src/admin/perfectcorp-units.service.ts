@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { YOUCAM_DST_ACTIONS } from '@piel360/shared';
+import { PrismaService } from '../prisma/prisma.service';
 import {
   YouCamService,
   type PerfectCorpCreditBalance,
@@ -8,6 +9,7 @@ import {
 } from '../youcam/youcam.service';
 
 const EXPIRING_SOON_MS = 30 * 24 * 60 * 60 * 1000;
+const PERFECTCORP_PROVIDER = 'perfectcorp';
 
 /** Costo documentado Perfect Corp cuando el endpoint feature-cost no responde. */
 const FALLBACK_FEATURE_COSTS = {
@@ -20,14 +22,17 @@ const FALLBACK_FEATURE_COSTS = {
 export class PerfectCorpUnitsService {
   private readonly logger = new Logger(PerfectCorpUnitsService.name);
 
-  constructor(private readonly youcam: YouCamService) {}
+  constructor(
+    private readonly youcam: YouCamService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   /**
    * Bolsa estética / Fitzpatrick = misma cuenta Perfect Corp (unidades
    * compartidas). Dermatológico (Skiniver) no usa este saldo.
    */
   async getAestheticUnitPool() {
-    const [balances, skus, history] = await Promise.all([
+    const [balances, skus, history, localMovements] = await Promise.all([
       this.youcam.getCreditBalances(),
       this.youcam.getFeatureCosts().catch((err) => {
         this.logger.warn(
@@ -40,6 +45,14 @@ export class PerfectCorpUnitsService {
           `credit/history no disponible: ${err instanceof Error ? err.message : String(err)}`,
         );
         return [] as PerfectCorpCreditHistoryItem[];
+      }),
+      this.prisma.platformUnitRecharge.findMany({
+        where: {
+          provider: PERFECTCORP_PROVIDER,
+          kind: { in: ['subscription_return', 'subscription_reserve'] },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 80,
       }),
     ]);
 
@@ -62,6 +75,20 @@ export class PerfectCorpUnitsService {
       .filter((h) => h.delta > 0)
       .reduce((sum, h) => sum + h.delta, 0);
 
+    const apiHistory = history.map(serializeHistory);
+    const subscriptionHistory = localMovements.map((row) => ({
+      id: `local-${row.id.toString()}`,
+      action:
+        row.kind === 'subscription_return'
+          ? 'subscription_return'
+          : 'subscription_reserve',
+      delta: row.quantity,
+      timestamp: row.createdAt.toISOString(),
+      targetId: null as string | null,
+      dstActions: [] as string[],
+      note: row.note,
+    }));
+
     return {
       source: 'perfectcorp' as const,
       fetchedAt: new Date().toISOString(),
@@ -80,7 +107,11 @@ export class PerfectCorpUnitsService {
       },
       balances: balances.map(serializeBalance),
       featureCosts: summarizeFeatureCosts(skus),
-      history: history.map(serializeHistory),
+      history: [...subscriptionHistory, ...apiHistory].sort((a, b) => {
+        const ta = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const tb = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return tb - ta;
+      }),
     };
   }
 }

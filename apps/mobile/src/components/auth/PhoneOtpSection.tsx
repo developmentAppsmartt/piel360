@@ -150,7 +150,7 @@ export function PhoneOtpSection({
           {sending ? (
             <ActivityIndicator color={primaryColor} />
           ) : (
-            <Text style={[styles.sendBtnText, { color: labelColor }]}>
+            <Text style={[styles.sendBtnText, { color: primaryColor }]}>
               {otpSent ? 'Reenviar código SMS' : 'Enviar código SMS'}
             </Text>
           )}
@@ -205,14 +205,14 @@ const styles = StyleSheet.create({
   sendBtn: {
     height: 44,
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#FFFFFF',
   },
   sendBtnText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   otpBox: {
     gap: 8,

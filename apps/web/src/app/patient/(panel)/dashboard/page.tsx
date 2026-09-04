@@ -201,7 +201,7 @@ export default function PatientDashboardPage() {
             size="sm"
             className="gap-1.5"
             nativeButton={false}
-            render={<Link href="/patient/soporte" />}
+            render={<Link href="/patient/agenda" />}
           >
             <CalendarPlus className="size-4" />
             Asignar cita

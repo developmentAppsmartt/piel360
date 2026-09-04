@@ -10,7 +10,7 @@ import { AppModuleChrome } from '../../shared/AppModuleChrome';
 import { ChatBubble } from './ChatBubble';
 import { ChatComposer } from './ChatComposer';
 import { ChatHeader } from './ChatHeader';
-import { ChatQuickActions } from './ChatQuickActions';
+import { ChatQuickActions, type ChatQuickActionId } from './ChatQuickActions';
 import { createChatStyles } from '../styles/chat.styles';
 
 type ChatThreadViewProps = {
@@ -18,6 +18,7 @@ type ChatThreadViewProps = {
   onBack: () => void;
   onDeleted?: () => void;
   onOpenProfile?: () => void;
+  onQuickAction?: (id: ChatQuickActionId) => void;
 };
 
 export function ChatThreadView({
@@ -25,6 +26,7 @@ export function ChatThreadView({
   onBack,
   onDeleted,
   onOpenProfile,
+  onQuickAction,
 }: ChatThreadViewProps) {
   const branding = useBranding();
   const { user } = useAuth();
@@ -176,7 +178,13 @@ export function ChatThreadView({
           <ChatBubble styles={styles} message={item} />
         )}
       />
-      <ChatQuickActions styles={styles} />
+      <ChatQuickActions
+        styles={styles}
+        visibleIds={
+          isDoctor ? (['cita'] as ChatQuickActionId[]) : undefined
+        }
+        onAction={onQuickAction}
+      />
       <ChatComposer
         styles={styles}
         sending={sending}
