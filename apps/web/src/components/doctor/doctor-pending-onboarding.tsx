@@ -49,9 +49,12 @@ function AssetPlaceholder({
 export function DoctorPendingOnboarding({
   profile,
   org,
+  showProgressBanner = true,
 }: {
   profile: Doctor;
   org?: OrgCompanyProfile | null;
+  /** Banner ¡Hola! + progreso: solo para cuentas no verificadas. */
+  showProgressBanner?: boolean;
 }) {
   const firstName = profile.firstName?.trim() || "Doctor";
   const { percent, completed, total } = registrationProgressPercent(profile, org);
@@ -61,39 +64,40 @@ export function DoctorPendingOnboarding({
 
   return (
     <section className="space-y-6">
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0">
-            <h1 className="text-xl font-bold text-zinc-900 sm:text-2xl">
-              ¡Hola,{" "}
-              <span className="text-primary">{firstName.toUpperCase()}</span>!
-            </h1>
-            <p className="mt-1 text-sm text-zinc-600 sm:text-base">
-              Completa tu registro para comenzar a usar PIEL360
-            </p>
-          </div>
+      {showProgressBanner ? (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold text-zinc-900 sm:text-2xl">
+                ¡Hola,{" "}
+                <span className="text-primary">{firstName.toUpperCase()}</span>!
+              </h1>
+              <p className="mt-1 text-sm text-zinc-600 sm:text-base">
+                Completa tu registro para comenzar a usar PIEL360
+              </p>
+            </div>
 
-          <div className="w-full shrink-0 lg:max-w-md xl:max-w-lg">
-            <div className="mb-1.5 flex items-center justify-between text-sm">
-              <span className="font-medium text-zinc-700">
-                Progreso de registro
-              </span>
-              <span className="font-semibold text-primary">{percent}%</span>
+            <div className="w-full shrink-0 lg:max-w-md xl:max-w-lg">
+              <div className="mb-1.5 flex items-center justify-between text-sm">
+                <span className="font-medium text-zinc-700">
+                  Progreso de registro
+                </span>
+                <span className="font-semibold text-primary">{percent}%</span>
+              </div>
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-zinc-100">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-chart-2 to-primary transition-all"
+                  style={{ width: `${percent}%` }}
+                />
+              </div>
+              <p className="mt-1.5 text-right text-xs text-zinc-500">
+                {completed} de {total} pasos completados
+              </p>
             </div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-zinc-100">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-chart-2 to-primary transition-all"
-                style={{ width: `${percent}%` }}
-              />
-            </div>
-            <p className="mt-1.5 text-right text-xs text-zinc-500">
-              {completed} de {total} pasos completados
-            </p>
           </div>
         </div>
-      </div>
+      ) : null}
 
-      {/* 3 columnas */}
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {/* Paso 1 — Descarga app */}
         <article className="flex flex-col rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">

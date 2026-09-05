@@ -80,13 +80,13 @@ export default function DoctorHomePage() {
   const loadingDashboard =
     patients.isLoading || analyses.isLoading || subscriptions.isLoading;
 
-  const showOnboarding = !verified;
-
   return (
     <div className="space-y-6">
-      {showOnboarding ? (
-        <DoctorPendingOnboarding profile={profile.data} org={org.data} />
-      ) : null}
+      <DoctorPendingOnboarding
+        profile={profile.data}
+        org={org.data}
+        showProgressBanner={!verified}
+      />
 
       <DoctorHomeDashboard
         profile={profile.data}
