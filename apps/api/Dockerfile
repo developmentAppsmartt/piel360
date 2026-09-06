@@ -6,8 +6,17 @@
 # arranque).
 FROM node:22.13-bookworm-slim
 
-# Prisma necesita openssl para sus motores de consulta.
-RUN apt-get update && apt-get install -y --no-install-recommends openssl \
+# Prisma necesita openssl para sus motores de consulta. El resto son las
+# librerías que necesita el Chromium de Puppeteer para correr — sin esto el
+# PDF del reporte (apps/api/src/reports/report-pdf.service.ts) falla en
+# runtime con un error de librerías compartidas faltantes, aunque el build
+# termine bien (la imagen base es Debian slim, no las trae).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openssl \
+    ca-certificates fonts-liberation libasound2 libatk-bridge2.0-0 libatk1.0-0 \
+    libcairo2 libcups2 libdbus-1-3 libexpat1 libgbm1 libglib2.0-0 libgtk-3-0 \
+    libnspr4 libnss3 libpango-1.0-0 libx11-6 libxcb1 libxcomposite1 libxdamage1 \
+    libxext6 libxfixes3 libxrandr2 libxss1 libxtst6 wget xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # No usar `corepack enable` — corepack intenta verificar la firma del paquete
