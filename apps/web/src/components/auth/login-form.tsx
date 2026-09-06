@@ -72,7 +72,12 @@ export function LoginForm({
           Recordarme
         </label>
         {showForgotPassword ? (
-          <span className="text-primary">¿Olvidaste tu contraseña?</span>
+          <Link
+            href="/forgot-password"
+            className="text-primary underline-offset-2 hover:underline"
+          >
+            ¿Olvidaste tu contraseña?
+          </Link>
         ) : null}
       </div>
 

@@ -324,6 +324,10 @@ model Analysis {
   chronologicalAgeYears Int?   @map("chronological_age_years")
   /** skinAgeYears − chronologicalAgeYears (negativo = piel más joven). */
   skinAgeDifference     Int?   @map("skin_age_difference")
+  /** Token random para el link público del reporte en PDF (no expone el id). */
+  reportToken  String? @unique @map("report_token")
+  /** Key en storage del PDF ya generado — se genera una sola vez por análisis. */
+  reportPdfKey String? @map("report_pdf_key")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 

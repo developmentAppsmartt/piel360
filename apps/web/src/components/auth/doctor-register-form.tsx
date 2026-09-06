@@ -18,6 +18,7 @@ import {
   establishSessionAction,
   type AuthActionState,
 } from "@/lib/actions/auth";
+import { sendEmailOtpAction, verifyEmailOtpAction } from "@/lib/actions/email-otp";
 import { sendPhoneOtpAction, verifyPhoneOtpAction } from "@/lib/actions/phone-otp";
 import { homeForUser } from "@/lib/auth-redirect";
 import { ApiError } from "@/lib/api-error";
@@ -106,12 +107,26 @@ export function DoctorRegisterForm() {
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
 
+  const [emailOtpCode, setEmailOtpCode] = useState("");
+  const [emailTicket, setEmailTicket] = useState<string | null>(null);
+  const [emailOtpSent, setEmailOtpSent] = useState(false);
+  const [emailOtpError, setEmailOtpError] = useState<string | null>(null);
+  const [isSendingEmailOtp, setIsSendingEmailOtp] = useState(false);
+  const [isVerifyingEmailOtp, setIsVerifyingEmailOtp] = useState(false);
+
   function resetPhoneVerification() {
     setOtpSent(false);
     setOtpCode("");
     setPhoneTicket(null);
     setVerifiedPhone(null);
     setOtpError(null);
+  }
+
+  function resetEmailVerification() {
+    setEmailOtpSent(false);
+    setEmailOtpCode("");
+    setEmailTicket(null);
+    setEmailOtpError(null);
   }
 
   async function handleSendOtp() {
@@ -139,6 +154,30 @@ export function DoctorRegisterForm() {
     setVerifiedPhone(phone);
   }
 
+  async function handleSendEmailOtp() {
+    setEmailOtpError(null);
+    setIsSendingEmailOtp(true);
+    const result = await sendEmailOtpAction(email.trim());
+    setIsSendingEmailOtp(false);
+    if (!result.ok) {
+      setEmailOtpError(result.error ?? "No se pudo enviar el código.");
+      return;
+    }
+    setEmailOtpSent(true);
+  }
+
+  async function handleVerifyEmailOtp() {
+    setEmailOtpError(null);
+    setIsVerifyingEmailOtp(true);
+    const result = await verifyEmailOtpAction(email.trim(), emailOtpCode);
+    setIsVerifyingEmailOtp(false);
+    if (!result.ok || !result.ticket) {
+      setEmailOtpError(result.error ?? "No se pudo verificar el código.");
+      return;
+    }
+    setEmailTicket(result.ticket);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setState({});
@@ -151,6 +190,10 @@ export function DoctorRegisterForm() {
     }
     if (!phoneTicket) {
       setState({ error: "Verifica tu celular antes de continuar." });
+      return;
+    }
+    if (!emailTicket) {
+      setState({ error: "Verifica tu correo antes de continuar." });
       return;
     }
     if (!locationPicker.location) {
@@ -197,6 +240,7 @@ export function DoctorRegisterForm() {
           lastName,
           phone: phoneForRegister,
           phoneTicket: phoneTicket ?? undefined,
+          emailTicket: emailTicket ?? undefined,
           membershipType: "solo_doctor",
           specialty: resolvedSpecialty,
           address: locationPicker.address || locationPicker.addressQuery,
@@ -270,15 +314,62 @@ export function DoctorRegisterForm() {
           />
         </Field>
         <Field label="Correo profesional" required>
-          <input
-            className={inputClass}
-            type="email"
-            placeholder="ana@clinica.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-          />
+          <div className="space-y-2">
+            <input
+              className={inputClass}
+              type="email"
+              placeholder="ana@clinica.com"
+              value={email}
+              disabled={emailTicket != null}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (emailOtpSent) resetEmailVerification();
+              }}
+              required
+              autoComplete="email"
+            />
+            {emailTicket == null && (
+              <button
+                type="button"
+                disabled={!email.trim() || isSendingEmailOtp}
+                onClick={handleSendEmailOtp}
+                className="h-9 w-full rounded-lg border border-zinc-300 bg-white text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-40"
+              >
+                {isSendingEmailOtp
+                  ? "Enviando…"
+                  : emailOtpSent
+                    ? "Reenviar código"
+                    : "Enviar código"}
+              </button>
+            )}
+            {emailOtpSent && emailTicket == null && (
+              <div className="space-y-2 rounded-lg border border-zinc-200 p-2.5">
+                <p className="text-xs text-zinc-500">
+                  Te enviamos un código a {email}.
+                </p>
+                <input
+                  className={inputClass}
+                  placeholder="Código de verificación"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={emailOtpCode}
+                  onChange={(e) => setEmailOtpCode(e.target.value)}
+                />
+                <button
+                  type="button"
+                  disabled={!emailOtpCode || isVerifyingEmailOtp}
+                  onClick={handleVerifyEmailOtp}
+                  className="h-9 w-full rounded-lg bg-sky-500 text-sm font-medium text-white hover:bg-sky-400 disabled:opacity-40"
+                >
+                  {isVerifyingEmailOtp ? "Verificando…" : "Verificar"}
+                </button>
+              </div>
+            )}
+            {emailTicket != null && (
+              <p className="text-xs text-green-600">Correo verificado.</p>
+            )}
+            {emailOtpError && <p className="text-xs text-red-600">{emailOtpError}</p>}
+          </div>
         </Field>
         <Field label="Celular" required>
           <div className="space-y-2">

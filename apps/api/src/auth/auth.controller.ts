@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './current-user.decorator';
@@ -90,14 +91,18 @@ export class AuthController {
     return this.authService.refreshTokens(refreshToken, authClient(clientHeader));
   }
 
+  // Límite por IP más estricto que el global (100/min de toda la API) — el
+  // OTP de registro/reset es el blanco natural de fuerza bruta/enumeración.
   @Post('otp/send')
   @HttpCode(200)
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
   sendOtp(@Body() dto: SendOtpDto) {
     return this.authService.sendOtp(dto);
   }
 
   @Post('otp/verify')
   @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   verifyOtp(@Body() dto: VerifyOtpDto) {
     return this.authService.verifyOtp(dto);
   }
@@ -136,12 +141,14 @@ export class AuthController {
 
   @Post('forgot-password')
   @HttpCode(200)
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto);
   }
 
   @Post('reset-password')
   @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
   }
