@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrgContextService } from '../organizations/org-context.service';
+import { AppointmentEmailService } from './appointment-email.service';
 import type {
   CreateAppointmentDto,
   CreateBlockedDayDto,
@@ -36,6 +37,7 @@ export class AgendaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly orgContext: OrgContextService,
+    private readonly appointmentEmail: AppointmentEmailService,
   ) {}
 
   private async catalogDoctorId(userId: string) {
@@ -297,6 +299,7 @@ export class AgendaService {
         },
       },
     });
+    this.appointmentEmail.sendAppointmentScheduledEmail(row.id).catch(() => undefined);
     return this.serializeAppointment(row);
   }
 
@@ -332,6 +335,11 @@ export class AgendaService {
         },
       },
     });
+    if (dto.status === 'confirmed') {
+      this.appointmentEmail
+        .sendAppointmentScheduledEmail(updated.id)
+        .catch(() => undefined);
+    }
     return this.serializeAppointment(updated);
   }
 

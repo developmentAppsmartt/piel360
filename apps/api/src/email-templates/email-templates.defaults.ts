@@ -4,5 +4,6 @@ export const EMAIL_TEMPLATE_KIND_LABELS: Record<string, string> = {
   welcome: 'Bienvenida',
   plan_acquired: 'Plan adquirido',
   report_ready: 'Obtener informe',
+  appointment_scheduled: 'Cita agendada',
   custom: 'Personalizada',
 };

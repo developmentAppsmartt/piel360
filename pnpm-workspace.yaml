@@ -9,6 +9,7 @@ allowBuilds:
   esbuild: true # requerido por tsup
   msgpackr-extract: true # acelerador nativo de msgpackr (usado por ioredis/bullmq)
   prisma: true # CLI, requiere el postinstall de @prisma/engines
+  puppeteer: true
   sharp: true # optimización nativa de next/image
   unrs-resolver: true # binding nativo de resolución usado por tooling de eslint
 

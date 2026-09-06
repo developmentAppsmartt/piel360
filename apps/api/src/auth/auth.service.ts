@@ -55,6 +55,10 @@ const PASSWORD_RESET_TTL_MINUTES = 30;
 const OTP_TTL_SECONDS = 10 * 60;
 const OTP_TICKET_TTL_SECONDS = 60 * 60;
 const OTP_MAX_ATTEMPTS = 5;
+/** Mínimo entre dos envíos de OTP al mismo email — evita spam de correos
+ * (independiente del rate-limit por IP, que no frena a un atacante que
+ * rota de IP contra la misma víctima). */
+const OTP_RESEND_COOLDOWN_SECONDS = 30;
 
 const ROLE_PRIORITY: Role[] = ['superadmin', 'monitor', 'empresa', 'doctor', 'patient'];
 
@@ -127,6 +131,10 @@ export class AuthService implements OnModuleDestroy {
     client: 'mobile' | 'web' = 'web',
   ): Promise<AuthResult> {
     const email = dto.email.trim().toLowerCase();
+    const emailTicket = dto.emailTicket?.trim();
+    if (emailTicket) {
+      await this.consumeRegisterTicket(emailTicket, email);
+    }
     const phone = this.normalizePhoneDigits(dto.phone);
     if (dto.phoneTicket) {
       await this.assertPhoneTicket(dto.phoneTicket, phone);
@@ -148,6 +156,8 @@ export class AuthService implements OnModuleDestroy {
           name: `${dto.firstName} ${dto.lastName}`,
           firstName: dto.firstName,
           lastName: dto.lastName,
+          // Solo se marca verificado si hubo ticket OTP.
+          emailVerifiedAt: emailTicket ? new Date() : null,
           phone,
           phoneVerifiedAt: dto.phoneTicket ? new Date() : null,
           roles: {
@@ -711,8 +721,9 @@ export class AuthService implements OnModuleDestroy {
 
   /** Siempre responde OK (no revela si el email existe — evita enumeración de cuentas). */
   async forgotPassword(dto: ForgotPasswordDto): Promise<{ ok: true }> {
+    const email = dto.email.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+      where: { email },
     });
 
     if (user) {
@@ -722,14 +733,14 @@ export class AuthService implements OnModuleDestroy {
       );
 
       await this.prisma.passwordResetToken.create({
-        data: { email: dto.email, token, expiresAt },
+        data: { email, token, expiresAt },
       });
 
       const frontendUrl = this.config.getOrThrow<string>('FRONTEND_URL');
       await this.mail.send({
-        to: dto.email,
+        to: email,
         subject: 'Restablecer contraseña — Piel360',
-        html: `<p>Para restablecer tu contraseña, haz clic en el siguiente enlace (expira en ${PASSWORD_RESET_TTL_MINUTES} minutos):</p><p><a href="${frontendUrl}/reset-password?token=${token}">Restablecer contraseña</a></p>`,
+        html: `<p>Para restablecer tu contraseña, haz clic en el siguiente botón (expira en ${PASSWORD_RESET_TTL_MINUTES} minutos):</p><p style="text-align:center;margin:24px 0;"><a href="${frontendUrl}/reset-password?token=${token}" style="display:inline-block;background:#1e5a9e;color:#ffffff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;">Restablecer contraseña</a></p>`,
       });
     }
 
@@ -753,15 +764,29 @@ export class AuthService implements OnModuleDestroy {
       return { ok: true };
     }
 
+    await this.ensureRedis();
+
+    // Cooldown por email — independiente del rate-limit por IP del
+    // controller (@Throttle), que un atacante puede esquivar rotando de IP.
+    // Para purpose=reset con email inexistente ya se cortó arriba, así que
+    // esto no filtra nada nuevo por temporización.
+    const cooldownKey = this.otpCooldownKey(dto.purpose, email);
+    const onCooldown = await this.redis.get(cooldownKey);
+    if (onCooldown) {
+      throw new BadRequestException(
+        'Espera unos segundos antes de pedir otro código',
+      );
+    }
+
     const code = String(randomInt(10000, 100000));
     const key = this.otpKey(dto.purpose, email);
-    await this.ensureRedis();
     await this.redis.set(
       key,
       JSON.stringify({ code, attempts: 0 }),
       'EX',
       OTP_TTL_SECONDS,
     );
+    await this.redis.set(cooldownKey, '1', 'EX', OTP_RESEND_COOLDOWN_SECONDS);
 
     await this.mail.send({
       to: email,
@@ -769,11 +794,11 @@ export class AuthService implements OnModuleDestroy {
         dto.purpose === 'register'
           ? 'Código de verificación — Piel360'
           : 'Código para restablecer contraseña — Piel360',
-      html: `<p>Tu código de 5 dígitos es:</p><p style="font-size:24px;letter-spacing:4px"><strong>${code}</strong></p><p>Expira en 10 minutos.</p>`,
+      html: `<p>Tu código de verificación es:</p><p style="text-align:center;margin:20px 0;"><span style="display:inline-block;background:#1e5a9e;color:#ffffff;font-size:24px;letter-spacing:6px;font-weight:bold;padding:12px 20px;border-radius:8px;">${code}</span></p><p>Expira en 10 minutos.</p>`,
     });
 
-    if (!this.config.get<string>('RESEND_API_KEY')) {
-      // Local/dev sin Resend: deja el código en logs del API.
+    if (!this.config.get<string>('BREVO_API_KEY')) {
+      // Local/dev sin Brevo: deja el código en logs del API.
 
       console.warn(`[OTP ${dto.purpose}] ${email} → ${code}`);
     }
@@ -1037,6 +1062,10 @@ export class AuthService implements OnModuleDestroy {
 
   private otpKey(purpose: string, email: string) {
     return `otp:${purpose}:${email}`;
+  }
+
+  private otpCooldownKey(purpose: string, email: string) {
+    return `otp-cooldown:${purpose}:${email}`;
   }
 
   private registerTicketKey(ticket: string) {

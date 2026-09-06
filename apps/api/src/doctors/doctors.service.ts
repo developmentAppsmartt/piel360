@@ -231,7 +231,7 @@ export class DoctorsService {
             <p>Hola ${doctor.firstName || doctor.user.name || ''},</p>
             <p><strong>${heading}</strong></p>
             <p>Observación del equipo de verificación:</p>
-            <blockquote style="border-left:3px solid #0ea5e9;padding-left:12px;color:#334155;">
+            <blockquote style="border-left:3px solid #1e5a9e;padding-left:12px;color:#334155;">
               ${trimmed.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
             </blockquote>
             <p>${cta}</p>

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { YouCamResults } from '@piel360/shared';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { ReportEmailService } from '../reports/report-email.service';
 import { StorageService } from '../storage/storage.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { youcamMaskKey } from './mask-key.util';
@@ -26,6 +27,7 @@ export class YoucamResultsService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly subscriptions: SubscriptionsService,
+    private readonly reportEmail: ReportEmailService,
   ) {}
 
   async applySuccess(
@@ -95,6 +97,14 @@ export class YoucamResultsService {
     }
 
     await this.consumeCreditIfNeeded(analysisId);
+
+    // Correo "reporte listo" (plantilla del doctor o default) — best-effort,
+    // no debe tumbar el webhook/poll si falla el envío o la generación del PDF.
+    this.reportEmail.sendReportReadyEmail(analysisId).catch((error) => {
+      this.logger.warn(
+        `No se pudo enviar el correo de reporte listo del análisis ${analysisId}: ${String(error)}`,
+      );
+    });
   }
 
   /** YouCam rechazó el task de forma permanente (ej. "Input image resolution

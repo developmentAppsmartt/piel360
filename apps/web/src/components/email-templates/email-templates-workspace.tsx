@@ -20,6 +20,7 @@ import {
   Trash2,
   Plus,
 } from "lucide-react";
+import { SYSTEM_EMAIL_VARIABLES } from "@piel360/shared";
 import { Button } from "@/components/ui/button";
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import { cn } from "@/lib/utils";
@@ -43,15 +44,12 @@ const EMPTY_BODY_HTML = `<p style="margin:0 0 12px;font-size:16px;">Hola {nombre
 type EditorTab = "edit" | "variables";
 type PreviewMode = "desktop" | "mobile";
 
-const DEFAULT_PREVIEW_SAMPLES: Record<string, string> = {
-  "{nombre}": "Ana",
-  "{apellido}": "García",
-  "{email}": "ana@ejemplo.com",
-  "{plan_name}": "Plan Profesional",
-  "{clinic_name}": "Piel360 Clínica",
-  "{report_url}": "#",
-  "{login_url}": "#",
-};
+// Mismas claves que usa el envío real (ver `SYSTEM_EMAIL_VARIABLES` en
+// @piel360/shared y `ReportEmailService.sendReportReadyEmail` en la API) —
+// evita que preview y envío real se desincronicen sobre qué variables existen.
+const DEFAULT_PREVIEW_SAMPLES: Record<string, string> = Object.fromEntries(
+  SYSTEM_EMAIL_VARIABLES.map((v) => [v.key, v.sampleValue]),
+);
 
 function applyPreviewVars(
   html: string,
