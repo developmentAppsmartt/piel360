@@ -162,9 +162,12 @@ export class PatientsService {
       );
     }
 
-    const { birthDate, password, email, ...rest } = dto;
+    const { birthDate, password, email, createAppAccess, ...rest } = dto;
     const emailNorm = email?.trim().toLowerCase() || undefined;
-    const wantsLogin = !!(emailNorm || password);
+    // Antes se infería de "¿hay email?" — eso impedía guardar un correo de
+    // contacto sin crear cuenta. Ahora es explícito: el doctor decide con
+    // el checkbox, el correo por sí solo no crea nada.
+    const wantsLogin = createAppAccess === true;
 
     await assertDocumentNumberAvailable(this.prisma, dto.docNumber);
 
