@@ -2,15 +2,15 @@ import { useCallback, useMemo, useState } from 'react';
 import { Alert, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useBranding } from '../../../context/BrandingContext';
+import { ANALYSIS_CONSENT_COPY } from '../../../data/legal/documents';
 import { DoctorHeader } from '../../doctor/patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../../doctor/patients/styles/patients.styles';
-import { AnalysisModeStep } from '../AnalysisModeStep';
 import { YoucamConsentStep } from './YoucamConsentStep';
 import { YoucamInstructionsStep } from './YoucamInstructionsStep';
 import { YoucamProcessingStep } from './YoucamProcessingStep';
 import { createYoucamFlowStyles } from './styles/youcamFlow.styles';
 
-type Step = 'mode' | 'consent' | 'instructions' | 'processing';
+type Step = 'consent' | 'instructions' | 'processing';
 
 type YoucamAnalysisFlowProps = {
   patientId: string;
@@ -19,7 +19,7 @@ type YoucamAnalysisFlowProps = {
   onOpenMenu?: () => void;
   onOpenMessages?: () => void;
   patientName?: string;
-  /** Si true (flujo paciente tras solicitud), salta la elección Seguir/Solicitar. */
+  /** Compat: el flujo doctor ya no elige Seguir/Solicitar aquí. */
   skipModeChoice?: boolean;
 };
 
@@ -30,7 +30,6 @@ export function YoucamAnalysisFlow({
   onOpenMenu,
   onOpenMessages,
   patientName,
-  skipModeChoice = false,
 }: YoucamAnalysisFlowProps) {
   const branding = useBranding();
   const headerStyles = useMemo(
@@ -41,9 +40,7 @@ export function YoucamAnalysisFlow({
     () => createYoucamFlowStyles(branding.colors),
     [branding.colors],
   );
-  const [step, setStep] = useState<Step>(
-    skipModeChoice ? 'consent' : 'mode',
-  );
+  const [step, setStep] = useState<Step>('consent');
   const [imageUri, setImageUri] = useState<string | null>(null);
 
   const handleDone = useCallback(
@@ -53,14 +50,11 @@ export function YoucamAnalysisFlow({
     [onAnalysisCreated],
   );
 
-  const handleError = useCallback(
-    (message: string) => {
-      Alert.alert('Análisis estético', message);
-      setImageUri(null);
-      setStep('instructions');
-    },
-    [],
-  );
+  const handleError = useCallback((message: string) => {
+    Alert.alert('Análisis estético', message);
+    setImageUri(null);
+    setStep('instructions');
+  }, []);
 
   return (
     <View style={styles.screen}>
@@ -76,7 +70,6 @@ export function YoucamAnalysisFlow({
           showBack
           onBack={() => {
             if (step === 'instructions') setStep('consent');
-            else if (step === 'consent' && !skipModeChoice) setStep('mode');
             else onClose();
           }}
           onOpenMenu={onOpenMenu ?? (() => undefined)}
@@ -84,19 +77,15 @@ export function YoucamAnalysisFlow({
         />
       ) : null}
 
-      {step === 'mode' ? (
-        <AnalysisModeStep
-          patientId={patientId}
-          providerSlug="youcam"
-          providerLabel="Análisis estético"
-          onContinueOnDevice={() => setStep('consent')}
-          onRequested={onClose}
-          onCancel={onClose}
-        />
-      ) : null}
-
       {step === 'consent' ? (
         <YoucamConsentStep
+          title={ANALYSIS_CONSENT_COPY.youcam.title}
+          subtitle={ANALYSIS_CONSENT_COPY.youcam.subtitle}
+          body={ANALYSIS_CONSENT_COPY.youcam.body}
+          privacyShort={ANALYSIS_CONSENT_COPY.youcam.privacyShort}
+          checkboxLabel={ANALYSIS_CONSENT_COPY.youcam.checkbox}
+          ctaLabel={ANALYSIS_CONSENT_COPY.youcam.cta}
+          privacyDocId={ANALYSIS_CONSENT_COPY.youcam.privacyDocId}
           onNext={() => setStep('instructions')}
           onCancel={onClose}
         />

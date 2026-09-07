@@ -65,6 +65,14 @@ export const Icons = {
   heartPulse: 'mdi:heart-pulse',
   clipboardCheck: 'mdi:clipboard-check-outline',
   accountGroup: 'mdi:account-group-outline',
+  /** Análisis dermatológico (lesión / lupa). */
+  dermAnalysis: 'mdi:magnify-scan',
+  /** Análisis estético facial. */
+  aesthetic: 'mdi:face-woman-shimmer',
+  /** Fototipo / pigmentación. */
+  fototipo: 'mdi:circle-multiple-outline',
+  calendarPlus: 'mdi:calendar-plus',
+  chartBar: 'mdi:chart-bar',
   /** Reutilizan glifos ya embebidos en babel (sin reinicio de Metro). */
   chevronDown: 'mdi:chevron-left',
   chevronUp: 'mdi:chevron-left',

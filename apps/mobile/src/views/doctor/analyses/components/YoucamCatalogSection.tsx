@@ -3,12 +3,14 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Modal,
   Pressable,
   ScrollView,
   Text,
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { WebView } from 'react-native-webview';
 import { AppIcon } from '../../../../components/AppIcon';
 import { Icons, type AppIconName } from '../../../../components/icons';
 import { useBranding } from '../../../../context/BrandingContext';
@@ -278,6 +280,29 @@ export function YoucamCatalogSection({
           <View style={styles.recBody}>
             <RecoSection
               styles={styles}
+              title="Productos"
+              icon={Icons.shopping}
+              iconColor={primary}
+              mutedColor={muted}
+              open={sectionOpen.products}
+              onToggle={() => toggleSection('products')}
+              onSeeAll={() =>
+                seeAll(
+                  'Productos',
+                  productCards.map((c) => c.title),
+                )
+              }
+            >
+              <CardCarousel
+                styles={styles}
+                cards={productCards}
+                emptyLabel="No hay productos configurados todavía."
+                variant="product"
+              />
+            </RecoSection>
+
+            <RecoSection
+              styles={styles}
               title="Rutinas"
               icon={Icons.calendarDay}
               iconColor={primary}
@@ -365,29 +390,6 @@ export function YoucamCatalogSection({
                   variant="product"
                 />
               )}
-            </RecoSection>
-
-            <RecoSection
-              styles={styles}
-              title="Productos"
-              icon={Icons.shopping}
-              iconColor={primary}
-              mutedColor={muted}
-              open={sectionOpen.products}
-              onToggle={() => toggleSection('products')}
-              onSeeAll={() =>
-                seeAll(
-                  'Productos',
-                  productCards.map((c) => c.title),
-                )
-              }
-            >
-              <CardCarousel
-                styles={styles}
-                cards={productCards}
-                emptyLabel="No hay productos configurados todavía."
-                variant="product"
-              />
             </RecoSection>
 
             <RecoSection
@@ -548,6 +550,11 @@ function RoutineDetail({
   const skinHint =
     routine.conditions.find((c) => c.metricType === 'hd_skin_type')
       ?.textValue ?? null;
+  const [preview, setPreview] = useState<{
+    kind: 'video' | 'image';
+    url: string;
+    title: string;
+  } | null>(null);
 
   return (
     <View style={styles.routineDetail}>
@@ -583,7 +590,9 @@ function RoutineDetail({
         {video ? (
           <Pressable
             style={styles.routineMediaBtn}
-            onPress={() => openUrl(video.url)}
+            onPress={() =>
+              setPreview({ kind: 'video', url: video.url, title: video.title })
+            }
           >
             <Image
               source={{ uri: video.url }}
@@ -599,7 +608,9 @@ function RoutineDetail({
         {image ? (
           <Pressable
             style={styles.routineMediaBtn}
-            onPress={() => openUrl(image.url)}
+            onPress={() =>
+              setPreview({ kind: 'image', url: image.url, title: image.title })
+            }
           >
             <Image
               source={{ uri: image.url }}
@@ -613,7 +624,108 @@ function RoutineDetail({
           </Pressable>
         ) : null}
       </View>
+      <RoutineMediaModal
+        preview={preview}
+        onClose={() => setPreview(null)}
+        onDark={onDark}
+      />
     </View>
+  );
+}
+
+function RoutineMediaModal({
+  preview,
+  onClose,
+  onDark,
+}: {
+  preview: { kind: 'video' | 'image'; url: string; title: string } | null;
+  onClose: () => void;
+  onDark: string;
+}) {
+  const videoHtml = preview
+    ? `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>html,body{margin:0;height:100%;background:#0F172A;} video{width:100%;height:100%;object-fit:contain;background:#0F172A;}</style>
+</head><body><video src="${preview.url.replace(/"/g, '&quot;')}" controls playsinline autoplay></video></body></html>`
+    : '';
+
+  return (
+    <Modal
+      visible={preview != null}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(15, 23, 42, 0.72)',
+          justifyContent: 'center',
+          padding: 16,
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: 20,
+            overflow: 'hidden',
+            maxHeight: '82%',
+          }}
+        >
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+            }}
+          >
+            <Text
+              style={{ flex: 1, fontSize: 16, fontWeight: '800', color: '#0F3D73' }}
+              numberOfLines={1}
+            >
+              {preview?.kind === 'video' ? 'Video de la rutina' : 'Imagen guía'}
+            </Text>
+            <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Cerrar">
+              <AppIcon icon={Icons.close} size={22} color="#64748B" />
+            </Pressable>
+          </View>
+          {preview?.kind === 'image' ? (
+            <Image
+              source={{ uri: preview.url }}
+              style={{ width: '100%', height: 360, backgroundColor: '#0F172A' }}
+              contentFit="contain"
+            />
+          ) : preview ? (
+            <WebView
+              originWhitelist={['*']}
+              source={{ html: videoHtml }}
+              style={{ height: 360, backgroundColor: '#0F172A' }}
+              allowsInlineMediaPlayback
+              mediaPlaybackRequiresUserAction={false}
+            />
+          ) : null}
+          {preview?.title ? (
+            <Text
+              style={{
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                fontSize: 13,
+                color: '#64748B',
+              }}
+            >
+              {preview.title}
+            </Text>
+          ) : null}
+        </View>
+        <Pressable
+          onPress={onClose}
+          style={{ marginTop: 12, alignSelf: 'center' }}
+        >
+          <Text style={{ color: onDark, fontWeight: '700' }}>Cerrar</Text>
+        </Pressable>
+      </View>
+    </Modal>
   );
 }
 

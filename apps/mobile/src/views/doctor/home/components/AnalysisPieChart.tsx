@@ -45,7 +45,7 @@ export function AnalysisPieChart({
   const cx = size / 2;
   const cy = size / 2;
   const outerR = size * 0.42;
-  const innerR = size * 0.24;
+  const innerR = size * 0.28;
 
   const arcs = useMemo(() => {
     if (total <= 0) return [];
@@ -68,8 +68,13 @@ export function AnalysisPieChart({
 
   return (
     <View style={styles.wrap}>
-      <View style={{ width: size, height: size, alignSelf: 'center' }}>
-        <Svg width={size} height={size}>
+      <View style={[styles.chartBox, { width: size, height: size }]}>
+        <Svg
+          width={size}
+          height={size}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        >
           {total <= 0 ? (
             <Circle
               cx={cx}
@@ -92,7 +97,7 @@ export function AnalysisPieChart({
             </G>
           )}
         </Svg>
-        <View style={[styles.centerLabel, { pointerEvents: 'none' }]}>
+        <View style={styles.centerLabel} pointerEvents="none">
           <Text style={[styles.centerValue, { color: primaryColor }]}>
             {total}
           </Text>
@@ -122,20 +127,29 @@ const styles = StyleSheet.create({
   wrap: {
     gap: 16,
   },
-  centerLabel: {
-    ...StyleSheet.absoluteFillObject,
+  chartBox: {
+    alignSelf: 'center',
+    position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  centerLabel: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
   },
   centerValue: {
     fontSize: 28,
     fontWeight: '800',
     lineHeight: 32,
+    textAlign: 'center',
   },
   centerHint: {
     fontSize: 12,
     color: '#6B7280',
     fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 2,
   },
   legend: {
     gap: 10,

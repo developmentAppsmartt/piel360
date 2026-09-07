@@ -6,7 +6,27 @@ export type AvatarUploadResult = {
   avatarUrl: string | null;
 };
 
+export type DiagnosticLanguage = 'es' | 'en';
+
 export const usersService = {
+  async getDiagnosticLanguage(): Promise<DiagnosticLanguage> {
+    const me = await apiRequest<{ diagnosticLanguage?: string | null }>(
+      '/auth/me',
+      { auth: true },
+    );
+    return me.diagnosticLanguage === 'en' ? 'en' : 'es';
+  },
+
+  async updateDiagnosticLanguage(
+    diagnosticLanguage: DiagnosticLanguage,
+  ): Promise<void> {
+    await apiRequest('/me', {
+      method: 'PATCH',
+      auth: true,
+      body: { diagnosticLanguage },
+    });
+  },
+
   async uploadAvatar(imageUri: string): Promise<AvatarUploadResult> {
     const form = new FormData();
     await appendImageField(form, 'avatar', imageUri, 'avatar.jpg');

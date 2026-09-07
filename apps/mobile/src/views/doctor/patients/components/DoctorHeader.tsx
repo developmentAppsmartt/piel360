@@ -44,7 +44,7 @@ export function DoctorHeader({
             <AppIcon icon={Icons.back} size={24} color={onDark} />
           </Pressable>
         ) : null}
-        <BrandLogo height={48} style={styles.headerLogo} />
+        <BrandLogo variant="header" height={44} style={styles.headerLogo} />
       </View>
       <View style={styles.headerActions}>
         <Pressable

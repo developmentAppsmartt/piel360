@@ -11,6 +11,7 @@ export type AccountMenuId =
   | 'config'
   | 'idioma'
   | 'suscripcion'
+  | 'pagos'
   | 'compartir'
   | 'seguridad'
   | 'password'
@@ -31,8 +32,9 @@ type MenuItem = {
 const DOCTOR_MENU: MenuItem[] = [
   { id: 'perfil', label: 'Mi Perfil', icon: Icons.account },
   { id: 'config', label: 'Configuración del perfil', icon: Icons.settings },
-  { id: 'idioma', label: 'Idioma diagnóstico', icon: Icons.translate },
-  { id: 'suscripcion', label: 'Mis pagos', icon: Icons.creditCard },
+  { id: 'idioma', label: 'Idioma diagnóstico dermatológico', icon: Icons.translate },
+  { id: 'suscripcion', label: 'Planes y suscripciones', icon: Icons.creditCard },
+  { id: 'pagos', label: 'Mis pagos', icon: Icons.file },
   { id: 'compartir', label: 'Compartir con colega', icon: Icons.share },
   { id: 'seguridad', label: 'Seguridad', icon: Icons.lock },
   { id: 'password', label: 'Cambiar contraseña', icon: Icons.password, nested: true },

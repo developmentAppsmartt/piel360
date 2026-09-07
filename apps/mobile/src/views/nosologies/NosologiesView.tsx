@@ -14,7 +14,9 @@ import { useBranding } from '../../context/BrandingContext';
 import { nosologiesService } from '../../services/nosologies.service';
 import type { NosologyCategory } from '../../types/nosology';
 import { AccountDrawer } from '../doctor/patients/components/AccountDrawer';
+import { PaymentsBillingView } from '../doctor/payments/PaymentsBillingView';
 import { PaymentsView } from '../doctor/payments/PaymentsView';
+import { DiagnosisLanguageView } from '../doctor/settings/DiagnosisLanguageView';
 import { AppModuleChrome } from '../shared/AppModuleChrome';
 import { NosologySearchBar } from './components/NosologySearchBar';
 import {
@@ -46,6 +48,8 @@ export function NosologiesView({
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showingPayments, setShowingPayments] = useState(false);
+  const [showingLanguage, setShowingLanguage] = useState(false);
+  const [showingBilling, setShowingBilling] = useState(false);
 
   useEffect(() => {
     void nosologiesService.listCategories().then(setCategories);
@@ -81,13 +85,58 @@ export function NosologiesView({
     setMenuOpen(false);
     if (id === 'salir') void logout();
     else if (id === 'perfil') onOpenProfile?.();
-    else if (id === 'suscripcion') setShowingPayments(true);
-    else
+    else if (id === 'suscripcion') {
+      setShowingLanguage(false);
+      setShowingBilling(false);
+      setShowingPayments(true);
+    } else if (id === 'idioma') {
+      setShowingPayments(false);
+      setShowingBilling(false);
+      setShowingLanguage(true);
+    } else if (id === 'pagos') {
+      setShowingPayments(false);
+      setShowingLanguage(false);
+      setShowingBilling(true);
+    } else
       Alert.alert(
         'Próximamente',
         'Esta opción del menú se conectará en una siguiente iteración.',
       );
   };
+
+  if (showingLanguage) {
+    return (
+      <>
+        <DiagnosisLanguageView
+          onBack={() => setShowingLanguage(false)}
+          onOpenMenu={() => setMenuOpen(true)}
+          onOpenMessages={onOpenMessages}
+        />
+        <AccountDrawer
+          visible={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          onSelect={handleMenuSelect}
+        />
+      </>
+    );
+  }
+
+  if (showingBilling) {
+    return (
+      <>
+        <PaymentsBillingView
+          onBack={() => setShowingBilling(false)}
+          onOpenMenu={() => setMenuOpen(true)}
+          onOpenMessages={onOpenMessages}
+        />
+        <AccountDrawer
+          visible={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          onSelect={handleMenuSelect}
+        />
+      </>
+    );
+  }
 
   if (showingPayments) {
     return (

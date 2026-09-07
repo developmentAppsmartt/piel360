@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { AppIcon } from '../../../components/AppIcon';
 import { BrandLogo } from '../../../components/BrandLogo';
 import { Icons } from '../../../components/icons';
+import { LegalDocumentModal } from '../../../components/legal/LegalDocumentModal';
 import { useBranding } from '../../../context/BrandingContext';
+import type { LegalDocId } from '../../../data/legal/documents';
 import { createYoucamFlowStyles } from './styles/youcamFlow.styles';
 
 type YoucamConsentStepProps = {
@@ -12,14 +14,16 @@ type YoucamConsentStepProps = {
   title?: string;
   subtitle?: string;
   body?: string;
-  bullet?: string;
+  /** Texto corto de privacidad (opcional). */
+  privacyShort?: string;
+  checkboxLabel?: string;
+  ctaLabel?: string;
+  privacyDocId?: LegalDocId;
+  privacyLinkLabel?: string;
 };
 
 const DEFAULT_BODY =
   'Al continuar, autorizas el escaneo facial y el procesamiento de imágenes según el aviso de información de Piel 360, incluyendo la retención y eliminación de tus datos conforme a la política aplicable.';
-
-const DEFAULT_BULLET =
-  '• Has revisado y aceptas los términos de uso del análisis de estado de la piel asistido por IA.';
 
 export function YoucamConsentStep({
   onNext,
@@ -27,7 +31,11 @@ export function YoucamConsentStep({
   title = 'Consentimiento',
   subtitle = 'Respetamos tu privacidad',
   body = DEFAULT_BODY,
-  bullet = DEFAULT_BULLET,
+  privacyShort,
+  checkboxLabel = 'Al marcar esta casilla, confirmo que he leído y acepto los Términos y condiciones y la política de privacidad',
+  ctaLabel = 'Siguiente',
+  privacyDocId = 'privacy',
+  privacyLinkLabel = 'Ver Políticas de Privacidad',
 }: YoucamConsentStepProps) {
   const branding = useBranding();
   const styles = useMemo(
@@ -35,6 +43,7 @@ export function YoucamConsentStep({
     [branding.colors],
   );
   const [accepted, setAccepted] = useState(false);
+  const [legalOpen, setLegalOpen] = useState(false);
 
   return (
     <View style={styles.card}>
@@ -42,16 +51,11 @@ export function YoucamConsentStep({
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
         <Text style={styles.body}>{body}</Text>
-        <Text style={styles.bullet}>{bullet}</Text>
-        <Pressable
-          onPress={() =>
-            Alert.alert(
-              'Políticas de privacidad',
-              'El texto legal completo se publicará en esta sección. Mientras tanto aplica el acuerdo de usuario de Piel 360.',
-            )
-          }
-        >
-          <Text style={styles.link}>Ver Políticas de Privacidad</Text>
+        {privacyShort ? (
+          <Text style={[styles.body, { marginTop: 8 }]}>{privacyShort}</Text>
+        ) : null}
+        <Pressable onPress={() => setLegalOpen(true)}>
+          <Text style={styles.link}>{privacyLinkLabel}</Text>
         </Pressable>
 
         <Pressable
@@ -63,10 +67,7 @@ export function YoucamConsentStep({
               <AppIcon icon={Icons.check} size={14} color="#FFF" />
             ) : null}
           </View>
-          <Text style={styles.checkLabel}>
-            Al marcar esta casilla, confirmo que he leído y acepto los Términos y
-            condiciones y la política de privacidad
-          </Text>
+          <Text style={styles.checkLabel}>{checkboxLabel}</Text>
         </Pressable>
 
         <Pressable
@@ -74,7 +75,7 @@ export function YoucamConsentStep({
           disabled={!accepted}
           onPress={onNext}
         >
-          <Text style={styles.primaryBtnText}>Siguiente</Text>
+          <Text style={styles.primaryBtnText}>{ctaLabel}</Text>
         </Pressable>
 
         <Pressable style={styles.cancel} onPress={onCancel}>
@@ -85,6 +86,12 @@ export function YoucamConsentStep({
       <View style={styles.footerLogo}>
         <BrandLogo height={28} />
       </View>
+
+      <LegalDocumentModal
+        docId={privacyDocId}
+        visible={legalOpen}
+        onClose={() => setLegalOpen(false)}
+      />
     </View>
   );
 }

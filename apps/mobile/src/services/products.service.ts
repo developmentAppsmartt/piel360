@@ -29,8 +29,8 @@ export type CatalogProduct = {
 };
 
 export const CATALOG_TABS = [
-  { key: 'rutinas', label: 'Rutinas', match: ['rutina'] },
   { key: 'productos', label: 'Productos', match: ['producto'] },
+  { key: 'rutinas', label: 'Rutinas', match: ['rutina'] },
   { key: 'suplementos', label: 'Suplementos', match: ['suplement'] },
   { key: 'tratamientos', label: 'Tratamientos', match: ['tratamient'] },
 ] as const;

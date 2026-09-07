@@ -207,8 +207,12 @@ export function createLoginStyles(colors: AppBranding['colors']) {
       fontWeight: '700',
       textDecorationLine: 'underline',
     },
-    complianceRow: {
+    complianceBlock: {
       marginTop: 20,
+      gap: 10,
+      alignItems: 'center',
+    },
+    complianceRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
@@ -219,6 +223,7 @@ export function createLoginStyles(colors: AppBranding['colors']) {
       color: 'rgba(255,255,255,0.55)',
       fontSize: 10,
       letterSpacing: 0.2,
+      fontWeight: '600',
     },
     backLink: {
       marginBottom: 14,

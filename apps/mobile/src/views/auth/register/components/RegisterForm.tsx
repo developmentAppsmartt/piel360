@@ -27,6 +27,8 @@ import { AuthConsent } from '../../login/components/AuthConsent';
 import { AuthGradientButton } from '../../login/components/AuthGradientButton';
 import { AUTH_THEME } from '../../authTheme';
 import { createLoginStyles } from '../../login/styles/login.styles';
+import { LegalDocumentModal } from '../../../../components/legal/LegalDocumentModal';
+import type { LegalDocId } from '../../../../data/legal/documents';
 import { createRegisterStyles } from '../styles/register.styles';
 import { SkinIntroStep } from './SkinIntroStep';
 import { SurveyOptionList } from './SurveyOptionList';
@@ -95,6 +97,7 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
   );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [legalDoc, setLegalDoc] = useState<LegalDocId | null>(null);
 
   const primary = AUTH_THEME.purple;
   const onDark = branding.colors.textOnDark;
@@ -290,6 +293,8 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
           termsChecked={terms}
           onToggleCaptcha={() => setCaptcha((v) => !v)}
           onToggleTerms={() => setTerms((v) => !v)}
+          onOpenTerms={() => setLegalDoc('terms')}
+          onOpenPrivacy={() => setLegalDoc('privacy')}
           disabled={submitting}
         />
 
@@ -309,6 +314,12 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
             Inicia sesión
           </Text>
         </Text>
+
+        <LegalDocumentModal
+          docId={legalDoc}
+          visible={legalDoc != null}
+          onClose={() => setLegalDoc(null)}
+        />
       </View>
     );
   }

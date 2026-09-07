@@ -20,6 +20,7 @@ import {
   analysisStatus,
 } from '../../../data/analysisProviderLabel';
 import { ApiError } from '../../../services/api.client';
+import { agendaService } from '../../../services/agenda.service';
 import { analysesService } from '../../../services/analyses.service';
 import { doctorsService } from '../../../services/doctors.service';
 import { patientsService } from '../../../services/patients.service';
@@ -30,7 +31,9 @@ import { resolveMediaUrl } from '../../../utils/mediaUrl';
 import { AnalysisDetailView } from '../analyses/AnalysisDetailView';
 import { AccountDrawer } from '../patients/components/AccountDrawer';
 import { DoctorHeader } from '../patients/components/DoctorHeader';
+import { PaymentsBillingView } from '../payments/PaymentsBillingView';
 import { PaymentsView } from '../payments/PaymentsView';
+import { DiagnosisLanguageView } from '../settings/DiagnosisLanguageView';
 import { createDoctorHomeStyles } from './styles/home.styles';
 import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
 import { DoctorStatsView } from './DoctorStatsView';
@@ -39,7 +42,28 @@ type DoctorHomeViewProps = {
   onOpenPatients: () => void;
   onOpenMessages?: () => void;
   onOpenProfile?: () => void;
+  onOpenAgenda?: () => void;
 };
+
+const PENDING_APPOINTMENT_STATUSES = new Set(['proposed', 'requested']);
+const CONFIRMED_APPOINTMENT_STATUS = 'confirmed';
+
+function ymdLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function startOfLocalDay(d = new Date()): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+}
+
+function addDays(d: Date, days: number): Date {
+  const next = new Date(d);
+  next.setDate(next.getDate() + days);
+  return next;
+}
 
 function lastNameFromUserName(name: string | undefined): string {
   const raw = (name ?? '').trim();
@@ -74,6 +98,7 @@ export function DoctorHomeView({
   onOpenPatients,
   onOpenMessages,
   onOpenProfile,
+  onOpenAgenda,
 }: DoctorHomeViewProps) {
   const branding = useBranding();
   const { user, logout } = useAuth();
@@ -88,6 +113,9 @@ export function DoctorHomeView({
 
   const [patients, setPatients] = useState<PatientProfile[]>([]);
   const [analyses, setAnalyses] = useState<PatientAnalysisSummary[]>([]);
+  const [appointmentsCount, setAppointmentsCount] = useState(0);
+  const [appointmentsConfirmed, setAppointmentsConfirmed] = useState(0);
+  const [appointmentsPending, setAppointmentsPending] = useState(0);
   const [doctorLastName, setDoctorLastName] = useState(
     lastNameFromUserName(user?.name),
   );
@@ -96,6 +124,8 @@ export function DoctorHomeView({
   const [refreshing, setRefreshing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showingPayments, setShowingPayments] = useState(false);
+  const [showingLanguage, setShowingLanguage] = useState(false);
+  const [showingBilling, setShowingBilling] = useState(false);
   const [showingStats, setShowingStats] = useState(false);
   const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(
     null,
@@ -103,13 +133,28 @@ export function DoctorHomeView({
 
   const load = useCallback(async () => {
     try {
-      const [list, analysisList, doctor] = await Promise.all([
+      const from = ymdLocal(startOfLocalDay());
+      const toDay = ymdLocal(addDays(startOfLocalDay(), 60));
+      const [list, analysisList, doctor, agenda] = await Promise.all([
         patientsService.list(),
         analysesService.list().catch(() => [] as PatientAnalysisSummary[]),
         doctorsService.getMe().catch(() => null),
+        agendaService.getOverview(from, `${toDay}T23:59:59.999`).catch(() => null),
       ]);
       setPatients(list);
       setAnalyses(analysisList);
+      const dayStart = startOfLocalDay().getTime();
+      let confirmed = 0;
+      let pending = 0;
+      for (const a of agenda?.appointments ?? []) {
+        const start = new Date(a.startsAt).getTime();
+        if (Number.isNaN(start) || start < dayStart) continue;
+        if (a.status === CONFIRMED_APPOINTMENT_STATUS) confirmed += 1;
+        else if (PENDING_APPOINTMENT_STATUSES.has(a.status)) pending += 1;
+      }
+      setAppointmentsConfirmed(confirmed);
+      setAppointmentsPending(pending);
+      setAppointmentsCount(confirmed + pending);
       if (doctor?.lastName?.trim()) {
         setDoctorLastName(doctor.lastName.trim());
       }
@@ -171,7 +216,19 @@ export function DoctorHomeView({
     setMenuOpen(false);
     if (id === 'salir') void logout();
     else if (id === 'perfil' || id === 'config') onOpenProfile?.();
-    else if (id === 'suscripcion') setShowingPayments(true);
+    else if (id === 'suscripcion') {
+      setShowingLanguage(false);
+      setShowingBilling(false);
+      setShowingPayments(true);
+    } else if (id === 'idioma') {
+      setShowingPayments(false);
+      setShowingBilling(false);
+      setShowingLanguage(true);
+    } else if (id === 'pagos') {
+      setShowingPayments(false);
+      setShowingLanguage(false);
+      setShowingBilling(true);
+    }
     else if (id === 'acerca')
       Alert.alert(
         'Acerca de Piel 360',
@@ -185,31 +242,90 @@ export function DoctorHomeView({
   };
 
   const stats: {
-    value: number;
+    value: string;
     label: string;
+    hint?: string;
     icon: AppIconName;
+    iconColor: string;
+    onPress?: () => void;
   }[] = [
     {
-      value: patients.length,
+      value: String(patients.length),
       label: 'Pacientes',
       icon: Icons.accountGroup,
+      iconColor: primary,
+      onPress: onOpenPatients,
     },
     {
-      value: dermatologicoCount,
+      value: String(dermatologicoCount),
       label: 'Dermatológico',
-      icon: Icons.skin,
+      icon: Icons.dermAnalysis,
+      iconColor: '#0D9488',
     },
     {
-      value: esteticoCount,
+      value: String(esteticoCount),
       label: 'Estético',
-      icon: Icons.smile,
+      icon: Icons.aesthetic,
+      iconColor: '#7C3AED',
     },
     {
-      value: fototipoCount,
+      value: String(fototipoCount),
       label: 'Fototipo',
-      icon: Icons.heartPulse,
+      icon: Icons.fototipo,
+      iconColor: '#B45309',
+    },
+    {
+      value: String(appointmentsCount),
+      label: 'Nuevas Citas',
+      hint: `${appointmentsConfirmed} conf. · ${appointmentsPending} pend.`,
+      icon: Icons.calendarPlus,
+      iconColor: primaryDark,
+      onPress: onOpenAgenda,
+    },
+    {
+      value: String(dermatologicoCount + esteticoCount + fototipoCount),
+      label: 'Estadísticas',
+      icon: Icons.chartBar,
+      iconColor: '#0D9488',
+      onPress: () => setShowingStats(true),
     },
   ];
+
+  if (showingLanguage) {
+    return (
+      <>
+        <DiagnosisLanguageView
+          onBack={() => setShowingLanguage(false)}
+          onOpenMenu={() => setMenuOpen(true)}
+          onOpenMessages={onOpenMessages}
+        />
+        <AccountDrawer
+          visible={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          onSelect={handleMenuSelect}
+          variant="doctor"
+        />
+      </>
+    );
+  }
+
+  if (showingBilling) {
+    return (
+      <>
+        <PaymentsBillingView
+          onBack={() => setShowingBilling(false)}
+          onOpenMenu={() => setMenuOpen(true)}
+          onOpenMessages={onOpenMessages}
+        />
+        <AccountDrawer
+          visible={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          onSelect={handleMenuSelect}
+          variant="doctor"
+        />
+      </>
+    );
+  }
 
   if (showingPayments) {
     return (
@@ -294,7 +410,7 @@ export function DoctorHomeView({
           />
         }
       >
-        <View style={styles.topRow}>
+        <View style={styles.welcomeRow}>
           <Pressable
             style={styles.avatar}
             onPress={onOpenProfile}
@@ -312,24 +428,16 @@ export function DoctorHomeView({
               </Text>
             )}
           </Pressable>
-          <Pressable
-            style={styles.bellBtn}
-            onPress={onOpenMessages}
-            accessibilityLabel="Notificaciones"
-          >
-            <AppIcon icon={Icons.bell} size={22} color={primary} />
-          </Pressable>
-        </View>
-
-        <View>
-          <Text style={styles.welcomeLabel}>Bienvenido,</Text>
-          <Text style={styles.welcomeName}>{welcomeName}</Text>
-          {!loading && pendingCount > 0 ? (
-            <Text style={styles.pendingHint}>
-              {pendingCount} análisis pendiente{pendingCount === 1 ? '' : 's'}{' '}
-              de confirmar
-            </Text>
-          ) : null}
+          <View style={styles.welcomeTextWrap}>
+            <Text style={styles.welcomeLabel}>Bienvenido,</Text>
+            <Text style={styles.welcomeName}>{welcomeName}</Text>
+            {!loading && pendingCount > 0 ? (
+              <Text style={styles.pendingHint}>
+                {pendingCount} análisis pendiente{pendingCount === 1 ? '' : 's'}{' '}
+                de confirmar
+              </Text>
+            ) : null}
+          </View>
         </View>
 
         {loading ? (
@@ -339,63 +447,98 @@ export function DoctorHomeView({
         ) : (
           <>
             <View style={styles.statsGrid}>
-              <View style={styles.statsRow}>
-                {stats.slice(0, 2).map((s) => (
-                  <View key={s.label} style={styles.statCard}>
-                    <View style={styles.statIconWrap}>
-                      <AppIcon icon={s.icon} size={18} color={primary} />
-                    </View>
-                    <Text style={styles.statValue}>{s.value}</Text>
-                    <Text style={styles.statLabel}>{s.label}</Text>
-                  </View>
-                ))}
-              </View>
-              <View style={styles.statsRow}>
-                {stats.slice(2, 4).map((s) => (
-                  <View key={s.label} style={styles.statCard}>
-                    <View style={styles.statIconWrap}>
-                      <AppIcon icon={s.icon} size={18} color={primary} />
-                    </View>
-                    <Text style={styles.statValue}>{s.value}</Text>
-                    <Text style={styles.statLabel}>{s.label}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.actionsRow}>
-              {(
-                [
-                  {
-                    label: 'Nuevos Casos',
-                    onPress: onOpenPatients,
-                  },
-                  { label: 'Mis Pacientes', onPress: onOpenPatients },
-                  {
-                    label: 'Estadísticas',
-                    onPress: () => setShowingStats(true),
-                  },
-                ] as const
-              ).map((action) => (
-                <Pressable
-                  key={action.label}
-                  style={styles.actionBtn}
-                  onPress={action.onPress}
-                >
-                  <LinearGradient
-                    colors={[primaryDark, secondary]}
-                    start={{ x: 0, y: 0.5 }}
-                    end={{ x: 1, y: 0.5 }}
-                    style={styles.actionBtnInner}
-                  >
-                    <Text style={styles.actionBtnText}>{action.label}</Text>
-                  </LinearGradient>
-                </Pressable>
+              {[0, 1].map((row) => (
+                <View key={`stats-row-${row}`} style={styles.statsRow}>
+                  {stats.slice(row * 3, row * 3 + 3).map((s) => (
+                    <Pressable
+                      key={s.label}
+                      style={styles.statCard}
+                      onPress={s.onPress}
+                      disabled={!s.onPress}
+                    >
+                      <View
+                        style={[
+                          styles.statIconWrap,
+                          { backgroundColor: `${s.iconColor}22` },
+                        ]}
+                      >
+                        <AppIcon icon={s.icon} size={22} color={s.iconColor} />
+                      </View>
+                      <Text style={[styles.statValue, { color: s.iconColor }]}>
+                        {s.value}
+                      </Text>
+                      <Text style={styles.statLabel}>{s.label}</Text>
+                      {s.hint ? (
+                        <Text style={styles.statHint}>{s.hint}</Text>
+                      ) : null}
+                    </Pressable>
+                  ))}
+                </View>
               ))}
             </View>
 
+            <View style={styles.actionsRow}>
+              <Pressable
+                style={styles.actionBtn}
+                onPress={onOpenPatients}
+                accessibilityLabel="Mis Pacientes"
+              >
+                <LinearGradient
+                  colors={[primaryDark, secondary]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={styles.actionBtnInner}
+                >
+                  <AppIcon
+                    icon={Icons.accountGroup}
+                    size={20}
+                    color={branding.colors.textOnDark}
+                  />
+                  <Text style={styles.actionBtnText}>Mis Pacientes</Text>
+                  <AppIcon
+                    icon={Icons.chevronRight}
+                    size={18}
+                    color={branding.colors.textOnDark}
+                  />
+                </LinearGradient>
+              </Pressable>
+              <Pressable
+                style={styles.actionBtn}
+                onPress={() => setShowingStats(true)}
+                accessibilityLabel="Estadísticas"
+              >
+                <LinearGradient
+                  colors={[secondary, '#7C3AED']}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={styles.actionBtnInner}
+                >
+                  <AppIcon
+                    icon={Icons.chartBar}
+                    size={20}
+                    color={branding.colors.textOnDark}
+                  />
+                  <Text style={styles.actionBtnText}>Estadísticas</Text>
+                  <AppIcon
+                    icon={Icons.chevronRight}
+                    size={18}
+                    color={branding.colors.textOnDark}
+                  />
+                </LinearGradient>
+              </Pressable>
+            </View>
+
             <View>
-              <Text style={styles.sectionTitle}>Actividad reciente</Text>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Actividad reciente</Text>
+                <Pressable
+                  onPress={onOpenPatients}
+                  hitSlop={8}
+                  accessibilityLabel="Ver todas"
+                >
+                  <Text style={styles.sectionLink}>Ver todas ›</Text>
+                </Pressable>
+              </View>
               <View style={styles.activityCard}>
                 {recent.length === 0 ? (
                   <View style={styles.empty}>
@@ -453,6 +596,11 @@ export function DoctorHomeView({
                             {status.label}
                           </Text>
                         </View>
+                        <AppIcon
+                          icon={Icons.chevronRight}
+                          size={18}
+                          color={branding.colors.muted}
+                        />
                       </Pressable>
                     );
                   })

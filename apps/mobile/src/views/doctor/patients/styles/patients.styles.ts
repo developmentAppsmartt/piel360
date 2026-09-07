@@ -1,6 +1,5 @@
 import type { AppBranding } from '../../../../config/branding.defaults';
 import { StyleSheet } from 'react-native';
-import { appShadow } from '../../../../styles/shadow';
 
 function soft(hex: string, a = '22'): string {
   return /^#[0-9A-Fa-f]{6}$/.test(hex) ? `${hex}${a}` : hex;
@@ -15,7 +14,7 @@ export function createDoctorPatientsStyles(colors: AppBranding['colors']) {
     header: {
       backgroundColor: colors.primary,
       paddingHorizontal: 12,
-      paddingBottom: 12,
+      paddingBottom: 14,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
@@ -32,6 +31,8 @@ export function createDoctorPatientsStyles(colors: AppBranding['colors']) {
     },
     headerLogo: {
       flexShrink: 1,
+      maxHeight: 48,
+      maxWidth: 160,
     },
     headerBack: {
       color: colors.textOnDark,
@@ -88,36 +89,22 @@ export function createDoctorPatientsStyles(colors: AppBranding['colors']) {
       paddingBottom: 28,
       gap: 16,
     },
-    metricsGrid: {
-      gap: 10,
-    },
-    metricsRow: {
+    searchWrap: {
       flexDirection: 'row',
+      alignItems: 'center',
       gap: 10,
-    },
-    metric: {
-      flex: 1,
-    },
-    metricCard: {
       backgroundColor: '#FFFFFF',
-      borderRadius: 14,
-      borderWidth: 1.5,
-      borderColor: soft(colors.primary, '55'),
-      paddingVertical: 14,
-      paddingHorizontal: 12,
-      minHeight: 72,
-      justifyContent: 'center',
-      gap: 2,
+      borderWidth: 1,
+      borderColor: '#E5E7EB',
+      borderRadius: 999,
+      paddingHorizontal: 14,
+      paddingVertical: 11,
     },
-    metricValue: {
-      fontSize: 24,
-      fontWeight: '800',
-      color: colors.primary,
-    },
-    metricLabel: {
-      fontSize: 12,
-      fontWeight: '700',
-      color: colors.primaryDark,
+    searchInput: {
+      flex: 1,
+      fontSize: 14,
+      color: colors.text,
+      padding: 0,
     },
     newButton: {
       alignSelf: 'center',
@@ -138,16 +125,18 @@ export function createDoctorPatientsStyles(colors: AppBranding['colors']) {
       color: colors.primaryDark,
       marginTop: 4,
     },
+    list: {
+      gap: 0,
+    },
     row: {
-      backgroundColor: '#FFFFFF',
-      borderRadius: 14,
-      paddingVertical: 12,
-      paddingHorizontal: 12,
+      backgroundColor: 'transparent',
+      paddingVertical: 14,
+      paddingHorizontal: 2,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      marginBottom: 10,
-      ...appShadow({ opacity: 0.04, radius: 6, offsetY: 2, elevation: 1 }),
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: '#D1D5DB',
     },
     avatar: {
       width: 44,

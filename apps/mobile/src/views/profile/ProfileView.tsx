@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   Text,
@@ -30,6 +31,7 @@ import { ProfileIdentity } from './components/ProfileIdentity';
 import { ProfileSection } from './components/ProfileSection';
 import { createProfileStyles } from './styles/profile.styles';
 import { AppModuleChrome } from '../shared/AppModuleChrome';
+import { DiagnosisLanguageView } from '../doctor/settings/DiagnosisLanguageView';
 
 type EditDoctorViewComponent = typeof import('../doctor/profile/EditDoctorView').EditDoctorView;
 
@@ -93,6 +95,7 @@ export function ProfileView({ onBack, onOpenMessages }: ProfileViewProps) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const [languageOpen, setLanguageOpen] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
   const [EditDoctorView, setEditDoctorView] =
@@ -197,6 +200,24 @@ export function ProfileView({ onBack, onOpenMessages }: ProfileViewProps) {
       setEditing(true);
       return;
     }
+    if (rowId === 'idioma' && isDoctor) {
+      setLanguageOpen(true);
+      return;
+    }
+    if (rowId === 'contacto' || rowId === 'ayuda') {
+      Alert.alert(
+        'Soporte',
+        'Escríbenos a soporte@piel360.com.',
+        [
+          { text: 'Cerrar', style: 'cancel' },
+          {
+            text: 'Escribir',
+            onPress: () => void Linking.openURL('mailto:soporte@piel360.com'),
+          },
+        ],
+      );
+      return;
+    }
     Alert.alert(
       'Próximamente',
       `La opción "${rowId}" se conectará en una siguiente iteración.`,
@@ -281,6 +302,16 @@ export function ProfileView({ onBack, onOpenMessages }: ProfileViewProps) {
     } finally {
       setAvatarBusy(false);
     }
+  }
+
+  if (languageOpen) {
+    return (
+      <DiagnosisLanguageView
+        onBack={() => setLanguageOpen(false)}
+        onOpenMenu={() => setLanguageOpen(false)}
+        onOpenMessages={onOpenMessages}
+      />
+    );
   }
 
   if (editing && isDoctor && doctor) {
