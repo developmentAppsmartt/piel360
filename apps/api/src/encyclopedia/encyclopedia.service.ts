@@ -4,7 +4,11 @@ import { PrismaService } from '../prisma/prisma.service';
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const REMOVE_SELECTORS =
-  'header, footer, nav, #breadcrumbs, #myDiv, .gtranslate-container';
+  // #cmplz-cookiebanner-container: widget de cookies (plugin "Complianz" de
+  // WordPress) — trae texto sin traducir/sin renderizar (placeholders tipo
+  // {title}/{vendor_count} que Complianz llena con JS del lado del cliente,
+  // nunca ejecutado acá porque scrapeamos HTML estático).
+  'header, footer, nav, #breadcrumbs, #myDiv, .gtranslate-container, #cmplz-cookiebanner-container, #cmplz-manage-consent';
 
 /**
  * Scraper del atlas dermatológico (INTEGRACIONES-IA.md §1.4). El
@@ -55,6 +59,14 @@ export class EncyclopediaService {
 
     const $ = cheerio.load(html);
     $(REMOVE_SELECTORS).remove();
+    // WordPress hace lazy-load: el <img> real trae un SVG vacío en `src` y
+    // la URL real en `data-lazy-src` — sin JS (nunca se ejecuta acá) el
+    // navegador se queda con el placeholder vacío para siempre. Se
+    // resuelve al scrapear, una sola vez, en vez de en cada render.
+    $('img[data-lazy-src]').each((_, el) => {
+      const real = $(el).attr('data-lazy-src');
+      if (real) $(el).attr('src', real);
+    });
     const title =
       $('h1').first().text().trim() || $('title').first().text().trim();
     const content = $.html();
