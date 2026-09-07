@@ -18,6 +18,7 @@ import type {
   UpdateEmailTemplateVariableDto,
 } from './dto/email-template.dto';
 import {
+  EMAIL_TEMPLATE_DEFAULTS,
   EMAIL_TEMPLATE_KIND_LABELS,
 } from './email-templates.defaults';
 
@@ -179,7 +180,7 @@ export class EmailTemplatesService {
           provider: 'brevo' as string | null,
           status: 'connected',
           message:
-            'Correo transaccional vía Brevo. La plantilla "report_ready" activa se usa al completarse un análisis de YouCam.',
+            'Correo transaccional vía Brevo. La plantilla "report_ready" activa se usa al completarse un análisis de estético.',
         },
       },
     };
@@ -332,14 +333,44 @@ export class EmailTemplatesService {
   }
 
   /** Plantilla activa más reciente de un `kind` reservado (ej. "report_ready")
-   * para un doctor — usada por ReportEmailService al enviar. `null` si el
-   * doctor no configuró ninguna (el llamador debe tener un default propio). */
+   * para un doctor — usada por ReportEmailService/AppointmentEmailService/
+   * PatientInviteService al enviar. `null` si el doctor no configuró ninguna
+   * (el llamador debe tener un default propio, ver EMAIL_TEMPLATE_DEFAULTS). */
   async findActiveByKind(doctorId: bigint, kind: string) {
     const row = await this.prisma.emailTemplate.findFirst({
       where: { doctorId, kind, isActive: true },
       orderBy: [{ updatedAt: 'desc' }],
     });
     return row ? this.serialize(row) : null;
+  }
+
+  /** Para el selector de eventos del editor (`GET /email-templates/by-kind/:kind`):
+   * la plantilla real del doctor si existe, o una "virtual" (sin `id`, con el
+   * contenido default de EMAIL_TEMPLATE_DEFAULTS) para que el editor tenga
+   * algo que mostrar y el doctor pueda partir de ahí. */
+  async getByKindOrDefault(userId: string, kind: string) {
+    const doctorId = await this.catalogDoctorId(userId);
+    const existing = await this.findActiveByKind(doctorId, kind);
+    if (existing) return { ...existing, isDefault: false as const };
+
+    const defaults = EMAIL_TEMPLATE_DEFAULTS[kind];
+    if (!defaults) {
+      throw new NotFoundException(`No hay contenido por defecto para «${kind}»`);
+    }
+    return {
+      id: null as string | null,
+      doctorId: doctorId.toString(),
+      kind,
+      kindLabel: EMAIL_TEMPLATE_KIND_LABELS[kind] ?? kind,
+      name: EMAIL_TEMPLATE_KIND_LABELS[kind] ?? kind,
+      subject: defaults.subject,
+      preheader: null as string | null,
+      bodyHtml: defaults.bodyHtml,
+      isActive: true,
+      createdAt: null as string | null,
+      updatedAt: null as string | null,
+      isDefault: true as const,
+    };
   }
 
   async uploadBanner(userId: string, file: Express.Multer.File | undefined) {

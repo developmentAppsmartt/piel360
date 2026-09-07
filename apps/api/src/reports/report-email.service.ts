@@ -2,18 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { applyEmailTemplateVariables } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { EMAIL_TEMPLATE_DEFAULTS } from '../email-templates/email-templates.defaults';
 import { EmailTemplatesService } from '../email-templates/email-templates.service';
 import { ReportPdfService } from './report-pdf.service';
 
 const REPORT_READY_KIND = 'report_ready';
-
-const DEFAULT_SUBJECT = 'Tu reporte de salud de la piel ya está listo';
-const DEFAULT_BODY_HTML = `<p>Hola {nombre},</p>
-<p>Ya completamos el análisis de tu piel. Puedes ver tu reporte completo aquí:</p>
-<p style="text-align:center;margin:24px 0;">
-  <a href="{report_url}" style="display:inline-block;background:#1e5a9e;color:#ffffff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;">Ver mi reporte</a>
-</p>
-<p>— {clinic_name}</p>`;
 
 /**
  * Puente entre las plantillas guardadas (`EmailTemplate`, kind="report_ready")
@@ -61,8 +54,9 @@ export class ReportEmailService {
       '{clinic_name}': clinicName,
     };
 
-    const subjectRaw = template?.subject ?? DEFAULT_SUBJECT;
-    const bodyRaw = template?.bodyHtml ?? DEFAULT_BODY_HTML;
+    const defaults = EMAIL_TEMPLATE_DEFAULTS[REPORT_READY_KIND];
+    const subjectRaw = template?.subject ?? defaults.subject;
+    const bodyRaw = template?.bodyHtml ?? defaults.bodyHtml;
 
     const subject = applyEmailTemplateVariables(subjectRaw, values);
     const html = applyEmailTemplateVariables(bodyRaw, values);

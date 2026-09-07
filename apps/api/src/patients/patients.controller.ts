@@ -17,6 +17,7 @@ import { CreatePatientDto } from './dto/create-patient.dto';
 import { CreateAnalysisRequestDto } from './dto/create-analysis-request.dto';
 import { SurveyDto } from './dto/survey.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
+import { PatientInviteService } from './patient-invite.service';
 import { PatientsService } from './patients.service';
 
 @Controller()
@@ -25,6 +26,7 @@ export class PatientsController {
   constructor(
     private readonly patientsService: PatientsService,
     private readonly skinAgeRulesService: SkinAgeRulesService,
+    private readonly patientInviteService: PatientInviteService,
   ) {}
 
   @Get('me/survey')
@@ -98,6 +100,11 @@ export class PatientsController {
   @Get('patients/:id')
   findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.patientsService.findOne(id, user);
+  }
+
+  @Post('patients/:id/invite')
+  invite(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.patientInviteService.sendInvite(id, user);
   }
 
   @Patch('patients/:id')
