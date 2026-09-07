@@ -2,14 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { applyEmailTemplateVariables } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { EMAIL_TEMPLATE_DEFAULTS } from '../email-templates/email-templates.defaults';
 import { EmailTemplatesService } from '../email-templates/email-templates.service';
 
 const APPOINTMENT_SCHEDULED_KIND = 'appointment_scheduled';
-
-const DEFAULT_SUBJECT = 'Tu cita quedó agendada';
-const DEFAULT_BODY_HTML = `<p>Hola {nombre},</p>
-<p>Tu cita <strong>{cita_titulo}</strong> quedó agendada para el <strong>{fecha_cita}</strong> a las <strong>{hora_cita}</strong>.</p>
-<p>— {clinic_name}</p>`;
 
 /**
  * Puente entre las plantillas guardadas (`EmailTemplate`, kind=
@@ -57,12 +53,13 @@ export class AppointmentEmailService {
       '{clinic_name}': clinicName,
     };
 
+    const defaults = EMAIL_TEMPLATE_DEFAULTS[APPOINTMENT_SCHEDULED_KIND];
     const subject = applyEmailTemplateVariables(
-      template?.subject ?? DEFAULT_SUBJECT,
+      template?.subject ?? defaults.subject,
       values,
     );
     const html = applyEmailTemplateVariables(
-      template?.bodyHtml ?? DEFAULT_BODY_HTML,
+      template?.bodyHtml ?? defaults.bodyHtml,
       values,
     );
 

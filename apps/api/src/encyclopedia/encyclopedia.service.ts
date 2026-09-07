@@ -51,7 +51,6 @@ export class EncyclopediaService {
       this.logger.warn(`No se pudo scrapear ${url}: ${response.status}`);
       throw new Error(`Fetch de enciclopedia falló: ${response.status}`);
     }
-    const finalUrl = response.url || url;
     const html = await response.text();
 
     const $ = cheerio.load(html);
@@ -60,10 +59,17 @@ export class EncyclopediaService {
       $('h1').first().text().trim() || $('title').first().text().trim();
     const content = $.html();
 
+    // Se guarda bajo `url` (la misma clave con la que se cachea arriba y con
+    // la que `findByUrl` va a preguntar) — NO bajo `response.url` (post-
+    // redirect). skinive.com hace 301 cuando el link no termina en "/" (el
+    // atlas_page_link real de Skiniver no siempre la trae); guardar bajo la
+    // URL final rompía el caché: quedaba huérfano, invisible para
+    // `findByUrl`, y el doctor nunca veía el artículo aunque el scrape
+    // hubiera funcionado.
     return this.prisma.encyclopediaEntry.upsert({
-      where: { url: finalUrl },
+      where: { url },
       update: { title, content, originalUrl: rawUrl },
-      create: { url: finalUrl, originalUrl: rawUrl, title, content },
+      create: { url, originalUrl: rawUrl, title, content },
     });
   }
 

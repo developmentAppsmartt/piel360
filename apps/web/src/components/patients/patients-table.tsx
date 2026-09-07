@@ -1,15 +1,55 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createColumnHelper, type ColumnDef } from "@tanstack/react-table";
-import { Plus, Users } from "lucide-react";
+import { Mail, Plus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { ModuleCard, ModuleMetric } from "@/components/ui/module-card";
+import { ApiError } from "@/lib/api-error";
 import type { OrgTeamMember } from "@/lib/queries/organizations";
-import type { Patient } from "@/lib/queries/patients";
+import { useInvitePatient, type Patient } from "@/lib/queries/patients";
 import { patientsListPath, type PatientsPanel } from "@/lib/patients-panel";
+
+function InvitePatientButton({ patient }: { patient: Patient }) {
+  const invite = useInvitePatient();
+  const [feedback, setFeedback] = useState<"ok" | "error" | null>(null);
+
+  if (patient.userId || !patient.email) return null;
+
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={invite.isPending}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setFeedback(null);
+          invite.mutate(patient.id, {
+            onSuccess: () => setFeedback("ok"),
+            onError: () => setFeedback("error"),
+          });
+        }}
+        className="gap-1.5"
+      >
+        <Mail className="size-3.5" />
+        {invite.isPending ? "Enviando..." : "Invitar"}
+      </Button>
+      {feedback === "ok" ? (
+        <span className="text-xs font-medium text-emerald-600">Enviada</span>
+      ) : feedback === "error" ? (
+        <span className="text-xs font-medium text-destructive">
+          {invite.error instanceof ApiError ? invite.error.message : "Error"}
+        </span>
+      ) : null}
+    </div>
+  );
+}
 
 function initials(first: string, last: string) {
   return `${first[0] ?? ""}${last[0] ?? ""}`.toUpperCase() || "?";
@@ -99,6 +139,11 @@ function buildColumns(basePath: string, showProfessionalColumn = false) {
           Activo
         </span>
       ),
+    }),
+    columnHelper.display({
+      id: "actions",
+      header: "",
+      cell: (info) => <InvitePatientButton patient={info.row.original} />,
     }),
   );
 

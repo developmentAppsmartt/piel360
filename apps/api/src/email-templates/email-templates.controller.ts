@@ -41,6 +41,13 @@ export class EmailTemplatesController {
     return this.emailTemplatesService.listVariables(user.sub);
   }
 
+  /** Plantilla activa de ese kind, o su contenido por defecto si el doctor
+   * no ha configurado ninguna — usada por el selector de eventos del editor. */
+  @Get('by-kind/:kind')
+  getByKind(@CurrentUser() user: JwtPayload, @Param('kind') kind: string) {
+    return this.emailTemplatesService.getByKindOrDefault(user.sub, kind);
+  }
+
   @Post('variables')
   createVariable(
     @CurrentUser() user: JwtPayload,
