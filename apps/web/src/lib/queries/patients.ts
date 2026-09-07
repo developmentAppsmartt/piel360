@@ -88,6 +88,8 @@ export interface PatientInput {
   firstName: string;
   lastName: string;
   email?: string;
+  /** true = crear un `User` vinculado (login); exige email+password. */
+  createAppAccess?: boolean;
   password?: string;
   phone?: string;
   areaCode?: string;

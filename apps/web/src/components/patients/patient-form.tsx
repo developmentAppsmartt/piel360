@@ -69,7 +69,7 @@ function createPatientSchema(isCreate: boolean) {
         ctx.addIssue({
           code: "custom",
           path: ["email"],
-          message: "Correo requerido para crear acceso",
+          message: "El correo es obligatorio para crear acceso",
         });
       }
       if (password.length < 8) {
@@ -99,7 +99,10 @@ function toInput(values: PatientFormValues, isCreate: boolean): PatientInput {
   return {
     firstName: values.firstName.trim(),
     lastName: values.lastName.trim(),
-    email: includeAccess ? opt(values.email) : undefined,
+    // Correo de contacto — se manda siempre, no solo al crear cuenta (antes
+    // se perdía por completo al editar, ver toInput()/patients.service.ts).
+    email: opt(values.email),
+    ...(isCreate ? { createAppAccess: values.createAppAccess } : {}),
     ...(includeAccess ? { password: opt(values.password) } : {}),
     docType: opt(values.docType),
     docNumber: opt(values.docNumber),
@@ -341,9 +344,18 @@ export function PatientForm({
         <div>
           <ModuleCardTitle>Contacto</ModuleCardTitle>
           <ModuleCardDescription className="mt-1">
-            Ubicación en el mapa y teléfono para comunicación con el paciente.
+            Correo, ubicación en el mapa y teléfono para comunicación con el paciente.
           </ModuleCardDescription>
         </div>
+
+        <FormField
+          label="Correo electrónico"
+          id="email"
+          hint="Correo de contacto del paciente. Si activas “Crear cuenta” más abajo, se usará este mismo correo para iniciar sesión."
+          error={errors.email?.message}
+        >
+          <input id="email" type="email" autoComplete="email" className={inputClass} {...register("email")} />
+        </FormField>
 
         <AddressLocationPicker
           value={{
@@ -395,36 +407,31 @@ export function PatientForm({
           </div>
 
           {createAppAccess ? (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField label="Correo electrónico" id="email" required error={errors.email?.message}>
-                <input id="email" type="email" autoComplete="email" className={inputClass} {...register("email")} />
-              </FormField>
-              <FormField
-                label="Contraseña"
-                id="password"
-                required
-                hint="Mínimo 8 caracteres."
-                error={errors.password?.message}
-              >
-                <div className="relative">
-                  <input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    className={cn(inputClass, "pr-10")}
-                    {...register("password")}
-                  />
-                  <button
-                    type="button"
-                    className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                  >
-                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-              </FormField>
-            </div>
+            <FormField
+              label="Contraseña"
+              id="password"
+              required
+              hint="Mínimo 8 caracteres."
+              error={errors.password?.message}
+            >
+              <div className="relative max-w-sm">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  className={cn(inputClass, "pr-10")}
+                  {...register("password")}
+                />
+                <button
+                  type="button"
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+            </FormField>
           ) : (
             <p className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
               El paciente se registrará solo en tu cartera. Podrás añadir acceso a la app más adelante
@@ -432,19 +439,7 @@ export function PatientForm({
             </p>
           )}
         </ModuleCard>
-      ) : (
-        <ModuleCard className="space-y-4 p-5 sm:p-6">
-          <div>
-            <ModuleCardTitle>Correo electrónico</ModuleCardTitle>
-            <ModuleCardDescription className="mt-1">
-              Actualiza el correo de contacto del paciente.
-            </ModuleCardDescription>
-          </div>
-          <FormField label="Correo" id="email" error={errors.email?.message}>
-            <input id="email" type="email" className={inputClass} {...register("email")} />
-          </FormField>
-        </ModuleCard>
-      )}
+      ) : null}
 
       <ModuleCard className="space-y-5 p-5 sm:p-6">
         <div>
