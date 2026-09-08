@@ -31,6 +31,7 @@ import { ProductsModule } from './products/products.module';
 import { RoutinesModule } from './routines/routines.module';
 import { TreatmentsModule } from './treatments/treatments.module';
 import { SkinAgeRulesModule } from './skin-age-rules/skin-age-rules.module';
+import { FitzpatrickRulesModule } from './fitzpatrick-rules/fitzpatrick-rules.module';
 import { EmailTemplatesModule } from './email-templates/email-templates.module';
 import { ReportsModule } from './reports/reports.module';
 import { AgendaModule } from './agenda/agenda.module';
@@ -88,6 +89,7 @@ import { LaborTechnicianProfilesModule } from './labor-technician-profiles/labor
     RoutinesModule,
     TreatmentsModule,
     SkinAgeRulesModule,
+    FitzpatrickRulesModule,
     EmailTemplatesModule,
     ReportsModule,
     AgendaModule,

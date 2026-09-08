@@ -46,6 +46,10 @@ export const CLINICAL_MODULE_LEGACY_ACTIONS: Record<string, readonly string[]> =
     "view_any_encyclopedia_entry",
     "view_encyclopedia_entry",
   ],
+  "clinical.fitzpatrick_rules": [
+    "view_any_encyclopedia_entry",
+    "view_encyclopedia_entry",
+  ],
   "clinical.email_templates": [
     "view_any_plan",
     "view_plan",

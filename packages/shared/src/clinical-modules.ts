@@ -101,6 +101,13 @@ export const CLINICAL_MODULES: readonly ClinicalModuleDef[] = [
     permissionNames: ["view_any_encyclopedia_entry", "view_encyclopedia_entry"],
   },
   {
+    key: "clinical.fitzpatrick_rules",
+    label: "Reglas por fototipo",
+    href: "/doctor/reglas-fototipo",
+    sortOrder: 103,
+    permissionNames: ["view_any_encyclopedia_entry", "view_encyclopedia_entry"],
+  },
+  {
     key: "clinical.email_templates",
     label: "Plantillas de correo",
     href: "/doctor/plantillas-correo",

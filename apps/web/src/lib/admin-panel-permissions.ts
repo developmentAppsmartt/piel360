@@ -33,6 +33,17 @@ export function adminRouteAllowed(
     ]);
   }
 
+  if (
+    pathname === "/admin/reglas-fototipo" ||
+    pathname.startsWith("/admin/reglas-fototipo/")
+  ) {
+    return hasAnyPermission(userPermissions, [
+      "admin.fitzpatrick_rules",
+      "clinical.fitzpatrick_rules",
+      "clinical.routines",
+    ]);
+  }
+
   const matchingRules = ADMIN_ROUTE_RULES.filter(
     (entry) =>
       pathname === entry.prefix || pathname.startsWith(`${entry.prefix}/`),

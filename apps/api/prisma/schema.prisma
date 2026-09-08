@@ -130,6 +130,7 @@ model Doctor {
   treatmentCategories TreatmentCategory[]
   treatments          Treatment[]
   skinAgeRules        SkinAgeRule[]
+  fitzpatrickRules    FitzpatrickRule[]
   emailTemplates      EmailTemplate[]
   emailTemplateVariables EmailTemplateVariable[]
   weeklySlots         DoctorWeeklySlot[]
@@ -887,6 +888,35 @@ model SkinAgeRule {
 
   @@index([doctorId, sortOrder])
   @@map("skin_age_rules")
+}
+
+/** Reglas de recomendación por fototipo (escala Fitzpatrick I-VI) —
+ * comparación directa contra Patient.fitzpatrickType, sin rango (a
+ * diferencia de SkinAgeRule). Ver packages/shared/src/fitzpatrick.ts. */
+model FitzpatrickRule {
+  id                 BigInt   @id @default(autoincrement())
+  doctorId           BigInt   @map("doctor_id")
+  label              String
+  description        String?  @db.Text
+  /** "I" | "II" | "III" | "IV" | "V" | "VI" — FITZPATRICK_SCALES. */
+  fitzpatrickScale   String   @map("fitzpatrick_scale")
+  /** low | medium | high | very_high */
+  priority           String   @default("medium")
+  /** green | blue | orange | amber | red — decoración UI */
+  colorKey           String   @default("blue") @map("color_key")
+  sortOrder          Int      @default(0) @map("sort_order")
+  isActive           Boolean  @default(true) @map("is_active")
+  routineIds         Json     @default("[]") @map("routine_ids")
+  treatmentIds       Json     @default("[]") @map("treatment_ids")
+  productGroupIds    Json     @default("[]") @map("product_group_ids")
+  supplementGroupIds Json     @default("[]") @map("supplement_group_ids")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId, sortOrder])
+  @@map("fitzpatrick_rules")
 }
 
 /** Plantillas de correo del profesional/empresa (bienvenida, planes, informes…). */

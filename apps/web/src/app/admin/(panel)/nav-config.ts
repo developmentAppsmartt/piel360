@@ -155,6 +155,12 @@ export const adminNav: NavItem[] = [
     permissionsAny: adminNavPermission("admin.skin_age_rules"),
   },
   {
+    label: "Reglas por fototipo",
+    href: "/admin/reglas-fototipo",
+    icon: Sparkles,
+    permissionsAny: adminNavPermission("admin.fitzpatrick_rules"),
+  },
+  {
     label: "Configuración",
     href: "/admin/configuracion",
     icon: Settings,

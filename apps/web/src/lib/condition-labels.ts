@@ -19,9 +19,10 @@ export interface ConditionLike {
 }
 
 /** Métricas disponibles para condicionar — las 16 de YouCam más `all`
- * ("Salud de la piel"), `skin_age` ("Salud de la piel (años)") y
- * `patient_age` (edad cronológica real del paciente). Incluye
- * `hd_skin_type`, categórica — ver `isSkinTypeMetric`. */
+ * ("Salud de la piel") y `patient_age` (edad cronológica real del
+ * paciente). Incluye `hd_skin_type`, categórica — ver `isSkinTypeMetric`.
+ * `skin_age` ya no es condicionable acá — tiene su propio módulo dedicado
+ * ("Reglas por edad de piel"). */
 export const CONDITION_METRICS = CONDITIONABLE_METRIC_TYPES;
 
 /** Métricas con sub-regiones seleccionables en el formulario — sin entrada
@@ -85,10 +86,6 @@ export function conditionSentence(condition: ConditionLike, subjectPhrase: strin
   }
 
   const operator = conditionOperatorLabel(condition.operator).toLowerCase();
-
-  if (condition.metricType === "skin_age") {
-    return `Se recomienda ${subjectPhrase} cuando la diferencia de edad de piel (edad de piel − edad real) sea ${operator} ${condition.value}`;
-  }
 
   return `Se recomienda ${subjectPhrase} cuando ${metric}${region} sea ${operator} ${condition.value}`;
 }
