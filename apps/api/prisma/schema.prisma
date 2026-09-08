@@ -268,6 +268,8 @@ model Patient {
   analysisRequests AnalysisRequest[]
   appointments  Appointment[]
 
+  /** Scoping multi-tenant: base de todo filtro "pacientes de este doctor". */
+  @@index([doctorId], map: "idx_patients_doctor_id")
   @@map("patients")
 }
 
@@ -345,6 +347,9 @@ model Analysis {
   @@index([userId], map: "idx_analyses_user_id")
   @@index([youcamTaskId], map: "idx_analyses_youcam_task_id")
   @@index([sharedWithPatient], map: "idx_analyses_shared_with_patient")
+  /** Reportes agregados por doctor + rango de fechas (doctor-reports). */
+  @@index([patientId, createdAt], map: "idx_analyses_patient_id_created_at")
+  @@index([createdAt], map: "idx_analyses_created_at")
   @@map("analyses")
 }
 
@@ -386,6 +391,8 @@ model AnalysisResult {
   @@index([providerId], map: "idx_analysis_results_provider_id")
   @@index([type], map: "idx_analysis_results_type")
   @@index([region], map: "idx_analysis_results_region")
+  /** GROUP BY de reportes: el índice suelto de `type` (~19 valores) no sirve. */
+  @@index([analysisId, type], map: "idx_analysis_results_analysis_id_type")
   @@map("analysis_results")
 }
 
