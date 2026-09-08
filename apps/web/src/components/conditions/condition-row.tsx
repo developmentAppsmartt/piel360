@@ -58,7 +58,6 @@ export function ConditionRow({
   const metricType = watched?.metricType ?? CONDITION_METRICS[0];
   const regions = CONDITION_METRIC_REGIONS[metricType];
   const skinType = isSkinTypeMetric(metricType);
-  const isSkinAge = metricType === "skin_age";
   const isBetween = watched?.operator === "between";
 
   return (
@@ -117,7 +116,7 @@ export function ConditionRow({
             type="number"
             step="0.01"
             className={inputCls}
-            placeholder={isBetween ? "Desde" : isSkinAge ? "Ej: -5 u 8" : "Ej: 70"}
+            placeholder={isBetween ? "Desde" : "Ej: 70"}
             {...register(`conditions.${index}.value`)}
           />
           {isBetween && (
@@ -130,13 +129,6 @@ export function ConditionRow({
             />
           )}
         </div>
-      )}
-
-      {isSkinAge && (
-        <p className="text-xs text-muted-foreground">
-          Fórmula utilizada: Diferencia = Edad de la piel − Edad cronológica (años).
-          Valores negativos indican que la piel es más joven que la edad real.
-        </p>
       )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}

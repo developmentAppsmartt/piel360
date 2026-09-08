@@ -125,18 +125,6 @@ export class AnalysisConditionsService {
       if (condition.metricType === 'patient_age') {
         if (!skinAge.patientBirthDate) return false;
         score = ageInYears(skinAge.patientBirthDate, skinAge.analysisDate);
-      } else if (condition.metricType === 'skin_age') {
-        // skin_age no se compara contra el puntaje crudo — el valor
-        // clínicamente relevante es cuánto más vieja/joven se ve la piel
-        // respecto a la edad real del paciente: edadPiel - edadCronológica.
-        // Negativo = piel más joven; positivo = piel más vieja.
-        if (!skinAge.patientBirthDate) return false;
-        const result = findResultForCondition(results, condition);
-        const skinAgeScore = result && resolveScore(result);
-        if (skinAgeScore == null) return false;
-        score =
-          skinAgeScore -
-          ageInYears(skinAge.patientBirthDate, skinAge.analysisDate);
       } else {
         const result = findResultForCondition(results, condition);
         if (!result) return false;

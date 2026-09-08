@@ -15,4 +15,5 @@ export * from "./permission-resolution.js";
 export * from "./empresa-role.js";
 export * from "./professional-role.js";
 export * from "./youcam-report.js";
+export * from "./skin-report.js";
 export * from "./email-template-variables.js";

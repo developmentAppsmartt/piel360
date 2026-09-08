@@ -36,6 +36,7 @@ export const PROFESSIONAL_CLINICAL_COMPONENT_SLUGS = [
   "clinical.products",
   "clinical.routines",
   "clinical.skin_age_rules",
+  "clinical.fitzpatrick_rules",
   "clinical.email_templates",
   "clinical.settings",
   "clinical.settings.account",

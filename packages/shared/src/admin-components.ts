@@ -141,6 +141,12 @@ export const ADMIN_COMPONENTS: readonly AdminComponentDef[] = [
     sortOrder: 155,
   },
   {
+    slug: "admin.fitzpatrick_rules",
+    label: "Reglas por fototipo",
+    href: "/admin/reglas-fototipo",
+    sortOrder: 156,
+  },
+  {
     slug: "admin.settings",
     label: "Configuración",
     href: "/admin/configuracion",

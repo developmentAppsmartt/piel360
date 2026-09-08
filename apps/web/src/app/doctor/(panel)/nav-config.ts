@@ -113,6 +113,12 @@ export const doctorNav: NavItem[] = [
     permissionsAny: clinicalNavPermission("clinical.skin_age_rules"),
   },
   {
+    label: "Reglas por fototipo",
+    href: "/doctor/reglas-fototipo",
+    icon: Sparkles,
+    permissionsAny: clinicalNavPermission("clinical.fitzpatrick_rules"),
+  },
+  {
     label: "Plantillas de correo",
     href: "/doctor/plantillas-correo",
     icon: Mail,
