@@ -6,6 +6,8 @@ import {
   useAnalysisCareRecommendations,
   type AnalysisCareItem,
 } from "@/lib/queries/skin-age-rules";
+import { useRecommendedRoutines, type Routine } from "@/lib/queries/routines";
+import { useRecommendedTreatments, type Treatment } from "@/lib/queries/treatments";
 import { cn } from "@/lib/utils";
 
 type Tab = "todas" | "rutinas" | "productos" | "suplementos" | "tratamientos";
@@ -23,6 +25,62 @@ function firstNonEmpty(...lists: AnalysisCareItem[][]): AnalysisCareItem[] {
     if (list.length > 0) return list;
   }
   return [];
+}
+
+/** ¿Alguna condición de la rutina/tratamiento matchea esta métrica? Misma
+ * comparación que usaban RecommendedRoutines/RecommendedTreatments antes de
+ * quedar sin uso (commit d6435c2). */
+function matchesMetric(
+  conditions: { metricType: string }[],
+  metricType: string,
+): boolean {
+  return conditions.some((c) => c.metricType === metricType);
+}
+
+function routineToCareItem(routine: Routine): AnalysisCareItem {
+  return {
+    id: routine.id,
+    name: routine.name,
+    description: routine.description,
+    stepsCount: routine.steps.length,
+    steps: routine.steps.map((step) => ({
+      id: step.id,
+      order: step.order,
+      title: step.title,
+      description: step.description,
+      mediaUrl: step.mediaUrl,
+      mediaType: step.mediaType,
+      productId: step.productId,
+      productName: step.product?.productName ?? null,
+      productImageUrl: step.product?.imageUrl ?? null,
+      productUrl: step.product?.productUrl ?? null,
+    })),
+  };
+}
+
+/** `productType` filtra los items del grupo (para separar Productos de
+ * Suplementos dentro de los "productos sugeridos" sin categoría) — omitido
+ * para tratamientos con categoría, que no distinguen tipo. */
+function treatmentToCareItem(
+  treatment: Treatment,
+  productType?: "product" | "supplement",
+): AnalysisCareItem {
+  const items = productType
+    ? treatment.items.filter((item) => item.product.productType === productType)
+    : treatment.items;
+  return {
+    id: treatment.id,
+    name: treatment.name,
+    description: treatment.description,
+    categoryName: treatment.category?.categoryName ?? null,
+    items: items.map((item) => ({
+      id: item.id,
+      productId: item.productId,
+      productName: item.product.productName,
+      productType: item.product.productType,
+      note: item.note,
+    })),
+  };
 }
 
 function CareList({
@@ -98,6 +156,11 @@ function CareList({
                           {step.description}
                         </p>
                       ) : null}
+                      {step.productName ? (
+                        <p className="text-sm text-muted-foreground">
+                          Producto: <span className="font-medium">{step.productName}</span>
+                        </p>
+                      ) : null}
                     </div>
                   </li>
                 ))}
@@ -126,46 +189,83 @@ function CareList({
 
 export function RecommendationsPanel({
   analysisId,
+  metricType,
 }: {
   analysisId: string;
-  /** Conservado por compatibilidad; el catálogo ya no se filtra por métrica aquí. */
+  /** Métrica de la tarjeta seleccionada arriba (ej. "hd_wrinkle" para
+   * "Arrugas"), o `null` en la vista general/resumen. Cuando hay una métrica
+   * puntual, se filtra por condiciones de esa métrica (motor de
+   * rutinas/tratamientos) en vez de por la regla de edad de piel. */
   metricType: string | null;
 }) {
   const [tab, setTab] = useState<Tab>("todas");
-  const { data, isLoading } = useAnalysisCareRecommendations(analysisId);
+  const { data, isLoading: careLoading } = useAnalysisCareRecommendations(analysisId);
+  const { data: allRoutines, isLoading: routinesLoading } = useRecommendedRoutines(
+    analysisId,
+    true,
+  );
+  const { data: allTreatments, isLoading: treatmentsLoading } = useRecommendedTreatments(
+    analysisId,
+    true,
+  );
 
-  const routines = useMemo(
-    () =>
-      firstNonEmpty(
-        data?.recommendations.routines ?? [],
-        data?.catalog.routines ?? [],
-      ),
-    [data],
+  const isLoading = metricType
+    ? routinesLoading || treatmentsLoading
+    : careLoading;
+
+  const emptySuffix = metricType
+    ? " para esta métrica."
+    : " todavía.";
+
+  const metricRoutines = useMemo(
+    () => (allRoutines ?? []).filter((r) => matchesMetric(r.conditions, metricType ?? "")),
+    [allRoutines, metricType],
   );
-  const products = useMemo(
-    () =>
-      firstNonEmpty(
-        data?.recommendations.products ?? [],
-        data?.catalog.products ?? [],
-      ),
-    [data],
+  const metricTreatments = useMemo(
+    () => (allTreatments ?? []).filter((t) => matchesMetric(t.conditions, metricType ?? "")),
+    [allTreatments, metricType],
   );
-  const supplements = useMemo(
-    () =>
-      firstNonEmpty(
-        data?.recommendations.supplements ?? [],
-        data?.catalog.supplements ?? [],
-      ),
-    [data],
-  );
-  const treatments = useMemo(
-    () =>
-      firstNonEmpty(
-        data?.recommendations.treatments ?? [],
-        data?.catalog.treatments ?? [],
-      ),
-    [data],
-  );
+
+  const routines = useMemo(() => {
+    if (metricType) return metricRoutines.map(routineToCareItem);
+    return firstNonEmpty(
+      data?.recommendations.routines ?? [],
+      data?.catalog.routines ?? [],
+    );
+  }, [metricType, metricRoutines, data]);
+  const products = useMemo(() => {
+    if (metricType) {
+      return metricTreatments
+        .filter((t) => !t.categoryId)
+        .map((t) => treatmentToCareItem(t, "product"))
+        .filter((t) => (t.items?.length ?? 0) > 0);
+    }
+    return firstNonEmpty(
+      data?.recommendations.products ?? [],
+      data?.catalog.products ?? [],
+    );
+  }, [metricType, metricTreatments, data]);
+  const supplements = useMemo(() => {
+    if (metricType) {
+      return metricTreatments
+        .filter((t) => !t.categoryId)
+        .map((t) => treatmentToCareItem(t, "supplement"))
+        .filter((t) => (t.items?.length ?? 0) > 0);
+    }
+    return firstNonEmpty(
+      data?.recommendations.supplements ?? [],
+      data?.catalog.supplements ?? [],
+    );
+  }, [metricType, metricTreatments, data]);
+  const treatments = useMemo(() => {
+    if (metricType) {
+      return metricTreatments.filter((t) => !!t.categoryId).map((t) => treatmentToCareItem(t));
+    }
+    return firstNonEmpty(
+      data?.recommendations.treatments ?? [],
+      data?.catalog.treatments ?? [],
+    );
+  }, [metricType, metricTreatments, data]);
 
   return (
     <div className="space-y-4">
@@ -209,22 +309,22 @@ export function RecommendationsPanel({
               <CareList
                 title="Rutinas"
                 items={routines}
-                emptyMessage="No hay rutinas configuradas todavía."
+                emptyMessage={`No hay rutinas configuradas${emptySuffix}`}
               />
               <CareList
                 title="Productos"
                 items={products}
-                emptyMessage="No hay productos configurados todavía."
+                emptyMessage={`No hay productos configurados${emptySuffix}`}
               />
               <CareList
                 title="Suplementos"
                 items={supplements}
-                emptyMessage="No hay suplementos configurados todavía."
+                emptyMessage={`No hay suplementos configurados${emptySuffix}`}
               />
               <CareList
                 title="Tratamientos"
                 items={treatments}
-                emptyMessage="No hay tratamientos configurados todavía."
+                emptyMessage={`No hay tratamientos configurados${emptySuffix}`}
               />
             </div>
           )}

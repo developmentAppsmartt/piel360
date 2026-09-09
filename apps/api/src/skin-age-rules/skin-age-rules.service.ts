@@ -242,7 +242,9 @@ export class SkinAgeRulesService {
       routineIds.length > 0
         ? await this.prisma.routine.findMany({
             where: { doctorId, id: { in: routineIds }, isActive: true },
-            include: { steps: { orderBy: { order: 'asc' } } },
+            include: {
+              steps: { orderBy: { order: 'asc' }, include: { product: true } },
+            },
           })
         : [];
 
@@ -348,6 +350,12 @@ export class SkinAgeRulesService {
               description: step.description,
               mediaUrl: await this.resolveMediaUrl(step.mediaUrl),
               mediaType: step.mediaType,
+              productId: step.productId?.toString() ?? null,
+              productName: step.product?.productName ?? null,
+              productUrl: step.product?.productUrl ?? null,
+              productImageUrl: await this.resolveMediaUrl(
+                step.product?.imageUrl,
+              ),
             })),
           ),
         })),
@@ -540,7 +548,9 @@ export class SkinAgeRulesService {
     const [routines, treatments, products] = await Promise.all([
       this.prisma.routine.findMany({
         where: { doctorId, isActive: true },
-        include: { steps: { orderBy: { order: 'asc' } } },
+        include: {
+          steps: { orderBy: { order: 'asc' }, include: { product: true } },
+        },
         orderBy: { createdAt: 'asc' },
       }),
       this.prisma.treatment.findMany({
@@ -586,6 +596,12 @@ export class SkinAgeRulesService {
               description: step.description,
               mediaUrl: await this.resolveMediaUrl(step.mediaUrl),
               mediaType: step.mediaType,
+              productId: step.productId?.toString() ?? null,
+              productName: step.product?.productName ?? null,
+              productUrl: step.product?.productUrl ?? null,
+              productImageUrl: await this.resolveMediaUrl(
+                step.product?.imageUrl,
+              ),
             })),
           ),
         })),
