@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClientFetch } from "@/lib/api-client";
+import type { Product } from "@/lib/queries/products";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -31,6 +32,9 @@ export interface RoutineStep {
   mediaUrl: string | null;
   mediaType: "image" | "video" | "gif" | null;
   productId: string | null;
+  /** Producto vinculado al paso (ej. "aplicar Protector solar SPF 50+") —
+   * sin `category`, el backend no la incluye para este relation. */
+  product: Omit<Product, "category"> | null;
 }
 
 export interface Routine {
