@@ -2,13 +2,24 @@
 
 import { useState } from "react";
 import { BarChart3 } from "lucide-react";
+import {
+  SKINIVER_AGE_BUCKETS,
+  SKINIVER_DIAGNOSIS_CLASS_DEFS,
+  SKINIVER_DISEASE_BUCKET_DEFS,
+  type SkiniverDiagnosisClass,
+  type SkiniverDiseaseBucket,
+} from "@piel360/shared";
 import { ModuleCard } from "@/components/ui/module-card";
+import { BirthTypeReport } from "@/components/reports/birth-type-report";
 import { NeedsMapView } from "@/components/reports/needs-map-view";
+import { PetsReport } from "@/components/reports/pets-report";
+import { PhysicalActivityReport } from "@/components/reports/physical-activity-report";
 import {
   ReportFilters,
   rangeForDays,
 } from "@/components/reports/report-filters";
 import { SkinHealthSummary } from "@/components/reports/skin-health-summary";
+import { SkiniverReportView } from "@/components/reports/skiniver-report-view";
 import {
   TopProblemsTable,
   sortCategories,
@@ -17,18 +28,40 @@ import {
 import { downloadCsv } from "@/lib/csv-export";
 import {
   useDoctorSkinHealthReport,
+  useDoctorSkinSegmentsReport,
+  useDoctorSkiniverReport,
   type DoctorReportsFilters,
 } from "@/lib/queries/doctor-reports";
 import { useOrganizationTeam } from "@/lib/queries/organizations";
 import { cn } from "@/lib/utils";
 
-type ReportTab = "resumen" | "necesidades" | "top";
+type ReportTab =
+  | "resumen"
+  | "necesidades"
+  | "top"
+  | "nacimiento"
+  | "mascotas"
+  | "actividad"
+  | "skiniver";
 
 const TABS: { key: ReportTab; label: string }[] = [
   { key: "resumen", label: "Resumen de salud de la piel" },
   { key: "necesidades", label: "Mapa de necesidades" },
   { key: "top", label: "Top problemas" },
+  { key: "nacimiento", label: "Tipo de nacimiento" },
+  { key: "mascotas", label: "Mascotas y salud de la piel" },
+  { key: "actividad", label: "Actividad física y deporte" },
+  { key: "skiniver", label: "Análisis clínico IA" },
 ];
+
+const SEGMENT_TABS: ReportTab[] = ["nacimiento", "mascotas", "actividad"];
+
+const CLASS_KEYS = Object.keys(
+  SKINIVER_DIAGNOSIS_CLASS_DEFS,
+) as SkiniverDiagnosisClass[];
+const DISEASE_KEYS = Object.keys(
+  SKINIVER_DISEASE_BUCKET_DEFS,
+) as SkiniverDiseaseBucket[];
 
 export default function ReportesPage() {
   const [filters, setFilters] = useState<DoctorReportsFilters>({
@@ -39,12 +72,76 @@ export default function ReportesPage() {
   const [sort, setSort] = useState<TopProblemsSort>("score");
 
   const report = useDoctorSkinHealthReport(filters);
+  const segments = useDoctorSkinSegmentsReport(filters);
+  const skiniver = useDoctorSkiniverReport(filters);
   const team = useOrganizationTeam();
   const members = team.data?.members ?? [];
   // El backend solo acepta professionalUserId del dueño del equipo.
   const showProfessionalFilter = members.length > 1;
 
   function handleExport() {
+    if (tab === "skiniver") {
+      const data = skiniver.data;
+      if (!data) return;
+      const rows: (string | number | null)[][] = [
+        ["Mes", ...CLASS_KEYS.map((k) => SKINIVER_DIAGNOSIS_CLASS_DEFS[k].label)],
+        ...data.byClass.map((p) => [
+          p.period,
+          ...CLASS_KEYS.map((k) => p.counts[k] ?? 0),
+        ]),
+        [],
+        ["Mes", ...DISEASE_KEYS.map((k) => SKINIVER_DISEASE_BUCKET_DEFS[k].label)],
+        ...data.byDisease.map((p) => [
+          p.period,
+          ...DISEASE_KEYS.map((k) => p.counts[k] ?? 0),
+        ]),
+        [],
+        ["Mes", ...SKINIVER_AGE_BUCKETS.map((b) => b.label)],
+        ...data.byAge.map((p) => [
+          p.period,
+          ...SKINIVER_AGE_BUCKETS.map((b) => p.counts[b.key] ?? 0),
+        ]),
+        [],
+        ["Tono de piel", "Análisis", "%"],
+        ...data.bySkinTone.map((b) => [b.label, b.count, b.pct.toFixed(1)]),
+      ];
+      downloadCsv(`reporte-skiniver-${data.range.from}_${data.range.to}`, rows);
+      return;
+    }
+
+    if (SEGMENT_TABS.includes(tab)) {
+      const data = segments.data;
+      if (!data) return;
+      const view =
+        tab === "nacimiento"
+          ? data.birthType
+          : tab === "mascotas"
+            ? data.mascotType
+            : data.exerciseHabit;
+
+      const rows: (string | number | null)[][] = [
+        ["Grupo", "Pacientes", "Análisis", "%", "Puntaje promedio"],
+        ...view.buckets.map((b) => [
+          b.label,
+          b.patients,
+          b.analyses,
+          b.pct.toFixed(1),
+          b.avgScore != null ? b.avgScore.toFixed(1) : "",
+        ]),
+        [],
+        ["Categoría", ...view.buckets.map((b) => b.label)],
+        ...view.categories.map((c) => [
+          c.label,
+          ...view.buckets.map((b) => {
+            const score = c.scoresBySegment[b.value];
+            return score != null ? score.toFixed(1) : "";
+          }),
+        ]),
+      ];
+      downloadCsv(`reporte-${tab}-${data.range.from}_${data.range.to}`, rows);
+      return;
+    }
+
     const data = report.data;
     if (!data) return;
 
@@ -111,7 +208,10 @@ export default function ReportesPage() {
     downloadCsv(`reporte-resumen-${data.range.from}_${data.range.to}`, rows);
   }
 
+  const isSegmentTab = SEGMENT_TABS.includes(tab);
+  const isSkiniverTab = tab === "skiniver";
   const isEmpty = report.data && report.data.distributionTotal === 0;
+  const isSegmentsEmpty = segments.data && segments.data.birthType.total === 0;
 
   return (
     <div className="space-y-5">
@@ -129,7 +229,13 @@ export default function ReportesPage() {
         members={members}
         showProfessionalFilter={showProfessionalFilter}
         onExport={handleExport}
-        exportDisabled={!report.data || isEmpty}
+        exportDisabled={
+          isSkiniverTab
+            ? !skiniver.data
+            : isSegmentTab
+              ? !segments.data || isSegmentsEmpty
+              : !report.data || isEmpty
+        }
       />
 
       <div
@@ -156,43 +262,83 @@ export default function ReportesPage() {
         ))}
       </div>
 
-      {report.isLoading && (
+      {(isSkiniverTab
+        ? skiniver.isLoading
+        : isSegmentTab
+          ? segments.isLoading
+          : report.isLoading) && (
         <p className="text-sm text-muted-foreground">Cargando reportes…</p>
       )}
-      {report.error && (
+      {(isSkiniverTab
+        ? skiniver.error
+        : isSegmentTab
+          ? segments.error
+          : report.error) && (
         <p className="text-sm text-destructive">No se pudieron cargar los reportes.</p>
       )}
 
-      {report.data && isEmpty ? (
-        <ModuleCard className="flex flex-col items-center gap-3 p-10 text-center">
-          <span className="flex size-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-            <BarChart3 className="size-6" />
-          </span>
-          <div>
-            <p className="font-semibold">Aún no hay datos en este periodo</p>
-            <p className="mt-1 max-w-md text-sm text-muted-foreground">
-              Estos reportes se construyen con los análisis de piel con IA. Amplía el
-              rango de fechas o realiza un análisis para empezar a ver resultados.
-            </p>
-          </div>
-        </ModuleCard>
-      ) : null}
-
-      {report.data && !isEmpty ? (
-        <>
-          {tab === "resumen" && <SkinHealthSummary report={report.data} />}
-          {tab === "necesidades" && <NeedsMapView report={report.data} />}
-          {tab === "top" && (
-            <ModuleCard className="p-5">
-              <TopProblemsTable
-                categories={report.data.categories}
-                sort={sort}
-                onSortChange={setSort}
-              />
+      {isSkiniverTab
+        ? null
+        : isSegmentTab
+        ? segments.data && isSegmentsEmpty && (
+            <ModuleCard className="flex flex-col items-center gap-3 p-10 text-center">
+              <span className="flex size-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                <BarChart3 className="size-6" />
+              </span>
+              <div>
+                <p className="font-semibold">Aún no hay datos en este periodo</p>
+                <p className="mt-1 max-w-md text-sm text-muted-foreground">
+                  Estos reportes se construyen con los análisis de piel con IA. Amplía
+                  el rango de fechas o realiza un análisis para empezar a ver
+                  resultados.
+                </p>
+              </div>
+            </ModuleCard>
+          )
+        : report.data &&
+          isEmpty && (
+            <ModuleCard className="flex flex-col items-center gap-3 p-10 text-center">
+              <span className="flex size-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                <BarChart3 className="size-6" />
+              </span>
+              <div>
+                <p className="font-semibold">Aún no hay datos en este periodo</p>
+                <p className="mt-1 max-w-md text-sm text-muted-foreground">
+                  Estos reportes se construyen con los análisis de piel con IA. Amplía
+                  el rango de fechas o realiza un análisis para empezar a ver
+                  resultados.
+                </p>
+              </div>
             </ModuleCard>
           )}
-        </>
-      ) : null}
+
+      {tab === "resumen" && report.data && !isEmpty && (
+        <SkinHealthSummary report={report.data} />
+      )}
+      {tab === "necesidades" && report.data && !isEmpty && (
+        <NeedsMapView report={report.data} />
+      )}
+      {tab === "top" && report.data && !isEmpty && (
+        <ModuleCard className="p-5">
+          <TopProblemsTable
+            categories={report.data.categories}
+            sort={sort}
+            onSortChange={setSort}
+          />
+        </ModuleCard>
+      )}
+      {tab === "nacimiento" && segments.data && !isSegmentsEmpty && (
+        <BirthTypeReport view={segments.data.birthType} />
+      )}
+      {tab === "mascotas" && segments.data && !isSegmentsEmpty && (
+        <PetsReport view={segments.data.mascotType} />
+      )}
+      {tab === "actividad" && segments.data && !isSegmentsEmpty && (
+        <PhysicalActivityReport view={segments.data.exerciseHabit} />
+      )}
+      {tab === "skiniver" && skiniver.data && (
+        <SkiniverReportView report={skiniver.data} />
+      )}
     </div>
   );
 }

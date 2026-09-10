@@ -6,7 +6,7 @@ import { useEffect } from "react";
 import { ShoppingBag, FolderOpen, Sparkles } from "lucide-react";
 import { CategoriesTab } from "@/components/products/categories-tab";
 import { ProductsTab } from "@/components/products/products-tab";
-import { SuggestedProductsTab } from "@/components/treatments/suggested-products-tab";
+import { TreatmentsListTab } from "@/components/treatments/treatments-list-tab";
 import { ApiError } from "@/lib/api-error";
 import { useProductCategories } from "@/lib/queries/products";
 import { cn } from "@/lib/utils";
@@ -77,7 +77,9 @@ export default function ProductosPage() {
       {/* Contenido */}
       {activeTab === "categorias" && <CategoriesTab />}
       {activeTab === "productos" && <ProductsTab />}
-      {activeTab === "sugeridos" && <SuggestedProductsTab />}
+      {activeTab === "sugeridos" && (
+        <TreatmentsListTab kind="plain" basePath="/doctor/productos/sugeridos" />
+      )}
     </div>
   );
 }
