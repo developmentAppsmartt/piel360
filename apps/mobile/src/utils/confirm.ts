@@ -1,8 +1,7 @@
-import { Alert, Platform } from 'react-native';
+import { presentAppAlert } from '../components/notices/appNotice';
 
 /**
- * Confirmación multiplataforma. En web, `Alert.alert` con botones no ejecuta
- * `onPress`; usamos `window.confirm`.
+ * Confirmación con la ventana de aviso de la app (no el Alert nativo).
  */
 export function confirmAction(options: {
   title: string;
@@ -19,15 +18,8 @@ export function confirmAction(options: {
     destructive = false,
   } = options;
 
-  if (Platform.OS === 'web') {
-    const text = title ? `${title}\n\n${message}` : message;
-    return Promise.resolve(
-      typeof window !== 'undefined' ? window.confirm(text) : false,
-    );
-  }
-
   return new Promise((resolve) => {
-    Alert.alert(title, message, [
+    presentAppAlert(title, message, [
       { text: cancelLabel, style: 'cancel', onPress: () => resolve(false) },
       {
         text: confirmLabel,

@@ -14,8 +14,8 @@ type Tab = "todas" | "rutinas" | "productos" | "suplementos" | "tratamientos";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "todas", label: "Todas" },
-  { id: "rutinas", label: "Rutinas" },
   { id: "productos", label: "Productos" },
+  { id: "rutinas", label: "Rutinas" },
   { id: "suplementos", label: "Suplementos" },
   { id: "tratamientos", label: "Tratamientos" },
 ];
@@ -307,14 +307,14 @@ export function RecommendationsPanel({
           {tab === "todas" && (
             <div className="space-y-6">
               <CareList
-                title="Rutinas"
-                items={routines}
-                emptyMessage={`No hay rutinas configuradas${emptySuffix}`}
-              />
-              <CareList
                 title="Productos"
                 items={products}
                 emptyMessage={`No hay productos configurados${emptySuffix}`}
+              />
+              <CareList
+                title="Rutinas"
+                items={routines}
+                emptyMessage="No hay rutinas configuradas todavía."
               />
               <CareList
                 title="Suplementos"

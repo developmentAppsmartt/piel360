@@ -7,8 +7,11 @@ import {
 } from 'react-native';
 import { AppIcon } from '../../../../components/AppIcon';
 import { Icons } from '../../../../components/icons';
+import { ComplianceBadges } from '../../../../components/legal/ComplianceBadges';
+import { LegalDocumentModal } from '../../../../components/legal/LegalDocumentModal';
 import { useAuth } from '../../../../context/AuthContext';
 import { useBranding } from '../../../../context/BrandingContext';
+import type { LegalDocId } from '../../../../data/legal/documents';
 import { ApiError } from '../../../../services/api.client';
 import { AuthConsent } from './AuthConsent';
 import { AuthGradientButton } from './AuthGradientButton';
@@ -33,9 +36,31 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [legalDoc, setLegalDoc] = useState<LegalDocId | null>(null);
 
   const primary = AUTH_THEME.purple;
   const onDark = branding.colors.textOnDark;
+
+  function isValidEmail(value: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  }
+
+  function loginErrorMessage(err: unknown): string {
+    if (!(err instanceof ApiError)) {
+      return 'No se pudo iniciar sesión. Inténtalo de nuevo.';
+    }
+    const msg = err.message.trim();
+    const lower = msg.toLowerCase();
+    if (
+      err.status === 401 ||
+      lower.includes('credenciales') ||
+      lower.includes('unauthorized') ||
+      lower.includes('invalid credentials')
+    ) {
+      return 'Correo o contraseña incorrectos.';
+    }
+    return msg || 'No se pudo iniciar sesión. Inténtalo de nuevo.';
+  }
 
   async function onSubmitSignIn() {
     setError(null);
@@ -43,8 +68,13 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
       setError('Marca “No soy un robot” y acepta los términos.');
       return;
     }
-    if (!email.trim() || !password) {
-      setError('Completa email y contraseña.');
+    const emailTrimmed = email.trim();
+    if (!emailTrimmed || !password) {
+      setError('Completa el correo y la contraseña.');
+      return;
+    }
+    if (!isValidEmail(emailTrimmed)) {
+      setError('El correo no tiene un formato válido.');
       return;
     }
     if (password.length < 8) {
@@ -55,15 +85,11 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
     setSubmitting(true);
     try {
       await login({
-        email: email.trim().toLowerCase(),
+        email: emailTrimmed.toLowerCase(),
         password,
       });
     } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : 'No se pudo iniciar sesión. Inténtalo de nuevo.',
-      );
+      setError(loginErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -172,6 +198,8 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
         termsChecked={terms}
         onToggleCaptcha={() => setCaptcha((v) => !v)}
         onToggleTerms={() => setTerms((v) => !v)}
+        onOpenTerms={() => setLegalDoc('terms')}
+        onOpenPrivacy={() => setLegalDoc('privacy')}
         disabled={submitting}
       />
 
@@ -209,10 +237,21 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
         </Text>
       </Text>
 
-      <View style={styles.complianceRow}>
-        <AppIcon icon={Icons.lock} size={12} color="rgba(255,255,255,0.55)" />
-        <Text style={styles.compliance}>Cumplimos con GDPR · HIPAA · ISO 13485</Text>
+      <View style={styles.complianceBlock}>
+        <View style={styles.complianceRow}>
+          <AppIcon icon={Icons.lock} size={12} color="rgba(255,255,255,0.55)" />
+          <Text style={styles.compliance}>
+            Cumplimiento normativo
+          </Text>
+        </View>
+        <ComplianceBadges variant="dark" />
       </View>
+
+      <LegalDocumentModal
+        docId={legalDoc}
+        visible={legalDoc != null}
+        onClose={() => setLegalDoc(null)}
+      />
     </View>
   );
 }

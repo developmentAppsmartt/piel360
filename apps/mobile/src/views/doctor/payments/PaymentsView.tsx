@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
+  Linking,
   Pressable,
   RefreshControl,
+  ScrollView,
   Text,
   View,
 } from 'react-native';
@@ -13,6 +14,7 @@ import { AppIcon } from '../../../components/AppIcon';
 import { Icons } from '../../../components/icons';
 import { useBranding } from '../../../context/BrandingContext';
 import { ApiError } from '../../../services/api.client';
+import { plansService, type CatalogPlan } from '../../../services/plans.service';
 import { subscriptionsService } from '../../../services/subscriptions.service';
 import type {
   Subscription,
@@ -21,6 +23,9 @@ import type {
 import { DoctorHeader } from '../patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
 import { createPaymentsStyles } from './styles/payments.styles';
+
+const SUPPORT_EMAIL = 'soporte@piel360.com';
+const PLANS_WEB_URL = 'https://piel360.com/doctor/planes';
 
 type PaymentsViewProps = {
   onBack: () => void;
@@ -43,17 +48,19 @@ function formatPrice(price: string): string {
   return `$${n.toFixed(2)}`;
 }
 
-function statusVisual(
-  status: SubscriptionStatus,
-  colors: { success: string; error: string },
-): { bg: string; icon: typeof Icons.check | typeof Icons.document } {
-  if (status === 'active') {
-    return { bg: colors.success, icon: Icons.check };
-  }
-  if (status === 'cancelled') {
-    return { bg: colors.error, icon: Icons.check };
-  }
-  return { bg: '#F59E0B', icon: Icons.document };
+function statusLabel(status: SubscriptionStatus): string {
+  if (status === 'active') return 'Activa';
+  if (status === 'cancelled') return 'Cancelada';
+  return 'Pendiente';
+}
+
+function planProviders(plan: CatalogPlan): string {
+  const list = plan.providers?.length
+    ? plan.providers
+    : [plan.provider];
+  return list
+    .map((p) => p.displayLabel?.trim() || p.name)
+    .join(' · ');
 }
 
 export function PaymentsView({
@@ -71,7 +78,8 @@ export function PaymentsView({
     [branding.colors],
   );
 
-  const [items, setItems] = useState<Subscription[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [plans, setPlans] = useState<CatalogPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,13 +87,17 @@ export function PaymentsView({
   const load = useCallback(async () => {
     setError(null);
     try {
-      const list = await subscriptionsService.listMine();
-      setItems(list);
+      const [mine, catalog] = await Promise.all([
+        subscriptionsService.listMine(),
+        plansService.list().catch(() => [] as CatalogPlan[]),
+      ]);
+      setSubscriptions(mine);
+      setPlans(catalog);
     } catch (err) {
       setError(
         err instanceof ApiError
           ? err.message
-          : 'No se pudo cargar el historial de pagos.',
+          : 'No se pudieron cargar los planes.',
       );
     } finally {
       setLoading(false);
@@ -97,7 +109,32 @@ export function PaymentsView({
     void load();
   }, [load]);
 
-  const onDark = branding.colors.textOnDark;
+  const activeSubs = useMemo(
+    () => subscriptions.filter((s) => s.status === 'active'),
+    [subscriptions],
+  );
+
+  function openContract(plan: CatalogPlan) {
+    if (plan.poolPurchasable === false) {
+      Alert.alert(
+        plan.name,
+        plan.poolUnavailableReason?.trim() ||
+          'Este plan no está disponible para contratación en este momento.',
+      );
+      return;
+    }
+    Alert.alert(
+      plan.name,
+      `${formatPrice(plan.price)} · ${plan.analysisLimit} análisis · ${plan.durationDays} días.\n\nLa contratación se completa en el panel web de profesionales.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Abrir planes',
+          onPress: () => void Linking.openURL(PLANS_WEB_URL),
+        },
+      ],
+    );
+  }
 
   return (
     <View style={styles.screen}>
@@ -122,34 +159,33 @@ export function PaymentsView({
             onPress={onBack}
             accessibilityLabel="Volver"
           >
-            <AppIcon icon={Icons.back} size={22} color={onDark} />
+            <AppIcon icon={Icons.back} size={22} color={branding.colors.textOnDark} />
           </Pressable>
-          <Text style={styles.cardTitle}>Mis pagos</Text>
+          <Text style={styles.cardTitle}>Planes y suscripciones</Text>
           <Pressable
             style={styles.moreBtn}
             onPress={() =>
               Alert.alert(
-                'Opciones',
-                'Más acciones de pagos se conectarán próximamente.',
+                'Soporte de facturación',
+                `Si necesitas ayuda con un plan o un cobro, escribe a ${SUPPORT_EMAIL}.`,
+                [
+                  { text: 'Cerrar', style: 'cancel' },
+                  {
+                    text: 'Escribir',
+                    onPress: () =>
+                      void Linking.openURL(`mailto:${SUPPORT_EMAIL}`),
+                  },
+                ],
               )
             }
-            accessibilityLabel="Más opciones"
+            accessibilityLabel="Soporte"
           >
             <AppIcon
-              icon={Icons.moreVertical}
-              size={22}
+              icon={Icons.support}
+              size={20}
               color={branding.colors.muted}
             />
           </Pressable>
-        </View>
-
-        <View style={styles.tableHeader}>
-          <Text style={[styles.headerCell, styles.colFecha]}>Fecha</Text>
-          <Text style={[styles.headerCell, styles.colDesc]}>Descripcion</Text>
-          <Text style={[styles.headerCell, styles.colPrecio]}>Precio</Text>
-          <View style={styles.colEstado}>
-            <Text style={styles.headerCell}>Estado</Text>
-          </View>
         </View>
 
         {loading ? (
@@ -157,9 +193,7 @@ export function PaymentsView({
             <ActivityIndicator color={branding.colors.primary} />
           </View>
         ) : (
-          <FlatList
-            data={items}
-            keyExtractor={(item) => item.id}
+          <ScrollView
             contentContainerStyle={styles.listContent}
             refreshControl={
               <RefreshControl
@@ -171,42 +205,78 @@ export function PaymentsView({
                 tintColor={branding.colors.primary}
               />
             }
-            ListEmptyComponent={
-              <View style={styles.empty}>
+          >
+            {error ? (
+              <Text style={[styles.emptyText, { padding: 16 }]}>{error}</Text>
+            ) : null}
+
+            <View style={styles.block}>
+              <Text style={styles.sectionTitle}>Tus suscripciones</Text>
+              <Text style={styles.sectionHint}>
+                Planes activos y créditos restantes de tu consulta.
+              </Text>
+              {activeSubs.length === 0 ? (
                 <Text style={styles.emptyText}>
-                  {error ??
-                    'Aún no tienes compras registradas.'}
+                  No tienes suscripciones activas. Elige un plan disponible
+                  abajo.
                 </Text>
-              </View>
-            }
-            renderItem={({ item }) => {
-              const visual = statusVisual(item.status, branding.colors);
-              return (
-                <View style={styles.row}>
-                  <Text style={[styles.cell, styles.colFecha]} numberOfLines={1}>
-                    {formatDate(item.createdAt)}
-                  </Text>
-                  <Text style={[styles.cell, styles.colDesc]} numberOfLines={1}>
-                    {item.plan.name}
-                  </Text>
-                  <Text
-                    style={[styles.cell, styles.colPrecio]}
-                    numberOfLines={1}
-                  >
-                    {formatPrice(item.plan.price)}
-                  </Text>
-                  <View style={styles.colEstado}>
-                    <View
-                      style={[styles.statusDot, { backgroundColor: visual.bg }]}
-                      accessibilityLabel={item.status}
-                    >
-                      <AppIcon icon={visual.icon} size={14} color={onDark} />
+              ) : (
+                activeSubs.map((item) => (
+                  <View key={item.id} style={[styles.planCard, { marginBottom: 10 }]}>
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>
+                        {statusLabel(item.status)}
+                      </Text>
                     </View>
+                    <Text style={styles.planName}>{item.plan.name}</Text>
+                    <Text style={styles.planMeta}>
+                      {item.plan.provider.displayLabel?.trim() ||
+                        item.plan.provider.name}
+                    </Text>
+                    <Text style={styles.planMeta}>
+                      {item.remainingCredits} créditos restantes · vence{' '}
+                      {item.endsAt ? formatDate(item.endsAt) : '—'}
+                    </Text>
+                    <Text style={styles.planPrice}>
+                      {formatPrice(item.plan.price)}
+                    </Text>
                   </View>
-                </View>
-              );
-            }}
-          />
+                ))
+              )}
+            </View>
+
+            <View style={styles.block}>
+              <Text style={styles.sectionTitle}>Planes disponibles</Text>
+              <Text style={styles.sectionHint}>
+                Contrata análisis de IA según tu práctica profesional.
+              </Text>
+              {plans.length === 0 ? (
+                <Text style={styles.emptyText}>
+                  No hay planes publicados para tu cuenta en este momento.
+                </Text>
+              ) : (
+                plans.map((plan) => (
+                  <View key={plan.id} style={[styles.planCard, { marginBottom: 10 }]}>
+                    <Text style={styles.planName}>{plan.name}</Text>
+                    <Text style={styles.planMeta}>{planProviders(plan)}</Text>
+                    {plan.description ? (
+                      <Text style={styles.planMeta}>{plan.description}</Text>
+                    ) : null}
+                    <Text style={styles.planMeta}>
+                      {plan.analysisLimit} análisis · {plan.durationDays} días
+                    </Text>
+                    <Text style={styles.planPrice}>{formatPrice(plan.price)}</Text>
+                    <Pressable
+                      style={styles.contractBtn}
+                      onPress={() => openContract(plan)}
+                    >
+                      <Text style={styles.contractBtnText}>Contratar</Text>
+                    </Pressable>
+                  </View>
+                ))
+              )}
+            </View>
+          </ScrollView>
         )}
       </View>
     </View>

@@ -12,6 +12,7 @@ import { AppIcon } from '../../../components/AppIcon';
 import { Icons } from '../../../components/icons';
 import { useBranding } from '../../../context/BrandingContext';
 import { ANALYSIS_PROVIDER_STATIC_LABELS } from '../../../data/analysisProviderLabel';
+import { ANALYSIS_CONSENT_COPY } from '../../../data/legal/documents';
 import {
   BODY_PARTS_INFO,
   bodyModelGenderFromPatient,
@@ -21,11 +22,10 @@ import { DoctorHeader } from '../../doctor/patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../../doctor/patients/styles/patients.styles';
 import { YoucamConsentStep } from '../youcam-flow/YoucamConsentStep';
 import { createYoucamFlowStyles } from '../youcam-flow/styles/youcamFlow.styles';
-import { AnalysisModeStep } from '../AnalysisModeStep';
 import { BodySelector3D } from './BodySelector3D';
 import { SkiniverProcessingStep } from './SkiniverProcessingStep';
 
-type Step = 'mode' | 'consent' | 'region' | 'capture' | 'processing';
+type Step = 'consent' | 'region' | 'capture' | 'processing';
 
 type SkiniverAnalysisFlowProps = {
   patientId: string;
@@ -36,6 +36,7 @@ type SkiniverAnalysisFlowProps = {
   onAnalysisCreated: (analysisId: string) => void;
   onOpenMenu?: () => void;
   onOpenMessages?: () => void;
+  /** Compat: solicitudes al paciente se hacen desde la ficha. */
   skipModeChoice?: boolean;
 };
 
@@ -86,7 +87,6 @@ export function SkiniverAnalysisFlow({
   onAnalysisCreated,
   onOpenMenu,
   onOpenMessages,
-  skipModeChoice = false,
 }: SkiniverAnalysisFlowProps) {
   const branding = useBranding();
   const headerStyles = useMemo(
@@ -101,9 +101,7 @@ export function SkiniverAnalysisFlow({
     () => bodyModelGenderFromPatient(patientGender),
     [patientGender],
   );
-  const [step, setStep] = useState<Step>(
-    skipModeChoice ? 'consent' : 'mode',
-  );
+  const [step, setStep] = useState<Step>('consent');
   const [selection, setSelection] = useState<BodySelection | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
@@ -161,30 +159,20 @@ export function SkiniverAnalysisFlow({
         onBack={() => {
           if (step === 'capture') setStep('region');
           else if (step === 'region') setStep('consent');
-          else if (step === 'consent' && !skipModeChoice) setStep('mode');
           else onClose();
         }}
         onOpenMenu={onOpenMenu ?? (() => undefined)}
         onOpenMessages={onOpenMessages}
       />
 
-      {step === 'mode' ? (
-        <AnalysisModeStep
-          patientId={patientId}
-          providerSlug="skiniver"
-          providerLabel={label}
-          onContinueOnDevice={() => setStep('consent')}
-          onRequested={onClose}
-          onCancel={onClose}
-        />
-      ) : null}
-
       {step === 'consent' ? (
         <YoucamConsentStep
-          title="Consentimiento"
-          subtitle="Respetamos tu privacidad"
-          body="Al continuar, autorizas la captura de imágenes de la zona cutánea y el procesamiento asistido por IA según el aviso de información de Piel 360, incluyendo la retención y eliminación de tus datos conforme a la política aplicable."
-          bullet="• Has revisado y aceptas los términos de uso del análisis dermatológico asistido por IA."
+          title={ANALYSIS_CONSENT_COPY.skiniver.title}
+          subtitle={ANALYSIS_CONSENT_COPY.skiniver.subtitle}
+          body={ANALYSIS_CONSENT_COPY.skiniver.body}
+          checkboxLabel={ANALYSIS_CONSENT_COPY.skiniver.checkbox}
+          ctaLabel={ANALYSIS_CONSENT_COPY.skiniver.cta}
+          privacyDocId={ANALYSIS_CONSENT_COPY.skiniver.privacyDocId}
           onNext={() => setStep('region')}
           onCancel={onClose}
         />

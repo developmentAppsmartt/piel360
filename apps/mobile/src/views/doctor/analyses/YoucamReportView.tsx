@@ -48,6 +48,7 @@ import {
 import { DoctorHeader } from '../patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
 import { FitzpatrickResultsSection } from './components/FitzpatrickResultsSection';
+import { exportYoucamReportPdf } from './exportYoucamReportPdf';
 import { createYoucamResultsStyles } from './styles/youcamResults.styles';
 
 const RADAR_TYPES = [
@@ -237,6 +238,7 @@ export function YoucamReportView({
     () => createYoucamResultsStyles(branding.colors),
     [branding.colors],
   );
+  const [exporting, setExporting] = useState(false);
 
   const metrics = useMemo(
     () =>
@@ -351,6 +353,49 @@ export function YoucamReportView({
     }
   }
 
+  async function handleExportPdf() {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await exportYoucamReportPdf({
+        patientName: name,
+        createdAt: formatStamp(analysis.createdAt),
+        skinType: skinTypeLabel ?? '—',
+        fitzpatrick: analysis.patient?.fitzpatrickType
+          ? String(analysis.patient.fitzpatrickType)
+          : null,
+        overall,
+        skinAge,
+        chronologicalAge,
+        ageDiffLabel: ageDiff != null ? formatSignedYears(ageDiff) : null,
+        ageDiffMessage:
+          ageDiff != null ? skinAgeDifferenceMessage(ageDiff) : null,
+        bandLabel: band ? youcamScoreBandLabel(band) : null,
+        summary: buildSummary(scores, overall, skinTypeLabel),
+        metrics: reportRows.map((row) => {
+          const itemBand = youcamScoreBand(row.score);
+          return {
+            title: row.title,
+            score: row.score,
+            band: youcamScoreBandLabel(itemBand),
+            advice: youcamMetricAdvice(row.type, itemBand),
+          };
+        }),
+        brandPrimary: branding.colors.primary,
+        brandDark: branding.colors.primaryDark,
+      });
+    } catch (err) {
+      Alert.alert(
+        'No se pudo exportar',
+        err instanceof Error
+          ? err.message
+          : 'No se generó el PDF del reporte estético.',
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <View style={styles.progressScreen}>
       <StatusBar style="light" />
@@ -378,31 +423,13 @@ export function YoucamReportView({
           </Pressable>
           <View style={styles.reportActions}>
             <Pressable
-              style={styles.reportActionBtn}
-              onPress={() =>
-                Alert.alert(
-                  'Descargar',
-                  'La descarga del reporte se conectará próximamente.',
-                )
-              }
+              style={[styles.reportActionBtn, exporting && { opacity: 0.5 }]}
+              disabled={exporting}
+              onPress={() => void handleExportPdf()}
+              accessibilityLabel="Descargar PDF"
             >
               <AppIcon
                 icon={Icons.download}
-                size={18}
-                color={branding.colors.muted}
-              />
-            </Pressable>
-            <Pressable
-              style={styles.reportActionBtn}
-              onPress={() =>
-                Alert.alert(
-                  'PDF',
-                  'La exportación a PDF se conectará próximamente.',
-                )
-              }
-            >
-              <AppIcon
-                icon={Icons.file}
                 size={18}
                 color={branding.colors.muted}
               />

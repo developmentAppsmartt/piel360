@@ -11,6 +11,8 @@ type AuthConsentProps = {
   termsChecked: boolean;
   onToggleCaptcha: () => void;
   onToggleTerms: () => void;
+  onOpenTerms?: () => void;
+  onOpenPrivacy?: () => void;
   disabled?: boolean;
 };
 
@@ -22,6 +24,8 @@ export function AuthConsent({
   termsChecked,
   onToggleCaptcha,
   onToggleTerms,
+  onOpenTerms,
+  onOpenPrivacy,
   disabled,
 }: AuthConsentProps) {
   return (
@@ -41,23 +45,41 @@ export function AuthConsent({
         <Text style={styles.checkLabel}>No soy un robot</Text>
       </Pressable>
 
-      <Pressable
-        style={styles.checkRow}
-        onPress={onToggleTerms}
-        disabled={disabled}
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: termsChecked }}
-      >
-        <AppIcon
-          icon={termsChecked ? Icons.checkboxOn : Icons.checkboxOff}
-          size={22}
-          color={termsChecked ? primaryColor : onDark}
-        />
+      <View style={styles.checkRow}>
+        <Pressable
+          onPress={onToggleTerms}
+          disabled={disabled}
+          hitSlop={8}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: termsChecked }}
+        >
+          <AppIcon
+            icon={termsChecked ? Icons.checkboxOn : Icons.checkboxOff}
+            size={22}
+            color={termsChecked ? primaryColor : onDark}
+          />
+        </Pressable>
         <Text style={styles.checkLabel}>
-          Acepto los{' '}
-          <Text style={styles.checkLink}>términos y privacidad</Text>
+          He leído y acepto los{' '}
+          <Text
+            style={styles.checkLink}
+            onPress={() => {
+              if (!disabled) onOpenTerms?.();
+            }}
+          >
+            Términos y Condiciones
+          </Text>
+          {' y la '}
+          <Text
+            style={styles.checkLink}
+            onPress={() => {
+              if (!disabled) onOpenPrivacy?.();
+            }}
+          >
+            Política de Privacidad
+          </Text>
         </Text>
-      </Pressable>
+      </View>
     </View>
   );
 }

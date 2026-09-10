@@ -12,13 +12,13 @@ import { AppIcon } from '../../../components/AppIcon';
 import { Icons } from '../../../components/icons';
 import { useBranding } from '../../../context/BrandingContext';
 import { ANALYSIS_PROVIDER_STATIC_LABELS } from '../../../data/analysisProviderLabel';
+import { ANALYSIS_CONSENT_COPY } from '../../../data/legal/documents';
 import { requireGuidedFaceCapture } from '../../../native/guidedCapture';
 import { ApiError } from '../../../services/api.client';
 import { fitzpatrickService } from '../../../services/fitzpatrick.service';
 import { DoctorHeader } from '../../doctor/patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../../doctor/patients/styles/patients.styles';
 import { createYoucamFlowStyles } from '../youcam-flow/styles/youcamFlow.styles';
-import { AnalysisModeStep } from '../AnalysisModeStep';
 import { YoucamConsentStep } from '../youcam-flow/YoucamConsentStep';
 
 const TIPS: { icon: (typeof Icons)[keyof typeof Icons]; text: string }[] = [
@@ -43,6 +43,7 @@ type FitzpatrickAnalysisFlowProps = {
   onAnalysisCreated: (analysisId: string) => void;
   onOpenMenu?: () => void;
   onOpenMessages?: () => void;
+  /** Compat: solicitudes al paciente se hacen desde la ficha. */
   skipModeChoice?: boolean;
 };
 
@@ -53,7 +54,6 @@ export function FitzpatrickAnalysisFlow({
   onAnalysisCreated,
   onOpenMenu,
   onOpenMessages,
-  skipModeChoice = false,
 }: FitzpatrickAnalysisFlowProps) {
   const branding = useBranding();
   const headerStyles = useMemo(
@@ -65,9 +65,7 @@ export function FitzpatrickAnalysisFlow({
     [branding.colors],
   );
   const [busy, setBusy] = useState(false);
-  const [step, setStep] = useState<'mode' | 'consent' | 'capture'>(
-    skipModeChoice ? 'consent' : 'mode',
-  );
+  const [step, setStep] = useState<'consent' | 'capture'>('consent');
   const label = ANALYSIS_PROVIDER_STATIC_LABELS.fitzpatrick;
 
   async function handleStart() {
@@ -111,31 +109,22 @@ export function FitzpatrickAnalysisFlow({
         }
         showBack
         onBack={() => {
-          if (step === 'capture' && !skipModeChoice) setStep('consent');
-          else if (step === 'consent' && !skipModeChoice) setStep('mode');
+          if (step === 'capture') setStep('consent');
           else onClose();
         }}
         onOpenMenu={onOpenMenu ?? (() => undefined)}
         onOpenMessages={onOpenMessages}
       />
 
-      {step === 'mode' ? (
-        <AnalysisModeStep
-          patientId={patientId}
-          providerSlug="fitzpatrick"
-          providerLabel={label}
-          onContinueOnDevice={() => setStep('consent')}
-          onRequested={onClose}
-          onCancel={onClose}
-        />
-      ) : null}
-
       {step === 'consent' ? (
         <YoucamConsentStep
-          title="Consentimiento"
-          subtitle="Respetamos tu privacidad"
-          body="Al continuar, autorizas la captura facial y la clasificación de fototipo Fitzpatrick asistida por IA según el aviso de información de Piel 360."
-          bullet="• Has revisado y aceptas los términos de uso del análisis de fototipo asistido por IA."
+          title={ANALYSIS_CONSENT_COPY.fitzpatrick.title}
+          subtitle={ANALYSIS_CONSENT_COPY.fitzpatrick.subtitle}
+          body={ANALYSIS_CONSENT_COPY.fitzpatrick.body}
+          privacyShort={ANALYSIS_CONSENT_COPY.fitzpatrick.privacyShort}
+          checkboxLabel={ANALYSIS_CONSENT_COPY.fitzpatrick.checkbox}
+          ctaLabel={ANALYSIS_CONSENT_COPY.fitzpatrick.cta}
+          privacyDocId={ANALYSIS_CONSENT_COPY.fitzpatrick.privacyDocId}
           onNext={() => setStep('capture')}
           onCancel={onClose}
         />

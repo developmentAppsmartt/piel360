@@ -284,8 +284,8 @@ function buildDoctorSections(doctor?: DoctorProfile | null): ProfileSectionConfi
         },
         {
           id: 'idioma',
-          label: 'Idioma',
-          value: 'Español',
+          label: 'Idioma diagnóstico dermatológico',
+          value: 'Español / English',
           kind: 'nav',
         },
       ],
@@ -311,6 +311,7 @@ function buildDoctorSections(doctor?: DoctorProfile | null): ProfileSectionConfi
         {
           id: 'contacto',
           label: 'Contactar Soporte',
+          value: 'soporte@piel360.com',
           kind: 'nav',
           icon: 'mail',
         },
@@ -508,6 +509,7 @@ function buildPatientSections(patient?: PatientProfileDisplay | null): ProfileSe
         {
           id: 'contacto',
           label: 'Contactar Soporte',
+          value: 'soporte@piel360.com',
           kind: 'nav',
           icon: 'mail',
         },

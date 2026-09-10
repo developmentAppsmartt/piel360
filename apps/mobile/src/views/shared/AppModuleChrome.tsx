@@ -1,8 +1,12 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { PaymentsBillingView } from '../doctor/payments/PaymentsBillingView';
+import { DiagnosisLanguageView } from '../doctor/settings/DiagnosisLanguageView';
+import { LegalDocumentModal } from '../../components/legal/LegalDocumentModal';
 import { useAuth } from '../../context/AuthContext';
 import { useBranding } from '../../context/BrandingContext';
+import type { LegalDocId } from '../../data/legal/documents';
 import { isClinicalPanelUser } from '../../types/auth';
 import {
   AccountDrawer,
@@ -20,10 +24,6 @@ const INFO_COPY: Partial<Record<AccountMenuId, { title: string; body: string }>>
     premios: {
       title: 'Premios',
       body: 'Aquí verás recompensas y beneficios de Piel 360. Este módulo se activará en una próxima versión.',
-    },
-    acuerdo: {
-      title: 'Acuerdo de usuario',
-      body: 'Al usar Piel 360 aceptas el tratamiento de tus datos de salud con fines de apoyo diagnóstico. El texto legal completo se publicará en esta sección.',
     },
     soporte: {
       title: 'Soporte',
@@ -64,11 +64,60 @@ export function AppModuleChrome({
   );
   const [menuOpen, setMenuOpen] = useState(false);
   const [overlay, setOverlay] = useState<AccountMenuId | null>(null);
+  const [accountPanel, setAccountPanel] = useState<'idioma' | 'pagos' | null>(
+    null,
+  );
+  const [legalDoc, setLegalDoc] = useState<LegalDocId | null>(null);
   const variant = isClinicalPanelUser(user) ? 'doctor' : 'patient';
   const info = overlay ? INFO_COPY[overlay] : null;
 
+  if (accountPanel === 'idioma') {
+    return (
+      <>
+        <DiagnosisLanguageView
+          onBack={() => setAccountPanel(null)}
+          onOpenMenu={() => setMenuOpen(true)}
+          onOpenMessages={onOpenMessages}
+        />
+        <AccountDrawer
+          visible={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          onSelect={handleMenuSelect}
+          variant={variant}
+        />
+      </>
+    );
+  }
+
+  if (accountPanel === 'pagos') {
+    return (
+      <>
+        <PaymentsBillingView
+          onBack={() => setAccountPanel(null)}
+          onOpenMenu={() => setMenuOpen(true)}
+          onOpenMessages={onOpenMessages}
+        />
+        <AccountDrawer
+          visible={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          onSelect={handleMenuSelect}
+          variant={variant}
+        />
+      </>
+    );
+  }
+
   function handleMenuSelect(id: AccountMenuId) {
     setMenuOpen(false);
+    if (id === 'idioma') {
+      setAccountPanel('idioma');
+      return;
+    }
+    if (id === 'pagos') {
+      setAccountPanel('pagos');
+      return;
+    }
+    setAccountPanel(null);
     if (id === 'salir') {
       void logout();
       return;
@@ -92,7 +141,11 @@ export function AppModuleChrome({
       );
       return;
     }
-    if (id === 'seguridad' || id === 'idioma' || id === 'compartir') {
+    if (id === 'acuerdo') {
+      setLegalDoc('terms');
+      return;
+    }
+    if (id === 'seguridad' || id === 'compartir') {
       Alert.alert(
         'Próximamente',
         'Esta opción del menú se conectará en una siguiente iteración.',
@@ -149,6 +202,11 @@ export function AppModuleChrome({
         onClose={() => setMenuOpen(false)}
         onSelect={handleMenuSelect}
         variant={variant}
+      />
+      <LegalDocumentModal
+        docId={legalDoc}
+        visible={legalDoc != null}
+        onClose={() => setLegalDoc(null)}
       />
     </View>
   );

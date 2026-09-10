@@ -11,8 +11,10 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { AppIcon } from '../../components/AppIcon';
 import { Icons } from '../../components/icons';
+import { LegalDocumentModal } from '../../components/legal/LegalDocumentModal';
 import { useAuth } from '../../context/AuthContext';
 import { useBranding } from '../../context/BrandingContext';
+import type { LegalDocId } from '../../data/legal/documents';
 import { ApiError } from '../../services/api.client';
 import { analysesService } from '../../services/analyses.service';
 import {
@@ -72,14 +74,13 @@ type Overlay =
   | 'config'
   | 'password'
   | 'premios'
-  | 'acuerdo'
   | 'soporte'
   | 'acerca'
   | 'tips'
   | 'diseases';
 
 const OVERLAY_COPY: Record<
-  Exclude<Overlay, null | 'config'>,
+  Exclude<Overlay, null | 'config' | 'tips' | 'diseases'>,
   { title: string; body: string }
 > = {
   password: {
@@ -89,10 +90,6 @@ const OVERLAY_COPY: Record<
   premios: {
     title: 'Premios',
     body: 'Aquí verás recompensas y beneficios de Piel 360. Este módulo se activará en una próxima versión.',
-  },
-  acuerdo: {
-    title: 'Acuerdo de usuario',
-    body: 'Al usar Piel 360 aceptas el tratamiento de tus datos de salud con fines de apoyo diagnóstico. El texto legal completo se publicará en esta sección.',
   },
   soporte: {
     title: 'Soporte',
@@ -231,6 +228,7 @@ export function HomeView({
   const [activeFlow, setActiveFlow] = useState<PatientFlowKind | null>(null);
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
   const [overlay, setOverlay] = useState<Overlay>(null);
+  const [legalDoc, setLegalDoc] = useState<LegalDocId | null>(null);
   const [patient, setPatient] = useState<PatientProfile | null>(null);
   const [analyses, setAnalyses] = useState<PatientAnalysisSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -332,10 +330,13 @@ export function HomeView({
       return;
     }
     if (id === 'seguridad') return;
+    if (id === 'acuerdo') {
+      setLegalDoc('terms');
+      return;
+    }
     if (
       id === 'password' ||
       id === 'premios' ||
-      id === 'acuerdo' ||
       id === 'soporte' ||
       id === 'acerca'
     ) {
@@ -734,6 +735,11 @@ export function HomeView({
         variant="patient"
       />
 
+      <LegalDocumentModal
+        docId={legalDoc}
+        visible={legalDoc != null}
+        onClose={() => setLegalDoc(null)}
+      />
     </View>
   );
 }

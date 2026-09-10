@@ -225,6 +225,7 @@ export function MainTabNavigator() {
               onOpenPatients={() => setActiveTab('patients')}
               onOpenMessages={() => setActiveTab('chat')}
               onOpenProfile={() => setActiveTab('profile')}
+              onOpenAgenda={() => setActiveTab('agenda')}
             />
           ) : (
             <HomeView
@@ -243,6 +244,7 @@ export function MainTabNavigator() {
           <DoctorPatientsView
             onOpenMessages={() => setActiveTab('chat')}
             onOpenProfile={() => setActiveTab('profile')}
+            onOpenAgenda={() => setActiveTab('agenda')}
             onCreatingChange={setCreatingPatient}
           />
         ) : null}
