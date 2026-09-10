@@ -10,6 +10,8 @@ export interface DoctorRegisterPayload {
   phone: string;
   /** Ticket de `POST /auth/otp/phone/verify` — confirma que el celular fue verificado. */
   phoneTicket?: string;
+  /** Ticket de `POST /auth/otp/verify` (purpose=register) — confirma que el correo fue verificado. */
+  emailTicket?: string;
   membershipType?: "solo_doctor";
   docType?: string;
   docNumber?: string;

@@ -51,35 +51,51 @@ export class RoutinesService {
     return step;
   }
 
-  /** Si mediaUrl es un key de S3 (no empieza con http), genera URL firmada
+  /** Si una URL es un key de S3 (no empieza con http), genera URL firmada
    *  (1h) — mismo criterio que ProductsService#resolveImageUrl. */
-  private async resolveStepMedia<T extends { mediaUrl: string | null }>(
-    step: T,
-  ): Promise<T> {
-    if (
-      !step.mediaUrl ||
-      step.mediaUrl.startsWith('http://') ||
-      step.mediaUrl.startsWith('https://')
-    ) {
-      return step;
+  private async resolveS3Url(url: string | null): Promise<string | null> {
+    if (!url || url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
     }
-    const signedUrl = await this.storage.getSignedUrl(step.mediaUrl);
-    return { ...step, mediaUrl: signedUrl };
+    return this.storage.getSignedUrl(url);
   }
 
-  private async resolveStepsMedia<T extends { mediaUrl: string | null }>(
-    steps: T[],
-  ): Promise<T[]> {
+  /** Firma mediaUrl del paso y, si tiene un producto vinculado, también su
+   * imageUrl — mismo criterio que TreatmentsService#resolveItemImage. */
+  private async resolveStepMedia<
+    T extends {
+      mediaUrl: string | null;
+      product: { imageUrl: string | null } | null;
+    },
+  >(step: T): Promise<T> {
+    const mediaUrl = await this.resolveS3Url(step.mediaUrl);
+    const product = step.product
+      ? { ...step.product, imageUrl: await this.resolveS3Url(step.product.imageUrl) }
+      : step.product;
+    return { ...step, mediaUrl, product };
+  }
+
+  private async resolveStepsMedia<
+    T extends {
+      mediaUrl: string | null;
+      product: { imageUrl: string | null } | null;
+    },
+  >(steps: T[]): Promise<T[]> {
     return Promise.all(steps.map((s) => this.resolveStepMedia(s)));
   }
 
   private routineInclude = {
     conditions: true,
-    steps: { orderBy: { order: 'asc' as const } },
+    steps: { orderBy: { order: 'asc' as const }, include: { product: true } },
   };
 
   private async withResolvedSteps<
-    T extends { steps: { mediaUrl: string | null }[] },
+    T extends {
+      steps: {
+        mediaUrl: string | null;
+        product: { imageUrl: string | null } | null;
+      }[];
+    },
   >(routine: T): Promise<T> {
     return { ...routine, steps: await this.resolveStepsMedia(routine.steps) };
   }
@@ -121,6 +137,7 @@ export class RoutinesService {
                 region: c.region,
                 operator: c.operator,
                 value: c.value,
+                valueTo: c.valueTo,
                 textValue: c.textValue,
               })),
             }
@@ -162,6 +179,7 @@ export class RoutinesService {
               region: c.region,
               operator: c.operator,
               value: c.value,
+              valueTo: c.valueTo,
               textValue: c.textValue,
             })),
           });
@@ -203,6 +221,7 @@ export class RoutinesService {
         productId:
           dto.productId !== undefined ? BigInt(dto.productId) : undefined,
       },
+      include: { product: true },
     });
     return this.resolveStepMedia(step);
   }
@@ -231,6 +250,7 @@ export class RoutinesService {
         productId:
           dto.productId !== undefined ? BigInt(dto.productId) : undefined,
       },
+      include: { product: true },
     });
     return this.resolveStepMedia(updated);
   }
@@ -302,6 +322,7 @@ export class RoutinesService {
     const updated = await this.prisma.routineStep.update({
       where: { id: BigInt(stepId) },
       data: { mediaUrl: key, mediaType },
+      include: { product: true },
     });
     return this.resolveStepMedia(updated);
   }

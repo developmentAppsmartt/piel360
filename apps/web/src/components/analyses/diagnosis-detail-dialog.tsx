@@ -25,7 +25,7 @@ export function DiagnosisDetailDialog({
 
   return (
     <Dialog open={!!item} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-3xl">
         {item && (
           <>
             <DialogHeader>
@@ -51,7 +51,7 @@ export function DiagnosisDetailDialog({
             )}
             {entry.data?.content && (
               <div
-                className="max-h-96 overflow-y-auto text-sm [&_img]:max-w-full [&_a]:underline"
+                className="max-h-[70vh] overflow-y-auto text-sm [&_img]:max-w-full [&_a]:underline"
                 dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(entry.data.content) }}
               />
             )}

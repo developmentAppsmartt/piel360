@@ -12,8 +12,11 @@ export interface TreatmentCondition {
   metricType: string;
   region?: string | null;
   operator: ConditionOperator;
-  /** Numérica — null cuando la condición es categórica (ver textValue). */
+  /** Numérica — null cuando la condición es categórica (ver textValue).
+   * Con operator "between" es el límite inferior (ver valueTo). */
   value: number | null;
+  /** Límite superior — solo cuando operator es "between". */
+  valueTo?: number | null;
   /** Categórica — solo `hd_skin_type`. */
   textValue?: string | null;
 }

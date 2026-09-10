@@ -5,20 +5,24 @@ import {
   youcamSkinTypeLabel,
 } from "@/lib/youcam-metric-labels";
 
-export type ConditionOperator = "lt" | "lte" | "eq" | "gte" | "gt";
+export type ConditionOperator = "lt" | "lte" | "eq" | "gte" | "gt" | "between";
 
 export interface ConditionLike {
   metricType: string;
   region?: string | null;
   operator: string;
   value: number | null;
+  /** Límite superior — solo cuando operator es "between". */
+  valueTo?: number | null;
   /** Solo `hd_skin_type` — categórica, alternativa a `value`. */
   textValue?: string | null;
 }
 
 /** Métricas disponibles para condicionar — las 16 de YouCam más `all`
- * ("Salud de la piel") y `skin_age` ("Salud de la piel (años)"). Incluye
- * `hd_skin_type`, categórica — ver `isSkinTypeMetric`. */
+ * ("Salud de la piel") y `patient_age` (edad cronológica real del
+ * paciente). Incluye `hd_skin_type`, categórica — ver `isSkinTypeMetric`.
+ * `skin_age` ya no es condicionable acá — tiene su propio módulo dedicado
+ * ("Reglas por edad de piel"). */
 export const CONDITION_METRICS = CONDITIONABLE_METRIC_TYPES;
 
 /** Métricas con sub-regiones seleccionables en el formulario — sin entrada
@@ -53,6 +57,7 @@ export const CONDITION_OPERATORS: {
   { value: "eq", symbol: "=", label: "Igual a" },
   { value: "gte", symbol: "≥", label: "Mayor o igual a" },
   { value: "gt", symbol: ">", label: "Mayor que" },
+  { value: "between", symbol: "↔", label: "Entre" },
 ];
 
 export function conditionMetricLabel(metricType: string): string {
@@ -76,11 +81,11 @@ export function conditionSentence(condition: ConditionLike, subjectPhrase: strin
     return `Se recomienda ${subjectPhrase} cuando ${metric}${region} sea ${value}`;
   }
 
-  const operator = conditionOperatorLabel(condition.operator).toLowerCase();
-
-  if (condition.metricType === "skin_age") {
-    return `Se recomienda ${subjectPhrase} cuando la diferencia de edad de piel (edad de piel − edad real) sea ${operator} ${condition.value}`;
+  if (condition.operator === "between") {
+    return `Se recomienda ${subjectPhrase} cuando ${metric}${region} esté entre ${condition.value} y ${condition.valueTo}`;
   }
+
+  const operator = conditionOperatorLabel(condition.operator).toLowerCase();
 
   return `Se recomienda ${subjectPhrase} cuando ${metric}${region} sea ${operator} ${condition.value}`;
 }

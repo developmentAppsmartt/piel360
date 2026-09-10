@@ -206,6 +206,7 @@ export class TreatmentsService {
                 region: c.region,
                 operator: c.operator,
                 value: c.value,
+                valueTo: c.valueTo,
                 textValue: c.textValue,
               })),
             }
@@ -254,6 +255,7 @@ export class TreatmentsService {
               region: c.region,
               operator: c.operator,
               value: c.value,
+              valueTo: c.valueTo,
               textValue: c.textValue,
             })),
           });

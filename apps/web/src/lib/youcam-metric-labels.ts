@@ -17,6 +17,7 @@ export const YOUCAM_METRIC_LABELS: Record<string, string> = {
   hd_skin_type: "Tipo de piel",
   all: "Puntuación global",
   skin_age: "Edad de la piel",
+  patient_age: "Edad del paciente",
   resize_image: "Imagen redimensionada",
 };
 

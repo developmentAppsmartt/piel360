@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { extname } from 'path';
+import { SYSTEM_EMAIL_VARIABLES } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrgContextService } from '../organizations/org-context.service';
 import { StorageService } from '../storage/storage.service';
@@ -17,6 +18,7 @@ import type {
   UpdateEmailTemplateVariableDto,
 } from './dto/email-template.dto';
 import {
+  EMAIL_TEMPLATE_DEFAULTS,
   EMAIL_TEMPLATE_KIND_LABELS,
 } from './email-templates.defaults';
 
@@ -139,13 +141,23 @@ export class EmailTemplatesService {
       where: { doctorId },
       orderBy: [{ key: 'asc' }],
     });
-    return custom.map((row) => ({
-      id: row.id.toString(),
-      key: row.key,
-      description: row.description,
-      sampleValue: row.sampleValue,
-      isSystem: false as const,
+    const system = SYSTEM_EMAIL_VARIABLES.map((v) => ({
+      id: null as string | null,
+      key: v.key,
+      description: v.description,
+      sampleValue: v.sampleValue,
+      isSystem: true as const,
     }));
+    return [
+      ...system,
+      ...custom.map((row) => ({
+        id: row.id.toString(),
+        key: row.key,
+        description: row.description,
+        sampleValue: row.sampleValue,
+        isSystem: false as const,
+      })),
+    ];
   }
 
   async meta(userId: string) {
@@ -164,11 +176,11 @@ export class EmailTemplatesService {
             'Conexión con Google Workspace / Gmail pendiente. Disponible cuando completes la configuración OAuth.',
         },
         mailProvider: {
-          connected: false,
-          provider: null as string | null,
-          status: 'pending_setup',
+          connected: true,
+          provider: 'brevo' as string | null,
+          status: 'connected',
           message:
-            'Proveedor de correo (Resend / SMTP) no configurado aún para envíos desde plantillas personalizadas.',
+            'Correo transaccional vía Brevo. La plantilla "report_ready" activa se usa al completarse un análisis de estético.',
         },
       },
     };
@@ -182,6 +194,9 @@ export class EmailTemplatesService {
   async createVariable(userId: string, dto: CreateEmailTemplateVariableDto) {
     const doctorId = await this.catalogDoctorId(userId);
     const key = normalizeVariableKey(dto.key);
+    if (SYSTEM_EMAIL_VARIABLES.some((v) => v.key === key)) {
+      throw new ConflictException(`«${key}» es una variable del sistema — no se puede redefinir`);
+    }
     const existing = await this.prisma.emailTemplateVariable.findUnique({
       where: { doctorId_key: { doctorId, key } },
     });
@@ -266,7 +281,16 @@ export class EmailTemplatesService {
     const doctorId = await this.catalogDoctorId(userId);
     const name = dto.name.trim();
     const kindBase = slugifyKind(dto.kind?.trim() || name);
-    const kind = `${kindBase}_${Date.now().toString(36)}`;
+    // Los kinds reservados (welcome/plan_acquired/report_ready) se guardan
+    // tal cual — otros módulos los buscan por ese valor exacto (ver
+    // ReportEmailService.sendReportReadyEmail). El resto sigue recibiendo un
+    // sufijo para permitir varias plantillas "custom" sin chocar.
+    const kind = Object.prototype.hasOwnProperty.call(
+      EMAIL_TEMPLATE_KIND_LABELS,
+      kindBase,
+    )
+      ? kindBase
+      : `${kindBase}_${Date.now().toString(36)}`;
 
     const row = await this.prisma.emailTemplate.create({
       data: {
@@ -306,6 +330,47 @@ export class EmailTemplatesService {
     await this.ensureOwner(BigInt(id), doctorId);
     await this.prisma.emailTemplate.delete({ where: { id: BigInt(id) } });
     return { ok: true };
+  }
+
+  /** Plantilla activa más reciente de un `kind` reservado (ej. "report_ready")
+   * para un doctor — usada por ReportEmailService/AppointmentEmailService/
+   * PatientInviteService al enviar. `null` si el doctor no configuró ninguna
+   * (el llamador debe tener un default propio, ver EMAIL_TEMPLATE_DEFAULTS). */
+  async findActiveByKind(doctorId: bigint, kind: string) {
+    const row = await this.prisma.emailTemplate.findFirst({
+      where: { doctorId, kind, isActive: true },
+      orderBy: [{ updatedAt: 'desc' }],
+    });
+    return row ? this.serialize(row) : null;
+  }
+
+  /** Para el selector de eventos del editor (`GET /email-templates/by-kind/:kind`):
+   * la plantilla real del doctor si existe, o una "virtual" (sin `id`, con el
+   * contenido default de EMAIL_TEMPLATE_DEFAULTS) para que el editor tenga
+   * algo que mostrar y el doctor pueda partir de ahí. */
+  async getByKindOrDefault(userId: string, kind: string) {
+    const doctorId = await this.catalogDoctorId(userId);
+    const existing = await this.findActiveByKind(doctorId, kind);
+    if (existing) return { ...existing, isDefault: false as const };
+
+    const defaults = EMAIL_TEMPLATE_DEFAULTS[kind];
+    if (!defaults) {
+      throw new NotFoundException(`No hay contenido por defecto para «${kind}»`);
+    }
+    return {
+      id: null as string | null,
+      doctorId: doctorId.toString(),
+      kind,
+      kindLabel: EMAIL_TEMPLATE_KIND_LABELS[kind] ?? kind,
+      name: EMAIL_TEMPLATE_KIND_LABELS[kind] ?? kind,
+      subject: defaults.subject,
+      preheader: null as string | null,
+      bodyHtml: defaults.bodyHtml,
+      isActive: true,
+      createdAt: null as string | null,
+      updatedAt: null as string | null,
+      isDefault: true as const,
+    };
   }
 
   async uploadBanner(userId: string, file: Express.Multer.File | undefined) {

@@ -47,6 +47,15 @@ export function clinicalRouteAllowed(
     ]);
   }
   if (
+    pathname === "/doctor/reglas-fototipo" ||
+    pathname.startsWith("/doctor/reglas-fototipo/")
+  ) {
+    return hasAnyPermission(userPermissions, [
+      "clinical.fitzpatrick_rules",
+      "clinical.routines",
+    ]);
+  }
+  if (
     pathname === "/doctor/plantillas-correo" ||
     pathname.startsWith("/doctor/plantillas-correo/")
   ) {

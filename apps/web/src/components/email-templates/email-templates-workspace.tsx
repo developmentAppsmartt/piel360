@@ -20,6 +20,7 @@ import {
   Trash2,
   Plus,
 } from "lucide-react";
+import { SYSTEM_EMAIL_VARIABLES } from "@piel360/shared";
 import { Button } from "@/components/ui/button";
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import { cn } from "@/lib/utils";
@@ -29,11 +30,13 @@ import {
   useCreateEmailTemplateVariable,
   useDeleteEmailTemplate,
   useDeleteEmailTemplateVariable,
+  useEmailTemplateByKind,
   useEmailTemplateMeta,
   useEmailTemplates,
   useUpdateEmailTemplate,
   useUpdateEmailTemplateVariable,
   type EmailTemplate,
+  type EmailTemplateOrDefault,
   type EmailTemplateVariable,
 } from "@/lib/queries/email-templates";
 
@@ -43,15 +46,21 @@ const EMPTY_BODY_HTML = `<p style="margin:0 0 12px;font-size:16px;">Hola {nombre
 type EditorTab = "edit" | "variables";
 type PreviewMode = "desktop" | "mobile";
 
-const DEFAULT_PREVIEW_SAMPLES: Record<string, string> = {
-  "{nombre}": "Ana",
-  "{apellido}": "García",
-  "{email}": "ana@ejemplo.com",
-  "{plan_name}": "Plan Profesional",
-  "{clinic_name}": "Piel360 Clínica",
-  "{report_url}": "#",
-  "{login_url}": "#",
-};
+/** Los 3 eventos reales que disparan un envío hoy (ver report-email.service,
+ * appointment-email.service, patient-invite.service en la API) — el doctor
+ * elige cuál está viendo/editando en vez de navegar una lista plana. */
+const EVENT_KIND_IDS = [
+  "appointment_scheduled",
+  "report_ready",
+  "patient_invitation",
+] as const;
+
+// Mismas claves que usa el envío real (ver `SYSTEM_EMAIL_VARIABLES` en
+// @piel360/shared y `ReportEmailService.sendReportReadyEmail` en la API) —
+// evita que preview y envío real se desincronicen sobre qué variables existen.
+const DEFAULT_PREVIEW_SAMPLES: Record<string, string> = Object.fromEntries(
+  SYSTEM_EMAIL_VARIABLES.map((v) => [v.key, v.sampleValue]),
+);
 
 function applyPreviewVars(
   html: string,
@@ -316,6 +325,8 @@ export function EmailTemplatesWorkspace() {
   const updateMutation = useUpdateEmailTemplate();
   const deleteMutation = useDeleteEmailTemplate();
 
+  const [mode, setMode] = useState<"event" | "custom">("event");
+  const [activeKind, setActiveKind] = useState<string>(EVENT_KIND_IDS[0]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<EditorTab>("edit");
   const [previewMode, setPreviewMode] = useState<PreviewMode>("desktop");
@@ -330,10 +341,13 @@ export function EmailTemplatesWorkspace() {
   const editorRef = useRef<HTMLDivElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const syncingRef = useRef(false);
+  const hydratedKeyRef = useRef<string | null>(null);
 
   const variables = meta?.variables ?? [];
 
-  const selected = useMemo(() => {
+  const byKindQuery = useEmailTemplateByKind(mode === "event" ? activeKind : null);
+
+  const customSelected = useMemo(() => {
     if (!templates?.length) return null;
     if (selectedId) {
       const found = templates.find((t) => t.id === selectedId);
@@ -341,6 +355,15 @@ export function EmailTemplatesWorkspace() {
     }
     return templates[0] ?? null;
   }, [templates, selectedId]);
+
+  const selected: EmailTemplate | EmailTemplateOrDefault | null =
+    mode === "event" ? (byKindQuery.data ?? null) : customSelected;
+
+  // Identifica de forma estable QUÉ se está editando — a diferencia de
+  // `selected?.id` (que es `null` para cualquier default sin personalizar,
+  // así que cambiar de pestaña entre dos defaults no dispararía la
+  // rehidratación del editor).
+  const editingKey = mode === "event" ? `kind:${activeKind}` : selected?.id ?? null;
 
   function hydrateEditor(html: string) {
     syncingRef.current = true;
@@ -361,8 +384,13 @@ export function EmailTemplatesWorkspace() {
   }
 
   useEffect(() => {
-    if (!selected) return;
-    setSelectedId(selected.id);
+    // `selected` puede llegar en un render posterior a que cambie
+    // `editingKey` (la plantilla del kind activo todavía está cargando) —
+    // se reintenta en cada render hasta que llegue, sin re-hidratar de más
+    // una vez que ya se hizo para esta key.
+    if (!selected || hydratedKeyRef.current === editingKey) return;
+    hydratedKeyRef.current = editingKey;
+    if (mode === "custom") setSelectedId(selected.id);
     setName(selected.name);
     setSubject(selected.subject);
     setPreheader(selected.preheader ?? "");
@@ -370,7 +398,7 @@ export function EmailTemplatesWorkspace() {
     setDirty(false);
     setSaveMsg(null);
     hydrateEditor(selected.bodyHtml);
-  }, [selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [editingKey, selected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (tab !== "edit" || !editorRef.current) return;
@@ -453,6 +481,7 @@ export function EmailTemplatesWorkspace() {
         bodyHtml: EMPTY_BODY_HTML,
         isActive: true,
       });
+      setMode("custom");
       setSelectedId(created.id);
       setTab("edit");
       setSaveMsg("Plantilla creada. Personalízala y guarda los cambios.");
@@ -466,19 +495,17 @@ export function EmailTemplatesWorkspace() {
   }
 
   async function handleDelete() {
-    if (!selected) return;
-    if (
-      !window.confirm(
-        `¿Eliminar la plantilla «${selected.name}»? Esta acción no se puede deshacer.`,
-      )
-    ) {
-      return;
-    }
+    if (!selected?.id) return;
+    const confirmMsg =
+      mode === "event"
+        ? `¿Volver «${selected.name}» a su contenido por defecto? Se borra la personalización guardada.`
+        : `¿Eliminar la plantilla «${selected.name}»? Esta acción no se puede deshacer.`;
+    if (!window.confirm(confirmMsg)) return;
     try {
       await deleteMutation.mutateAsync(selected.id);
       setSelectedId(null);
       setDirty(false);
-      setSaveMsg("Plantilla eliminada.");
+      setSaveMsg(mode === "event" ? "Se volvió al contenido por defecto." : "Plantilla eliminada.");
     } catch (error) {
       setSaveMsg(
         error instanceof Error
@@ -491,17 +518,26 @@ export function EmailTemplatesWorkspace() {
   async function handleSave() {
     if (!selected) return;
     const html = editorRef.current?.innerHTML || bodyHtml;
+    const input = {
+      name: name.trim(),
+      subject: subject.trim(),
+      preheader: preheader.trim() || null,
+      bodyHtml: html,
+      isActive,
+    };
     try {
-      await updateMutation.mutateAsync({
-        id: selected.id,
-        input: {
-          name: name.trim(),
-          subject: subject.trim(),
-          preheader: preheader.trim() || null,
-          bodyHtml: html,
-          isActive,
-        },
-      });
+      if (selected.id == null) {
+        // Primera vez que se personaliza esta plantilla de evento (hoy usa
+        // el default) — se crea con el kind explícito para poder buscarla
+        // después (EmailTemplatesService.findActiveByKind).
+        await createMutation.mutateAsync({
+          ...input,
+          preheader: input.preheader ?? undefined,
+          kind: activeKind,
+        });
+      } else {
+        await updateMutation.mutateAsync({ id: selected.id, input });
+      }
       setBodyHtml(html);
       setDirty(false);
       setSaveMsg("Cambios guardados.");
@@ -514,7 +550,7 @@ export function EmailTemplatesWorkspace() {
     }
   }
 
-  function applyTemplate(tpl: EmailTemplate) {
+  function applyTemplate(tpl: EmailTemplate | EmailTemplateOrDefault) {
     setName(tpl.name);
     setSubject(tpl.subject);
     setPreheader(tpl.preheader ?? "");
@@ -570,15 +606,17 @@ export function EmailTemplatesWorkspace() {
                 Plantilla activa
               </label>
             ) : null}
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => void handleCreate()}
-              disabled={createMutation.isPending}
-            >
-              <Plus className="size-3.5" />
-              {createMutation.isPending ? "Creando…" : "Nueva plantilla"}
-            </Button>
+            {mode === "custom" ? (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => void handleCreate()}
+                disabled={createMutation.isPending}
+              >
+                <Plus className="size-3.5" />
+                {createMutation.isPending ? "Creando…" : "Nueva plantilla"}
+              </Button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -637,13 +675,63 @@ export function EmailTemplatesWorkspace() {
         </ModuleCard>
       </div>
 
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Eventos que envían correo automáticamente
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {EVENT_KIND_IDS.map((kindId) => {
+            const label = meta?.kinds.find((k) => k.id === kindId)?.label ?? kindId;
+            const active = mode === "event" && activeKind === kindId;
+            return (
+              <button
+                key={kindId}
+                type="button"
+                onClick={() => {
+                  setMode("event");
+                  setActiveKind(kindId);
+                  setTab("edit");
+                }}
+                className={cn(
+                  "min-w-40 flex-1 rounded-xl border px-4 py-3 text-left transition-colors sm:flex-none",
+                  active
+                    ? "border-primary/40 bg-primary/10 text-foreground shadow-sm"
+                    : "border-border bg-background hover:bg-muted/60",
+                )}
+              >
+                <p className="text-sm font-medium">{label}</p>
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setMode("custom");
+            setSelectedId(null);
+            setTab("edit");
+          }}
+          className={cn(
+            "text-xs underline-offset-2 hover:underline",
+            mode === "custom" ? "font-semibold text-foreground" : "text-primary",
+          )}
+        >
+          Ver plantillas personalizadas
+        </button>
+      </div>
+
+      {mode !== "custom" ? null : (
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Plantillas
+          Plantillas personalizadas
         </p>
-        {isLoading ? (
+        {(() => {
+          const customTemplates = (templates ?? []).filter(
+            (tpl) => !(EVENT_KIND_IDS as readonly string[]).includes(tpl.kind),
+          );
+          return isLoading ? (
           <p className="text-sm text-muted-foreground">Cargando…</p>
-        ) : !(templates ?? []).length ? (
+        ) : !customTemplates.length ? (
           <ModuleCard className="flex flex-wrap items-center justify-between gap-3 p-5">
             <div>
               <p className="text-sm font-medium">Aún no hay plantillas</p>
@@ -663,8 +751,8 @@ export function EmailTemplatesWorkspace() {
           </ModuleCard>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {(templates ?? []).map((tpl) => {
-              const active = tpl.id === selected?.id;
+            {customTemplates.map((tpl) => {
+              const active = mode === "custom" && tpl.id === selected?.id;
               return (
                 <button
                   key={tpl.id}
@@ -685,8 +773,10 @@ export function EmailTemplatesWorkspace() {
               );
             })}
           </div>
-        )}
+          );
+        })()}
       </div>
+      )}
 
       {!selected ? (
         (templates ?? []).length ? (
@@ -701,6 +791,12 @@ export function EmailTemplatesWorkspace() {
               <h2 className="text-lg font-semibold">
                 Editar «{selected.name}»
               </h2>
+              {"isDefault" in selected && selected.isDefault ? (
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  Contenido por defecto — aún no personalizado
+                </span>
+              ) : null}
+              {selected.id != null ? (
               <Button
                 type="button"
                 variant="outline"
@@ -709,8 +805,9 @@ export function EmailTemplatesWorkspace() {
                 disabled={deleteMutation.isPending}
               >
                 <Trash2 className="size-3.5" />
-                Eliminar
+                {mode === "event" ? "Volver al default" : "Eliminar"}
               </Button>
+              ) : null}
             </div>
             <div className="flex flex-wrap gap-1 rounded-xl bg-muted p-1 w-fit">
               {(
@@ -884,7 +981,7 @@ export function EmailTemplatesWorkspace() {
                       </select>
                     </div>
                     <div
-                      key={selected.id}
+                      key={editingKey}
                       ref={editorRef}
                       contentEditable
                       suppressContentEditableWarning

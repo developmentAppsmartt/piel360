@@ -18,6 +18,7 @@ import {
 } from '../../../../data/surveyQuestions';
 import { ApiError } from '../../../../services/api.client';
 import { patientsService } from '../../../../services/patients.service';
+import { EmailOtpSection } from '../../../../components/auth/EmailOtpSection';
 import { PhoneOtpSection } from '../../../../components/auth/PhoneOtpSection';
 import {
   combinePhoneDigits,
@@ -85,6 +86,7 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
   const [lastName, setLastName] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [gender, setGender] = useState<string>('male');
+  const [emailTicket, setEmailTicket] = useState<string | null>(null);
   const [areaCode, setAreaCode] = useState('57');
   const [phone, setPhone] = useState('');
   const [phoneTicket, setPhoneTicket] = useState<string | null>(null);
@@ -126,7 +128,10 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
       setError('Marca “No soy un robot” y acepta los términos.');
       return;
     }
-    // OTP desactivado hasta integrar correo/Redis; ir directo a perfil.
+    if (!emailTicket) {
+      setError('Verifica tu correo con el código que te enviamos.');
+      return;
+    }
     goTo('profile');
   }
 
@@ -175,6 +180,7 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
         lastName: lastName.trim(),
         phone: fullPhone,
         phoneTicket: phoneTicket!,
+        emailTicket: emailTicket!,
       });
 
       const patient = await patientsService.getMyPatient();
@@ -258,6 +264,15 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
             placeholder="tu@email.com"
             placeholderTextColor="#9CA3AF"
             editable={!submitting}
+          />
+          <EmailOtpSection
+            email={email}
+            emailTicket={emailTicket}
+            onEmailTicketChange={setEmailTicket}
+            disabled={submitting}
+            variant="auth"
+            primaryColor={primary}
+            onDark={onDark}
           />
         </View>
 

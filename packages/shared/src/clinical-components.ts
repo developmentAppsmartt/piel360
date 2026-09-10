@@ -72,6 +72,12 @@ export const CLINICAL_COMPONENTS: readonly ClinicalComponentDef[] = [
     sortOrder: 101,
   },
   {
+    slug: "clinical.fitzpatrick_rules",
+    label: "Reglas por fototipo",
+    href: "/doctor/reglas-fototipo",
+    sortOrder: 103,
+  },
+  {
     slug: "clinical.email_templates",
     label: "Plantillas de correo",
     href: "/doctor/plantillas-correo",
@@ -123,6 +129,7 @@ export const EMPRESA_CLINICAL_COMPONENT_SLUGS = [
   "clinical.products",
   "clinical.routines",
   "clinical.skin_age_rules",
+  "clinical.fitzpatrick_rules",
   "clinical.email_templates",
   "clinical.settings",
   "clinical.settings.account",

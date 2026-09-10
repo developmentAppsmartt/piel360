@@ -43,12 +43,27 @@ export interface EmailTemplateMeta {
   };
 }
 
+/** Respuesta de `GET /email-templates/by-kind/:kind` — la plantilla real del
+ * doctor si existe, o una "virtual" (`id: null`, `isDefault: true`) con el
+ * contenido por defecto de ese evento para que el editor tenga algo que
+ * mostrar. */
+export interface EmailTemplateOrDefault
+  extends Omit<EmailTemplate, "id" | "createdAt" | "updatedAt"> {
+  id: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  isDefault: boolean;
+}
+
 export type EmailTemplateCreateInput = {
   name: string;
   subject: string;
   preheader?: string;
   bodyHtml?: string;
   isActive?: boolean;
+  /** Kind reservado explícito (ej. "appointment_scheduled") — se guarda tal
+   * cual, sin sufijo, para poder buscarlo después por evento. */
+  kind?: string;
 };
 
 export type EmailTemplateUpdate = {
@@ -76,6 +91,15 @@ export function useEmailTemplates() {
   return useQuery({
     queryKey: ["email-templates"],
     queryFn: () => apiClientFetch<EmailTemplate[]>("/email-templates"),
+  });
+}
+
+export function useEmailTemplateByKind(kind: string | null) {
+  return useQuery({
+    queryKey: ["email-templates", "by-kind", kind],
+    queryFn: () =>
+      apiClientFetch<EmailTemplateOrDefault>(`/email-templates/by-kind/${kind}`),
+    enabled: !!kind,
   });
 }
 

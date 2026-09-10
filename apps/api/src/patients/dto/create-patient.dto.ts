@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsDateString,
   IsEmail,
   IsNumber,
@@ -17,11 +18,16 @@ export class CreatePatientDto {
   @IsString()
   lastName!: string;
 
+  /** Correo de contacto — no implica crear cuenta por sí solo, ver `createAppAccess`. */
   @IsOptional()
   @IsEmail()
   email?: string;
 
-  /** Crea cuenta de acceso (User) vinculada. Si hay email, debe enviarse (≥8). */
+  /** true = crear un `User` vinculado (login); exige `email`+`password`. */
+  @IsOptional()
+  @IsBoolean()
+  createAppAccess?: boolean;
+
   @IsOptional()
   @IsString()
   @MinLength(8)

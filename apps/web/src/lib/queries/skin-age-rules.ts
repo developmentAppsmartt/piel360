@@ -134,6 +134,11 @@ export type AnalysisCareItem = SkinAgeRuleGroupPreview & {
     description: string | null;
     mediaUrl: string | null;
     mediaType: string | null;
+    /** Producto vinculado al paso (ej. "aplicar Protector solar SPF 50+"). */
+    productId?: string | null;
+    productName?: string | null;
+    productImageUrl?: string | null;
+    productUrl?: string | null;
   }[];
 };
 

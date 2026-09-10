@@ -9,6 +9,9 @@ import type { YouCamAnalysisError } from "@/lib/queries/analyses";
 // backend serializa BigInt a string (apps/api/src/common/bigint-json.polyfill.ts).
 export interface Patient {
   id: string;
+  /** null = sin cuenta vinculada todavía (paciente creado por el doctor sin
+   * login, o no registrado aún) — determina si el botón "Invitar" aplica. */
+  userId?: string | null;
   firstName: string;
   lastName: string;
   email: string | null;
@@ -85,6 +88,8 @@ export interface PatientInput {
   firstName: string;
   lastName: string;
   email?: string;
+  /** true = crear un `User` vinculado (login); exige email+password. */
+  createAppAccess?: boolean;
   password?: string;
   phone?: string;
   areaCode?: string;
@@ -158,6 +163,15 @@ export function useCreatePatient() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["patients"] });
     },
+  });
+}
+
+export function useInvitePatient() {
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClientFetch<{ ok: true }>(`/patients/${id}/invite`, {
+        method: "POST",
+      }),
   });
 }
 

@@ -39,6 +39,11 @@ export class RegisterDoctorDto {
   @IsString()
   phoneTicket?: string;
 
+  /** Opcional: ticket de `POST /auth/otp/verify` (purpose=register) si se verificó el correo. */
+  @IsOptional()
+  @IsString()
+  emailTicket?: string;
+
   /** Solo profesionales individuales — empresas usan POST /auth/register/empresa. */
   @IsOptional()
   @IsIn(['solo_doctor'])
