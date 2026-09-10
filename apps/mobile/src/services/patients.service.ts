@@ -1,6 +1,6 @@
 import type { PatientAnalysisSummary } from '../types/analysis';
 import type { PatientProfile } from '../types/patient';
-import { apiRequest } from './api.client';
+import { ApiError, apiRequest } from './api.client';
 
 export type UpdatePatientInput = {
   firstName?: string;
@@ -58,8 +58,16 @@ export const patientsService = {
   },
 
   async getMyPatient(): Promise<PatientProfile | null> {
-    const list = await this.list();
-    return list[0] ?? null;
+    try {
+      return await apiRequest<PatientProfile>('/patients/me', { auth: true });
+    } catch (err) {
+      // Compat con API antigua sin /patients/me
+      if (err instanceof ApiError && (err.status === 404 || err.status === 405)) {
+        const list = await this.list();
+        return list[0] ?? null;
+      }
+      throw err;
+    }
   },
 
   async create(input: CreatePatientInput): Promise<PatientProfile> {

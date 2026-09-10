@@ -47,11 +47,12 @@ export function createRegisterStyles(colors: AppBranding['colors']) {
       marginBottom: 18,
     },
     welcomeBannerCard: {
-      backgroundColor: AUTH_THEME.purple,
+      backgroundColor: '#F4F9FF',
       borderRadius: 16,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
+      overflow: 'hidden',
       marginBottom: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     welcomeTitle: {
       color: colors.textOnDark,

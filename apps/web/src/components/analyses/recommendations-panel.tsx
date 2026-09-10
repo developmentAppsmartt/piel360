@@ -20,6 +20,12 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "tratamientos", label: "Tratamientos" },
 ];
 
+type MediaPreview = {
+  kind: "video" | "image";
+  url: string;
+  title: string;
+};
+
 function firstNonEmpty(...lists: AnalysisCareItem[][]): AnalysisCareItem[] {
   for (const list of lists) {
     if (list.length > 0) return list;
@@ -27,70 +33,85 @@ function firstNonEmpty(...lists: AnalysisCareItem[][]): AnalysisCareItem[] {
   return [];
 }
 
-/** ¿Alguna condición de la rutina/tratamiento matchea esta métrica? Misma
- * comparación que usaban RecommendedRoutines/RecommendedTreatments antes de
- * quedar sin uso (commit d6435c2). */
-function matchesMetric(
-  conditions: { metricType: string }[],
-  metricType: string,
-): boolean {
-  return conditions.some((c) => c.metricType === metricType);
+function inferMediaKind(
+  mediaType: string | null | undefined,
+  url: string,
+): "video" | "image" {
+  const type = (mediaType ?? "").toLowerCase().trim();
+  if (type === "video") return "video";
+  if (type === "image" || type === "gif") return "image";
+  if (/\.(mp4|mov|webm|m4v|mkv)(\?|#|$)/i.test(url)) return "video";
+  return "image";
 }
 
-function routineToCareItem(routine: Routine): AnalysisCareItem {
-  return {
-    id: routine.id,
-    name: routine.name,
-    description: routine.description,
-    stepsCount: routine.steps.length,
-    steps: routine.steps.map((step) => ({
-      id: step.id,
-      order: step.order,
-      title: step.title,
-      description: step.description,
-      mediaUrl: step.mediaUrl,
-      mediaType: step.mediaType,
-      productId: step.productId,
-      productName: step.product?.productName ?? null,
-      productImageUrl: step.product?.imageUrl ?? null,
-      productUrl: step.product?.productUrl ?? null,
-    })),
-  };
-}
-
-/** `productType` filtra los items del grupo (para separar Productos de
- * Suplementos dentro de los "productos sugeridos" sin categoría) — omitido
- * para tratamientos con categoría, que no distinguen tipo. */
-function treatmentToCareItem(
-  treatment: Treatment,
-  productType?: "product" | "supplement",
-): AnalysisCareItem {
-  const items = productType
-    ? treatment.items.filter((item) => item.product.productType === productType)
-    : treatment.items;
-  return {
-    id: treatment.id,
-    name: treatment.name,
-    description: treatment.description,
-    categoryName: treatment.category?.categoryName ?? null,
-    items: items.map((item) => ({
-      id: item.id,
-      productId: item.productId,
-      productName: item.product.productName,
-      productType: item.product.productType,
-      note: item.note,
-    })),
-  };
+function MediaLightbox({
+  preview,
+  onClose,
+}: {
+  preview: MediaPreview | null;
+  onClose: () => void;
+}) {
+  if (!preview) return null;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F3D73]/80 p-4"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-3xl overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <p className="text-sm font-semibold text-[#0F3D73]">
+            {preview.kind === "video" ? "Video de la rutina" : "Imagen guía"}
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg px-2 py-1 text-sm text-muted-foreground hover:bg-muted"
+          >
+            Cerrar
+          </button>
+        </div>
+        <div className="bg-slate-950">
+          {preview.kind === "video" ? (
+            <video
+              src={preview.url}
+              controls
+              autoPlay
+              className="max-h-[70vh] w-full object-contain"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={preview.url}
+              alt={preview.title}
+              className="max-h-[70vh] w-full object-contain"
+            />
+          )}
+        </div>
+        {preview.title ? (
+          <p className="px-4 py-3 text-sm text-muted-foreground">
+            {preview.title}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 function CareList({
   title,
   items,
   emptyMessage,
+  onOpenMedia,
 }: {
   title: string;
   items: AnalysisCareItem[];
   emptyMessage: string;
+  onOpenMedia: (preview: MediaPreview) => void;
 }) {
   if (items.length === 0) {
     return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;
@@ -103,12 +124,24 @@ function CareList({
         <ModuleCard key={item.id} className="space-y-3 p-4">
           <div className="flex gap-3">
             {item.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={item.imageUrl}
-                alt=""
-                className="h-16 w-16 shrink-0 rounded-lg border border-border object-cover"
-              />
+              <button
+                type="button"
+                className="shrink-0"
+                onClick={() =>
+                  onOpenMedia({
+                    kind: "image",
+                    url: item.imageUrl!,
+                    title: item.name,
+                  })
+                }
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={item.imageUrl}
+                  alt=""
+                  className="h-16 w-16 rounded-lg border border-border object-cover"
+                />
+              </button>
             ) : null}
             <div className="min-w-0">
               <p className="font-medium">{item.name}</p>
@@ -129,41 +162,63 @@ function CareList({
             <ol className="space-y-3">
               {[...item.steps]
                 .sort((a, b) => a.order - b.order)
-                .map((step, index) => (
-                  <li key={step.id} className="flex gap-3">
-                    {step.mediaUrl ? (
-                      step.mediaType === "video" ? (
-                        <video
-                          src={step.mediaUrl}
-                          controls
-                          className="h-16 w-16 shrink-0 rounded-lg object-cover"
-                        />
-                      ) : (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={step.mediaUrl}
-                          alt=""
-                          className="h-16 w-16 shrink-0 rounded-lg border border-border object-cover"
-                        />
-                      )
-                    ) : null}
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">
-                        {index + 1}. {step.title}
-                      </p>
-                      {step.description ? (
-                        <p className="text-sm text-muted-foreground">
-                          {step.description}
-                        </p>
+                .map((step, index) => {
+                  const mediaUrl = step.mediaUrl;
+                  const kind = mediaUrl
+                    ? inferMediaKind(step.mediaType, mediaUrl)
+                    : null;
+                  return (
+                    <li key={step.id} className="flex gap-3">
+                      {mediaUrl && kind ? (
+                        <button
+                          type="button"
+                          className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg"
+                          onClick={() =>
+                            onOpenMedia({
+                              kind,
+                              url: mediaUrl,
+                              title: step.title,
+                            })
+                          }
+                        >
+                          {kind === "video" ? (
+                            <video
+                              src={mediaUrl}
+                              className="h-full w-full object-cover"
+                              muted
+                              playsInline
+                            />
+                          ) : (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={mediaUrl}
+                              alt=""
+                              className="h-full w-full border border-border object-cover"
+                            />
+                          )}
+                          <span className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5 text-[10px] font-semibold text-white">
+                            Ampliar
+                          </span>
+                        </button>
                       ) : null}
-                      {step.productName ? (
-                        <p className="text-sm text-muted-foreground">
-                          Producto: <span className="font-medium">{step.productName}</span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">
+                          {index + 1}. {step.title}
                         </p>
-                      ) : null}
-                    </div>
-                  </li>
-                ))}
+                        {step.description ? (
+                          <p className="text-sm text-muted-foreground">
+                            {step.description}
+                          </p>
+                        ) : null}
+                        {step.product ? (
+                          <p className="mt-1 text-xs text-[#1E5A9E]">
+                            Producto vinculado: {step.product.productName}
+                          </p>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })}
             </ol>
           ) : null}
 
@@ -199,73 +254,41 @@ export function RecommendationsPanel({
   metricType: string | null;
 }) {
   const [tab, setTab] = useState<Tab>("todas");
-  const { data, isLoading: careLoading } = useAnalysisCareRecommendations(analysisId);
-  const { data: allRoutines, isLoading: routinesLoading } = useRecommendedRoutines(
-    analysisId,
-    true,
-  );
-  const { data: allTreatments, isLoading: treatmentsLoading } = useRecommendedTreatments(
-    analysisId,
-    true,
-  );
+  const [mediaPreview, setMediaPreview] = useState<MediaPreview | null>(null);
+  const { data, isLoading } = useAnalysisCareRecommendations(analysisId);
 
-  const isLoading = metricType
-    ? routinesLoading || treatmentsLoading
-    : careLoading;
-
-  const emptySuffix = metricType
-    ? " para esta métrica."
-    : " todavía.";
-
-  const metricRoutines = useMemo(
-    () => (allRoutines ?? []).filter((r) => matchesMetric(r.conditions, metricType ?? "")),
-    [allRoutines, metricType],
+  const routines = useMemo(
+    () =>
+      firstNonEmpty(
+        data?.recommendations.routines ?? [],
+        data?.catalog.routines ?? [],
+      ),
+    [data],
   );
-  const metricTreatments = useMemo(
-    () => (allTreatments ?? []).filter((t) => matchesMetric(t.conditions, metricType ?? "")),
-    [allTreatments, metricType],
+  const products = useMemo(
+    () =>
+      firstNonEmpty(
+        data?.recommendations.products ?? [],
+        data?.catalog.products ?? [],
+      ),
+    [data],
   );
-
-  const routines = useMemo(() => {
-    if (metricType) return metricRoutines.map(routineToCareItem);
-    return firstNonEmpty(
-      data?.recommendations.routines ?? [],
-      data?.catalog.routines ?? [],
-    );
-  }, [metricType, metricRoutines, data]);
-  const products = useMemo(() => {
-    if (metricType) {
-      return metricTreatments
-        .filter((t) => !t.categoryId)
-        .map((t) => treatmentToCareItem(t, "product"))
-        .filter((t) => (t.items?.length ?? 0) > 0);
-    }
-    return firstNonEmpty(
-      data?.recommendations.products ?? [],
-      data?.catalog.products ?? [],
-    );
-  }, [metricType, metricTreatments, data]);
-  const supplements = useMemo(() => {
-    if (metricType) {
-      return metricTreatments
-        .filter((t) => !t.categoryId)
-        .map((t) => treatmentToCareItem(t, "supplement"))
-        .filter((t) => (t.items?.length ?? 0) > 0);
-    }
-    return firstNonEmpty(
-      data?.recommendations.supplements ?? [],
-      data?.catalog.supplements ?? [],
-    );
-  }, [metricType, metricTreatments, data]);
-  const treatments = useMemo(() => {
-    if (metricType) {
-      return metricTreatments.filter((t) => !!t.categoryId).map((t) => treatmentToCareItem(t));
-    }
-    return firstNonEmpty(
-      data?.recommendations.treatments ?? [],
-      data?.catalog.treatments ?? [],
-    );
-  }, [metricType, metricTreatments, data]);
+  const supplements = useMemo(
+    () =>
+      firstNonEmpty(
+        data?.recommendations.supplements ?? [],
+        data?.catalog.supplements ?? [],
+      ),
+    [data],
+  );
+  const treatments = useMemo(
+    () =>
+      firstNonEmpty(
+        data?.recommendations.treatments ?? [],
+        data?.catalog.treatments ?? [],
+      ),
+    [data],
+  );
 
   return (
     <div className="space-y-4">
@@ -307,40 +330,46 @@ export function RecommendationsPanel({
           {tab === "todas" && (
             <div className="space-y-6">
               <CareList
-                title="Productos"
+                title="Productos sugeridos"
                 items={products}
-                emptyMessage={`No hay productos configurados${emptySuffix}`}
+                emptyMessage="No hay productos configurados todavía."
+                onOpenMedia={setMediaPreview}
               />
               <CareList
                 title="Rutinas"
                 items={routines}
                 emptyMessage="No hay rutinas configuradas todavía."
+                onOpenMedia={setMediaPreview}
               />
               <CareList
                 title="Suplementos"
                 items={supplements}
-                emptyMessage={`No hay suplementos configurados${emptySuffix}`}
+                emptyMessage="No hay suplementos configurados todavía."
+                onOpenMedia={setMediaPreview}
               />
               <CareList
                 title="Tratamientos"
                 items={treatments}
-                emptyMessage={`No hay tratamientos configurados${emptySuffix}`}
+                emptyMessage="No hay tratamientos configurados todavía."
+                onOpenMedia={setMediaPreview}
               />
             </div>
           )}
 
+          {tab === "productos" && (
+            <CareList
+              title="Productos sugeridos"
+              items={products}
+              emptyMessage="No hay productos configurados todavía."
+              onOpenMedia={setMediaPreview}
+            />
+          )}
           {tab === "rutinas" && (
             <CareList
               title="Rutinas"
               items={routines}
               emptyMessage="No hay rutinas configuradas todavía."
-            />
-          )}
-          {tab === "productos" && (
-            <CareList
-              title="Productos"
-              items={products}
-              emptyMessage="No hay productos configurados todavía."
+              onOpenMedia={setMediaPreview}
             />
           )}
           {tab === "suplementos" && (
@@ -348,6 +377,7 @@ export function RecommendationsPanel({
               title="Suplementos"
               items={supplements}
               emptyMessage="No hay suplementos configurados todavía."
+              onOpenMedia={setMediaPreview}
             />
           )}
           {tab === "tratamientos" && (
@@ -355,10 +385,16 @@ export function RecommendationsPanel({
               title="Tratamientos"
               items={treatments}
               emptyMessage="No hay tratamientos configurados todavía."
+              onOpenMedia={setMediaPreview}
             />
           )}
         </>
       )}
+
+      <MediaLightbox
+        preview={mediaPreview}
+        onClose={() => setMediaPreview(null)}
+      />
     </div>
   );
 }

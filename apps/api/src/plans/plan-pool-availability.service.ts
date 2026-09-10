@@ -21,8 +21,8 @@ export type PoolBalances = {
 };
 
 const POOL_LABELS: Record<PoolProvider, string> = {
-  skiniver: 'Skiniver',
-  perfectcorp: 'Perfect Corp',
+  skiniver: 'Análisis Dermatológico',
+  perfectcorp: 'Análisis Estético',
 };
 
 @Injectable()

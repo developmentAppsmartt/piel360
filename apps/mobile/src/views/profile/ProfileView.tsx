@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Linking,
   Pressable,
   ScrollView,
   Text,
@@ -12,6 +11,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import { useBranding } from '../../context/BrandingContext';
 import { ApiError } from '../../services/api.client';
+import { authService } from '../../services/auth.service';
 import {
   doctorsService,
   type DoctorProfile,
@@ -30,8 +30,10 @@ import { EditProfileView } from './edit/EditProfileView';
 import { ProfileIdentity } from './components/ProfileIdentity';
 import { ProfileSection } from './components/ProfileSection';
 import { createProfileStyles } from './styles/profile.styles';
+import { SupportChatView } from '../support/SupportChatView';
 import { AppModuleChrome } from '../shared/AppModuleChrome';
 import { DiagnosisLanguageView } from '../doctor/settings/DiagnosisLanguageView';
+import { AboutPiel360Modal } from '../../components/about/AboutPiel360';
 
 type EditDoctorViewComponent = typeof import('../doctor/profile/EditDoctorView').EditDoctorView;
 
@@ -88,7 +90,9 @@ export function ProfileView({ onBack, onOpenMessages }: ProfileViewProps) {
   const role = user?.role ?? 'patient';
   const isDoctor = isClinicalPanelRole(role);
   const doctorPending =
-    isDoctor && !isDoctorVerificationActive(user?.verificationStatus);
+    Boolean(doctor) &&
+    isDoctor &&
+    !isDoctorVerificationActive(user?.verificationStatus);
 
   const [patient, setPatient] = useState<PatientProfile | null>(null);
   const [doctor, setDoctor] = useState<DoctorProfile | null>(null);
@@ -96,6 +100,8 @@ export function ProfileView({ onBack, onOpenMessages }: ProfileViewProps) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
   const [EditDoctorView, setEditDoctorView] =
@@ -126,12 +132,35 @@ export function ProfileView({ onBack, onOpenMessages }: ProfileViewProps) {
     setLoading(true);
     setLoadError(null);
     try {
-      if (isDoctor) {
+      // Decidir por perfiles reales en BD, no solo por role del JWT/sesión
+      // (un paciente mal clasificado como doctor no debe llamar /doctors/me).
+      const details = await authService.meDetails();
+      if (details.patient && !details.doctor) {
+        if (isDoctor) {
+          await patchUser({
+            role: 'patient',
+            empresa: undefined,
+            empresaReferida: undefined,
+            verificationStatus: undefined,
+          });
+        }
+        const refreshed = await authService.refreshSession();
+        if (refreshed) {
+          // El provider ya actualiza storage; alinear estado local.
+        }
+        const mine = await patientsService.getMyPatient();
+        setPatient(mine);
+        setDoctor(null);
+        setLocalAvatarUrl(resolveMediaUrl(mine?.avatarUrl));
+      } else if (details.doctor) {
         const mine = await doctorsService.getMe();
         setDoctor(mine);
         setPatient(null);
         setLocalAvatarUrl(resolveMediaUrl(mine.avatarUrl));
-        await patchUser({ verificationStatus: mine.verificationStatus });
+        await patchUser({
+          role: isClinicalPanelRole(role) ? role : 'doctor',
+          verificationStatus: mine.verificationStatus,
+        });
       } else if (role === 'patient') {
         const mine = await patientsService.getMyPatient();
         setPatient(mine);
@@ -160,7 +189,15 @@ export function ProfileView({ onBack, onOpenMessages }: ProfileViewProps) {
   const content = useMemo(
     () =>
       buildProfileContent({
-        role,
+        // Preferir perfiles reales: paciente mal etiquetado como doctor en JWT
+        // no debe ver UI de médico.
+        role: doctor
+          ? isClinicalPanelRole(role)
+            ? role
+            : 'doctor'
+          : patient
+            ? 'patient'
+            : role,
         userName: user?.name?.trim() || 'Usuario',
         email: user?.email ?? '',
         patient,
@@ -205,17 +242,11 @@ export function ProfileView({ onBack, onOpenMessages }: ProfileViewProps) {
       return;
     }
     if (rowId === 'contacto' || rowId === 'ayuda') {
-      Alert.alert(
-        'Soporte',
-        'Escríbenos a soporte@piel360.com.',
-        [
-          { text: 'Cerrar', style: 'cancel' },
-          {
-            text: 'Escribir',
-            onPress: () => void Linking.openURL('mailto:soporte@piel360.com'),
-          },
-        ],
-      );
+      setSupportOpen(true);
+      return;
+    }
+    if (rowId === 'acerca') {
+      setAboutOpen(true);
       return;
     }
     Alert.alert(
@@ -302,6 +333,10 @@ export function ProfileView({ onBack, onOpenMessages }: ProfileViewProps) {
     } finally {
       setAvatarBusy(false);
     }
+  }
+
+  if (supportOpen) {
+    return <SupportChatView onClose={() => setSupportOpen(false)} />;
   }
 
   if (languageOpen) {
@@ -449,6 +484,10 @@ export function ProfileView({ onBack, onOpenMessages }: ProfileViewProps) {
         </View>
       </ScrollView>
       </AppModuleChrome>
+      <AboutPiel360Modal
+        visible={aboutOpen}
+        onClose={() => setAboutOpen(false)}
+      />
     </View>
   );
 }

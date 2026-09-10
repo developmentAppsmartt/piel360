@@ -54,6 +54,11 @@ const RESOURCE_META: Record<string, { label: string; icon: LucideIcon; order: nu
   encyclopedia_entry: { label: "Enciclopedia", icon: BookOpen, order: 90 },
   organization: { label: "Organizaciones", icon: Building2, order: 100 },
   analysis_provider: { label: "Análisis IA (proveedor)", icon: ClipboardList, order: 110 },
+  patient_analysis: {
+    label: "Análisis del paciente (app)",
+    icon: UserRound,
+    order: 35,
+  },
   app_config: { label: "Configuración global", icon: Settings, order: 120 },
   other: { label: "Otros", icon: FileText, order: 999 },
 };
@@ -91,6 +96,9 @@ export function parsePermissionName(name: string): { action: string; resource: s
   if (name.startsWith("use_provider_")) {
     return { action: "use", resource: "analysis_provider" };
   }
+  if (name.startsWith("patient_run_")) {
+    return { action: "use", resource: "patient_analysis" };
+  }
   if (name === "manage_app_config") {
     return { action: "update", resource: "app_config" };
   }
@@ -109,6 +117,12 @@ function permissionActionLabel(action: string, resource: string, name: string): 
   if (name.startsWith("use_provider_")) {
     const slug = name.replace("use_provider_", "") as AnalysisProviderSlug;
     return ANALYSIS_PROVIDER_STATIC_LABELS[slug] ?? slug;
+  }
+  if (name === "patient_run_youcam") {
+    return "Ejecutar análisis estético (solicitud)";
+  }
+  if (name === "patient_run_fitzpatrick") {
+    return "Ejecutar análisis de fototipo (solicitud)";
   }
   return ACTION_LABELS[action] ?? action;
 }

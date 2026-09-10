@@ -136,6 +136,23 @@ export const authService = {
     await storageService.clearSession();
   },
 
+  /** Renueva access/refresh re-resolviendo rol desde BD. */
+  async refreshSession(): Promise<AuthResult | null> {
+    const refreshToken = await storageService.getRefreshToken();
+    if (!refreshToken) return null;
+    try {
+      const result = await apiRequest<AuthResult>('/auth/refresh', {
+        method: 'POST',
+        body: { refreshToken },
+      });
+      const allowed = assertMobileLoginAllowed(result);
+      await storageService.saveSession(allowed);
+      return allowed;
+    } catch {
+      return null;
+    }
+  },
+
   async hydrateSession(): Promise<AuthUser | null> {
     const [token, user] = await Promise.all([
       storageService.getAccessToken(),

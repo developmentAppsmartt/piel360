@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Canvas, type ThreeEvent } from '@react-three/fiber';
+import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { Asset } from 'expo-asset';
 import {
   BODY_PARTS_INFO,
+  cameraForBodyPoint,
   inferBodyPartFromPoint,
   normalizeMeshName,
   type BodySelection,
@@ -18,8 +19,10 @@ type Gender = 'female' | 'male';
 type BodySelector3DProps = {
   initialGender?: Gender;
   lockGender?: boolean;
-  onSelect: (selection: BodySelection) => void;
+  onSelect?: (selection: BodySelection) => void;
   primaryColor?: string;
+  focusPoint?: [number, number, number] | null;
+  focusRegion?: string | null;
 };
 
 function modelUrl(moduleId: number): string {
@@ -48,7 +51,7 @@ function BodyModel({
   onSelect,
 }: {
   url: string;
-  onSelect: (region: string, point: THREE.Vector3) => void;
+  onSelect?: (region: string, point: THREE.Vector3) => void;
 }) {
   const { scene } = useGLTF(url);
 
@@ -57,6 +60,7 @@ function BodyModel({
   }, [scene]);
 
   function handleClick(event: ThreeEvent<MouseEvent>) {
+    if (!onSelect) return;
     event.stopPropagation();
     const meshName = normalizeMeshName(event.object.name);
     const region = BODY_PARTS_INFO[meshName]
@@ -65,7 +69,20 @@ function BodyModel({
     onSelect(region, event.point);
   }
 
-  return <primitive object={scene} onClick={handleClick} />;
+  return <primitive object={scene} onClick={onSelect ? handleClick : undefined} />;
+}
+
+function FocusCamera({ point }: { point: [number, number, number] }) {
+  const camera = useThree((state) => state.camera);
+
+  useEffect(() => {
+    const view = cameraForBodyPoint(point);
+    camera.position.set(...view.position);
+    camera.lookAt(point[0], point[1], point[2]);
+    camera.updateProjectionMatrix();
+  }, [camera, point]);
+
+  return null;
 }
 
 /**
@@ -77,10 +94,14 @@ export function BodySelector3D({
   lockGender = false,
   onSelect,
   primaryColor = '#1e5a9e',
+  focusPoint = null,
+  focusRegion = null,
 }: BodySelector3DProps) {
   const [gender, setGender] = useState<Gender>(initialGender);
-  const [marker, setMarker] = useState<THREE.Vector3 | null>(null);
-  const [regionId, setRegionId] = useState<string | null>(null);
+  const [marker, setMarker] = useState<THREE.Vector3 | null>(
+    focusPoint ? new THREE.Vector3(...focusPoint) : null,
+  );
+  const [regionId, setRegionId] = useState<string | null>(focusRegion);
 
   useEffect(() => {
     setGender(initialGender);
@@ -96,16 +117,27 @@ export function BodySelector3D({
     [regionId],
   );
 
+  useEffect(() => {
+    if (!focusPoint) return;
+    setMarker(new THREE.Vector3(...focusPoint));
+    setRegionId(focusRegion);
+  }, [focusPoint, focusRegion]);
+
   function handleSelect(region: string, point: THREE.Vector3) {
     setMarker(point.clone());
     setRegionId(region);
-    onSelect({
+    onSelect?.({
       bodyRegion: region,
       xCoord: point.x,
       yCoord: point.y,
       zCoord: point.z,
     });
   }
+
+  const cameraView = focusPoint
+    ? cameraForBodyPoint(focusPoint)
+    : { position: [0, 1.6, 3.2] as [number, number, number], target: [0, 1.2, 0] as [number, number, number] };
+  const readOnly = Boolean(focusPoint);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 360 }}>
@@ -161,22 +193,23 @@ export function BodySelector3D({
           background: '#0f1419',
         }}
       >
-        <Canvas camera={{ position: [0, 1.6, 3.2], fov: 40 }}>
+        <Canvas camera={{ position: cameraView.position, fov: 40 }}>
           <color attach="background" args={['#0f1419']} />
           <ambientLight intensity={0.7} />
           <directionalLight position={[2, 3, 4]} intensity={1} />
-          <BodyModel key={url} url={url} onSelect={handleSelect} />
+          <BodyModel key={url} url={url} onSelect={readOnly ? undefined : handleSelect} />
+          {focusPoint ? <FocusCamera point={focusPoint} /> : null}
           {marker ? (
             <mesh position={marker}>
-              <sphereGeometry args={[0.02, 16, 16]} />
+              <sphereGeometry args={[0.028, 16, 16]} />
               <meshBasicMaterial color={primaryColor} />
             </mesh>
           ) : null}
           <OrbitControls
             enablePan={false}
-            minDistance={1}
+            minDistance={0.7}
             maxDistance={5}
-            target={[0, 1.2, 0]}
+            target={cameraView.target}
           />
         </Canvas>
       </div>
@@ -191,8 +224,10 @@ export function BodySelector3D({
         }}
       >
         {regionInfo
-          ? `Zona: ${regionInfo.label} — ${regionInfo.description}`
-          : 'Gira el modelo y haz click en la zona a analizar'}
+          ? `${readOnly ? 'Zona seleccionada' : 'Zona'}: ${regionInfo.label}${readOnly ? '' : ` — ${regionInfo.description}`}`
+          : readOnly
+            ? 'Ubicación registrada en la figura'
+            : 'Gira el modelo y haz click en la zona a analizar'}
       </p>
     </div>
   );

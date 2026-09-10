@@ -175,7 +175,7 @@ export function createNosologiesStyles(colors: AppBranding['colors']) {
       fontWeight: '800',
       fontSize: 15,
       letterSpacing: 0.4,
-      textTransform: 'uppercase',
+      textTransform: 'capitalize',
     },
     empty: {
       paddingTop: 40,

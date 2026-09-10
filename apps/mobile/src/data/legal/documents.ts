@@ -2,6 +2,7 @@
 
 export type LegalDocId =
   | 'terms'
+  | 'terms-professional'
   | 'privacy'
   | 'privacy-aesthetic'
   | 'privacy-fototipo'
@@ -93,6 +94,57 @@ export const LEGAL_TERMS: LegalDocument = {
       heading: '10. Aceptación',
       paragraphs: [
         'Al seleccionar “Acepto”, usted declara haber leído y comprendido estos Términos y Condiciones y acepta el uso de PIEL360 conforme a los mismos.',
+      ],
+    },
+  ],
+};
+
+export const LEGAL_TERMS_PROFESSIONAL: LegalDocument = {
+  id: 'terms-professional',
+  title: 'Acuerdo de usuario — Profesional',
+  updatedAt: UPDATED,
+  intro:
+    'Al utilizar PIEL360 como profesional de la salud o de la estética, usted acepta este Acuerdo de usuario y los Términos y Condiciones aplicables al rol profesional.',
+  sections: [
+    {
+      heading: '1. Alcance del rol profesional',
+      paragraphs: [
+        'PIEL360 pone a su disposición herramientas de análisis de la piel, gestión de pacientes, citas, mensajería y reportes, según el plan y los permisos asociados a su cuenta profesional o empresarial.',
+        'El uso de la plataforma queda limitado al ejercicio profesional autorizado y a las finalidades previstas en su perfil.',
+      ],
+    },
+    {
+      heading: '2. Análisis asistidos por inteligencia artificial',
+      paragraphs: [
+        'Los módulos de análisis (dermatológico, estético y fototipo) utilizan inteligencia artificial como apoyo a su valoración.',
+        'Los resultados no constituyen por sí solos un diagnóstico médico definitivo ni sustituyen el examen clínico, el criterio profesional ni la responsabilidad del profesional tratante.',
+        'Usted es responsable de interpretar los resultados, contrastarlos con la información clínica disponible y determinar la conducta que corresponda.',
+      ],
+    },
+    {
+      heading: '3. Responsabilidad sobre pacientes e imágenes',
+      paragraphs: [
+        'Al solicitar, capturar o recibir imágenes y datos de pacientes, usted garantiza contar con la autorización pertinente y utilizarlos únicamente para la atención, seguimiento y finalidades autorizadas.',
+        'No debe compartir información clínica ni imágenes fuera de los canales seguros de PIEL360 ni con terceros no autorizados.',
+      ],
+    },
+    {
+      heading: '4. Confidencialidad y seguridad',
+      paragraphs: [
+        'Debe proteger el acceso a su cuenta, no compartir credenciales y notificar cualquier uso indebido.',
+        'PIEL360 implementa medidas técnicas y organizativas para proteger la información; el profesional colaborará en el uso seguro de la plataforma.',
+      ],
+    },
+    {
+      heading: '5. Uso adecuado',
+      paragraphs: [
+        'Está prohibido manipular resultados, acceder a datos de pacientes sin autorización, utilizar la plataforma con fines fraudulentos o vulnerar la seguridad del sistema.',
+      ],
+    },
+    {
+      heading: '6. Aceptación',
+      paragraphs: [
+        'Al continuar usando PIEL360 con rol profesional, usted declara haber leído y comprendido este Acuerdo de usuario y acepta utilizar la plataforma conforme al mismo y a la normativa aplicable.',
       ],
     },
   ],
@@ -259,6 +311,7 @@ export const LEGAL_PRIVACY_DERMATOLOGICAL: LegalDocument = {
 
 export const LEGAL_DOCUMENTS: Record<LegalDocId, LegalDocument> = {
   terms: LEGAL_TERMS,
+  'terms-professional': LEGAL_TERMS_PROFESSIONAL,
   privacy: LEGAL_PRIVACY,
   'privacy-aesthetic': LEGAL_PRIVACY_AESTHETIC,
   'privacy-fototipo': LEGAL_PRIVACY_FOTOTIPO,

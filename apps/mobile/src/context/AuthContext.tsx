@@ -47,6 +47,16 @@ async function resolveNeedsPhoneVerification(): Promise<boolean> {
   }
 }
 
+function asPatientUser(current: AuthUser): AuthUser {
+  return {
+    ...current,
+    role: 'patient',
+    empresa: undefined,
+    empresaReferida: undefined,
+    verificationStatus: undefined,
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,6 +68,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return needs;
   }, []);
 
+  /**
+   * Si la sesión/JWT dice doctor pero en BD solo hay paciente, corrige el
+   * usuario local y intenta renovar el token (cuando el API ya resuelve bien el rol).
+   */
+  const reconcilePatientSession = useCallback(async () => {
+    const current = await storageService.getUser();
+    if (!current) return;
+    try {
+      const details = await authService.meDetails();
+      if (!(details.patient && !details.doctor)) return;
+
+      if (isClinicalPanelUser(current)) {
+        const refreshed = await authService.refreshSession();
+        if (refreshed && !isClinicalPanelUser(refreshed.user)) {
+          setUser(refreshed.user);
+          return;
+        }
+        const next = asPatientUser(current);
+        await storageService.saveUser(next);
+        setUser(next);
+      }
+    } catch {
+      // Si /auth/me falla, no tocamos la sesión.
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -65,13 +101,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const fromGoogle = await completeGoogleLoginFromUrl();
         if (fromGoogle && !cancelled) {
           setUser(fromGoogle.user);
-          void syncPhoneVerification();
+          await syncPhoneVerification();
+          await reconcilePatientSession();
           return;
         }
         const sessionUser = await authService.hydrateSession();
         if (!cancelled && sessionUser) {
           setUser(sessionUser);
-          void syncPhoneVerification();
+          await syncPhoneVerification();
+          await reconcilePatientSession();
         }
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -80,22 +118,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [syncPhoneVerification]);
+  }, [syncPhoneVerification, reconcilePatientSession]);
 
   const login = useCallback(
     async (payload: LoginPayload) => {
       const result = await authService.login(payload);
       setUser(result.user);
       await syncPhoneVerification();
+      await reconcilePatientSession();
     },
-    [syncPhoneVerification],
+    [syncPhoneVerification, reconcilePatientSession],
   );
 
   const loginWithGoogle = useCallback(async () => {
     const result = await googleLogin();
     setUser(result.user);
     await syncPhoneVerification();
-  }, [syncPhoneVerification]);
+    await reconcilePatientSession();
+  }, [syncPhoneVerification, reconcilePatientSession]);
 
   const registerPatient = useCallback(
     async (payload: RegisterPatientPayload) => {
@@ -128,6 +168,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const current = await storageService.getUser();
     if (!current || !isClinicalPanelUser(current)) return null;
     try {
+      const details = await authService.meDetails();
+      if (details.patient && !details.doctor) {
+        await reconcilePatientSession();
+        return null;
+      }
+      if (!details.doctor) {
+        await reconcilePatientSession();
+        return null;
+      }
       const doctor = await doctorsService.getMe();
       const verificationStatus = doctor.verificationStatus;
       const next = { ...current, verificationStatus };
@@ -135,9 +184,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(next);
       return verificationStatus;
     } catch {
-      return current.verificationStatus ?? null;
+      await reconcilePatientSession();
+      return null;
     }
-  }, []);
+  }, [reconcilePatientSession]);
 
   const value = useMemo(
     () => ({

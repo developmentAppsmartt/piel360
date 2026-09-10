@@ -63,6 +63,11 @@ export class PatientsController {
     return this.patientsService.create(dto, user);
   }
 
+  @Get('patients/me')
+  findMe(@CurrentUser() user: JwtPayload) {
+    return this.patientsService.findMe(user.sub);
+  }
+
   @Get('patients')
   findAll(
     @CurrentUser() user: JwtPayload,

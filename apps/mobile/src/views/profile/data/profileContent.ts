@@ -318,7 +318,7 @@ function buildDoctorSections(doctor?: DoctorProfile | null): ProfileSectionConfi
         {
           id: 'acerca',
           label: 'Acerca de',
-          value: 'Versión 1.2.0',
+          value: 'Versión 1.0.0',
           kind: 'info',
         },
       ],
@@ -516,7 +516,7 @@ function buildPatientSections(patient?: PatientProfileDisplay | null): ProfileSe
         {
           id: 'acerca',
           label: 'Acerca de',
-          value: 'Versión 1.2.0',
+          value: 'Versión 1.0.0',
           kind: 'info',
         },
       ],

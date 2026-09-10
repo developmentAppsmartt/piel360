@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
 import type { AnalysisProviderSlug } from '@piel360/shared';
 import type { Prisma, Plan } from '@prisma/client';
 import { MailService } from '../mail/mail.service';
@@ -103,6 +103,43 @@ export class SubscriptionsService {
         return endsAt !== null && endsAt > now;
       }) ?? null
     );
+  }
+
+  /**
+   * Usuario de facturación para un análisis: el profesional usa el suyo;
+   * el paciente usa la suscripción del médico tratante del paciente.
+   */
+  async resolveBillingUserIdForAnalysis(
+    actorUserId: bigint,
+    patientId: string,
+  ): Promise<bigint> {
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { userId: actorUserId },
+      select: { id: true },
+    });
+    if (doctor) return actorUserId;
+
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: BigInt(patientId) },
+      select: {
+        userId: true,
+        doctor: { select: { userId: true } },
+      },
+    });
+    if (!patient) {
+      throw new BadRequestException('Paciente no encontrado');
+    }
+    if (patient.userId?.toString() !== actorUserId.toString()) {
+      throw new ForbiddenException(
+        'Solo el paciente dueño de la cuenta o su médico pueden usar este análisis',
+      );
+    }
+    if (!patient.doctor?.userId) {
+      throw new BadRequestException(
+        'Este paciente no tiene un profesional asignado con plan de análisis',
+      );
+    }
+    return patient.doctor.userId;
   }
 
   async remainingCredits(

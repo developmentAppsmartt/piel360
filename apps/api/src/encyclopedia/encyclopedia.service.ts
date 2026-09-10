@@ -90,11 +90,23 @@ export class EncyclopediaService {
   }
 
   /** null si aún no se ha scrapeado (el job de la cola puede no haber
-   * corrido todavía) — el caller decide cómo mostrar ese estado. */
-  findByUrl(url: string) {
-    return this.prisma.encyclopediaEntry.findUnique({
-      where: { url: this.toSpanishUrl(url) },
+   * corrido todavía) — el caller decide cómo mostrar ese estado.
+   * Busca por la URL en español y por `originalUrl` (la que manda Skiniver). */
+  async findByUrl(url: string) {
+    const trimmed = url.trim();
+    if (!trimmed) return null;
+    const spanish = this.toSpanishUrl(trimmed);
+    const byUrl = await this.prisma.encyclopediaEntry.findFirst({
+      where: {
+        OR: [
+          { url: spanish },
+          { url: trimmed },
+          { originalUrl: trimmed },
+          { originalUrl: spanish },
+        ],
+      },
     });
+    return byUrl;
   }
 
   async findOne(id: string) {

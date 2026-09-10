@@ -175,7 +175,12 @@ export function ChatThreadView({
           listRef.current?.scrollToEnd({ animated: true })
         }
         renderItem={({ item }) => (
-          <ChatBubble styles={styles} message={item} />
+          <ChatBubble
+            styles={styles}
+            message={item}
+            canDownloadImages={isDoctor}
+            accentColor={branding.colors.primary}
+          />
         )}
       />
       <ChatQuickActions

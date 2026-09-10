@@ -175,6 +175,11 @@ async function main() {
     'use_provider_fitzpatrick',
   ] as const;
 
+  const patientRunPermissions = [
+    'patient_run_youcam',
+    'patient_run_fitzpatrick',
+  ] as const;
+
   const extraActionPermissions = ['manage_app_config'] as const;
 
   // --- Permissions: view_any_user, create_doctor, ... + validate_doctor ---
@@ -184,6 +189,7 @@ async function main() {
     ),
     'validate_doctor',
     ...providerUsagePermissions,
+    ...patientRunPermissions,
     ...extraActionPermissions,
   ];
 
@@ -196,7 +202,11 @@ async function main() {
             ? 'Estético (YouCam)'
             : name === 'use_provider_fitzpatrick'
               ? 'Fototipo (Fitzpatrick)'
-              : null;
+              : name === 'patient_run_youcam'
+                ? 'Paciente: ejecutar análisis estético'
+                : name === 'patient_run_fitzpatrick'
+                  ? 'Paciente: ejecutar análisis de fototipo'
+                  : null;
       return prisma.permission.upsert({
         where: { name },
         update: {
@@ -307,9 +317,18 @@ async function main() {
     ...EMPRESA_CLINICAL_COMPONENT_SLUGS.map((slug) => ({ slug })),
   ]);
 
+  // Paciente: puede ejecutar estético y fototipo cuando se lo solicitan.
+  await prisma.role.update({
+    where: { id: patientRole.id },
+    data: { primaryPanel: 'patient' },
+  });
+  await ensureRolePermissions(patientRole.id, [
+    { name: 'patient_run_youcam' },
+    { name: 'patient_run_fitzpatrick' },
+  ]);
+
   // Permisos de organization en catálogo; flags Doctor.empresa activan módulos UI.
   void doctorRole;
-  void patientRole;
   void ORG_OWNER_PERMS;
 
   // --- Roles de especialidad (registro doctor) ---

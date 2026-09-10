@@ -18,6 +18,13 @@ export type RoutineStep = {
   mediaUrl: string | null;
   mediaType: 'image' | 'video' | 'gif' | null;
   productId: string | null;
+  product?: {
+    id: string;
+    productName: string;
+    productType: string;
+    productUrl?: string | null;
+    imageUrl?: string | null;
+  } | null;
 };
 
 export type RecommendedRoutine = {

@@ -50,6 +50,19 @@ export class PatientsService {
     private readonly authService: AuthService,
   ) {}
 
+  /** Perfil del paciente autenticado (por userId). No depende del role del JWT. */
+  async findMe(userId: string) {
+    const own = await this.requireOwnPatient(userId);
+    const withUser = await this.prisma.patient.findUnique({
+      where: { id: own.id },
+      include: { user: { select: { avatarKey: true } } },
+    });
+    if (!withUser) {
+      throw new ForbiddenException('El usuario no tiene un perfil de paciente');
+    }
+    return this.withAvatarUrl(withUser);
+  }
+
   /** Scoping (MIGRACION.md §2.5/§2.6): doctor/empresa solo ve los suyos,
    * owner empresa ve pacientes de todo el equipo, miembros solo los propios,
    * patient solo se ve a sí mismo, superadmin ve todos. */
@@ -66,6 +79,21 @@ export class PatientsService {
     }
 
     if (isDoctorPanelRole(currentUser.role)) {
+      // JWT puede decir doctor/empresa sin fila en `doctors` (sesión mal clasificada).
+      // En ese caso, si tiene perfil paciente, devolver solo el propio.
+      const doctorRow = await this.prisma.doctor.findUnique({
+        where: { userId: BigInt(currentUser.sub) },
+        select: { id: true },
+      });
+      if (!doctorRow) {
+        const own = await this.requireOwnPatient(currentUser.sub);
+        const withUser = await this.prisma.patient.findUnique({
+          where: { id: own.id },
+          include: { user: { select: { avatarKey: true } } },
+        });
+        return withUser ? [await this.withAvatarUrl(withUser)] : [];
+      }
+
       const scope = await this.orgContext.resolvePatientDoctorScope(
         currentUser.sub,
       );
@@ -132,6 +160,17 @@ export class PatientsService {
     }
 
     if (isDoctorPanelRole(currentUser.role)) {
+      const doctorRow = await this.prisma.doctor.findUnique({
+        where: { userId: BigInt(currentUser.sub) },
+        select: { id: true },
+      });
+      // JWT doctor sin fila doctor + es el dueño del paciente → acceso propio.
+      if (!doctorRow) {
+        if (patient.userId?.toString() === currentUser.sub) {
+          return this.withAvatarUrl(patient);
+        }
+        throw new ForbiddenException('El usuario no tiene un perfil de doctor');
+      }
       await this.orgContext.assertTeamPermissionForUser(
         currentUser.sub,
         'patients',

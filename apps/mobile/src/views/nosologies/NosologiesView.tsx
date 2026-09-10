@@ -17,6 +17,9 @@ import { AccountDrawer } from '../doctor/patients/components/AccountDrawer';
 import { PaymentsBillingView } from '../doctor/payments/PaymentsBillingView';
 import { PaymentsView } from '../doctor/payments/PaymentsView';
 import { DiagnosisLanguageView } from '../doctor/settings/DiagnosisLanguageView';
+import { SupportChatView } from '../support/SupportChatView';
+import { LegalDocumentModal } from '../../components/legal/LegalDocumentModal';
+import type { LegalDocId } from '../../data/legal/documents';
 import { AppModuleChrome } from '../shared/AppModuleChrome';
 import { NosologySearchBar } from './components/NosologySearchBar';
 import {
@@ -50,6 +53,8 @@ export function NosologiesView({
   const [showingPayments, setShowingPayments] = useState(false);
   const [showingLanguage, setShowingLanguage] = useState(false);
   const [showingBilling, setShowingBilling] = useState(false);
+  const [showingSupport, setShowingSupport] = useState(false);
+  const [legalDoc, setLegalDoc] = useState<LegalDocId | null>(null);
 
   useEffect(() => {
     void nosologiesService.listCategories().then(setCategories);
@@ -97,6 +102,13 @@ export function NosologiesView({
       setShowingPayments(false);
       setShowingLanguage(false);
       setShowingBilling(true);
+    } else if (id === 'soporte') {
+      setShowingPayments(false);
+      setShowingLanguage(false);
+      setShowingBilling(false);
+      setShowingSupport(true);
+    } else if (id === 'acuerdo') {
+      setLegalDoc('terms-professional');
     } else
       Alert.alert(
         'Próximamente',
@@ -117,8 +129,17 @@ export function NosologiesView({
           onClose={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
         />
+        <LegalDocumentModal
+          docId={legalDoc}
+          visible={legalDoc != null}
+          onClose={() => setLegalDoc(null)}
+        />
       </>
     );
+  }
+
+  if (showingSupport) {
+    return <SupportChatView onClose={() => setShowingSupport(false)} />;
   }
 
   if (showingBilling) {
@@ -133,6 +154,11 @@ export function NosologiesView({
           visible={menuOpen}
           onClose={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
+        />
+        <LegalDocumentModal
+          docId={legalDoc}
+          visible={legalDoc != null}
+          onClose={() => setLegalDoc(null)}
         />
       </>
     );
@@ -150,6 +176,11 @@ export function NosologiesView({
           visible={menuOpen}
           onClose={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
+        />
+        <LegalDocumentModal
+          docId={legalDoc}
+          visible={legalDoc != null}
+          onClose={() => setLegalDoc(null)}
         />
       </>
     );

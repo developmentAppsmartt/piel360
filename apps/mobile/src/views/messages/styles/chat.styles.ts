@@ -135,6 +135,33 @@ export function createChatStyles(colors: AppBranding['colors']) {
     bubbleMetaPeer: {
       color: colors.muted,
     },
+    chatImageWrap: {
+      position: 'relative',
+      width: 220,
+      height: 220,
+      borderRadius: 14,
+      overflow: 'hidden',
+      backgroundColor: '#E5E7EB',
+    },
+    chatImage: {
+      width: '100%',
+      height: '100%',
+    },
+    chatImageDownload: {
+      position: 'absolute',
+      right: 8,
+      bottom: 8,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 3,
+    },
     attachment: {
       maxWidth: '82%',
       backgroundColor: '#FFFFFF',

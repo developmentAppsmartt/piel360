@@ -40,6 +40,12 @@ export const BODY_PARTS_INFO: Record<string, BodyPartInfo> = {
   right_sole: { label: 'Planta Pie Derecho', description: 'Región plantar derecha' },
 };
 
+export function bodyRegionLabel(region: string | null | undefined): string | null {
+  const key = (region ?? '').trim();
+  if (!key) return null;
+  return BODY_PARTS_INFO[key]?.label ?? BODY_PARTS_INFO[key.toLowerCase()]?.label ?? key;
+}
+
 export function normalizeMeshName(name: string): string {
   return name.toLowerCase().replace(/[\s_]+/g, '_');
 }
@@ -91,6 +97,82 @@ export type BodySelection = {
   yCoord: number;
   zCoord: number;
 };
+
+/** Punto representativo de cada región (mismo espacio que `inferBodyPartFromPoint`). */
+const REGION_FOCUS_POINTS: Record<string, [number, number, number]> = {
+  face: [0, 1.8, 0.1],
+  nose: [0, 1.8, 0.14],
+  left_ear: [-0.08, 1.83, 0.02],
+  right_ear: [0.08, 1.83, 0.02],
+  scalp: [0, 1.86, -0.02],
+  neck: [0, 1.73, 0.04],
+  chest: [0, 1.5, 0.08],
+  abdomen: [0, 1.22, 0.08],
+  pelvis: [0, 1.0, 0.06],
+  upper_back: [0, 1.5, -0.08],
+  lower_back: [0, 1.22, -0.08],
+  gluteus: [0, 0.98, -0.08],
+  left_shoulder: [-0.28, 1.68, 0.02],
+  left_upper_arm: [-0.32, 1.4, 0.02],
+  left_elbow: [-0.34, 1.1, 0.02],
+  left_forearm: [-0.36, 0.85, 0.02],
+  left_hand: [-0.38, 0.55, 0.02],
+  right_shoulder: [0.28, 1.68, 0.02],
+  right_upper_arm: [0.32, 1.4, 0.02],
+  right_elbow: [0.34, 1.1, 0.02],
+  right_forearm: [0.36, 0.85, 0.02],
+  right_hand: [0.38, 0.55, 0.02],
+  left_thigh: [-0.12, 0.72, 0.04],
+  left_knee: [-0.12, 0.55, 0.05],
+  left_shin: [-0.1, 0.35, 0.05],
+  left_foot: [-0.1, 0.2, 0.06],
+  left_sole: [-0.1, 0.12, -0.04],
+  right_thigh: [0.12, 0.72, 0.04],
+  right_knee: [0.12, 0.55, 0.05],
+  right_shin: [0.1, 0.35, 0.05],
+  right_foot: [0.1, 0.2, 0.06],
+  right_sole: [0.1, 0.12, -0.04],
+};
+
+/** Coordenadas para enfocar la figura: el punto guardado, o el de la región. */
+export function focusPointForRegion(
+  bodyRegion: string | null | undefined,
+  coords?: {
+    x?: number | string | null;
+    y?: number | string | null;
+    z?: number | string | null;
+  },
+): [number, number, number] | null {
+  const x = typeof coords?.x === 'string' ? Number(coords.x) : coords?.x;
+  const y = typeof coords?.y === 'string' ? Number(coords.y) : coords?.y;
+  const z = typeof coords?.z === 'string' ? Number(coords.z) : coords?.z;
+  if (
+    typeof x === 'number' &&
+    Number.isFinite(x) &&
+    typeof y === 'number' &&
+    Number.isFinite(y) &&
+    typeof z === 'number' &&
+    Number.isFinite(z)
+  ) {
+    return [x, y, z];
+  }
+  const key = (bodyRegion ?? '').trim();
+  return REGION_FOCUS_POINTS[key] ?? null;
+}
+
+/** Cámara cercana al punto, del lado correcto (frente, espalda o lateral). */
+export function cameraForBodyPoint(point: [number, number, number]): {
+  position: [number, number, number];
+  target: [number, number, number];
+} {
+  const [x, y, z] = point;
+  const front = z >= 0 ? 1 : -1;
+  const side = Math.abs(x) > 0.18 ? Math.sign(x) : 0;
+  return {
+    target: [x, y, z],
+    position: [x + side * 0.7, y + 0.2, z + front * (side ? 1.55 : 1.9)],
+  };
+}
 
 /** Mapea el género del perfil al modelo 3D (hombre/mujer). */
 export function bodyModelGenderFromPatient(

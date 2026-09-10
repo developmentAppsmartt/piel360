@@ -63,6 +63,42 @@ export class SkinAgeRulesService {
     }
   }
 
+  private async mapRoutineStep(step: {
+    id: bigint;
+    order: number;
+    title: string;
+    description: string | null;
+    mediaUrl: string | null;
+    mediaType: string | null;
+    productId: bigint | null;
+    product?: {
+      id: bigint;
+      productName: string;
+      productType: string;
+      productUrl: string | null;
+      imageUrl: string | null;
+    } | null;
+  }) {
+    return {
+      id: step.id.toString(),
+      order: step.order,
+      title: step.title,
+      description: step.description,
+      mediaUrl: await this.resolveMediaUrl(step.mediaUrl),
+      mediaType: step.mediaType,
+      productId: step.productId?.toString() ?? null,
+      product: step.product
+        ? {
+            id: step.product.id.toString(),
+            productName: step.product.productName,
+            productType: step.product.productType,
+            productUrl: step.product.productUrl,
+            imageUrl: await this.resolveMediaUrl(step.product.imageUrl),
+          }
+        : null,
+    };
+  }
+
   private async catalogDoctorId(userId: string) {
     const ctx = await this.orgContext.resolve(userId);
     if (ctx.isOrgMember && !ctx.isOrgOwner) {
@@ -243,7 +279,10 @@ export class SkinAgeRulesService {
         ? await this.prisma.routine.findMany({
             where: { doctorId, id: { in: routineIds }, isActive: true },
             include: {
-              steps: { orderBy: { order: 'asc' }, include: { product: true } },
+              steps: {
+                orderBy: { order: 'asc' },
+                include: { product: true },
+              },
             },
           })
         : [];
@@ -343,20 +382,7 @@ export class SkinAgeRulesService {
           description: routine.description,
           stepsCount: routine.steps.length,
           steps: await Promise.all(
-            routine.steps.map(async (step) => ({
-              id: step.id.toString(),
-              order: step.order,
-              title: step.title,
-              description: step.description,
-              mediaUrl: await this.resolveMediaUrl(step.mediaUrl),
-              mediaType: step.mediaType,
-              productId: step.productId?.toString() ?? null,
-              productName: step.product?.productName ?? null,
-              productUrl: step.product?.productUrl ?? null,
-              productImageUrl: await this.resolveMediaUrl(
-                step.product?.imageUrl,
-              ),
-            })),
+            routine.steps.map((step) => this.mapRoutineStep(step)),
           ),
         })),
       ),
@@ -549,7 +575,10 @@ export class SkinAgeRulesService {
       this.prisma.routine.findMany({
         where: { doctorId, isActive: true },
         include: {
-          steps: { orderBy: { order: 'asc' }, include: { product: true } },
+          steps: {
+            orderBy: { order: 'asc' },
+            include: { product: true },
+          },
         },
         orderBy: { createdAt: 'asc' },
       }),
@@ -589,20 +618,7 @@ export class SkinAgeRulesService {
           description: routine.description,
           stepsCount: routine.steps.length,
           steps: await Promise.all(
-            routine.steps.map(async (step) => ({
-              id: step.id.toString(),
-              order: step.order,
-              title: step.title,
-              description: step.description,
-              mediaUrl: await this.resolveMediaUrl(step.mediaUrl),
-              mediaType: step.mediaType,
-              productId: step.productId?.toString() ?? null,
-              productName: step.product?.productName ?? null,
-              productUrl: step.product?.productUrl ?? null,
-              productImageUrl: await this.resolveMediaUrl(
-                step.product?.imageUrl,
-              ),
-            })),
+            routine.steps.map((step) => this.mapRoutineStep(step)),
           ),
         })),
       ),

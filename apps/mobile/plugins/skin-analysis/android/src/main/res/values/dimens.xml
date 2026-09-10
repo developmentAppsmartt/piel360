@@ -2,5 +2,19 @@
 <resources>
   <dimen name="skin_oval_width">300dp</dimen>
   <dimen name="skin_oval_height">400dp</dimen>
+  <dimen name="skin_oval_margin_top">0dp</dimen>
   <dimen name="skin_capture_loader">96dp</dimen>
+  <dimen name="skin_top_padding">36dp</dimen>
+  <dimen name="skin_header_row_height">44dp</dimen>
+  <dimen name="skin_header_btn">40dp</dimen>
+  <dimen name="skin_header_btn_text">28sp</dimen>
+  <dimen name="skin_badge_height">48dp</dimen>
+  <dimen name="skin_badge_text">11sp</dimen>
+  <dimen name="skin_badge_padding_h">4dp</dimen>
+  <dimen name="skin_badge_padding_v">6dp</dimen>
+  <dimen name="skin_badge_gap">4dp</dimen>
+  <dimen name="skin_badge_row_margin_top">10dp</dimen>
+  <dimen name="skin_badge_row_margin_h">0dp</dimen>
+  <dimen name="skin_guide_text">26sp</dimen>
+  <dimen name="skin_countdown_text">72sp</dimen>
 </resources>

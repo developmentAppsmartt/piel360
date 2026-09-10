@@ -146,6 +146,59 @@ export class RolesService {
     }
   }
 
+  /**
+   * Rol `patient`: no admite módulos clinical/admin (evitar que el panel se
+   * interprete como médico). Los `use_provider_youcam|fitzpatrick` se
+   * reescriben a `patient_run_*`.
+   */
+  private async sanitizePatientRolePermissionIds(
+    permissionIds: string[],
+  ): Promise<string[]> {
+    if (permissionIds.length === 0) return [];
+    const permissions = await this.prisma.permission.findMany({
+      where: { id: { in: permissionIds.map((id) => BigInt(id)) } },
+      select: { id: true, name: true, slug: true, kind: true, panel: true },
+    });
+
+    const byName = async (name: string) => {
+      const row = await this.prisma.permission.findUnique({
+        where: { name },
+        select: { id: true },
+      });
+      return row?.id.toString() ?? null;
+    };
+
+    const kept = new Set<string>();
+    for (const permission of permissions) {
+      if (
+        permission.kind === 'component' &&
+        (permission.panel === 'clinical' ||
+          permission.panel === 'doctor' ||
+          permission.panel === 'admin' ||
+          permission.slug.startsWith('clinical.') ||
+          permission.slug.startsWith('admin.'))
+      ) {
+        continue;
+      }
+      if (permission.name === 'use_provider_youcam') {
+        const mapped = await byName('patient_run_youcam');
+        if (mapped) kept.add(mapped);
+        continue;
+      }
+      if (permission.name === 'use_provider_fitzpatrick') {
+        const mapped = await byName('patient_run_fitzpatrick');
+        if (mapped) kept.add(mapped);
+        continue;
+      }
+      if (permission.name === 'use_provider_skiniver') {
+        // Dermatológico sigue siendo profesional; no se asigna al paciente.
+        continue;
+      }
+      kept.add(permission.id.toString());
+    }
+    return [...kept];
+  }
+
   /** Panel de inicio inferido desde los módulos seleccionados (admin vs clínico). */
   private async resolvePrimaryPanelFromPermissionIds(
     permissionIds: string[],
@@ -218,10 +271,17 @@ export class RolesService {
       await this.assertAssignablePermissionIds(dto.permissionIds);
     }
 
+    const nextPermissionIds =
+      dto.permissionIds !== undefined && existing.name === 'patient'
+        ? await this.sanitizePatientRolePermissionIds(dto.permissionIds)
+        : dto.permissionIds;
+
     const inferredPrimaryPanel =
-      dto.permissionIds !== undefined
-        ? await this.resolvePrimaryPanelFromPermissionIds(dto.permissionIds)
-        : undefined;
+      existing.name === 'patient'
+        ? 'patient'
+        : nextPermissionIds !== undefined
+          ? await this.resolvePrimaryPanelFromPermissionIds(nextPermissionIds)
+          : undefined;
 
     const role = await this.prisma.$transaction(async (tx) => {
       if (dto.specialtyIds !== undefined) {
@@ -248,9 +308,11 @@ export class RolesService {
           ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
           ...(inferredPrimaryPanel !== undefined
             ? { primaryPanel: inferredPrimaryPanel }
-            : dto.primaryPanel !== undefined
+            : dto.primaryPanel !== undefined && existing.name !== 'patient'
               ? { primaryPanel: dto.primaryPanel }
-              : {}),
+              : existing.name === 'patient'
+                ? { primaryPanel: 'patient' }
+                : {}),
           ...(dto.laborTechnicianProfileId !== undefined
             ? {
                 laborTechnicianProfileId: dto.laborTechnicianProfileId
@@ -258,10 +320,10 @@ export class RolesService {
                   : null,
               }
             : {}),
-          ...(dto.permissionIds !== undefined
+          ...(nextPermissionIds !== undefined
             ? {
                 permissions: {
-                  set: dto.permissionIds.map((permId) => ({ id: BigInt(permId) })),
+                  set: nextPermissionIds.map((permId) => ({ id: BigInt(permId) })),
                 },
               }
             : {}),

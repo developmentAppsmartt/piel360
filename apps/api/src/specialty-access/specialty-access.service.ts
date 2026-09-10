@@ -8,6 +8,7 @@ import {
   ANALYSIS_PROVIDER_SLUGS,
   PROVIDER_USAGE_PERMISSIONS,
   type AnalysisProviderSlug,
+  patientRunPermissionForProvider,
   providerSlugFromUsagePermission,
 } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
@@ -103,6 +104,8 @@ export class SpecialtyAccessService {
       where: { id: userId },
       include: {
         roles: { include: { permissions: true } },
+        patient: { select: { id: true } },
+        doctor: { select: { id: true } },
       },
     });
     if (!user) return [];
@@ -114,31 +117,88 @@ export class SpecialtyAccessService {
         if (slug) allowed.add(slug);
       }
     }
+
+    // Paciente sin perfil doctor: solo proveedores con permiso patient_run_*
+    // (o use_provider_* si el admin los asignó al rol patient).
+    if (user.patient && !user.doctor) {
+      return ANALYSIS_PROVIDER_SLUGS.filter((slug) => {
+        if (!allowed.has(slug)) return false;
+        // Skiniver / dermatológico no se expone al paciente por defecto.
+        if (slug === 'skiniver') {
+          return user.roles.some((role) =>
+            role.permissions.some((p) => p.name === 'use_provider_skiniver'),
+          );
+        }
+        return true;
+      });
+    }
+
     return ANALYSIS_PROVIDER_SLUGS.filter((slug) => allowed.has(slug));
   }
 
+  /**
+   * ¿Puede este usuario usar el proveedor?
+   * - Profesionales: `use_provider_*` en su especialidad/rol.
+   * - Pacientes: `patient_run_*` (o `use_provider_*` en rol patient) y, si hay
+   *   solicitud pendiente del médico para ese proveedor, también se permite.
+   */
   async assertCanUseProvider(
     userId: bigint,
     providerSlug: AnalysisProviderSlug,
+    options?: { patientId?: string },
   ): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      include: { roles: { include: { permissions: true } } },
+      include: {
+        roles: { include: { permissions: true } },
+        patient: { select: { id: true } },
+        doctor: { select: { id: true } },
+      },
     });
     if (user?.roles.some((role) => role.name === 'superadmin')) return;
 
-    const allowed = new Set<AnalysisProviderSlug>();
+    const permissionNames = new Set<string>();
     for (const role of user?.roles ?? []) {
       for (const permission of role.permissions) {
-        const slug = providerSlugFromUsagePermission(permission.name);
-        if (slug) allowed.add(slug);
+        permissionNames.add(permission.name);
       }
     }
-    if (!allowed.has(providerSlug)) {
-      throw new ForbiddenException(
-        'Tu especialidad o perfil técnico no tiene permiso para este tipo de análisis. Contacta al administrador.',
-      );
+
+    const professionalPerm = PROVIDER_USAGE_PERMISSIONS[providerSlug];
+    const patientPerm = patientRunPermissionForProvider(providerSlug);
+
+    if (permissionNames.has(professionalPerm)) return;
+    if (patientPerm && permissionNames.has(patientPerm)) return;
+
+    const isPatientOnly = Boolean(user?.patient) && !user?.doctor;
+    if (isPatientOnly && (providerSlug === 'youcam' || providerSlug === 'fitzpatrick')) {
+      const patientId =
+        options?.patientId ?? user?.patient?.id?.toString() ?? null;
+      if (patientId && (await this.hasPendingRequest(patientId, providerSlug))) {
+        return;
+      }
     }
+
+    throw new ForbiddenException(
+      isPatientOnly
+        ? 'No tienes permiso para este tipo de análisis. Si tu profesional te envió una solicitud, vuelve a intentarlo o contacta soporte.'
+        : 'Tu especialidad o perfil técnico no tiene permiso para este tipo de análisis. Contacta al administrador.',
+    );
+  }
+
+  private async hasPendingRequest(
+    patientId: string,
+    providerSlug: AnalysisProviderSlug,
+  ): Promise<boolean> {
+    const pending = await this.prisma.analysisRequest.findFirst({
+      where: {
+        patientId: BigInt(patientId),
+        status: 'pending',
+        providerSlug,
+      },
+      select: { id: true },
+    });
+    return pending != null;
   }
 
   async assignSpecialtyRole(

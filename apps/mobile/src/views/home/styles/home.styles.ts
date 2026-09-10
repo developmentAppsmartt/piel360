@@ -67,11 +67,14 @@ export function createHomeStyles(colors: AppBranding['colors']) {
       gap: 14,
     },
     welcomeCard: {
-      backgroundColor: '#FFFFFF',
+      alignSelf: 'center',
+      backgroundColor: '#F4F9FF',
       borderRadius: 20,
-      paddingHorizontal: 18,
-      paddingVertical: 16,
+      overflow: 'hidden',
       ...appShadow({ opacity: 0.06, radius: 10, offsetY: 2, elevation: 2 }),
+    },
+    welcomeBanner: {
+      backgroundColor: '#F4F9FF',
     },
     welcomeTitle: {
       fontSize: 20,

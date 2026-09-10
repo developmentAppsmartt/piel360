@@ -1150,15 +1150,25 @@ export class AuthService implements OnModuleDestroy {
     if (names.includes('superadmin')) return 'superadmin';
     if (names.includes('monitor')) return 'monitor';
 
+    const hasDoctorProfile = Boolean(user.doctor);
+    const hasPatientRole = names.includes('patient');
+    const hasClinicalCoreRole =
+      names.includes('doctor') ||
+      names.includes('empresa') ||
+      hasDoctorProfile;
+
+    // Paciente puro: no reclasificar a doctor por primaryPanel clínico corrupto/mixto.
+    if (hasPatientRole && !hasClinicalCoreRole) return 'patient';
     if (primaryPanel === 'patient') return 'patient';
     if (names.includes('empresa') || user.doctor?.empresa) return 'empresa';
-    if (primaryPanel === 'admin') {
-      if (user.doctor) return 'doctor';
-      return 'doctor';
-    }
+    if (primaryPanel === 'admin') return 'doctor';
+
     const match = ROLE_PRIORITY.find((role) => names.includes(role));
-    if (match === 'doctor' || match === 'empresa') return match;
-    if (user.doctor) return 'doctor';
+    if (match === 'doctor' || match === 'empresa' || match === 'patient') {
+      return match;
+    }
+    if (hasDoctorProfile) return 'doctor';
+    if (user.patient || hasPatientRole) return 'patient';
     return 'doctor';
   }
 
