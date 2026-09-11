@@ -8,6 +8,7 @@ import './src/components/notices/patchAlert';
 import { SplashVideo } from './src/components/SplashVideo';
 import { AuthProvider } from './src/context/AuthContext';
 import { BrandingProvider } from './src/context/BrandingContext';
+import { NotificationsProvider } from './src/context/NotificationsContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 
 void SplashScreen.preventAutoHideAsync();
@@ -19,12 +20,14 @@ export default function App() {
     <SafeAreaProvider>
       <BrandingProvider>
         <AuthProvider>
-          <RootNavigator />
-          <AppNoticeHost />
-          <StatusBar style="auto" />
-          {showSplash ? (
-            <SplashVideo onFinish={() => setShowSplash(false)} />
-          ) : null}
+          <NotificationsProvider>
+            <RootNavigator />
+            <AppNoticeHost />
+            <StatusBar style="auto" />
+            {showSplash ? (
+              <SplashVideo onFinish={() => setShowSplash(false)} />
+            ) : null}
+          </NotificationsProvider>
         </AuthProvider>
       </BrandingProvider>
     </SafeAreaProvider>

@@ -179,6 +179,9 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
     setSubmitting(true);
     try {
       const fullPhone = combinePhoneDigits(areaCode, phone);
+      const iso = birthDate.trim()
+        ? normalizeBirthDate(birthDate)
+        : undefined;
       await registerPatient({
         email: email.trim().toLowerCase(),
         password,
@@ -187,13 +190,18 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
         phone: fullPhone,
         phoneTicket: phoneTicket!,
         emailTicket: emailTicket!,
+        ...(iso ? { birthDate: iso } : {}),
+        gender: gender || undefined,
+        address: location.trim() || undefined,
+        ...(lat != null && lng != null ? { lat, lng } : {}),
+        skinType: surveyAnswers.skin_type || undefined,
+        fitzpatrickType: surveyAnswers.fitzpatrick_type || undefined,
+        mascotType: surveyAnswers.mascot_type || undefined,
       });
 
       const patient = await patientsService.getMyPatient();
       if (patient) {
-        const iso = birthDate.trim()
-          ? normalizeBirthDate(birthDate)
-          : undefined;
+        // Refuerzo post-registro (por si algún campo no llegó en register).
         await patientsService.update(patient.id, {
           ...(iso ? { birthDate: iso } : {}),
           gender: gender || undefined,

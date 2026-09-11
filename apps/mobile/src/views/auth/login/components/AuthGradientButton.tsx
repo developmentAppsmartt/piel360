@@ -34,6 +34,7 @@ export function AuthGradientButton({
       disabled={disabled || loading}
       style={[
         styles.buttonWrap,
+        { alignSelf: 'stretch' },
         containerStyle,
         (disabled || loading) && styles.buttonDisabled,
       ]}

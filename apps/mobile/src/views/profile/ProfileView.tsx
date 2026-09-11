@@ -34,6 +34,7 @@ import { SupportChatView } from '../support/SupportChatView';
 import { AppModuleChrome } from '../shared/AppModuleChrome';
 import { DiagnosisLanguageView } from '../doctor/settings/DiagnosisLanguageView';
 import { AboutPiel360Modal } from '../../components/about/AboutPiel360';
+import { ChangePasswordFlow } from '../auth/forgot-password/ForgotPasswordView';
 
 type EditDoctorViewComponent = typeof import('../doctor/profile/EditDoctorView').EditDoctorView;
 
@@ -102,6 +103,8 @@ export function ProfileView({ onBack, onOpenMessages }: ProfileViewProps) {
   const [languageOpen, setLanguageOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [accountPhone, setAccountPhone] = useState<string | null>(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
   const [EditDoctorView, setEditDoctorView] =
@@ -135,6 +138,7 @@ export function ProfileView({ onBack, onOpenMessages }: ProfileViewProps) {
       // Decidir por perfiles reales en BD, no solo por role del JWT/sesión
       // (un paciente mal clasificado como doctor no debe llamar /doctors/me).
       const details = await authService.meDetails();
+      setAccountPhone(details.phone);
       if (details.patient && !details.doctor) {
         if (isDoctor) {
           await patchUser({
@@ -237,6 +241,10 @@ export function ProfileView({ onBack, onOpenMessages }: ProfileViewProps) {
       setEditing(true);
       return;
     }
+    if (rowId === 'password') {
+      setPasswordOpen(true);
+      return;
+    }
     if (rowId === 'idioma' && isDoctor) {
       setLanguageOpen(true);
       return;
@@ -333,6 +341,18 @@ export function ProfileView({ onBack, onOpenMessages }: ProfileViewProps) {
     } finally {
       setAvatarBusy(false);
     }
+  }
+
+  if (passwordOpen) {
+    return (
+      <ChangePasswordFlow
+        title="Cambiar contraseña"
+        initialEmail={user?.email ?? ''}
+        initialPhoneDigits={accountPhone}
+        onBack={() => setPasswordOpen(false)}
+        onSuccess={() => setPasswordOpen(false)}
+      />
+    );
   }
 
   if (supportOpen) {

@@ -277,24 +277,29 @@ export function createRegisterStyles(colors: AppBranding['colors']) {
     },
     buttonSecondaryCard: {
       backgroundColor: AUTH_THEME.purpleMid,
-      borderRadius: 14,
+      borderRadius: 16,
       paddingVertical: 16,
       alignItems: 'center',
-      marginTop: 8,
+      justifyContent: 'center',
+      marginTop: 0,
       flex: 1,
+      minHeight: 52,
+      overflow: 'hidden',
     },
     buttonDisabled: {
       opacity: 0.65,
     },
     buttonText: {
       color: colors.textOnDark,
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: '700',
+      letterSpacing: 0.2,
     },
     buttonRow: {
       flexDirection: 'row',
+      alignItems: 'stretch',
       gap: 10,
-      marginTop: 4,
+      marginTop: 8,
     },
     footer: {
       marginTop: 18,

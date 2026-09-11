@@ -420,7 +420,6 @@ export function DoctorHomeView({
       <StatusBar style="light" />
       <DoctorHeader
         styles={headerStyles}
-        messageCount={1}
         onOpenMenu={() => setMenuOpen(true)}
         onOpenMessages={onOpenMessages}
         onOpenGift={() =>

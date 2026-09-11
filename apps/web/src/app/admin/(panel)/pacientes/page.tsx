@@ -28,6 +28,7 @@ export default function AdminPacientesPage() {
           patients={patients.data}
           panel="admin"
           showNewButton={false}
+          showProfessionalColumn
         />
       )}
     </div>

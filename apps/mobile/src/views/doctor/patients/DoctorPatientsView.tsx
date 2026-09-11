@@ -30,6 +30,7 @@ import { SupportChatView } from '../../support/SupportChatView';
 import { AboutPiel360Modal } from '../../../components/about/AboutPiel360';
 import { LegalDocumentModal } from '../../../components/legal/LegalDocumentModal';
 import type { LegalDocId } from '../../../data/legal/documents';
+import { ChangePasswordFlow } from '../../auth/forgot-password/ForgotPasswordView';
 import { AccountDrawer } from './components/AccountDrawer';
 import { DoctorHeader } from './components/DoctorHeader';
 import { PatientDetailView } from './components/PatientDetailView';
@@ -89,7 +90,7 @@ export function DoctorPatientsView({
   onOpenAgenda,
   onCreatingChange,
 }: DoctorPatientsViewProps) {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const branding = useBranding();
   const styles = useMemo(
     () => createDoctorPatientsStyles(branding.colors),
@@ -108,6 +109,7 @@ export function DoctorPatientsView({
   const [showingBilling, setShowingBilling] = useState(false);
   const [showingSupport, setShowingSupport] = useState(false);
   const [showingAbout, setShowingAbout] = useState(false);
+  const [showingPassword, setShowingPassword] = useState(false);
   const [legalDoc, setLegalDoc] = useState<LegalDocId | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<PatientProfile | null>(
     null,
@@ -143,6 +145,8 @@ export function DoctorPatientsView({
       setLegalDoc('terms-professional');
     } else if (id === 'acerca') {
       setShowingAbout(true);
+    } else if (id === 'password') {
+      setShowingPassword(true);
     } else
       Alert.alert(
         'Próximamente',
@@ -178,6 +182,17 @@ export function DoctorPatientsView({
 
   if (showingSupport) {
     return <SupportChatView onClose={() => setShowingSupport(false)} />;
+  }
+
+  if (showingPassword) {
+    return (
+      <ChangePasswordFlow
+        title="Cambiar contraseña"
+        initialEmail={user?.email ?? ''}
+        onBack={() => setShowingPassword(false)}
+        onSuccess={() => setShowingPassword(false)}
+      />
+    );
   }
 
   if (showingLanguage) {
@@ -421,7 +436,6 @@ export function DoctorPatientsView({
       <DoctorHeader
         styles={styles}
         title="Listado de Pacientes"
-        messageCount={1}
         onOpenMenu={() => setMenuOpen(true)}
         onOpenMessages={onOpenMessages}
         onOpenGift={() =>

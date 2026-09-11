@@ -141,7 +141,6 @@ export function PaymentsView({
       <StatusBar style="light" />
       <DoctorHeader
         styles={headerStyles}
-        messageCount={1}
         onOpenMenu={onOpenMenu}
         onOpenMessages={onOpenMessages}
         onOpenGift={() =>

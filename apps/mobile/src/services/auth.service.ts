@@ -36,10 +36,13 @@ export const authService = {
     return allowed;
   },
 
-  async sendPhoneOtp(phone: string): Promise<void> {
+  async sendPhoneOtp(
+    phone: string,
+    purpose: 'register' | 'reset' = 'register',
+  ): Promise<void> {
     await apiRequest<{ ok: true }>('/auth/otp/phone/send', {
       method: 'POST',
-      body: { phone },
+      body: { phone, purpose },
     });
   },
 
@@ -54,15 +57,17 @@ export const authService = {
   async verifyPhoneOtp(
     phone: string,
     code: string,
-  ): Promise<{ ticket: string }> {
-    const result = await apiRequest<{ ok: true; ticket: string }>(
-      '/auth/otp/phone/verify',
-      {
-        method: 'POST',
-        body: { phone, code: code.trim() },
-      },
-    );
-    return { ticket: result.ticket };
+    purpose: 'register' | 'reset' = 'register',
+  ): Promise<{ ticket?: string; token?: string }> {
+    const result = await apiRequest<{
+      ok: true;
+      ticket?: string;
+      token?: string;
+    }>('/auth/otp/phone/verify', {
+      method: 'POST',
+      body: { phone, code: code.trim(), purpose },
+    });
+    return { ticket: result.ticket, token: result.token };
   },
 
   async confirmPhoneVerification(phone: string, phoneTicket: string): Promise<void> {

@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppIcon } from '../../../../components/AppIcon';
 import { BrandLogo } from '../../../../components/BrandLogo';
 import { Icons } from '../../../../components/icons';
+import { useNotificationsOptional } from '../../../../context/NotificationsContext';
 import type { DoctorPatientsStyles } from '../styles/patients.styles';
 
 type DoctorHeaderProps = {
@@ -11,10 +12,17 @@ type DoctorHeaderProps = {
   title?: string;
   showBack?: boolean;
   onBack?: () => void;
+  /** @deprecated usar notificationCount; se mantiene por compatibilidad. */
   messageCount?: number;
+  notificationCount?: number;
   onOpenMenu: () => void;
+  /** Abre inbox de notificaciones (mensajes + solicitudes). */
+  onOpenNotifications?: () => void;
+  /** @deprecated alias de onOpenNotifications. */
   onOpenMessages?: () => void;
   onOpenGift?: () => void;
+  /** Oculta la campana (p. ej. ya estás en el inbox). */
+  suppressNotifications?: boolean;
 };
 
 function defaultOpenGift() {
@@ -28,13 +36,26 @@ export function DoctorHeader({
   styles,
   showBack,
   onBack,
-  messageCount = 0,
+  messageCount,
+  notificationCount,
   onOpenMenu,
+  onOpenNotifications,
   onOpenMessages,
   onOpenGift = defaultOpenGift,
+  suppressNotifications = false,
 }: DoctorHeaderProps) {
   const insets = useSafeAreaInsets();
   const onDark = styles.headerIcon.color as string;
+  const notifications = useNotificationsOptional();
+  const badgeCount =
+    notificationCount ??
+    messageCount ??
+    notifications?.unreadCount ??
+    0;
+  const openNotifications =
+    onOpenNotifications ??
+    onOpenMessages ??
+    notifications?.openInbox;
 
   return (
     <View style={[styles.header, { paddingTop: Math.max(insets.top, 10) }]}>
@@ -54,18 +75,22 @@ export function DoctorHeader({
         >
           <AppIcon icon={Icons.gift} size={20} color={onDark} />
         </Pressable>
-        <Pressable
-          style={styles.headerIconBtn}
-          onPress={onOpenMessages}
-          accessibilityLabel="Mensajes"
-        >
-          <AppIcon icon={Icons.chat} size={20} color={onDark} />
-          {messageCount > 0 ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{messageCount}</Text>
-            </View>
-          ) : null}
-        </Pressable>
+        {!suppressNotifications ? (
+          <Pressable
+            style={styles.headerIconBtn}
+            onPress={openNotifications}
+            accessibilityLabel="Notificaciones"
+          >
+            <AppIcon icon={Icons.bell} size={20} color={onDark} />
+            {badgeCount > 0 ? (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {badgeCount > 99 ? '99+' : badgeCount}
+                </Text>
+              </View>
+            ) : null}
+          </Pressable>
+        ) : null}
         <Pressable
           style={styles.headerIconBtn}
           onPress={onOpenMenu}

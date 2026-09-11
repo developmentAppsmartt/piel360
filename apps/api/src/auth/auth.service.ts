@@ -26,6 +26,7 @@ import { Prisma } from '@prisma/client';
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { Redis } from 'ioredis';
 import { assertDocumentNumberAvailable } from '../common/document-number.util';
+import { splitPhoneDigits } from '../common/phone.util';
 import { MailService } from '../mail/mail.service';
 import { SmsService } from '../sms/sms.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -400,6 +401,11 @@ export class AuthService implements OnModuleDestroy {
     await this.assertEmailAvailable(email);
     const password = await argon2.hash(dto.password);
 
+    const { areaCode, phone: nationalPhone } = splitPhoneDigits(phone);
+    const birthDate = dto.birthDate?.trim()
+      ? new Date(dto.birthDate.trim())
+      : null;
+
     const user = await this.prisma.user.create({
       data: {
         email,
@@ -417,6 +423,24 @@ export class AuthService implements OnModuleDestroy {
             firstName: dto.firstName,
             lastName: dto.lastName,
             email,
+            phone: nationalPhone || null,
+            areaCode,
+            ...(birthDate && !Number.isNaN(birthDate.getTime())
+              ? { birthDate }
+              : {}),
+            ...(dto.gender?.trim() ? { gender: dto.gender.trim() } : {}),
+            ...(dto.address?.trim() ? { address: dto.address.trim() } : {}),
+            ...(dto.lat != null ? { lat: dto.lat } : {}),
+            ...(dto.lng != null ? { lng: dto.lng } : {}),
+            ...(dto.skinType?.trim()
+              ? { skinType: dto.skinType.trim() }
+              : {}),
+            ...(dto.fitzpatrickType?.trim()
+              ? { fitzpatrickType: dto.fitzpatrickType.trim() }
+              : {}),
+            ...(dto.mascotType?.trim()
+              ? { mascotType: dto.mascotType.trim() }
+              : {}),
           },
         },
       },
@@ -900,28 +924,36 @@ export class AuthService implements OnModuleDestroy {
     exceptUserId?: bigint,
   ): Promise<{ ok: true }> {
     const phone = this.normalizePhoneDigits(dto.phone);
+    const purpose = dto.purpose ?? 'register';
     const existing = await this.prisma.user.findFirst({ where: { phone } });
-    if (existing && (!exceptUserId || existing.id !== exceptUserId)) {
-      throw new ConflictException('Ya existe una cuenta con ese teléfono');
+
+    if (purpose === 'register') {
+      if (existing && (!exceptUserId || existing.id !== exceptUserId)) {
+        throw new ConflictException('Ya existe una cuenta con ese teléfono');
+      }
+    } else if (!existing) {
+      // Anti-enumeración: no revelar si el teléfono existe.
+      return { ok: true };
     }
 
     const code = String(randomInt(10000, 100000));
     await this.ensureRedis();
     await this.redis.set(
       this.phoneOtpKey(phone),
-      JSON.stringify({ code, attempts: 0 }),
+      JSON.stringify({ code, attempts: 0, purpose }),
       'EX',
       OTP_TTL_SECONDS,
     );
 
     await this.sms.sendSms(
       phone,
-      `Tu código de verificación Piel360 es: ${code}. Expira en 10 minutos.`,
+      purpose === 'reset'
+        ? `Tu código para restablecer la contraseña Piel360 es: ${code}. Expira en 10 minutos.`
+        : `Tu código de verificación Piel360 es: ${code}. Expira en 10 minutos.`,
     );
 
     if (!this.config.get<string>('ALTIRIA_API_KEY')) {
-      // Local/dev sin credenciales de Altiria: deja el código en logs del API.
-      console.warn(`[OTP phone] ${phone} → ${code}`);
+      console.warn(`[OTP phone ${purpose}] ${phone} → ${code}`);
     }
 
     return { ok: true };
@@ -990,8 +1022,9 @@ export class AuthService implements OnModuleDestroy {
 
   async verifyPhoneOtp(
     dto: VerifyPhoneOtpDto,
-  ): Promise<{ ok: true; ticket: string }> {
+  ): Promise<{ ok: true; ticket?: string; token?: string }> {
     const phone = this.normalizePhoneDigits(dto.phone);
+    const purpose = dto.purpose ?? 'register';
     const key = this.phoneOtpKey(phone);
     await this.ensureRedis();
     const raw = await this.redis.get(key);
@@ -999,7 +1032,11 @@ export class AuthService implements OnModuleDestroy {
       throw new BadRequestException('Código inválido o expirado');
     }
 
-    const stored = JSON.parse(raw) as { code: string; attempts: number };
+    const stored = JSON.parse(raw) as {
+      code: string;
+      attempts: number;
+      purpose?: string;
+    };
     if (stored.attempts >= OTP_MAX_ATTEMPTS) {
       await this.redis.del(key);
       throw new BadRequestException(
@@ -1020,6 +1057,21 @@ export class AuthService implements OnModuleDestroy {
     }
 
     await this.redis.del(key);
+
+    if (purpose === 'reset') {
+      const user = await this.prisma.user.findFirst({ where: { phone } });
+      if (!user?.email) {
+        throw new BadRequestException('Código inválido o expirado');
+      }
+      const token = randomBytes(32).toString('hex');
+      const expiresAt = new Date(
+        Date.now() + PASSWORD_RESET_TTL_MINUTES * 60_000,
+      );
+      await this.prisma.passwordResetToken.create({
+        data: { email: user.email, token, expiresAt },
+      });
+      return { ok: true, token };
+    }
 
     const ticket = randomUUID();
     await this.redis.set(
@@ -1151,11 +1203,16 @@ export class AuthService implements OnModuleDestroy {
     if (names.includes('monitor')) return 'monitor';
 
     const hasDoctorProfile = Boolean(user.doctor);
+    const hasPatientProfile = Boolean(user.patient);
     const hasPatientRole = names.includes('patient');
     const hasClinicalCoreRole =
       names.includes('doctor') ||
       names.includes('empresa') ||
       hasDoctorProfile;
+
+    // CRM/paciente sin ficha de doctor: nunca tratarlo como profesional
+    // (evita "pendiente de verificación" en mobile cuando faltan roles).
+    if (hasPatientProfile && !hasDoctorProfile) return 'patient';
 
     // Paciente puro: no reclasificar a doctor por primaryPanel clínico corrupto/mixto.
     if (hasPatientRole && !hasClinicalCoreRole) return 'patient';
@@ -1168,7 +1225,7 @@ export class AuthService implements OnModuleDestroy {
       return match;
     }
     if (hasDoctorProfile) return 'doctor';
-    if (user.patient || hasPatientRole) return 'patient';
+    if (hasPatientProfile || hasPatientRole) return 'patient';
     return 'doctor';
   }
 

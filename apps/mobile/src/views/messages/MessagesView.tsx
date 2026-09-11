@@ -22,12 +22,17 @@ type MessagesViewProps = {
   onThreadOpenChange?: (open: boolean) => void;
   onOpenProfile?: () => void;
   onQuickAction?: (id: ChatQuickActionId) => void;
+  /** Abre un hilo concreto (desde notificación). */
+  initialConversationId?: string | null;
+  onInitialConversationConsumed?: () => void;
 };
 
 export function MessagesView({
   onThreadOpenChange,
   onOpenProfile,
   onQuickAction,
+  initialConversationId,
+  onInitialConversationConsumed,
 }: MessagesViewProps) {
   const branding = useBranding();
   const styles = useMemo(
@@ -40,6 +45,12 @@ export function MessagesView({
   const [error, setError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [pickingContact, setPickingContact] = useState(false);
+
+  useEffect(() => {
+    if (!initialConversationId) return;
+    setActiveId(initialConversationId);
+    onInitialConversationConsumed?.();
+  }, [initialConversationId, onInitialConversationConsumed]);
 
   const reload = useCallback(async () => {
     setError(null);

@@ -182,10 +182,12 @@ export function createLoginStyles(colors: AppBranding['colors']) {
       marginTop: 10,
     },
     button: {
+      borderRadius: 16,
       paddingVertical: 16,
       alignItems: 'center',
       justifyContent: 'center',
       minHeight: 52,
+      overflow: 'hidden',
     },
     buttonDisabled: {
       opacity: 0.65,

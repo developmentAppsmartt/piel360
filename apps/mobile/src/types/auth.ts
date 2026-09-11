@@ -57,6 +57,14 @@ export type RegisterPatientPayload = {
   phone: string;
   phoneTicket: string;
   emailTicket?: string;
+  birthDate?: string;
+  gender?: string;
+  address?: string;
+  lat?: number;
+  lng?: number;
+  skinType?: string;
+  fitzpatrickType?: string;
+  mascotType?: string;
 };
 
 export type MeUserDetails = {

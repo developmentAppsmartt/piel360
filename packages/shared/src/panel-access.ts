@@ -57,9 +57,13 @@ export function resolveUserPrimaryPanel(
   const hasClinicalCoreRole =
     roleNames.includes("doctor") || roleNames.includes("empresa");
 
-  // Paciente puro (rol patient, sin doctor/empresa): nunca promover a clinical
+  // Paciente puro (ficha patient sin doctor/empresa): nunca promover a clinical
   // por permisos de análisis (`use_provider_*`, `clinical.analyses`, etc.).
   if (hasPatientRole && !hasClinicalCoreRole) {
+    return "patient";
+  }
+  // Misma regla por perfil: usuario CRM con Patient y sin Doctor.
+  if (options?.hasPatientProfile && !hasClinicalCoreRole) {
     return "patient";
   }
 

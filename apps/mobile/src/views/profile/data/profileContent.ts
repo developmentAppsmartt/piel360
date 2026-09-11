@@ -493,19 +493,12 @@ function buildPatientSections(patient?: PatientProfileDisplay | null): ProfileSe
       title: 'Seguridad',
       rows: [
         { id: 'password', label: 'Cambiar Contraseña', kind: 'nav' },
-        {
-          id: 'biometria',
-          label: 'Autenticación Biométrica',
-          kind: 'toggle',
-          toggleDefault: false,
-        },
       ],
     },
     {
       id: 'soporte',
       title: 'Soporte',
       rows: [
-        { id: 'ayuda', label: 'Ayuda y Tutoriales', kind: 'nav' },
         {
           id: 'contacto',
           label: 'Contactar Soporte',

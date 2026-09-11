@@ -29,6 +29,8 @@ export type CreatePatientInput = {
   firstName: string;
   lastName: string;
   email?: string;
+  /** Si true (o si hay password), la API crea User con rol patient. */
+  createAppAccess?: boolean;
   password?: string;
   phone?: string;
   areaCode?: string;

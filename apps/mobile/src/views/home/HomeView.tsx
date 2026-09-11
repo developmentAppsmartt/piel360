@@ -37,6 +37,7 @@ import { YoucamAnalysisFlow } from '../analyses/youcam-flow/YoucamAnalysisFlow';
 import { AccountInfoView } from '../account/AccountInfoView';
 import { AboutPiel360Content } from '../../components/about/AboutPiel360';
 import { SupportChatView } from '../support/SupportChatView';
+import { ChangePasswordFlow } from '../auth/forgot-password/ForgotPasswordView';
 import { AnalysisDetailView } from '../doctor/analyses/AnalysisDetailView';
 import { DoctorHeader } from '../doctor/patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../doctor/patients/styles/patients.styles';
@@ -84,13 +85,9 @@ type Overlay =
   | 'diseases';
 
 const OVERLAY_COPY: Record<
-  Exclude<Overlay, null | 'config' | 'tips' | 'diseases' | 'soporte' | 'acerca'>,
+  Exclude<Overlay, null | 'config' | 'tips' | 'diseases' | 'soporte' | 'acerca' | 'password'>,
   { title: string; body: string }
 > = {
-  password: {
-    title: 'Cambiar contraseña',
-    body: 'Pronto podrás cambiar tu contraseña desde aquí. Mientras tanto usa “Olvidé mi contraseña” en el inicio de sesión si necesitas restablecerla.',
-  },
   premios: {
     title: 'Premios',
     body: 'Aquí verás recompensas y beneficios de Piel 360. Este módulo se activará en una próxima versión.',
@@ -210,7 +207,7 @@ export function HomeView({
   homeIntent = null,
   onHomeIntentConsumed,
 }: HomeViewProps) {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const branding = useBranding();
   const { width: windowWidth } = useWindowDimensions();
   const styles = useMemo(() => createHomeStyles(branding.colors), [branding.colors]);
@@ -520,6 +517,18 @@ export function HomeView({
     return <SupportChatView onClose={() => setOverlay(null)} />;
   }
 
+  if (overlay === 'password') {
+    return (
+      <ChangePasswordFlow
+        title="Cambiar contraseña"
+        initialEmail={user?.email ?? ''}
+        initialPhoneDigits={null}
+        onBack={() => setOverlay(null)}
+        onSuccess={() => setOverlay(null)}
+      />
+    );
+  }
+
   if (overlay === 'acerca') {
     return (
       <View style={styles.screen}>
@@ -559,7 +568,6 @@ export function HomeView({
       <StatusBar style="light" />
       <DoctorHeader
         styles={headerStyles}
-        messageCount={1}
         onOpenMenu={() => setMenuOpen(true)}
         onOpenMessages={onOpenMessages}
         onOpenGift={() => setOverlay('premios')}

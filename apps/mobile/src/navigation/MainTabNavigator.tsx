@@ -5,6 +5,7 @@ import { AppIcon } from '../components/AppIcon';
 import { Icons, type AppIconName } from '../components/icons';
 import { useAuth } from '../context/AuthContext';
 import { useBranding } from '../context/BrandingContext';
+import { useNotifications } from '../context/NotificationsContext';
 import {
   patientsService,
   type AnalysisRequest,
@@ -17,6 +18,10 @@ import { PatientAgendaView } from '../views/agenda/PatientAgendaView';
 import { HomeView } from '../views/home/HomeView';
 import { MessagesView } from '../views/messages/MessagesView';
 import type { ChatQuickActionId } from '../views/messages/components/ChatQuickActions';
+import {
+  NotificationsView,
+  type NotificationAction,
+} from '../views/notifications/NotificationsView';
 import { ProfileView } from '../views/profile/ProfileView';
 
 type TabKey =
@@ -62,6 +67,7 @@ export function MainTabNavigator() {
   const insets = useSafeAreaInsets();
   const branding = useBranding();
   const { user, refreshDoctorVerification } = useAuth();
+  const { inboxOpen, closeInbox, openInbox, refreshUnread } = useNotifications();
   const isDoctor = isClinicalPanelUser(user);
   const doctorActive =
     !isDoctor || isDoctorVerificationActive(user?.verificationStatus);
@@ -89,10 +95,14 @@ export function MainTabNavigator() {
   const [pendingRequests, setPendingRequests] = useState<AnalysisRequest[]>(
     [],
   );
+  const [openConversationId, setOpenConversationId] = useState<string | null>(
+    null,
+  );
   const activeColor = branding.colors.primary;
   const inactiveColor = '#9CA3AF';
   const analysisUnlocked = pendingRequests.length > 0;
   const hideTabBar =
+    inboxOpen ||
     (activeTab === 'chat' && chatThreadOpen) ||
     (isDoctor && activeTab === 'patients' && creatingPatient);
 
@@ -215,6 +225,33 @@ export function MainTabNavigator() {
     }
   }
 
+  async function handleNotificationSelect(action: NotificationAction) {
+    closeInbox();
+    if (action.kind === 'message') {
+      setOpenConversationId(action.conversationId);
+      setActiveTab('chat');
+      return;
+    }
+    if (action.kind === 'analysis_request') {
+      if (isDoctor) return;
+      await refreshPendingRequests();
+      setActiveTab('home');
+      setConsentRequestId((n) => n + 1);
+      void refreshUnread();
+    }
+  }
+
+  if (inboxOpen) {
+    return (
+      <View style={styles.shell}>
+        <NotificationsView
+          onBack={closeInbox}
+          onSelect={(action) => void handleNotificationSelect(action)}
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.shell}>
       <View style={styles.content}>
@@ -223,7 +260,7 @@ export function MainTabNavigator() {
           isDoctor ? (
             <DoctorHomeView
               onOpenPatients={() => setActiveTab('patients')}
-              onOpenMessages={() => setActiveTab('chat')}
+              onOpenMessages={openInbox}
               onOpenProfile={() => setActiveTab('profile')}
               onOpenAgenda={() => setActiveTab('agenda')}
             />
@@ -231,7 +268,7 @@ export function MainTabNavigator() {
             <HomeView
               onOpenProfile={() => setActiveTab('profile')}
               onOpenAgenda={() => setActiveTab('agenda')}
-              onOpenMessages={() => setActiveTab('chat')}
+              onOpenMessages={openInbox}
               consentRequestId={consentRequestId}
               pendingAnalysisRequests={pendingRequests}
               onPendingRequestConsumed={() => void refreshPendingRequests()}
@@ -242,7 +279,7 @@ export function MainTabNavigator() {
         ) : null}
         {doctorActive && activeTab === 'patients' ? (
           <DoctorPatientsView
-            onOpenMessages={() => setActiveTab('chat')}
+            onOpenMessages={openInbox}
             onOpenProfile={() => setActiveTab('profile')}
             onOpenAgenda={() => setActiveTab('agenda')}
             onCreatingChange={setCreatingPatient}
@@ -251,12 +288,12 @@ export function MainTabNavigator() {
         {doctorActive && activeTab === 'agenda' && hasAssignedDoctor ? (
           isDoctor ? (
             <DoctorAgendaView
-              onOpenMessages={() => setActiveTab('chat')}
+              onOpenMessages={openInbox}
               onOpenProfile={() => setActiveTab('profile')}
             />
           ) : (
             <PatientAgendaView
-              onOpenMessages={() => setActiveTab('chat')}
+              onOpenMessages={openInbox}
               onOpenProfile={() => setActiveTab('profile')}
             />
           )
@@ -266,10 +303,12 @@ export function MainTabNavigator() {
             onThreadOpenChange={setChatThreadOpen}
             onOpenProfile={() => setActiveTab('profile')}
             onQuickAction={handleChatQuickAction}
+            initialConversationId={openConversationId}
+            onInitialConversationConsumed={() => setOpenConversationId(null)}
           />
         ) : null}
         {activeTab === 'profile' || (isDoctor && !doctorActive) ? (
-          <ProfileView onOpenMessages={() => setActiveTab('chat')} />
+          <ProfileView onOpenMessages={openInbox} />
         ) : null}
       </View>
 

@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { DoctorsService } from '../doctors/doctors.service';
 import { StorageService } from '../storage/storage.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { DOCTOR_PANEL_ROLES, type Role } from '@piel360/shared';
 import type { JwtPayload } from '../auth/types';
 import type {
@@ -38,6 +39,7 @@ export class MessagesService {
     private readonly prisma: PrismaService,
     private readonly doctors: DoctorsService,
     private readonly storage: StorageService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** Contactos con los que el usuario puede chatear. */
@@ -280,6 +282,29 @@ export class MessagesService {
 
       return created;
     });
+
+    const recipientUserId =
+      ctx.role === 'doctor'
+        ? conversation.patient.userId
+        : conversation.doctor.userId;
+    if (recipientUserId) {
+      const preview =
+        dto.type === 'text'
+          ? (dto.body?.trim() || 'Nuevo mensaje').slice(0, 120)
+          : 'Te enviaron un archivo';
+      void this.notifications
+        .create({
+          userId: recipientUserId,
+          type: 'message',
+          title: 'Nuevo mensaje',
+          body: preview,
+          data: {
+            conversationId: conversation.id.toString(),
+            messageId: message.id.toString(),
+          },
+        })
+        .catch(() => undefined);
+    }
 
     return this.mapMessage(message, user.sub);
   }

@@ -14,6 +14,7 @@ import { assertDocumentNumberAvailable } from '../common/document-number.util';
 import { combinePhoneDigits } from '../common/phone.util';
 import { AuthService } from '../auth/auth.service';
 import { DoctorsService } from '../doctors/doctors.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { OrgContextService } from '../organizations/org-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -48,6 +49,7 @@ export class PatientsService {
     private readonly imageUrls: AnalysisImageUrlsService,
     private readonly storage: StorageService,
     private readonly authService: AuthService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** Perfil del paciente autenticado (por userId). No depende del role del JWT. */
@@ -72,10 +74,17 @@ export class PatientsService {
   ) {
     if (isPlatformAdmin(currentUser)) {
       const rows = await this.prisma.patient.findMany({
-        include: { user: { select: { avatarKey: true } } },
+        include: {
+          user: { select: { avatarKey: true } },
+          doctor: {
+            include: {
+              user: { select: { id: true, name: true } },
+            },
+          },
+        },
         orderBy: { id: 'asc' },
       });
-      return Promise.all(rows.map((row) => this.withAvatarUrl(row)));
+      return Promise.all(rows.map((row) => this.withAvatarUrl(row, true)));
     }
 
     if (isDoctorPanelRole(currentUser.role)) {
@@ -203,10 +212,11 @@ export class PatientsService {
 
     const { birthDate, password, email, createAppAccess, ...rest } = dto;
     const emailNorm = email?.trim().toLowerCase() || undefined;
-    // Antes se infería de "¿hay email?" — eso impedía guardar un correo de
-    // contacto sin crear cuenta. Ahora es explícito: el doctor decide con
-    // el checkbox, el correo por sí solo no crea nada.
-    const wantsLogin = createAppAccess === true;
+    // Acceso app: checkbox explícito (web) O email+password (mobile legacy /
+    // formularios que siempre piden clave al crear paciente).
+    const wantsLogin =
+      createAppAccess === true ||
+      Boolean(emailNorm && password && password.length >= 8);
 
     await assertDocumentNumberAvailable(this.prisma, dto.docNumber);
 
@@ -261,8 +271,17 @@ export class PatientsService {
               },
             },
           },
-          include: { patient: true },
+          include: { patient: true, roles: true },
         });
+
+        // Defensa: nunca devolver un user de paciente sin rol patient.
+        const hasPatientRole = user.roles.some((r) => r.name === 'patient');
+        if (!hasPatientRole) {
+          await this.prisma.user.update({
+            where: { id: user.id },
+            data: { roles: { connect: { id: patientRole.id } } },
+          });
+        }
 
         return user.patient!;
       } catch (err) {
@@ -292,11 +311,31 @@ export class PatientsService {
 
   async update(id: string, dto: UpdatePatientDto, currentUser: JwtPayload) {
     const patient = await this.findOne(id, currentUser);
-    const { birthDate, phone, areaCode, phoneTicket, ...rest } = dto;
+    const { birthDate, phone, areaCode, phoneTicket, doctor_id, ...rest } = dto;
     if (dto.docNumber !== undefined) {
       await assertDocumentNumberAvailable(this.prisma, dto.docNumber, {
         patientId: patient.id,
       });
+    }
+
+    let nextDoctorId: bigint | null | undefined;
+    if (doctor_id !== undefined) {
+      if (!isPlatformAdmin(currentUser)) {
+        throw new ForbiddenException(
+          'Solo un administrador puede asignar el profesional',
+        );
+      }
+      const raw = doctor_id?.trim() || null;
+      if (raw) {
+        const doctor = await this.prisma.doctor.findUnique({
+          where: { id: BigInt(raw) },
+          select: { id: true },
+        });
+        if (!doctor) throw new NotFoundException('Profesional no encontrado');
+        nextDoctorId = doctor.id;
+      } else {
+        nextDoctorId = null;
+      }
     }
 
     const nextArea = areaCode !== undefined ? areaCode : patient.areaCode;
@@ -314,8 +353,20 @@ export class PatientsService {
 
     // Solo el propio paciente debe verificar por OTP al cambiar celular.
     // El profesional puede actualizar el teléfono del paciente sin SMS.
+    // Si el número ya está verificado en User (p. ej. recién registrado),
+    // no exigir un ticket OTP nuevo.
     if (isOwnPatient && normalized) {
-      if (phoneChanged) {
+      const linkedUser = patient.userId
+        ? await this.prisma.user.findUnique({
+            where: { id: patient.userId },
+            select: { phone: true, phoneVerifiedAt: true },
+          })
+        : null;
+      const alreadyVerifiedSamePhone =
+        Boolean(linkedUser?.phoneVerifiedAt) &&
+        combinePhoneDigits(null, linkedUser?.phone) === normalized;
+
+      if (phoneChanged && !alreadyVerifiedSamePhone) {
         if (!phoneTicket?.trim()) {
           throw new BadRequestException(
             'Debes verificar el nuevo celular con el código enviado por SMS.',
@@ -332,11 +383,13 @@ export class PatientsService {
           normalized,
         );
         phoneVerifiedAt = new Date();
+      } else if (alreadyVerifiedSamePhone && phoneChanged) {
+        phoneVerifiedAt = linkedUser?.phoneVerifiedAt ?? new Date();
       }
     }
 
     const updated = await this.prisma.patient.update({
-      where: { id: patient.id },
+      where: { id: BigInt(id) },
       data: {
         ...rest,
         ...(phone !== undefined ? { phone } : {}),
@@ -344,8 +397,16 @@ export class PatientsService {
         ...(birthDate !== undefined
           ? { birthDate: birthDate ? new Date(birthDate) : null }
           : {}),
+        ...(nextDoctorId !== undefined ? { doctorId: nextDoctorId } : {}),
       },
-      include: { user: { select: { avatarKey: true } } },
+      include: {
+        user: { select: { avatarKey: true } },
+        doctor: {
+          include: {
+            user: { select: { id: true, name: true } },
+          },
+        },
+      },
     });
 
     if (
@@ -361,7 +422,53 @@ export class PatientsService {
       });
     }
 
-    return this.withAvatarUrl(updated);
+    return this.withAvatarUrl(updated, isPlatformAdmin(currentUser));
+  }
+
+  /**
+   * Superadmin/monitor: asigna o desasigna el profesional del paciente.
+   * `doctor_id` null/vacío deja al paciente sin médico.
+   */
+  async assignDoctor(
+    id: string,
+    doctorId: string | null | undefined,
+    currentUser: JwtPayload,
+  ) {
+    if (!isPlatformAdmin(currentUser)) {
+      throw new ForbiddenException(
+        'Solo un administrador puede asignar el profesional',
+      );
+    }
+
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: BigInt(id) },
+    });
+    if (!patient) throw new NotFoundException('Paciente no encontrado');
+
+    const raw = doctorId?.trim() || null;
+    let nextDoctorId: bigint | null = null;
+    if (raw) {
+      const doctor = await this.prisma.doctor.findUnique({
+        where: { id: BigInt(raw) },
+        select: { id: true },
+      });
+      if (!doctor) throw new NotFoundException('Profesional no encontrado');
+      nextDoctorId = doctor.id;
+    }
+
+    const updated = await this.prisma.patient.update({
+      where: { id: patient.id },
+      data: { doctorId: nextDoctorId },
+      include: {
+        user: { select: { avatarKey: true } },
+        doctor: {
+          include: {
+            user: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+    return this.withAvatarUrl(updated, true);
   }
 
   /** `GET /api/me/survey` — el propio paciente. */
@@ -499,6 +606,21 @@ export class PatientsService {
         status: 'pending',
       },
     });
+
+    void this.notifications
+      .create({
+        userId: patient.userId,
+        type: 'analysis_request',
+        title: 'Nueva solicitud de análisis',
+        body: 'Tu médico te pidió un nuevo análisis de piel',
+        data: {
+          analysisRequestId: row.id.toString(),
+          providerSlug: dto.providerSlug,
+          patientId: patient.id.toString(),
+        },
+      })
+      .catch(() => undefined);
+
     return this.serializeAnalysisRequest(row);
   }
 

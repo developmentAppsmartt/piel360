@@ -46,7 +46,7 @@ export function AppModuleChrome({
   onOpenProfile,
   showBack,
   onBack,
-  messageCount = 1,
+  messageCount = 0,
   onConfig,
   onSubscription,
 }: AppModuleChromeProps) {

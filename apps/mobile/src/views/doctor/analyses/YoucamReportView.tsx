@@ -401,7 +401,6 @@ export function YoucamReportView({
       <StatusBar style="light" />
       <DoctorHeader
         styles={headerStyles}
-        messageCount={1}
         onOpenMenu={onOpenMenu}
         onOpenMessages={onOpenMessages}
       />

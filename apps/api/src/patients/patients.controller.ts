@@ -15,6 +15,7 @@ import type { JwtPayload } from '../auth/types';
 import { SkinAgeRulesService } from '../skin-age-rules/skin-age-rules.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { CreateAnalysisRequestDto } from './dto/create-analysis-request.dto';
+import { AssignPatientDoctorDto } from './dto/assign-patient-doctor.dto';
 import { SurveyDto } from './dto/survey.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { PatientInviteService } from './patient-invite.service';
@@ -110,6 +111,15 @@ export class PatientsController {
   @Post('patients/:id/invite')
   invite(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.patientInviteService.sendInvite(id, user);
+  }
+
+  @Post('patients/:id/assign-doctor')
+  assignDoctor(
+    @Param('id') id: string,
+    @Body() dto: AssignPatientDoctorDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.patientsService.assignDoctor(id, dto.doctor_id, user);
   }
 
   @Patch('patients/:id')

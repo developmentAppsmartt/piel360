@@ -95,6 +95,7 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
       lastName: lastName.trim(),
       email: emailTrim,
       password: passwordTrim,
+      createAppAccess: true,
       docType: opt(docType),
       docNumber: opt(docNumber),
       gender: opt(gender),

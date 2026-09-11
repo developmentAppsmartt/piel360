@@ -1,4 +1,4 @@
-import { IsString, Matches } from 'class-validator';
+import { IsIn, IsOptional, IsString, Matches } from 'class-validator';
 
 export class VerifyPhoneOtpDto {
   @Matches(/^\d{10,15}$/, {
@@ -9,4 +9,12 @@ export class VerifyPhoneOtpDto {
 
   @IsString()
   code!: string;
+
+  /**
+   * `register` (default) → `{ ticket }`.
+   * `reset` → `{ token }` para `reset-password`.
+   */
+  @IsOptional()
+  @IsIn(['register', 'reset'])
+  purpose?: 'register' | 'reset';
 }
