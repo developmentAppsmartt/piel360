@@ -32,6 +32,7 @@ import type { PatientProfile } from '../../../types/patient';
 import { patientDisplayName } from '../../../types/patient';
 import { resolveMediaUrl } from '../../../utils/mediaUrl';
 import { SupportChatView } from '../../support/SupportChatView';
+import { ChangePasswordFlow } from '../../auth/forgot-password/ForgotPasswordView';
 import { AnalysisDetailView } from '../analyses/AnalysisDetailView';
 import { AccountDrawer } from '../patients/components/AccountDrawer';
 import { DoctorHeader } from '../patients/components/DoctorHeader';
@@ -131,6 +132,7 @@ export function DoctorHomeView({
   const [showingLanguage, setShowingLanguage] = useState(false);
   const [showingBilling, setShowingBilling] = useState(false);
   const [showingSupport, setShowingSupport] = useState(false);
+  const [showingPassword, setShowingPassword] = useState(false);
   const [showingStats, setShowingStats] = useState(false);
   const [showingAbout, setShowingAbout] = useState(false);
   const [legalDoc, setLegalDoc] = useState<LegalDocId | null>(null);
@@ -240,6 +242,8 @@ export function DoctorHomeView({
       setShowingLanguage(false);
       setShowingBilling(false);
       setShowingSupport(true);
+    } else if (id === 'password') {
+      setShowingPassword(true);
     } else if (id === 'acuerdo') {
       setLegalDoc('terms-professional');
     } else if (id === 'acerca') {
@@ -303,6 +307,17 @@ export function DoctorHomeView({
 
   if (showingSupport) {
     return <SupportChatView onClose={() => setShowingSupport(false)} />;
+  }
+
+  if (showingPassword) {
+    return (
+      <ChangePasswordFlow
+        title="Cambiar contraseña"
+        initialEmail={user?.email ?? ''}
+        onBack={() => setShowingPassword(false)}
+        onSuccess={() => setShowingPassword(false)}
+      />
+    );
   }
 
   if (showingLanguage) {

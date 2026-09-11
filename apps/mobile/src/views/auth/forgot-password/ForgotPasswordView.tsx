@@ -247,42 +247,107 @@ export function ChangePasswordFlow({
 
             {step === 'channel' ? (
               <View style={{ gap: 12, marginTop: 8 }}>
-                <Pressable
-                  style={[
-                    styles.input,
+                {(
+                  [
                     {
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 12,
-                      borderWidth: channel === 'email' ? 2 : 0,
-                      borderColor: branding.colors.textOnDark,
+                      id: 'email' as const,
+                      icon: Icons.mail,
+                      label: 'Enviar OTP al correo',
                     },
-                  ]}
-                  onPress={() => setChannel('email')}
-                >
-                  <AppIcon icon={Icons.mail} size={22} color={text} />
-                  <Text style={{ color: text, fontWeight: '700', flex: 1 }}>
-                    Enviar OTP al correo
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={[
-                    styles.input,
                     {
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 12,
-                      borderWidth: channel === 'phone' ? 2 : 0,
-                      borderColor: branding.colors.textOnDark,
+                      id: 'phone' as const,
+                      icon: Icons.phone,
+                      label: 'Enviar OTP al celular',
                     },
-                  ]}
-                  onPress={() => setChannel('phone')}
-                >
-                  <AppIcon icon={Icons.phone} size={22} color={text} />
-                  <Text style={{ color: text, fontWeight: '700', flex: 1 }}>
-                    Enviar OTP al celular
-                  </Text>
-                </Pressable>
+                  ] as const
+                ).map((option) => {
+                  const selected = channel === option.id;
+                  return (
+                    <Pressable
+                      key={option.id}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      onPress={() => setChannel(option.id)}
+                      style={({ pressed }) => [
+                        styles.input,
+                        {
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 12,
+                          borderWidth: 2,
+                          borderColor: selected
+                            ? branding.colors.primary
+                            : pressed
+                              ? branding.colors.secondary
+                              : '#E5E7EB',
+                          backgroundColor: selected
+                            ? '#E8F1FB'
+                            : pressed
+                              ? '#F8FAFC'
+                              : '#FFFFFF',
+                          transform: [{ scale: pressed ? 0.98 : 1 }],
+                        },
+                      ]}
+                    >
+                      <View
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 12,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: selected
+                            ? branding.colors.primary
+                            : '#E8F1FB',
+                        }}
+                      >
+                        <AppIcon
+                          icon={option.icon}
+                          size={22}
+                          color={
+                            selected
+                              ? '#FFFFFF'
+                              : branding.colors.primary
+                          }
+                        />
+                      </View>
+                      <Text
+                        style={{
+                          color: '#0F172A',
+                          fontWeight: '700',
+                          flex: 1,
+                          fontSize: 15,
+                        }}
+                      >
+                        {option.label}
+                      </Text>
+                      <View
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: 11,
+                          borderWidth: 2,
+                          borderColor: selected
+                            ? branding.colors.primary
+                            : '#CBD5E1',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: selected
+                            ? branding.colors.primary
+                            : 'transparent',
+                        }}
+                      >
+                        {selected ? (
+                          <AppIcon
+                            icon={Icons.check}
+                            size={14}
+                            color="#FFFFFF"
+                          />
+                        ) : null}
+                      </View>
+                    </Pressable>
+                  );
+                })}
                 {error ? <Text style={styles.error}>{error}</Text> : null}
                 <AuthGradientButton
                   label="Continuar"
@@ -447,6 +512,10 @@ export function ChangePasswordFlow({
           })();
         }}
       />
+      <AuthFeedbackModal
+        visible={result === 'error'}
+        variant="error"
+        title="No se pudo cambiar la contraseña"
         message={error ?? 'Algo salió mal. Inténtalo de nuevo.'}
         buttonLabel="Intentar otra vez"
         colors={branding.colors}
