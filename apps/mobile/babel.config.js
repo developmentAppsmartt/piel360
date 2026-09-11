@@ -1,5 +1,5 @@
 module.exports = function (api) {
-  api.cache(true);
+  api.cache.using(() => 'iconify-catalog-v2');
   return {
     presets: ['babel-preset-expo'],
     plugins: [
@@ -47,6 +47,9 @@ module.exports = function (api) {
             'mdi:logout',
             'mdi:prescription',
             'mdi:clipboard-text-outline',
+            'mdi:shopping-outline',
+            'mdi:needle',
+            'mdi:pill',
             'mdi:emoticon-happy-outline',
             'mdi:emoticon-sad-outline',
             'mdi:file-document',

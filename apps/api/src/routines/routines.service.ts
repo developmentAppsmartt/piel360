@@ -86,7 +86,10 @@ export class RoutinesService {
 
   private routineInclude = {
     conditions: true,
-    steps: { orderBy: { order: 'asc' as const }, include: { product: true } },
+    steps: {
+      orderBy: { order: 'asc' as const },
+      include: { product: true },
+    },
   };
 
   private async withResolvedSteps<

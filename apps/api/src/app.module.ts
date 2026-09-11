@@ -27,6 +27,7 @@ import { MailModule } from './mail/mail.module';
 import { SmsModule } from './sms/sms.module';
 import { CommonModule } from './common/common.module';
 import { MessagesModule } from './messages/messages.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { ProductsModule } from './products/products.module';
 import { RoutinesModule } from './routines/routines.module';
 import { TreatmentsModule } from './treatments/treatments.module';
@@ -74,6 +75,7 @@ import { LaborTechnicianProfilesModule } from './labor-technician-profiles/labor
     DoctorsModule,
     PatientsModule,
     MessagesModule,
+    NotificationsModule,
     AnalysesModule,
     YoucamModule,
     FitzpatrickModule,

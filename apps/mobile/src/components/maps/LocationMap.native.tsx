@@ -43,9 +43,9 @@ function buildMapHtml(
       zoomControl: true,
       attributionControl: true,
     }).setView([${lat}, ${lng}], ${zoom});
-    L.tileLayer('https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution: '&copy; OpenStreetMap &copy; CARTO',
+      attribution: '&copy; OpenStreetMap',
     }).addTo(map);
 
     let marker = null;

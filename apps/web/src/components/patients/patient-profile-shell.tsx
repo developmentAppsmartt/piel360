@@ -10,6 +10,7 @@ import {
   patientsListPath,
   type PatientsPanel,
 } from "@/lib/patients-panel";
+import { AssignPatientDoctorButton } from "./assign-patient-doctor-button";
 import { PatientDetailTabs } from "./patient-detail-tabs";
 
 function initials(first: string, last: string) {
@@ -131,6 +132,13 @@ export function PatientProfileShell({
                   <p className="font-medium">{patient.skinType ?? "—"}</p>
                 </div>
                 <div>
+                  <p className="text-xs text-muted-foreground">Profesional</p>
+                  <p className="font-medium">
+                    {patient.professionalName?.trim() ||
+                      (patient.doctorId ? `Doctor #${patient.doctorId}` : "Sin asignar")}
+                  </p>
+                </div>
+                <div>
                   <p className="text-xs text-muted-foreground">Tipo de nacimiento</p>
                   <p className="font-medium">
                     {patient.birthType === "cesarean"
@@ -168,6 +176,9 @@ export function PatientProfileShell({
                 <Plus className="size-4" />
                 Nuevo análisis
               </Button>
+            ) : null}
+            {panel === "admin" ? (
+              <AssignPatientDoctorButton patient={patient} />
             ) : null}
             <Button
               variant="outline"

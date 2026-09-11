@@ -1,7 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <!-- Tablets más grandes (shortest ≥ 720dp) -->
-  <dimen name="skin_oval_width">560dp</dimen>
-  <dimen name="skin_oval_height">747dp</dimen>
-  <dimen name="skin_capture_loader">168dp</dimen>
+  <!-- Tablet ~10" (shortest ≥ 720dp), cercano al óvalo de referencia Perfect -->
+  <dimen name="skin_oval_width">680dp</dimen>
+  <dimen name="skin_oval_height">920dp</dimen>
+  <dimen name="skin_oval_margin_top">36dp</dimen>
+  <dimen name="skin_capture_loader">180dp</dimen>
+  <dimen name="skin_top_padding">32dp</dimen>
+  <dimen name="skin_header_row_height">56dp</dimen>
+  <dimen name="skin_header_btn">52dp</dimen>
+  <dimen name="skin_header_btn_text">34sp</dimen>
+  <dimen name="skin_badge_height">68dp</dimen>
+  <dimen name="skin_badge_text">17sp</dimen>
+  <dimen name="skin_badge_padding_h">14dp</dimen>
+  <dimen name="skin_badge_padding_v">10dp</dimen>
+  <dimen name="skin_badge_gap">10dp</dimen>
+  <dimen name="skin_badge_row_margin_top">16dp</dimen>
+  <dimen name="skin_badge_row_margin_h">48dp</dimen>
+  <dimen name="skin_guide_text">40sp</dimen>
+  <dimen name="skin_countdown_text">104sp</dimen>
 </resources>

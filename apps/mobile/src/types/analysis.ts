@@ -322,6 +322,20 @@ export function extractSkiniverSupportDiagnoses(
   }
 
   // Si el 1.er topn ya trae preciseDiagnosis, igual asegura lesion_code raíz.
+  const rootAtlas = asTrimmedString(
+    readField(root, ['atlas_page_link', 'atlas_url']),
+  );
+  if (items[0] && rootAtlas && !items[0].atlas_page_link) {
+    const rootClass = asTrimmedString(
+      readField(root, ['class', 'diagnosis', 'diagnostico']),
+    );
+    items = items.map((item, index) =>
+      index === 0 || (rootClass && item.class === rootClass)
+        ? { ...item, atlas_page_link: item.atlas_page_link || rootAtlas }
+        : item,
+    );
+  }
+
   if (items[0] && rootCode && !items[0].lesion_code) {
     items = items.map((item, index) =>
       index === 0 ? { ...item, lesion_code: rootCode } : item,
@@ -368,6 +382,9 @@ export type AnalysisDetail = {
   youcamTaskId: string | null;
   fitzpatrickTaskId?: string | null;
   bodyRegion: string | null;
+  xCoord?: number | null;
+  yCoord?: number | null;
+  zCoord?: number | null;
   isValid: boolean;
   isConfirmed: boolean;
   isCorrected?: boolean;
@@ -397,6 +414,7 @@ export type AnalysisDetail = {
     firstName: string;
     lastName: string;
     birthDate?: string | null;
+    gender?: string | null;
     skinType?: string | null;
     fitzpatrickType?: string | null;
   } | null;

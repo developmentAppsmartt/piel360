@@ -76,9 +76,10 @@ export const Icons = {
   /** Reutilizan glifos ya embebidos en babel (sin reinicio de Metro). */
   chevronDown: 'mdi:chevron-left',
   chevronUp: 'mdi:chevron-left',
-  shopping: 'mdi:clipboard-text-outline',
-  needle: 'mdi:prescription',
-  pill: 'mdi:heart-pulse',
+  shopping: 'mdi:shopping-outline',
+  clipboardList: 'mdi:clipboard-list-outline',
+  needle: 'mdi:needle',
+  pill: 'mdi:pill',
   information: 'mdi:alert-circle',
   star: 'mdi:check',
   weatherSunny: 'mdi:calendar',

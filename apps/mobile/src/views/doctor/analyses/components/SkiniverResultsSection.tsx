@@ -1,10 +1,12 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
@@ -29,6 +31,7 @@ import {
 } from '../../../../types/analysis';
 import { createAnalysisDetailStyles } from '../styles/analysisDetail.styles';
 import { AnalysisImageCarousel } from './AnalysisImageCarousel';
+import { BodyRegionViewer } from './BodyRegionViewer';
 import { SkiniverRiskGauge } from './SkiniverRiskGauge';
 
 const RISK_COLORS: Record<string, string> = {
@@ -184,16 +187,32 @@ function DiagnosisStatCard({
 
 type SkiniverResultsSectionProps = {
   analysis: AnalysisDetail;
+  patientGender?: string | null;
   detailFooter?: ReactNode;
   view?: 'stats' | 'detail';
   onViewChange?: (view: 'stats' | 'detail') => void;
+  observationsEditing?: boolean;
+  observationsValue?: string;
+  onObservationsChange?: (value: string) => void;
+  onSaveObservations?: () => void;
+  observationsSaving?: boolean;
+  selectedNosology?: string | null;
+  onPickNosology?: () => void;
 };
 
 export function SkiniverResultsSection({
   analysis,
+  patientGender,
   detailFooter,
   view: viewProp,
   onViewChange,
+  observationsEditing = false,
+  observationsValue = '',
+  onObservationsChange,
+  onSaveObservations,
+  observationsSaving = false,
+  selectedNosology = null,
+  onPickNosology,
 }: SkiniverResultsSectionProps) {
   const branding = useBranding();
   const styles = useMemo(
@@ -230,6 +249,7 @@ export function SkiniverResultsSection({
 
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
 
+  const [bodyOpen, setBodyOpen] = useState(false);
   const [storyOpen, setStoryOpen] = useState(false);
   const [storyLoading, setStoryLoading] = useState(false);
   const [storyTitle, setStoryTitle] = useState<string | null>(null);
@@ -282,29 +302,53 @@ export function SkiniverResultsSection({
     setView('detail');
   }
 
+  function atlasUrlFor(item: SkiniverDiagnosisCandidate): string | null {
+    const fromItem = item.atlas_page_link?.trim();
+    if (fromItem) return fromItem;
+    const root = extracted.prediction?.atlas_page_link?.trim();
+    if (!root) return null;
+    const rootClass = extracted.prediction?.class?.trim();
+    if (!rootClass || item.class === rootClass || item.class === displayDiagnosis) {
+      return root;
+    }
+    return null;
+  }
+
   async function openEncyclopedia(item: SkiniverDiagnosisCandidate) {
+    const atlasUrl = atlasUrlFor(item);
     setStoryOpen(true);
     setStoryTitle(item.class);
     setStoryText(null);
     setStoryError(null);
-    if (!item.atlas_page_link) {
-      setStoryError('No hay artículo de enciclopedia asociado.');
+    if (!atlasUrl) {
+      setStoryError('No hay artículo de atlas asociado a este diagnóstico.');
       return;
     }
     setStoryLoading(true);
     try {
-      const entry = await encyclopediaService.getByUrl(item.atlas_page_link);
-      if (!entry?.content) {
-        setStoryError('La historia aún no está disponible.');
+      const entry = await encyclopediaService.getByUrl(atlasUrl);
+      if (entry?.content) {
+        setStoryTitle(entry.title ?? item.class);
+        setStoryText(stripHtml(entry.content));
         return;
       }
-      setStoryTitle(entry.title ?? item.class);
-      setStoryText(stripHtml(entry.content));
+      const spanishUrl = atlasUrl
+        .replace('skinive.ru/', 'skinive.com/es/')
+        .replace('skinive.com/ru/', 'skinive.com/es/');
+      const opened = await Linking.openURL(spanishUrl).then(
+        () => true,
+        () => false,
+      );
+      if (!opened) {
+        setStoryError('El artículo del atlas aún no está disponible.');
+        return;
+      }
+      setStoryOpen(false);
     } catch (err) {
       setStoryError(
         err instanceof ApiError
           ? err.message
-          : 'No se pudo cargar la historia.',
+          : 'No se pudo cargar el atlas del diagnóstico.',
       );
     } finally {
       setStoryLoading(false);
@@ -404,7 +448,11 @@ export function SkiniverResultsSection({
         </Pressable>
 
         {bodyLabel ? (
-          <View style={styles.infoRow}>
+          <Pressable
+            style={styles.infoRow}
+            onPress={() => setBodyOpen(true)}
+            accessibilityLabel={`Ver ${bodyLabel} en la figura humana`}
+          >
             <AppIcon
               icon={Icons.account}
               size={22}
@@ -414,7 +462,10 @@ export function SkiniverResultsSection({
               <Text style={styles.infoRowValue}>Region del Cuerpo</Text>
               <Text style={styles.diagnosisSub}>{bodyLabel}</Text>
             </View>
-          </View>
+            <View style={styles.diagnosisChevronBtn}>
+              <AppIcon icon={Icons.chevronRight} size={16} color="#FFFFFF" />
+            </View>
+          </Pressable>
         ) : null}
 
         <View style={styles.descBox}>
@@ -464,14 +515,68 @@ export function SkiniverResultsSection({
 
         <View style={styles.observationsBox}>
           <Text style={styles.observationsLabel}>Observaciones</Text>
-          <Text style={styles.observationsText}>
-            {analysis.doctorNotes?.trim()
-              ? analysis.doctorNotes
-              : 'Sin observaciones del médico todavía.'}
-          </Text>
+          {observationsEditing ? (
+            <>
+              <Pressable
+                style={styles.nosologyPickBtn}
+                onPress={onPickNosology}
+                disabled={observationsSaving}
+              >
+                <Text style={styles.nosologyPickLabel}>Nosología</Text>
+                <Text style={styles.nosologyPickValue} numberOfLines={2}>
+                  {selectedNosology?.trim()
+                    ? selectedNosology
+                    : 'Seleccionar nosología'}
+                </Text>
+              </Pressable>
+              <TextInput
+                style={styles.observationsInput}
+                value={observationsValue}
+                onChangeText={onObservationsChange}
+                placeholder="Describe el diagnóstico del médico"
+                placeholderTextColor="#9CA3AF"
+                multiline
+                textAlignVertical="top"
+                editable={!observationsSaving}
+              />
+              <Pressable
+                style={[
+                  styles.confirmPrimaryBtn,
+                  observationsSaving && styles.confirmBtnDisabled,
+                ]}
+                onPress={onSaveObservations}
+                disabled={observationsSaving}
+              >
+                {observationsSaving ? (
+                  <ActivityIndicator color={branding.colors.textOnDark} />
+                ) : (
+                  <Text style={styles.confirmPrimaryText}>
+                    Guardar diagnóstico
+                  </Text>
+                )}
+              </Pressable>
+            </>
+          ) : (
+            <Text style={styles.observationsText}>
+              {analysis.doctorNotes?.trim()
+                ? analysis.doctorNotes
+                : 'Sin observaciones del médico todavía.'}
+            </Text>
+          )}
         </View>
 
         {detailFooter}
+
+        <BodyRegionViewer
+          visible={bodyOpen}
+          bodyRegion={analysis.bodyRegion}
+          label={bodyLabel}
+          gender={patientGender ?? analysis.patient?.gender}
+          xCoord={analysis.xCoord}
+          yCoord={analysis.yCoord}
+          zCoord={analysis.zCoord}
+          onClose={() => setBodyOpen(false)}
+        />
 
         <Modal
           visible={storyOpen}
@@ -546,7 +651,6 @@ export function SkiniverResultsSection({
         La IA solo cubre algunas enfermedades y es una ayuda diagnóstica. Consulta
         siempre a un dermatólogo.
       </Text>
-      <Text style={styles.supportLink}>Ver acuerdo de usuario</Text>
     </View>
   );
 }

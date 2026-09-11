@@ -5,6 +5,8 @@ import {
   ScrollView,
   Text,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import { Image } from 'expo-image';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -268,11 +270,18 @@ function buildChips(
   preferRaw: boolean,
   skinTypeDisplay: SkinTypeChipDisplay | null,
   overallSkinType: string | null,
+  skinAgeYears: number | null,
 ): MetricChip[] {
   const chips: MetricChip[] = [
     {
-      type: 'overview',
-      label: 'Salud de la piel',
+      type: 'skin_age',
+      label: 'Edad de la piel',
+      score: skinAgeYears,
+      maskUrl: null,
+    },
+    {
+      type: 'all',
+      label: 'Puntaje de la piel',
       score: youcamOverallScore(metrics),
       maskUrl: null,
     },
@@ -399,15 +408,23 @@ export function YoucamResultsSection({
         preferRaw,
         skinTypeChip,
         skinType,
+        skinAge,
       ),
-    [metrics, analysis.masks, skinTypeChip, skinType],
+    [metrics, analysis.masks, skinTypeChip, skinType, skinAge],
   );
   const overviewMaskUrls = useMemo(
     () => buildOverviewMaskUrls(metrics, analysis.masks),
     [metrics, analysis.masks],
   );
 
-  const [selectedType, setSelectedType] = useState('overview');
+  const metricScrollRef = useRef<ScrollView>(null);
+  const metricScrollX = useRef(0);
+  const [scoreScroll, setScoreScroll] = useState({
+    hasMore: true,
+    progress: 0.28,
+    viewport: 0,
+  });
+  const [selectedType, setSelectedType] = useState('skin_age');
   const [selectedRegion, setSelectedRegion] = useState(DEFAULT_REGION);
   const [panelOpen, setPanelOpen] = useState(false);
   const [imageZoom, setImageZoom] = useState(MIN_IMAGE_ZOOM);
@@ -478,7 +495,8 @@ export function YoucamResultsSection({
     chips.find((c) => c.type === selectedType) ?? chips[0] ?? null;
   const activeRegion =
     selected?.regions?.find((r) => r.region === selectedRegion) ?? null;
-  const isOverview = selected?.type === 'overview';
+  const isOverview = selected?.type === 'overview' || selected?.type === 'all';
+  const isSkinAge = selected?.type === 'skin_age';
   const isFototipo = selected?.type === PHOTOTYPE_TYPE;
   const activeScore = activeRegion?.score ?? selected?.score ?? null;
   const activeRegionKey = activeRegion?.region ?? DEFAULT_REGION;
@@ -495,12 +513,20 @@ export function YoucamResultsSection({
     ? skinTypeChip?.detail
       ? `Fototipo ${skinTypeChip.detail}. Describe cómo reacciona tu piel al sol (escala de Fitzpatrick).`
       : 'El fototipo describe cómo reacciona tu piel al sol según la escala de Fitzpatrick.'
-    : `${baseCopy}${skinTypeHint}`;
+    : isSkinAge
+      ? `Edad de la piel: ${skinAge != null ? `${Math.round(skinAge)} años` : '—'}${
+          chronologicalAge != null
+            ? ` · Edad cronológica: ${chronologicalAge} años`
+            : ''
+        }.${ageDiff != null ? ` Diferencia ${formatSignedYears(ageDiff)}.` : ''}`
+      : `${baseCopy}${skinTypeHint}`;
   const adviceText =
     !isFototipo &&
+    !isSkinAge &&
     activeScore != null &&
     copyType &&
-    copyType !== 'overview'
+    copyType !== 'overview' &&
+    copyType !== 'all'
       ? youcamMetricAdvice(
           copyType,
           youcamScoreBand(activeScore),
@@ -511,7 +537,7 @@ export function YoucamResultsSection({
       : null;
 
   const showBase = analysis.hasOriginalPhoto && !!analysis.imageUrl;
-  const maskUrl = isOverview || isFototipo
+  const maskUrl = isOverview || isFototipo || isSkinAge
     ? null
     : (activeRegion?.maskUrl ?? selected?.maskUrl ?? null);
   const badgeLabel =
@@ -521,10 +547,16 @@ export function YoucamResultsSection({
         : selected.label
       : selected?.type === PHOTOTYPE_TYPE
         ? 'Fototipo'
-        : youcamViewerBadgeLabel(selected?.type);
+        : isSkinAge
+          ? 'Edad de la piel'
+          : isOverview
+            ? 'Puntaje de la piel'
+            : youcamViewerBadgeLabel(selected?.type);
   const showConvention =
     !!selected &&
     selected.type !== 'overview' &&
+    selected.type !== 'all' &&
+    selected.type !== 'skin_age' &&
     selected.type !== 'hd_skin_type' &&
     selected.type !== PHOTOTYPE_TYPE &&
     selected.type !== 'hd_acne';
@@ -749,20 +781,64 @@ export function YoucamResultsSection({
         </Pressable>
       </View>
 
+      <View
+        style={styles.metricScrollWrap}
+        onLayout={(event) => {
+          const layoutWidth = event.nativeEvent.layout.width;
+          metricScrollRef.current?.measure?.(() => undefined);
+          setScoreScroll((current) => ({
+            ...current,
+            viewport: layoutWidth,
+          }));
+        }}
+      >
       <ScrollView
+        ref={metricScrollRef}
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.metricScroll}
-        contentContainerStyle={{ paddingVertical: 4 }}
+        contentContainerStyle={{ paddingVertical: 4, paddingRight: 8 }}
+        onContentSizeChange={(width) => {
+          setScoreScroll((current) => {
+            const viewport = current.viewport ?? 0;
+            const hasMore = width > viewport + 12;
+            const visible = viewport > 0 ? Math.min(1, viewport / width) : 0.28;
+            return { hasMore, progress: visible, viewport };
+          });
+        }}
+        onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) => {
+          const { contentOffset, contentSize, layoutMeasurement } =
+            event.nativeEvent;
+          metricScrollX.current = contentOffset.x;
+          const max = Math.max(1, contentSize.width - layoutMeasurement.width);
+          const ratio = Math.min(1, Math.max(0, contentOffset.x / max));
+          const visible = Math.min(
+            1,
+            layoutMeasurement.width / Math.max(1, contentSize.width),
+          );
+          const remaining =
+            contentSize.width - (contentOffset.x + layoutMeasurement.width);
+          setScoreScroll({
+            hasMore: remaining > 12,
+            progress: visible + (1 - visible) * ratio,
+            viewport: layoutMeasurement.width,
+          });
+        }}
+        scrollEventThrottle={16}
       >
         {chips.map((chip) => {
           const active = chip.type === selected?.type;
           const isBiotipo = chip.type === 'hd_skin_type';
           const isFototipoChip = chip.type === PHOTOTYPE_TYPE;
+          const isScoreChip =
+            chip.type === 'skin_age' || chip.type === 'all';
           const collapsible = COLLAPSIBLE_TYPES.has(chip.type);
           const expanded = active && panelOpen && collapsible;
           const convention =
-            chip.type !== 'overview' && !isBiotipo && !isFototipoChip
+            chip.type !== 'overview' &&
+            !isBiotipo &&
+            !isFototipoChip &&
+            !isScoreChip
               ? youcamMetricConvention(chip.type)
               : null;
           const glyphRing = isBiotipo
@@ -827,7 +903,11 @@ export function YoucamResultsSection({
                   ? 'Biotipo'
                   : isFototipoChip
                     ? 'Fototipo'
-                    : (convention?.badgeLabel ?? chip.label)}
+                    : isScoreChip
+                      ? chip.type === 'skin_age'
+                        ? 'Edad de la piel'
+                        : 'Puntaje de la piel'
+                      : (convention?.badgeLabel ?? chip.label)}
               </Text>
               {collapsible ? (
                 <View
@@ -849,6 +929,33 @@ export function YoucamResultsSection({
           );
         })}
       </ScrollView>
+      {scoreScroll.hasMore ? (
+        <Pressable
+          style={styles.metricScrollHintRow}
+          onPress={() =>
+            metricScrollRef.current?.scrollTo({
+              x: metricScrollX.current + 168,
+              animated: true,
+            })
+          }
+          accessibilityLabel="Desliza a la derecha para ver más puntajes"
+        >
+          <View style={styles.metricScrollTrack}>
+            <View
+              style={[
+                styles.metricScrollFill,
+                { width: `${Math.round(scoreScroll.progress * 100)}%` },
+              ]}
+            />
+          </View>
+          <AppIcon
+            icon={Icons.chevronRight}
+            size={16}
+            color={branding.colors.primary}
+          />
+        </Pressable>
+      ) : null}
+      </View>
 
       {selected?.type === PHOTOTYPE_TYPE && panelOpen ? (
         <View style={styles.zonePanel}>
@@ -955,10 +1062,10 @@ export function YoucamResultsSection({
         styles={styles}
         analysisId={analysis.id}
         metricType={
-          selected?.type &&
-          selected.type !== 'overview' &&
-          selected.type !== PHOTOTYPE_TYPE
-            ? selected.type
+          selected?.type && selected.type !== PHOTOTYPE_TYPE
+            ? selected.type === 'overview'
+              ? 'all'
+              : selected.type
             : null
         }
       />

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, Suspense } from 'react';
+import { useCallback, useEffect, useMemo, useState, Suspense } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -6,12 +6,13 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Canvas, type ThreeEvent } from '@react-three/fiber/native';
+import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber/native';
 import { OrbitControls, useGLTF } from '@react-three/drei/native';
 import { Asset } from 'expo-asset';
 import * as THREE from 'three';
 import {
   BODY_PARTS_INFO,
+  cameraForBodyPoint,
   inferBodyPartFromPoint,
   normalizeMeshName,
   type BodySelection,
@@ -26,11 +27,17 @@ type BodySelector3DProps = {
   initialGender?: Gender;
   /** Si true, no muestra el selector Mujer/Hombre (género del paciente). */
   lockGender?: boolean;
-  onSelect: (selection: BodySelection) => void;
+  onSelect?: (selection: BodySelection) => void;
   primaryColor?: string;
+  /** Vista de solo lectura: marca el punto y enfoca la cámara ahí. */
+  focusPoint?: [number, number, number] | null;
+  focusRegion?: string | null;
 };
 
 function normalizeModel(scene: THREE.Object3D) {
+  // useGLTF cachea la escena: normalizar dos veces desplaza el modelo
+  // y el punto guardado queda flotando.
+  if (scene.userData.piel360Normalized) return;
   scene.traverse((child) => {
     if (child instanceof THREE.Mesh) {
       child.name = normalizeMeshName(child.name);
@@ -47,22 +54,84 @@ function normalizeModel(scene: THREE.Object3D) {
   const center = scaledBox.getCenter(new THREE.Vector3());
   scene.position.sub(center);
   scene.position.y += 1.05;
+  scene.userData.piel360Normalized = true;
+}
+
+/** Acerca el punto guardado a la piel para que el marcador no flote. */
+function snapPointToBody(
+  root: THREE.Object3D,
+  point: THREE.Vector3,
+): THREE.Vector3 {
+  root.updateMatrixWorld(true);
+  const meshes: THREE.Object3D[] = [];
+  root.traverse((child) => {
+    if (child instanceof THREE.Mesh) meshes.push(child);
+  });
+  if (meshes.length === 0) return point.clone();
+
+  const axis = new THREE.Vector3(0, point.y, 0);
+  const outward = point.clone().sub(axis);
+  if (outward.lengthSq() < 1e-6) outward.set(0, 0, 1);
+  outward.normalize();
+
+  const rays = [
+    { origin: point.clone().add(outward.clone().multiplyScalar(0.9)), dir: outward.clone().negate() },
+    { origin: point.clone().add(outward.clone().multiplyScalar(-0.15)), dir: outward.clone() },
+    { origin: point.clone(), dir: outward.clone().negate() },
+    { origin: point.clone(), dir: outward.clone() },
+  ];
+
+  const raycaster = new THREE.Raycaster();
+  let best: THREE.Intersection | null = null;
+  let bestDist = Infinity;
+  for (const ray of rays) {
+    raycaster.set(ray.origin, ray.dir);
+    raycaster.far = 1.4;
+    const hits = raycaster.intersectObjects(meshes, false);
+    const hit = hits[0];
+    if (!hit) continue;
+    const dist = hit.point.distanceTo(point);
+    if (dist < bestDist) {
+      best = hit;
+      bestDist = dist;
+    }
+  }
+  if (!best || bestDist > 0.45) return point.clone();
+
+  const placed = best.point.clone();
+  const normal = best.face?.normal;
+  if (normal) {
+    const worldNormal = normal
+      .clone()
+      .transformDirection(best.object.matrixWorld)
+      .normalize();
+    placed.add(worldNormal.multiplyScalar(0.012));
+  }
+  return placed;
 }
 
 function BodyModel({
   uri,
   onSelect,
+  anchorPoint,
+  onAnchored,
 }: {
   uri: string;
-  onSelect: (region: string, point: THREE.Vector3) => void;
+  onSelect?: (region: string, point: THREE.Vector3) => void;
+  anchorPoint?: [number, number, number] | null;
+  onAnchored?: (point: [number, number, number]) => void;
 }) {
   const { scene } = useGLTF(uri);
 
   useEffect(() => {
     normalizeModel(scene);
-  }, [scene]);
+    if (!anchorPoint || !onAnchored) return;
+    const snapped = snapPointToBody(scene, new THREE.Vector3(...anchorPoint));
+    onAnchored([snapped.x, snapped.y, snapped.z]);
+  }, [scene, anchorPoint, onAnchored]);
 
   function handleClick(event: ThreeEvent<MouseEvent>) {
+    if (!onSelect) return;
     event.stopPropagation();
     const meshName = normalizeMeshName(event.object.name);
     const region = BODY_PARTS_INFO[meshName]
@@ -71,7 +140,20 @@ function BodyModel({
     onSelect(region, event.point);
   }
 
-  return <primitive object={scene} onClick={handleClick} />;
+  return <primitive object={scene} onClick={onSelect ? handleClick : undefined} />;
+}
+
+function FocusCamera({ point }: { point: [number, number, number] }) {
+  const camera = useThree((state) => state.camera);
+
+  useEffect(() => {
+    const view = cameraForBodyPoint(point);
+    camera.position.set(...view.position);
+    camera.lookAt(point[0], point[1], point[2]);
+    camera.updateProjectionMatrix();
+  }, [camera, point]);
+
+  return null;
 }
 
 /**
@@ -82,11 +164,16 @@ export function BodySelector3D({
   lockGender = false,
   onSelect,
   primaryColor = '#1e5a9e',
+  focusPoint = null,
+  focusRegion = null,
 }: BodySelector3DProps) {
   const [gender, setGender] = useState<Gender>(initialGender);
   const [modelUri, setModelUri] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [marker, setMarker] = useState<[number, number, number] | null>(null);
+  const [anchoredPoint, setAnchoredPoint] = useState<
+    [number, number, number] | null
+  >(null);
   const [regionId, setRegionId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -97,8 +184,9 @@ export function BodySelector3D({
     let cancelled = false;
     setModelUri(null);
     setLoadError(null);
-    setMarker(null);
-    setRegionId(null);
+    setMarker(focusPoint);
+    setAnchoredPoint(null);
+    setRegionId(focusRegion);
 
     (async () => {
       try {
@@ -120,23 +208,34 @@ export function BodySelector3D({
     return () => {
       cancelled = true;
     };
-  }, [gender]);
+  }, [gender, focusPoint, focusRegion]);
 
   const regionInfo = useMemo(
     () => (regionId ? BODY_PARTS_INFO[regionId] : null),
     [regionId],
   );
 
+  const handleAnchored = useCallback((point: [number, number, number]) => {
+    setAnchoredPoint(point);
+    setMarker(point);
+  }, []);
+
   function handleSelect(region: string, point: THREE.Vector3) {
     setMarker([point.x, point.y, point.z]);
     setRegionId(region);
-    onSelect({
+    onSelect?.({
       bodyRegion: region,
       xCoord: point.x,
       yCoord: point.y,
       zCoord: point.z,
     });
   }
+
+  const cameraFocus = anchoredPoint ?? focusPoint;
+  const cameraView = cameraFocus
+    ? cameraForBodyPoint(cameraFocus)
+    : { position: [0, 1.6, 3.2] as [number, number, number], target: [0, 1.2, 0] as [number, number, number] };
+  const readOnly = Boolean(focusPoint);
 
   return (
     <View style={styles.wrap}>
@@ -177,7 +276,7 @@ export function BodySelector3D({
         ) : (
           <Canvas
             style={StyleSheet.absoluteFill}
-            camera={{ position: [0, 1.6, 3.2], fov: 40 }}
+            camera={{ position: cameraView.position, fov: 40 }}
             gl={{ antialias: true }}
             onCreated={({ gl }) => {
               const renderer = gl as unknown as { setClearColor?: (c: string) => void };
@@ -187,19 +286,26 @@ export function BodySelector3D({
             <ambientLight intensity={0.75} />
             <directionalLight position={[2, 3, 4]} intensity={1.1} />
             <Suspense fallback={null}>
-              <BodyModel key={modelUri} uri={modelUri} onSelect={handleSelect} />
+              <BodyModel
+                key={modelUri}
+                uri={modelUri}
+                onSelect={readOnly ? undefined : handleSelect}
+                anchorPoint={readOnly ? focusPoint : null}
+                onAnchored={readOnly ? handleAnchored : undefined}
+              />
             </Suspense>
+            {cameraFocus ? <FocusCamera point={cameraFocus} /> : null}
             {marker ? (
               <mesh position={marker}>
-                <sphereGeometry args={[0.025, 16, 16]} />
+                <sphereGeometry args={[0.028, 16, 16]} />
                 <meshBasicMaterial color={primaryColor} />
               </mesh>
             ) : null}
             <OrbitControls
               enablePan={false}
-              minDistance={1.2}
+              minDistance={0.7}
               maxDistance={5}
-              target={[0, 1.2, 0]}
+              target={cameraView.target}
             />
           </Canvas>
         )}
@@ -207,11 +313,14 @@ export function BodySelector3D({
 
       {regionInfo ? (
         <Text style={styles.selected}>
-          Zona: {regionInfo.label} — {regionInfo.description}
+          {readOnly ? 'Zona seleccionada' : 'Zona'}: {regionInfo.label}
+          {readOnly ? '' : ` — ${regionInfo.description}`}
         </Text>
       ) : (
         <Text style={styles.hint}>
-          Gira el modelo y toca la zona a analizar
+          {readOnly
+            ? 'Ubicación registrada en la figura'
+            : 'Gira el modelo y toca la zona a analizar'}
         </Text>
       )}
     </View>

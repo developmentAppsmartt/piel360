@@ -11,14 +11,17 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import { AboutPiel360Modal } from '../../../components/about/AboutPiel360';
 import { AppIcon } from '../../../components/AppIcon';
 import { Icons, type AppIconName } from '../../../components/icons';
+import { LegalDocumentModal } from '../../../components/legal/LegalDocumentModal';
 import { useAuth } from '../../../context/AuthContext';
 import { useBranding } from '../../../context/BrandingContext';
 import {
   analysisProviderLabel,
   analysisStatus,
 } from '../../../data/analysisProviderLabel';
+import type { LegalDocId } from '../../../data/legal/documents';
 import { ApiError } from '../../../services/api.client';
 import { agendaService } from '../../../services/agenda.service';
 import { analysesService } from '../../../services/analyses.service';
@@ -28,14 +31,15 @@ import type { PatientAnalysisSummary } from '../../../types/analysis';
 import type { PatientProfile } from '../../../types/patient';
 import { patientDisplayName } from '../../../types/patient';
 import { resolveMediaUrl } from '../../../utils/mediaUrl';
+import { SupportChatView } from '../../support/SupportChatView';
 import { AnalysisDetailView } from '../analyses/AnalysisDetailView';
 import { AccountDrawer } from '../patients/components/AccountDrawer';
 import { DoctorHeader } from '../patients/components/DoctorHeader';
+import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
 import { PaymentsBillingView } from '../payments/PaymentsBillingView';
 import { PaymentsView } from '../payments/PaymentsView';
 import { DiagnosisLanguageView } from '../settings/DiagnosisLanguageView';
 import { createDoctorHomeStyles } from './styles/home.styles';
-import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
 import { DoctorStatsView } from './DoctorStatsView';
 
 type DoctorHomeViewProps = {
@@ -126,7 +130,10 @@ export function DoctorHomeView({
   const [showingPayments, setShowingPayments] = useState(false);
   const [showingLanguage, setShowingLanguage] = useState(false);
   const [showingBilling, setShowingBilling] = useState(false);
+  const [showingSupport, setShowingSupport] = useState(false);
   const [showingStats, setShowingStats] = useState(false);
+  const [showingAbout, setShowingAbout] = useState(false);
+  const [legalDoc, setLegalDoc] = useState<LegalDocId | null>(null);
   const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(
     null,
   );
@@ -224,17 +231,20 @@ export function DoctorHomeView({
       setShowingPayments(false);
       setShowingBilling(false);
       setShowingLanguage(true);
-    } else if (id === 'pagos') {
+    }     else if (id === 'pagos') {
       setShowingPayments(false);
       setShowingLanguage(false);
       setShowingBilling(true);
-    }
-    else if (id === 'acerca')
-      Alert.alert(
-        'Acerca de Piel 360',
-        'Piel 360 AI — versión 1.0.0\nApoyo diagnóstico dermatológico con IA.',
-      );
-    else
+    } else if (id === 'soporte') {
+      setShowingPayments(false);
+      setShowingLanguage(false);
+      setShowingBilling(false);
+      setShowingSupport(true);
+    } else if (id === 'acuerdo') {
+      setLegalDoc('terms-professional');
+    } else if (id === 'acerca') {
+      setShowingAbout(true);
+    } else
       Alert.alert(
         'Próximamente',
         'Esta opción del menú se conectará en una siguiente iteración.',
@@ -291,6 +301,10 @@ export function DoctorHomeView({
     },
   ];
 
+  if (showingSupport) {
+    return <SupportChatView onClose={() => setShowingSupport(false)} />;
+  }
+
   if (showingLanguage) {
     return (
       <>
@@ -304,6 +318,11 @@ export function DoctorHomeView({
           onClose={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
           variant="doctor"
+        />
+        <LegalDocumentModal
+          docId={legalDoc}
+          visible={legalDoc != null}
+          onClose={() => setLegalDoc(null)}
         />
       </>
     );
@@ -323,6 +342,11 @@ export function DoctorHomeView({
           onSelect={handleMenuSelect}
           variant="doctor"
         />
+        <LegalDocumentModal
+          docId={legalDoc}
+          visible={legalDoc != null}
+          onClose={() => setLegalDoc(null)}
+        />
       </>
     );
   }
@@ -340,6 +364,11 @@ export function DoctorHomeView({
           onClose={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
           variant="doctor"
+        />
+        <LegalDocumentModal
+          docId={legalDoc}
+          visible={legalDoc != null}
+          onClose={() => setLegalDoc(null)}
         />
       </>
     );
@@ -377,6 +406,11 @@ export function DoctorHomeView({
           onSelect={handleMenuSelect}
           variant="doctor"
         />
+        <LegalDocumentModal
+          docId={legalDoc}
+          visible={legalDoc != null}
+          onClose={() => setLegalDoc(null)}
+        />
       </>
     );
   }
@@ -386,7 +420,6 @@ export function DoctorHomeView({
       <StatusBar style="light" />
       <DoctorHeader
         styles={headerStyles}
-        messageCount={1}
         onOpenMenu={() => setMenuOpen(true)}
         onOpenMessages={onOpenMessages}
         onOpenGift={() =>
@@ -616,6 +649,15 @@ export function DoctorHomeView({
         onClose={() => setMenuOpen(false)}
         onSelect={handleMenuSelect}
         variant="doctor"
+      />
+      <LegalDocumentModal
+        docId={legalDoc}
+        visible={legalDoc != null}
+        onClose={() => setLegalDoc(null)}
+      />
+      <AboutPiel360Modal
+        visible={showingAbout}
+        onClose={() => setShowingAbout(false)}
       />
     </View>
   );

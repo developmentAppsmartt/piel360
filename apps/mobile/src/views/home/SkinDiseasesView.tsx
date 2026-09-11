@@ -2,6 +2,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { AppIcon } from '../../components/AppIcon';
 import { Icons } from '../../components/icons';
 import { useBranding } from '../../context/BrandingContext';
+import { bodyRegionLabel } from '../../data/bodyRegions';
 import type { PatientAnalysisSummary } from '../../types/analysis';
 import { createHomeStyles } from './styles/home.styles';
 
@@ -102,7 +103,7 @@ export function SkinDiseasesView({
                   {diagnosisOf(item)}
                 </Text>
                 <Text style={styles.historyItemMeta}>
-                  {[item.bodyRegion, formatStamp(item.createdAt)]
+                  {[bodyRegionLabel(item.bodyRegion), formatStamp(item.createdAt)]
                     .filter(Boolean)
                     .join(' · ')}
                 </Text>

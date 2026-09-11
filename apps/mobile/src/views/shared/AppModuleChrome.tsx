@@ -2,8 +2,10 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { PaymentsBillingView } from '../doctor/payments/PaymentsBillingView';
+import { SupportChatView } from '../support/SupportChatView';
 import { DiagnosisLanguageView } from '../doctor/settings/DiagnosisLanguageView';
 import { LegalDocumentModal } from '../../components/legal/LegalDocumentModal';
+import { AboutPiel360Content } from '../../components/about/AboutPiel360';
 import { useAuth } from '../../context/AuthContext';
 import { useBranding } from '../../context/BrandingContext';
 import type { LegalDocId } from '../../data/legal/documents';
@@ -25,14 +27,6 @@ const INFO_COPY: Partial<Record<AccountMenuId, { title: string; body: string }>>
       title: 'Premios',
       body: 'Aquí verás recompensas y beneficios de Piel 360. Este módulo se activará en una próxima versión.',
     },
-    soporte: {
-      title: 'Soporte',
-      body: '¿Necesitas ayuda? Escribe a soporte@piel360.com o usa el chat con tu médico desde la pestaña Chat.',
-    },
-    acerca: {
-      title: 'Acerca de Piel 360',
-      body: 'Piel 360 AI — versión 1.0.0\n\nApoyo diagnóstico dermatológico con inteligencia artificial. Esta app no sustituye una consulta médica presencial.',
-    },
   };
 
 type AppModuleChromeProps = {
@@ -52,7 +46,7 @@ export function AppModuleChrome({
   onOpenProfile,
   showBack,
   onBack,
-  messageCount = 1,
+  messageCount = 0,
   onConfig,
   onSubscription,
 }: AppModuleChromeProps) {
@@ -64,9 +58,9 @@ export function AppModuleChrome({
   );
   const [menuOpen, setMenuOpen] = useState(false);
   const [overlay, setOverlay] = useState<AccountMenuId | null>(null);
-  const [accountPanel, setAccountPanel] = useState<'idioma' | 'pagos' | null>(
-    null,
-  );
+  const [accountPanel, setAccountPanel] = useState<
+    'idioma' | 'pagos' | 'soporte' | null
+  >(null);
   const [legalDoc, setLegalDoc] = useState<LegalDocId | null>(null);
   const variant = isClinicalPanelUser(user) ? 'doctor' : 'patient';
   const info = overlay ? INFO_COPY[overlay] : null;
@@ -87,6 +81,10 @@ export function AppModuleChrome({
         />
       </>
     );
+  }
+
+  if (accountPanel === 'soporte') {
+    return <SupportChatView onClose={() => setAccountPanel(null)} />;
   }
 
   if (accountPanel === 'pagos') {
@@ -117,6 +115,10 @@ export function AppModuleChrome({
       setAccountPanel('pagos');
       return;
     }
+    if (id === 'soporte') {
+      setAccountPanel('soporte');
+      return;
+    }
     setAccountPanel(null);
     if (id === 'salir') {
       void logout();
@@ -142,7 +144,7 @@ export function AppModuleChrome({
       return;
     }
     if (id === 'acuerdo') {
-      setLegalDoc('terms');
+      setLegalDoc(variant === 'doctor' ? 'terms-professional' : 'terms');
       return;
     }
     if (id === 'seguridad' || id === 'compartir') {
@@ -152,24 +154,35 @@ export function AppModuleChrome({
       );
       return;
     }
+    if (id === 'acerca') {
+      setOverlay('acerca');
+      return;
+    }
     if (INFO_COPY[id]) {
       setOverlay(id);
     }
   }
+
+  const showingAbout = overlay === 'acerca';
+  const showingInfo = Boolean(info);
 
   return (
     <View style={{ flex: 1 }}>
       <StatusBar style="light" />
       <DoctorHeader
         styles={headerStyles}
-        showBack={Boolean(info) || showBack}
-        onBack={info ? () => setOverlay(null) : onBack}
+        showBack={showingAbout || showingInfo || showBack}
+        onBack={
+          showingAbout || showingInfo ? () => setOverlay(null) : onBack
+        }
         messageCount={messageCount}
         onOpenMenu={() => setMenuOpen(true)}
         onOpenMessages={onOpenMessages}
         onOpenGift={() => setOverlay('premios')}
       />
-      {info ? (
+      {showingAbout ? (
+        <AboutPiel360Content />
+      ) : showingInfo && info ? (
         <ScrollView
           style={{ flex: 1, backgroundColor: '#FFFFFF' }}
           contentContainerStyle={{ padding: 24, paddingBottom: 40 }}

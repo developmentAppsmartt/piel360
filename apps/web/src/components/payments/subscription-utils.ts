@@ -20,6 +20,14 @@ export function providerLabel(slug: string, fallbackName?: string) {
   return fromMap ?? fallbackName ?? slug;
 }
 
+/** Oculta nombres de proveedor (Skiniver / Perfect Corp) en textos de bolsa al usuario. */
+export function maskVendorPoolMessage(message: string): string {
+  return message
+    .replace(/\bPerfect\s*Corp\b/gi, "Análisis Estético")
+    .replace(/\bPerfectCorp\b/gi, "Análisis Estético")
+    .replace(/\bSkiniver\b/gi, "Análisis Dermatológico");
+}
+
 export function formatAdminDate(iso: string | null) {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("es-CO", {

@@ -5,12 +5,33 @@ export type SkinAgeRecoItem = {
   name: string;
   description: string | null;
   stepsCount?: number;
+  categoryName?: string | null;
+  productUrl?: string | null;
+  imageUrl?: string | null;
+  steps?: {
+    id: string;
+    order: number;
+    title: string;
+    description: string | null;
+    mediaUrl: string | null;
+    mediaType: 'image' | 'video' | 'gif' | null;
+    productId?: string | null;
+    product?: {
+      id: string;
+      productName: string;
+      productType: string;
+      productUrl?: string | null;
+      imageUrl?: string | null;
+    } | null;
+  }[];
   items?: {
     id: string;
     productId: string;
     productName: string;
     productType: string;
     note: string | null;
+    imageUrl?: string | null;
+    productUrl?: string | null;
   }[];
 };
 
@@ -43,7 +64,7 @@ export type SkinAgeRecommended = {
 export const skinAgeRulesService = {
   async recommendForAnalysis(analysisId: string): Promise<SkinAgeRecommended> {
     return apiRequest<SkinAgeRecommended>(
-      `/skin-age-rules/recommended/${encodeURIComponent(analysisId)}`,
+      `/analyses/${encodeURIComponent(analysisId)}/care-recommendations`,
       { auth: true },
     );
   },

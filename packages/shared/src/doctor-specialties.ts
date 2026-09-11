@@ -14,11 +14,37 @@ export const PROVIDER_USAGE_PERMISSION_NAMES = Object.values(
   PROVIDER_USAGE_PERMISSIONS,
 ) as readonly (typeof PROVIDER_USAGE_PERMISSIONS)[AnalysisProviderSlug][];
 
+/**
+ * Permisos del rol paciente para ejecutar análisis solicitados (app móvil).
+ * No son módulos `clinical.*`: no deben promover el panel a médico.
+ */
+export const PATIENT_PROVIDER_RUN_PERMISSIONS: Partial<
+  Record<AnalysisProviderSlug, `patient_run_${AnalysisProviderSlug}`>
+> = {
+  youcam: "patient_run_youcam",
+  fitzpatrick: "patient_run_fitzpatrick",
+};
+
+export const PATIENT_PROVIDER_RUN_PERMISSION_NAMES = Object.values(
+  PATIENT_PROVIDER_RUN_PERMISSIONS,
+) as readonly string[];
+
 export function providerSlugFromUsagePermission(
   permission: string,
 ): AnalysisProviderSlug | null {
-  const entry = Object.entries(PROVIDER_USAGE_PERMISSIONS).find(
+  const professional = Object.entries(PROVIDER_USAGE_PERMISSIONS).find(
     ([, name]) => name === permission,
   );
-  return (entry?.[0] as AnalysisProviderSlug | undefined) ?? null;
+  if (professional) return professional[0] as AnalysisProviderSlug;
+
+  const patient = Object.entries(PATIENT_PROVIDER_RUN_PERMISSIONS).find(
+    ([, name]) => name === permission,
+  );
+  return (patient?.[0] as AnalysisProviderSlug | undefined) ?? null;
+}
+
+export function patientRunPermissionForProvider(
+  slug: AnalysisProviderSlug,
+): string | null {
+  return PATIENT_PROVIDER_RUN_PERMISSIONS[slug] ?? null;
 }

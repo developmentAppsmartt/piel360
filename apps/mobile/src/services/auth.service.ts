@@ -36,10 +36,13 @@ export const authService = {
     return allowed;
   },
 
-  async sendPhoneOtp(phone: string): Promise<void> {
+  async sendPhoneOtp(
+    phone: string,
+    purpose: 'register' | 'reset' = 'register',
+  ): Promise<void> {
     await apiRequest<{ ok: true }>('/auth/otp/phone/send', {
       method: 'POST',
-      body: { phone },
+      body: { phone, purpose },
     });
   },
 
@@ -54,15 +57,17 @@ export const authService = {
   async verifyPhoneOtp(
     phone: string,
     code: string,
-  ): Promise<{ ticket: string }> {
-    const result = await apiRequest<{ ok: true; ticket: string }>(
-      '/auth/otp/phone/verify',
-      {
-        method: 'POST',
-        body: { phone, code: code.trim() },
-      },
-    );
-    return { ticket: result.ticket };
+    purpose: 'register' | 'reset' = 'register',
+  ): Promise<{ ticket?: string; token?: string }> {
+    const result = await apiRequest<{
+      ok: true;
+      ticket?: string;
+      token?: string;
+    }>('/auth/otp/phone/verify', {
+      method: 'POST',
+      body: { phone, code: code.trim(), purpose },
+    });
+    return { ticket: result.ticket, token: result.token };
   },
 
   async confirmPhoneVerification(phone: string, phoneTicket: string): Promise<void> {
@@ -134,6 +139,23 @@ export const authService = {
 
   async logout(): Promise<void> {
     await storageService.clearSession();
+  },
+
+  /** Renueva access/refresh re-resolviendo rol desde BD. */
+  async refreshSession(): Promise<AuthResult | null> {
+    const refreshToken = await storageService.getRefreshToken();
+    if (!refreshToken) return null;
+    try {
+      const result = await apiRequest<AuthResult>('/auth/refresh', {
+        method: 'POST',
+        body: { refreshToken },
+      });
+      const allowed = assertMobileLoginAllowed(result);
+      await storageService.saveSession(allowed);
+      return allowed;
+    } catch {
+      return null;
+    }
   },
 
   async hydrateSession(): Promise<AuthUser | null> {

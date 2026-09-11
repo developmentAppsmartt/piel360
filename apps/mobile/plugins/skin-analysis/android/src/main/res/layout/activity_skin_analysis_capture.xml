@@ -15,6 +15,7 @@
     android:layout_width="@dimen/skin_oval_width"
     android:layout_height="@dimen/skin_oval_height"
     android:layout_gravity="center"
+    android:layout_marginTop="@dimen/skin_oval_margin_top"
     android:background="@drawable/skin_analysis_oval"
     android:alpha="0.98" />
 
@@ -39,7 +40,7 @@
       android:shadowRadius="6"
       android:text="Inicializando…"
       android:textColor="#FFFFFF"
-      android:textSize="26sp"
+      android:textSize="@dimen/skin_guide_text"
       android:textStyle="bold" />
 
     <TextView
@@ -53,7 +54,7 @@
       android:shadowDy="2"
       android:shadowRadius="8"
       android:textColor="#FFFFFF"
-      android:textSize="72sp"
+      android:textSize="@dimen/skin_countdown_text"
       android:textStyle="bold"
       android:visibility="gone" />
   </LinearLayout>
@@ -71,30 +72,30 @@
     android:layout_height="wrap_content"
     android:layout_gravity="top"
     android:orientation="vertical"
-    android:paddingTop="36dp"
+    android:paddingTop="@dimen/skin_top_padding"
     android:paddingHorizontal="16dp">
 
     <RelativeLayout
       android:layout_width="match_parent"
-      android:layout_height="44dp">
+      android:layout_height="@dimen/skin_header_row_height">
 
       <TextView
         android:id="@+id/btn_back"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:layout_width="@dimen/skin_header_btn"
+        android:layout_height="@dimen/skin_header_btn"
         android:layout_alignParentStart="true"
         android:layout_centerVertical="true"
         android:background="@drawable/skin_analysis_circle_btn"
         android:gravity="center"
         android:text="‹"
         android:textColor="#222222"
-        android:textSize="28sp"
+        android:textSize="@dimen/skin_header_btn_text"
         android:textStyle="bold" />
 
       <ImageView
         android:id="@+id/btn_switch_camera"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:layout_width="@dimen/skin_header_btn"
+        android:layout_height="@dimen/skin_header_btn"
         android:layout_alignParentEnd="true"
         android:layout_centerVertical="true"
         android:background="@drawable/skin_analysis_circle_btn"
@@ -107,7 +108,8 @@
     <LinearLayout
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
-      android:layout_marginTop="10dp"
+      android:layout_marginTop="@dimen/skin_badge_row_margin_top"
+      android:layout_marginHorizontal="@dimen/skin_badge_row_margin_h"
       android:gravity="center"
       android:orientation="horizontal"
       android:weightSum="3">
@@ -115,52 +117,52 @@
       <TextView
         android:id="@+id/badge_lighting"
         android:layout_width="0dp"
-        android:layout_height="48dp"
-        android:layout_marginEnd="4dp"
+        android:layout_height="@dimen/skin_badge_height"
+        android:layout_marginEnd="@dimen/skin_badge_gap"
         android:layout_weight="1"
         android:background="@drawable/skin_badge_pending"
         android:gravity="center"
         android:maxLines="2"
-        android:paddingHorizontal="4dp"
-        android:paddingVertical="6dp"
+        android:paddingHorizontal="@dimen/skin_badge_padding_h"
+        android:paddingVertical="@dimen/skin_badge_padding_v"
         android:text="Iluminación"
         android:textAlignment="center"
         android:textColor="#FFFFFF"
-        android:textSize="11sp"
+        android:textSize="@dimen/skin_badge_text"
         android:textStyle="bold" />
 
       <TextView
         android:id="@+id/badge_pose"
         android:layout_width="0dp"
-        android:layout_height="48dp"
-        android:layout_marginHorizontal="4dp"
+        android:layout_height="@dimen/skin_badge_height"
+        android:layout_marginHorizontal="@dimen/skin_badge_gap"
         android:layout_weight="1"
         android:background="@drawable/skin_badge_pending"
         android:gravity="center"
         android:maxLines="2"
-        android:paddingHorizontal="4dp"
-        android:paddingVertical="6dp"
+        android:paddingHorizontal="@dimen/skin_badge_padding_h"
+        android:paddingVertical="@dimen/skin_badge_padding_v"
         android:text="Mirada recta"
         android:textAlignment="center"
         android:textColor="#FFFFFF"
-        android:textSize="11sp"
+        android:textSize="@dimen/skin_badge_text"
         android:textStyle="bold" />
 
       <TextView
         android:id="@+id/badge_face"
         android:layout_width="0dp"
-        android:layout_height="48dp"
-        android:layout_marginStart="4dp"
+        android:layout_height="@dimen/skin_badge_height"
+        android:layout_marginStart="@dimen/skin_badge_gap"
         android:layout_weight="1"
         android:background="@drawable/skin_badge_pending"
         android:gravity="center"
         android:maxLines="2"
-        android:paddingHorizontal="4dp"
-        android:paddingVertical="6dp"
+        android:paddingHorizontal="@dimen/skin_badge_padding_h"
+        android:paddingVertical="@dimen/skin_badge_padding_v"
         android:text="Posición de la cara"
         android:textAlignment="center"
         android:textColor="#FFFFFF"
-        android:textSize="11sp"
+        android:textSize="@dimen/skin_badge_text"
         android:textStyle="bold" />
     </LinearLayout>
   </LinearLayout>

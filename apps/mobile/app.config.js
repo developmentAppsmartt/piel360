@@ -52,6 +52,15 @@ export default {
     'expo-secure-store',
     'expo-image',
     'expo-web-browser',
+    'expo-video',
+    [
+      'expo-splash-screen',
+      {
+        backgroundColor: '#FFFFFF',
+        image: './assets/splash-icon.png',
+        resizeMode: 'contain',
+      },
+    ],
     [
       'expo-location',
       {

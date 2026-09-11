@@ -97,4 +97,12 @@ export class UpdatePatientDto {
   @IsOptional()
   @IsString()
   fitzpatrickType?: string;
+
+  /**
+   * Solo superadmin/monitor: asigna o desasigna el profesional
+   * (`doctors.id` / columna `doctor_id`). `null` o `""` quita la asignación.
+   */
+  @IsOptional()
+  @IsString()
+  doctor_id?: string | null;
 }

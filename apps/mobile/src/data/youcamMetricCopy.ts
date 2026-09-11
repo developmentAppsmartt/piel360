@@ -3,6 +3,9 @@
 const COPY: Record<string, string> = {
   overview:
     'Piel 360 usa modelos de aprendizaje profundo entrenados con decenas de miles de imágenes para estimar la edad de la piel y asignar un puntaje de salud facial.',
+  all: 'Puntaje global de salud de la piel. Al seleccionarlo se muestran rutinas, productos, tratamientos y suplementos configurados para este puntaje.',
+  skin_age:
+    'Edad estimada de la piel en años. Al seleccionarla se muestran las recomendaciones configuradas para esa edad.',
   hd_skin_type:
     'El diagnóstico identifica zonas T y U para clasificar el tipo de piel (grasa, normal o seca) y orientar el cuidado diario.',
   hd_acne:

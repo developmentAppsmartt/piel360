@@ -53,6 +53,20 @@ export function resolveUserPrimaryPanel(
     return "admin";
   }
 
+  const hasPatientRole = roleNames.includes("patient");
+  const hasClinicalCoreRole =
+    roleNames.includes("doctor") || roleNames.includes("empresa");
+
+  // Paciente puro (ficha patient sin doctor/empresa): nunca promover a clinical
+  // por permisos de análisis (`use_provider_*`, `clinical.analyses`, etc.).
+  if (hasPatientRole && !hasClinicalCoreRole) {
+    return "patient";
+  }
+  // Misma regla por perfil: usuario CRM con Patient y sin Doctor.
+  if (options?.hasPatientProfile && !hasClinicalCoreRole) {
+    return "patient";
+  }
+
   const inferred = inferPrimaryPanelFromPermissions(permissions);
   if (inferred) return inferred;
 
@@ -61,10 +75,11 @@ export function resolveUserPrimaryPanel(
     .filter(isPrimaryPanel);
 
   if (panels.includes("admin")) return "admin";
-  if (panels.includes("clinical")) return "clinical";
+  if (panels.includes("clinical") && hasClinicalCoreRole) return "clinical";
   if (panels.includes("patient")) return "patient";
+  if (panels.includes("clinical")) return "clinical";
 
-  if (options?.hasPatientProfile) return "patient";
+  if (options?.hasPatientProfile || hasPatientRole) return "patient";
   return "clinical";
 }
 

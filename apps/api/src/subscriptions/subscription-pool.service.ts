@@ -86,7 +86,7 @@ export class SubscriptionPoolService {
     const available = await this.getSkiniverAvailable(db);
     if (available < required) {
       throw new BadRequestException(
-        `Bolsa Skiniver insuficiente: hay ${available} créditos disponibles y se requieren ${required}.`,
+        `Bolsa Análisis Dermatológico insuficiente: hay ${available} créditos disponibles y se requieren ${required}.`,
       );
     }
   }

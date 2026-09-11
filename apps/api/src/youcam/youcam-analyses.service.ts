@@ -69,10 +69,16 @@ export class YoucamAnalysesService {
     await this.patients.findOne(dto.patientId, currentUser); // scoping, igual que Skiniver
 
     const userId = BigInt(currentUser.sub);
-    await this.specialtyAccess.assertCanUseProvider(userId, YOUCAM_PROVIDER_SLUG);
+    await this.specialtyAccess.assertCanUseProvider(userId, YOUCAM_PROVIDER_SLUG, {
+      patientId: dto.patientId,
+    });
+    const billingUserId = await this.subscriptions.resolveBillingUserIdForAnalysis(
+      userId,
+      dto.patientId,
+    );
     const subscription = await this.subscriptions.findActiveForUser(
       this.prisma,
-      userId,
+      billingUserId,
       YOUCAM_PROVIDER_SLUG,
     );
     if (!subscription) {

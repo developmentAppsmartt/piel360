@@ -318,7 +318,7 @@ function buildDoctorSections(doctor?: DoctorProfile | null): ProfileSectionConfi
         {
           id: 'acerca',
           label: 'Acerca de',
-          value: 'Versión 1.2.0',
+          value: 'Versión 1.0.0',
           kind: 'info',
         },
       ],
@@ -493,19 +493,12 @@ function buildPatientSections(patient?: PatientProfileDisplay | null): ProfileSe
       title: 'Seguridad',
       rows: [
         { id: 'password', label: 'Cambiar Contraseña', kind: 'nav' },
-        {
-          id: 'biometria',
-          label: 'Autenticación Biométrica',
-          kind: 'toggle',
-          toggleDefault: false,
-        },
       ],
     },
     {
       id: 'soporte',
       title: 'Soporte',
       rows: [
-        { id: 'ayuda', label: 'Ayuda y Tutoriales', kind: 'nav' },
         {
           id: 'contacto',
           label: 'Contactar Soporte',
@@ -516,7 +509,7 @@ function buildPatientSections(patient?: PatientProfileDisplay | null): ProfileSe
         {
           id: 'acerca',
           label: 'Acerca de',
-          value: 'Versión 1.2.0',
+          value: 'Versión 1.0.0',
           kind: 'info',
         },
       ],

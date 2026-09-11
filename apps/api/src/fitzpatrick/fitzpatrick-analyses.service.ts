@@ -49,10 +49,15 @@ export class FitzpatrickAnalysesService {
     await this.specialtyAccess.assertCanUseProvider(
       userId,
       FITZPATRICK_PROVIDER_SLUG,
+      { patientId: dto.patientId },
+    );
+    const billingUserId = await this.subscriptions.resolveBillingUserIdForAnalysis(
+      userId,
+      dto.patientId,
     );
     const subscription = await this.subscriptions.findActiveForUser(
       this.prisma,
-      userId,
+      billingUserId,
       FITZPATRICK_PROVIDER_SLUG,
     );
     if (!subscription) {

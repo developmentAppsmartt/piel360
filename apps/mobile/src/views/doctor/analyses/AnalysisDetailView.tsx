@@ -39,6 +39,7 @@ import type { NosologyItem } from '../../../types/nosology';
 type AnalysisDetailViewProps = {
   analysisId: string;
   patientName?: string;
+  patientGender?: string | null;
   /** Si false, oculta compartir y confirmar (vista paciente). */
   canShare?: boolean;
   onBack: () => void;
@@ -68,11 +69,13 @@ async function enrichAnalysisPatient(
   let firstName = detail.patient?.firstName ?? '';
   let lastName = detail.patient?.lastName ?? '';
   let birthDate = detail.patient?.birthDate ?? null;
+  let gender = detail.patient?.gender ?? null;
 
   try {
     const profile = await patientsService.getById(detail.patientId);
     firstName = profile.firstName;
     lastName = profile.lastName;
+    gender = profile.gender ?? gender;
     skinType = profile.skinType ?? skinType;
     // Perfil solo como respaldo; el confirmado manda.
     fitzpatrickType = profile.fitzpatrickType ?? null;
@@ -113,6 +116,7 @@ async function enrichAnalysisPatient(
       firstName,
       lastName,
       birthDate,
+      gender,
       skinType,
       fitzpatrickType,
     },
@@ -134,6 +138,7 @@ function parseFitzpatrickScale(
 export function AnalysisDetailView({
   analysisId,
   patientName,
+  patientGender,
   canShare,
   onBack,
   onOpenMenu,
@@ -163,6 +168,11 @@ export function AnalysisDetailView({
   const [skiniverView, setSkiniverView] = useState<'stats' | 'detail'>('stats');
   const [nosologyPickerOpen, setNosologyPickerOpen] = useState(false);
   const [correcting, setCorrecting] = useState(false);
+  const [skiniverNotesOpen, setSkiniverNotesOpen] = useState(false);
+  const [skiniverNotes, setSkiniverNotes] = useState('');
+  const [selectedNosology, setSelectedNosology] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     setSkiniverView('stats');
@@ -281,19 +291,46 @@ export function AnalysisDetailView({
     );
   }
 
-  async function handleNosologySelected(item: NosologyItem) {
-    if (!analysis || correcting) return;
+  function openSkiniverCorrection() {
+    setSkiniverNotes(analysis?.doctorNotes?.trim() ?? '');
+    setSelectedNosology(
+      analysis?.isCorrected ? analysis.finalDiagnosis ?? null : null,
+    );
+    setSkiniverNotesOpen(true);
+    setSkiniverView('detail');
+    setNosologyPickerOpen(true);
+  }
+
+  async function handleSaveSkiniverNotes() {
+    if (!analysis) return;
+    const notes = skiniverNotes.trim();
+    const nosology = selectedNosology?.trim() ?? '';
+    if (!nosology) {
+      Alert.alert(
+        'Falta la nosología',
+        'Selecciona una nosología y describe el diagnóstico en observaciones.',
+      );
+      setNosologyPickerOpen(true);
+      return;
+    }
+    if (!notes) {
+      Alert.alert(
+        'Faltan las observaciones',
+        'Describe el diagnóstico en observaciones antes de guardar.',
+      );
+      return;
+    }
     setCorrecting(true);
     try {
       await handleConfirm({
         isCorrected: true,
-        finalDiagnosis: item.name,
+        finalDiagnosis: nosology,
+        doctorNotes: notes,
       });
-      setNosologyPickerOpen(false);
-      setSkiniverView('detail');
+      setSkiniverNotesOpen(false);
     } catch (err) {
       Alert.alert(
-        'No se pudo corregir',
+        'No se pudo guardar',
         err instanceof ApiError
           ? err.message
           : 'Inténtalo de nuevo en unos segundos.',
@@ -301,6 +338,13 @@ export function AnalysisDetailView({
     } finally {
       setCorrecting(false);
     }
+  }
+
+  function handleNosologySelected(item: NosologyItem) {
+    setSelectedNosology(item.name);
+    setNosologyPickerOpen(false);
+    setSkiniverNotesOpen(true);
+    setSkiniverView('detail');
   }
 
   const canConfirm =
@@ -352,7 +396,6 @@ export function AnalysisDetailView({
       <StatusBar style="light" />
       <DoctorHeader
         styles={headerStyles}
-        messageCount={1}
         onOpenMenu={onOpenMenu}
         onOpenMessages={onOpenMessages}
       />
@@ -486,24 +529,46 @@ export function AnalysisDetailView({
             {isSkiniver ? (
               <SkiniverResultsSection
                 analysis={analysis}
+                patientGender={patientGender ?? analysis.patient?.gender}
                 view={skiniverView}
                 onViewChange={setSkiniverView}
+                observationsEditing={skiniverNotesOpen}
+                observationsValue={skiniverNotes}
+                onObservationsChange={setSkiniverNotes}
+                onSaveObservations={() => void handleSaveSkiniverNotes()}
+                observationsSaving={correcting}
+                selectedNosology={selectedNosology}
+                onPickNosology={() => setNosologyPickerOpen(true)}
                 detailFooter={
                   canConfirm ? (
-                    analysis.isConfirmed ? (
-                      <Text style={styles.confirmStatus}>
-                        Análisis{' '}
-                        {analysis.isCorrected ? 'corregido' : 'confirmado'}
-                        {analysis.finalDiagnosis
-                          ? `: ${analysis.finalDiagnosis}`
-                          : '.'}
-                      </Text>
+                    skiniverNotesOpen ? (
+                      <Pressable
+                        onPress={() => setSkiniverNotesOpen(false)}
+                        disabled={correcting}
+                      >
+                        <Text style={styles.confirmOutlineText}>Cancelar</Text>
+                      </Pressable>
+                    ) : analysis.isConfirmed ? (
+                      <View style={{ gap: 8 }}>
+                        <Text style={styles.confirmStatus}>
+                          Análisis{' '}
+                          {analysis.isCorrected ? 'corregido' : 'confirmado'}
+                          {analysis.finalDiagnosis
+                            ? `: ${analysis.finalDiagnosis}`
+                            : '.'}
+                        </Text>
+                        <Pressable onPress={openSkiniverCorrection}>
+                          <Text style={styles.confirmOutlineText}>
+                            Editar observaciones
+                          </Text>
+                        </Pressable>
+                      </View>
                     ) : (
                       <ConfirmAnalysisForm
                         aiDiagnosis={analysis.aiDiagnosis}
                         onSubmit={handleConfirm}
                         correctMode="nosology"
-                        onCorrectPress={() => setNosologyPickerOpen(true)}
+                        onCorrectPress={openSkiniverCorrection}
                       />
                     )
                   ) : null

@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { WompiCheckoutButton } from "@/components/payments/wompi-checkout-button";
 import { PlanTeamFeaturesBlock } from "@/components/payments/plan-features-display";
-import { formatCOP, providerLabel } from "@/components/payments/subscription-utils";
+import { formatCOP, maskVendorPoolMessage, providerLabel } from "@/components/payments/subscription-utils";
 import type { Plan } from "@piel360/shared";
 import { useMyDoctorProfile, isEnterpriseDoctor } from "@/lib/queries/doctors";
 import { usePlans } from "@/lib/queries/plans";
@@ -155,7 +155,9 @@ export function PlansBrowser({
                 <p className="text-2xl font-bold text-foreground">{formatCOP(plan.price)}</p>
                 <p className="text-muted-foreground">Vigencia: {plan.durationDays} días</p>
                 {!canPurchase && plan.poolUnavailableReason ? (
-                  <p className="text-xs text-destructive">{plan.poolUnavailableReason}</p>
+                  <p className="text-xs text-destructive">
+                    {maskVendorPoolMessage(plan.poolUnavailableReason)}
+                  </p>
                 ) : null}
               </div>
               {isEmpresa ? (

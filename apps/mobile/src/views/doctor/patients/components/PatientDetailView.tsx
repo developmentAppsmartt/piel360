@@ -28,6 +28,7 @@ import { messagesService } from '../../../../services/messages.service';
 import { subscriptionsService } from '../../../../services/subscriptions.service';
 import type { PatientAnalysisSummary } from '../../../../types/analysis';
 import type { PatientProfile } from '../../../../types/patient';
+import { bodyRegionLabel } from '../../../../data/bodyRegions';
 import { formatSignedYears } from '../../../../data/skinAge';
 import type { Subscription } from '../../../../types/subscription';
 import {
@@ -206,7 +207,7 @@ function analysisDifferentialDetail(
   bodyRegion?: string | null,
 ): string {
   if (slug === 'skiniver') {
-    const region = bodyRegion?.trim();
+    const region = bodyRegionLabel(bodyRegion);
     return region ? `Región: ${region}` : 'Región corporal';
   }
   if (slug === 'youcam') return 'Evaluación facial y textura';
@@ -439,7 +440,11 @@ export function PatientDetailView({
       const conversationId = await openPatientChat();
       await messagesService.sendText(
         conversationId,
-        'Te solicito una imagen de la zona a evaluar. Responde en este chat con la foto.',
+        [
+          'Te solicito una imagen de la zona del cuerpo donde se encuentra la lesión. Sigue las siguientes instrucciones:',
+          '',
+          'Toma una foto detallada, distancia no mayor a 10 cm, usa luz brillante, evita objetos extraños en la foto.',
+        ].join('\n'),
       );
       setImageRequestOpen(false);
       Alert.alert(
@@ -578,7 +583,6 @@ export function PatientDetailView({
       <StatusBar style="light" />
       <DoctorHeader
         styles={headerStyles}
-        messageCount={1}
         onOpenMenu={onOpenMenu}
         onOpenMessages={onOpenMessages}
       />

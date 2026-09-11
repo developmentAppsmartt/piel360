@@ -26,6 +26,11 @@ import { PaymentsBillingView } from '../payments/PaymentsBillingView';
 import { PaymentsView } from '../payments/PaymentsView';
 import { DiagnosisLanguageView } from '../settings/DiagnosisLanguageView';
 import type { AnalysisProviderSlug } from '../../../data/analysisProviderLabel';
+import { SupportChatView } from '../../support/SupportChatView';
+import { AboutPiel360Modal } from '../../../components/about/AboutPiel360';
+import { LegalDocumentModal } from '../../../components/legal/LegalDocumentModal';
+import type { LegalDocId } from '../../../data/legal/documents';
+import { ChangePasswordFlow } from '../../auth/forgot-password/ForgotPasswordView';
 import { AccountDrawer } from './components/AccountDrawer';
 import { DoctorHeader } from './components/DoctorHeader';
 import { PatientDetailView } from './components/PatientDetailView';
@@ -85,7 +90,7 @@ export function DoctorPatientsView({
   onOpenAgenda,
   onCreatingChange,
 }: DoctorPatientsViewProps) {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const branding = useBranding();
   const styles = useMemo(
     () => createDoctorPatientsStyles(branding.colors),
@@ -102,6 +107,10 @@ export function DoctorPatientsView({
   const [showingPayments, setShowingPayments] = useState(false);
   const [showingLanguage, setShowingLanguage] = useState(false);
   const [showingBilling, setShowingBilling] = useState(false);
+  const [showingSupport, setShowingSupport] = useState(false);
+  const [showingAbout, setShowingAbout] = useState(false);
+  const [showingPassword, setShowingPassword] = useState(false);
+  const [legalDoc, setLegalDoc] = useState<LegalDocId | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<PatientProfile | null>(
     null,
   );
@@ -123,12 +132,22 @@ export function DoctorPatientsView({
       setShowingPayments(false);
       setShowingBilling(false);
       setShowingLanguage(true);
-    } else if (id === 'pagos') {
+    }     else if (id === 'pagos') {
       setShowingPayments(false);
       setShowingLanguage(false);
       setShowingBilling(true);
-    }
-    else
+    } else if (id === 'soporte') {
+      setShowingPayments(false);
+      setShowingLanguage(false);
+      setShowingBilling(false);
+      setShowingSupport(true);
+    } else if (id === 'acuerdo') {
+      setLegalDoc('terms-professional');
+    } else if (id === 'acerca') {
+      setShowingAbout(true);
+    } else if (id === 'password') {
+      setShowingPassword(true);
+    } else
       Alert.alert(
         'Próximamente',
         'Esta opción del menú se conectará en una siguiente iteración.',
@@ -161,6 +180,21 @@ export function DoctorPatientsView({
     void load();
   }, [load]);
 
+  if (showingSupport) {
+    return <SupportChatView onClose={() => setShowingSupport(false)} />;
+  }
+
+  if (showingPassword) {
+    return (
+      <ChangePasswordFlow
+        title="Cambiar contraseña"
+        initialEmail={user?.email ?? ''}
+        onBack={() => setShowingPassword(false)}
+        onSuccess={() => setShowingPassword(false)}
+      />
+    );
+  }
+
   if (showingLanguage) {
     return (
       <>
@@ -173,6 +207,11 @@ export function DoctorPatientsView({
           visible={menuOpen}
           onClose={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
+        />
+        <LegalDocumentModal
+          docId={legalDoc}
+          visible={legalDoc != null}
+          onClose={() => setLegalDoc(null)}
         />
       </>
     );
@@ -191,6 +230,11 @@ export function DoctorPatientsView({
           onClose={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
         />
+        <LegalDocumentModal
+          docId={legalDoc}
+          visible={legalDoc != null}
+          onClose={() => setLegalDoc(null)}
+        />
       </>
     );
   }
@@ -207,6 +251,11 @@ export function DoctorPatientsView({
           visible={menuOpen}
           onClose={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
+        />
+        <LegalDocumentModal
+          docId={legalDoc}
+          visible={legalDoc != null}
+          onClose={() => setLegalDoc(null)}
         />
       </>
     );
@@ -232,6 +281,11 @@ export function DoctorPatientsView({
           onClose={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
         />
+        <LegalDocumentModal
+          docId={legalDoc}
+          visible={legalDoc != null}
+          onClose={() => setLegalDoc(null)}
+        />
       </>
     );
   }
@@ -256,6 +310,11 @@ export function DoctorPatientsView({
           onClose={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
         />
+        <LegalDocumentModal
+          docId={legalDoc}
+          visible={legalDoc != null}
+          onClose={() => setLegalDoc(null)}
+        />
       </>
     );
   }
@@ -279,6 +338,11 @@ export function DoctorPatientsView({
           onClose={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
         />
+        <LegalDocumentModal
+          docId={legalDoc}
+          visible={legalDoc != null}
+          onClose={() => setLegalDoc(null)}
+        />
       </>
     );
   }
@@ -289,6 +353,7 @@ export function DoctorPatientsView({
         <AnalysisDetailView
           analysisId={selectedAnalysisId}
           patientName={patientDisplayName(selectedPatient)}
+          patientGender={selectedPatient.gender}
           onBack={() => setSelectedAnalysisId(null)}
           onOpenMenu={() => setMenuOpen(true)}
           onOpenMessages={onOpenMessages}
@@ -297,6 +362,11 @@ export function DoctorPatientsView({
           visible={menuOpen}
           onClose={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
+        />
+        <LegalDocumentModal
+          docId={legalDoc}
+          visible={legalDoc != null}
+          onClose={() => setLegalDoc(null)}
         />
       </>
     );
@@ -325,6 +395,11 @@ export function DoctorPatientsView({
           onClose={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
         />
+        <LegalDocumentModal
+          docId={legalDoc}
+          visible={legalDoc != null}
+          onClose={() => setLegalDoc(null)}
+        />
       </>
     );
   }
@@ -346,6 +421,11 @@ export function DoctorPatientsView({
           onClose={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
         />
+        <LegalDocumentModal
+          docId={legalDoc}
+          visible={legalDoc != null}
+          onClose={() => setLegalDoc(null)}
+        />
       </>
     );
   }
@@ -356,7 +436,6 @@ export function DoctorPatientsView({
       <DoctorHeader
         styles={styles}
         title="Listado de Pacientes"
-        messageCount={1}
         onOpenMenu={() => setMenuOpen(true)}
         onOpenMessages={onOpenMessages}
         onOpenGift={() =>
@@ -457,6 +536,15 @@ export function DoctorPatientsView({
         visible={menuOpen}
         onClose={() => setMenuOpen(false)}
         onSelect={handleMenuSelect}
+      />
+      <LegalDocumentModal
+        docId={legalDoc}
+        visible={legalDoc != null}
+        onClose={() => setLegalDoc(null)}
+      />
+      <AboutPiel360Modal
+        visible={showingAbout}
+        onClose={() => setShowingAbout(false)}
       />
     </View>
   );

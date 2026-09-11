@@ -6,6 +6,7 @@ import {
   Pressable,
   ScrollView,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -34,6 +35,9 @@ import { PendingAnalysesPicker } from '../analyses/PendingAnalysesPicker';
 import { SkiniverAnalysisFlow } from '../analyses/skiniver-flow/SkiniverAnalysisFlow';
 import { YoucamAnalysisFlow } from '../analyses/youcam-flow/YoucamAnalysisFlow';
 import { AccountInfoView } from '../account/AccountInfoView';
+import { AboutPiel360Content } from '../../components/about/AboutPiel360';
+import { SupportChatView } from '../support/SupportChatView';
+import { ChangePasswordFlow } from '../auth/forgot-password/ForgotPasswordView';
 import { AnalysisDetailView } from '../doctor/analyses/AnalysisDetailView';
 import { DoctorHeader } from '../doctor/patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../doctor/patients/styles/patients.styles';
@@ -41,6 +45,7 @@ import {
   AccountDrawer,
   type AccountMenuId,
 } from '../doctor/patients/components/AccountDrawer';
+import { AppModuleChrome } from '../shared/AppModuleChrome';
 import { EditProfileView } from '../profile/edit/EditProfileView';
 import {
   formatPatientDocument,
@@ -80,24 +85,12 @@ type Overlay =
   | 'diseases';
 
 const OVERLAY_COPY: Record<
-  Exclude<Overlay, null | 'config' | 'tips' | 'diseases'>,
+  Exclude<Overlay, null | 'config' | 'tips' | 'diseases' | 'soporte' | 'acerca' | 'password'>,
   { title: string; body: string }
 > = {
-  password: {
-    title: 'Cambiar contraseña',
-    body: 'Pronto podrás cambiar tu contraseña desde aquí. Mientras tanto usa “Olvidé mi contraseña” en el inicio de sesión si necesitas restablecerla.',
-  },
   premios: {
     title: 'Premios',
     body: 'Aquí verás recompensas y beneficios de Piel 360. Este módulo se activará en una próxima versión.',
-  },
-  soporte: {
-    title: 'Soporte',
-    body: '¿Necesitas ayuda? Escribe a soporte@piel360.com o usa el chat con tu médico desde la pestaña Chat.',
-  },
-  acerca: {
-    title: 'Acerca de Piel 360',
-    body: 'Piel 360 AI — versión 1.0.0\n\nApoyo diagnóstico dermatológico con inteligencia artificial. Esta app no sustituye una consulta médica presencial.',
   },
 };
 
@@ -214,13 +207,17 @@ export function HomeView({
   homeIntent = null,
   onHomeIntentConsumed,
 }: HomeViewProps) {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const branding = useBranding();
+  const { width: windowWidth } = useWindowDimensions();
   const styles = useMemo(() => createHomeStyles(branding.colors), [branding.colors]);
   const headerStyles = useMemo(
     () => createDoctorPatientsStyles(branding.colors),
     [branding.colors],
   );
+  /** Ancho útil del scroll (paddingHorizontal 16 × 2). Banner ~2:1. */
+  const bannerWidth = Math.max(0, windowWidth - 32);
+  const bannerHeight = Math.round(bannerWidth / 2);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -334,12 +331,11 @@ export function HomeView({
       setLegalDoc('terms');
       return;
     }
-    if (
-      id === 'password' ||
-      id === 'premios' ||
-      id === 'soporte' ||
-      id === 'acerca'
-    ) {
+    if (id === 'soporte') {
+      setOverlay('soporte');
+      return;
+    }
+    if (id === 'password' || id === 'premios' || id === 'acerca') {
       setOverlay(id);
     }
   }
@@ -517,6 +513,37 @@ export function HomeView({
     );
   }
 
+  if (overlay === 'soporte') {
+    return <SupportChatView onClose={() => setOverlay(null)} />;
+  }
+
+  if (overlay === 'password') {
+    return (
+      <ChangePasswordFlow
+        title="Cambiar contraseña"
+        initialEmail={user?.email ?? ''}
+        initialPhoneDigits={null}
+        onBack={() => setOverlay(null)}
+        onSuccess={() => setOverlay(null)}
+      />
+    );
+  }
+
+  if (overlay === 'acerca') {
+    return (
+      <View style={styles.screen}>
+        <AppModuleChrome
+          showBack
+          onBack={() => setOverlay(null)}
+          onOpenMessages={onOpenMessages}
+          onOpenProfile={onOpenProfile}
+        >
+          <AboutPiel360Content />
+        </AppModuleChrome>
+      </View>
+    );
+  }
+
   if (overlay) {
     const copy = OVERLAY_COPY[overlay];
     return (
@@ -541,7 +568,6 @@ export function HomeView({
       <StatusBar style="light" />
       <DoctorHeader
         styles={headerStyles}
-        messageCount={1}
         onOpenMenu={() => setMenuOpen(true)}
         onOpenMessages={onOpenMessages}
         onOpenGift={() => setOverlay('premios')}
@@ -558,11 +584,14 @@ export function HomeView({
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.welcomeCard}>
-            <Text style={styles.welcomeTitle}>Bienvenido a Piel 360 AI</Text>
-            <Text style={styles.welcomeSubtitle}>
-              Tu piel tiene mucho que decir. Escúchala aquí
-            </Text>
+          <View style={[styles.welcomeCard, { width: bannerWidth }]}>
+            <Image
+              source={require('../../../assets/banner.png')}
+              style={[styles.welcomeBanner, { width: bannerWidth, height: bannerHeight }]}
+              resizeMode="contain"
+              accessibilityLabel="Bienvenido a Piel 360 AI. Tu piel tiene mucho que decir. Escúchala aquí."
+              accessibilityIgnoresInvertColors
+            />
           </View>
 
           <Pressable

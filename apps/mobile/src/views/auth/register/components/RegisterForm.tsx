@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Image,
   Pressable,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { AppIcon } from '../../../../components/AppIcon';
@@ -104,6 +106,10 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
   const primary = AUTH_THEME.purple;
   const onDark = branding.colors.textOnDark;
   const text = branding.colors.text;
+  const { width: windowWidth } = useWindowDimensions();
+  /** Ancho del banner dentro de la card (padding del scroll ~16×2 + card ~20×2). */
+  const bannerWidth = Math.max(200, Math.min(windowWidth - 72, 420));
+  const bannerHeight = Math.round(bannerWidth / 2);
 
   useEffect(() => {
     onStepChange?.(step);
@@ -173,6 +179,9 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
     setSubmitting(true);
     try {
       const fullPhone = combinePhoneDigits(areaCode, phone);
+      const iso = birthDate.trim()
+        ? normalizeBirthDate(birthDate)
+        : undefined;
       await registerPatient({
         email: email.trim().toLowerCase(),
         password,
@@ -181,13 +190,18 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
         phone: fullPhone,
         phoneTicket: phoneTicket!,
         emailTicket: emailTicket!,
+        ...(iso ? { birthDate: iso } : {}),
+        gender: gender || undefined,
+        address: location.trim() || undefined,
+        ...(lat != null && lng != null ? { lat, lng } : {}),
+        skinType: surveyAnswers.skin_type || undefined,
+        fitzpatrickType: surveyAnswers.fitzpatrick_type || undefined,
+        mascotType: surveyAnswers.mascot_type || undefined,
       });
 
       const patient = await patientsService.getMyPatient();
       if (patient) {
-        const iso = birthDate.trim()
-          ? normalizeBirthDate(birthDate)
-          : undefined;
+        // Refuerzo post-registro (por si algún campo no llegó en register).
         await patientsService.update(patient.id, {
           ...(iso ? { birthDate: iso } : {}),
           gender: gender || undefined,
@@ -343,10 +357,13 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
     return (
       <View style={styles.card}>
         <View style={styles.welcomeBannerCard}>
-          <Text style={styles.welcomeTitle}>¡Bienvenido a Piel 360!</Text>
-          <Text style={styles.welcomeSubtitle}>
-            Apoyo Diagnóstico Dermatológico con AI
-          </Text>
+          <Image
+            source={require('../../../../../assets/banner.png')}
+            style={{ width: bannerWidth, height: bannerHeight }}
+            resizeMode="contain"
+            accessibilityLabel="Bienvenido a Piel 360 AI"
+            accessibilityIgnoresInvertColors
+          />
         </View>
 
         <Text style={styles.stepHintDark}>DATOS PERSONALES</Text>

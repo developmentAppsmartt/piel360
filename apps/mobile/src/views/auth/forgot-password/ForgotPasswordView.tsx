@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -14,28 +13,58 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { AppIcon } from '../../../components/AppIcon';
 import { Icons } from '../../../components/icons';
+import { PhoneSplitInputs } from '../../../components/auth/PhoneSplitInputs';
+import { BrandLogo } from '../../../components/BrandLogo';
+import { useAuth } from '../../../context/AuthContext';
 import { useBranding } from '../../../context/BrandingContext';
+import { combinePhoneDigits, isValidE164Digits } from '../../../lib/phone';
 import type { AuthStackParamList } from '../../../navigation/RootNavigator';
 import { ApiError } from '../../../services/api.client';
 import { authService } from '../../../services/auth.service';
 import { AuthFeedbackModal } from '../components/AuthFeedbackModal';
 import { OtpInput } from '../components/OtpInput';
 import { AuthBackground } from '../login/components/AuthBackground';
-import { BrandLogo } from '../../../components/BrandLogo';
+import { AuthGradientButton } from '../login/components/AuthGradientButton';
 import { createLoginStyles } from '../login/styles/login.styles';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
-type Step = 'email' | 'otp' | 'password';
 
-export function ForgotPasswordView({ navigation }: Props) {
+type Channel = 'email' | 'phone';
+type Step = 'channel' | 'identity' | 'otp' | 'password';
+
+type ChangePasswordFlowProps = {
+  onBack: () => void;
+  onSuccess: () => void;
+  /** Prefill cuando el usuario ya está logueado. */
+  initialEmail?: string;
+  initialPhoneDigits?: string | null;
+  title?: string;
+};
+
+export function ChangePasswordFlow({
+  onBack,
+  onSuccess,
+  initialEmail = '',
+  initialPhoneDigits = null,
+  title = 'Recuperar contraseña',
+}: ChangePasswordFlowProps) {
   const branding = useBranding();
+  const { logout } = useAuth();
   const styles = useMemo(
     () => createLoginStyles(branding.colors),
     [branding.colors],
   );
 
-  const [step, setStep] = useState<Step>('email');
-  const [email, setEmail] = useState('');
+  const [step, setStep] = useState<Step>('channel');
+  const [channel, setChannel] = useState<Channel>('email');
+  const [email, setEmail] = useState(initialEmail);
+  const [areaCode, setAreaCode] = useState('57');
+  const [phone, setPhone] = useState(() => {
+    if (!initialPhoneDigits) return '';
+    const digits = initialPhoneDigits.replace(/\D/g, '');
+    if (digits.startsWith('57') && digits.length >= 12) return digits.slice(2);
+    return digits;
+  });
   const [otp, setOtp] = useState('');
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [password, setPassword] = useState('');
@@ -48,17 +77,57 @@ export function ForgotPasswordView({ navigation }: Props) {
 
   const onDark = branding.colors.textOnDark;
   const text = branding.colors.text;
+  const passwordUnlocked = Boolean(resetToken);
+
+  function goBack() {
+    setError(null);
+    if (step === 'channel') {
+      onBack();
+      return;
+    }
+    if (step === 'identity') {
+      setStep('channel');
+      return;
+    }
+    if (step === 'otp') {
+      setStep('identity');
+      setOtp('');
+      return;
+    }
+    setStep('otp');
+    setPassword('');
+    setConfirm('');
+  }
 
   async function sendCode() {
     setError(null);
-    if (!email.trim()) {
-      setError('Introduce tu correo electrónico.');
-      return;
+    if (channel === 'email') {
+      if (!email.trim()) {
+        setError('Introduce tu correo electrónico.');
+        return;
+      }
+    } else {
+      const fullPhone = combinePhoneDigits(areaCode, phone);
+      if (!isValidE164Digits(fullPhone)) {
+        setError('Revisa el prefijo y el número de celular.');
+        return;
+      }
     }
+
     setSubmitting(true);
     try {
-      await authService.sendOtp(email, 'reset');
+      if (channel === 'email') {
+        await authService.sendOtp(email.trim().toLowerCase(), 'reset');
+      } else {
+        await authService.sendPhoneOtp(
+          combinePhoneDigits(areaCode, phone),
+          'reset',
+        );
+      }
       setOtp('');
+      setResetToken(null);
+      setPassword('');
+      setConfirm('');
       setStep('otp');
     } catch (err) {
       setError(
@@ -79,11 +148,26 @@ export function ForgotPasswordView({ navigation }: Props) {
     }
     setSubmitting(true);
     try {
-      const res = await authService.verifyOtp(email, 'reset', otp);
-      if (!res.token) {
+      let token: string | undefined;
+      if (channel === 'email') {
+        const res = await authService.verifyOtp(
+          email.trim().toLowerCase(),
+          'reset',
+          otp,
+        );
+        token = res.token;
+      } else {
+        const res = await authService.verifyPhoneOtp(
+          combinePhoneDigits(areaCode, phone),
+          otp,
+          'reset',
+        );
+        token = res.token;
+      }
+      if (!token) {
         throw new Error('Sin token de recuperación');
       }
-      setResetToken(res.token);
+      setResetToken(token);
       setStep('password');
     } catch (err) {
       setError(
@@ -100,7 +184,7 @@ export function ForgotPasswordView({ navigation }: Props) {
   async function changePassword() {
     setError(null);
     if (!resetToken) {
-      setError('Sesión de recuperación inválida. Solicita un nuevo código.');
+      setError('Valida el código OTP antes de cambiar la contraseña.');
       return;
     }
     if (password.length < 8) {
@@ -127,6 +211,19 @@ export function ForgotPasswordView({ navigation }: Props) {
     }
   }
 
+  const subtitle =
+    step === 'channel'
+      ? 'Elige cómo quieres recibir el código de verificación.'
+      : step === 'identity'
+        ? channel === 'email'
+          ? 'Introduce tu correo y enviaremos un código OTP.'
+          : 'Introduce tu celular y enviaremos un código OTP por SMS.'
+        : step === 'otp'
+          ? channel === 'email'
+            ? 'Revisa tu correo. Tu código tiene 5 dígitos.'
+            : 'Revisa tus SMS. Tu código tiene 5 dígitos.'
+          : 'Crea y confirma una nueva contraseña de al menos 8 caracteres.';
+
   return (
     <AuthBackground>
       <StatusBar style="light" />
@@ -140,53 +237,101 @@ export function ForgotPasswordView({ navigation }: Props) {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <Pressable
-              onPress={() => {
-                if (step === 'email') navigation.navigate('Login');
-                else if (step === 'otp') setStep('email');
-                else setStep('otp');
-              }}
-            >
+            <Pressable onPress={goBack}>
               <Text style={styles.backLink}>← Volver</Text>
             </Pressable>
 
             <BrandLogo height={44} style={styles.logo} />
-            <Text style={styles.subtitle}>
-              {step === 'email'
-                ? 'Introduce tu correo electrónico y haz clic en “Enviar código”. Recibirás un código en tu correo.'
-                : step === 'otp'
-                  ? 'Revisa tu correo. Tu código tiene 5 dígitos.'
-                  : 'Crea y confirma una nueva contraseña de al menos 8 caracteres.'}
-            </Text>
+            <Text style={[styles.subtitle, { marginBottom: 8 }]}>{title}</Text>
+            <Text style={styles.subtitle}>{subtitle}</Text>
 
-            {step === 'email' ? (
-              <View>
-                <View style={styles.field}>
-                  <Text style={styles.label}>Correo electrónico</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={email}
-                    onChangeText={setEmail}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                    autoComplete="email"
-                    placeholder="tu@email.com"
-                    placeholderTextColor="#9CA3AF"
-                    editable={!submitting}
-                  />
-                </View>
-                {error ? <Text style={styles.error}>{error}</Text> : null}
+            {step === 'channel' ? (
+              <View style={{ gap: 12, marginTop: 8 }}>
                 <Pressable
-                  style={[styles.button, submitting && styles.buttonDisabled]}
-                  onPress={sendCode}
-                  disabled={submitting}
+                  style={[
+                    styles.input,
+                    {
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 12,
+                      borderWidth: channel === 'email' ? 2 : 0,
+                      borderColor: branding.colors.textOnDark,
+                    },
+                  ]}
+                  onPress={() => setChannel('email')}
                 >
-                  {submitting ? (
-                    <ActivityIndicator color={onDark} />
-                  ) : (
-                    <Text style={styles.buttonText}>Enviar código</Text>
-                  )}
+                  <AppIcon icon={Icons.mail} size={22} color={text} />
+                  <Text style={{ color: text, fontWeight: '700', flex: 1 }}>
+                    Enviar OTP al correo
+                  </Text>
                 </Pressable>
+                <Pressable
+                  style={[
+                    styles.input,
+                    {
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 12,
+                      borderWidth: channel === 'phone' ? 2 : 0,
+                      borderColor: branding.colors.textOnDark,
+                    },
+                  ]}
+                  onPress={() => setChannel('phone')}
+                >
+                  <AppIcon icon={Icons.phone} size={22} color={text} />
+                  <Text style={{ color: text, fontWeight: '700', flex: 1 }}>
+                    Enviar OTP al celular
+                  </Text>
+                </Pressable>
+                {error ? <Text style={styles.error}>{error}</Text> : null}
+                <AuthGradientButton
+                  label="Continuar"
+                  onPress={() => {
+                    setError(null);
+                    setStep('identity');
+                  }}
+                  styles={styles}
+                />
+              </View>
+            ) : null}
+
+            {step === 'identity' ? (
+              <View>
+                {channel === 'email' ? (
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Correo electrónico</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={email}
+                      onChangeText={setEmail}
+                      autoCapitalize="none"
+                      keyboardType="email-address"
+                      autoComplete="email"
+                      placeholder="tu@email.com"
+                      placeholderTextColor="#9CA3AF"
+                      editable={!submitting}
+                    />
+                  </View>
+                ) : (
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Celular</Text>
+                    <PhoneSplitInputs
+                      prefix={areaCode}
+                      national={phone}
+                      onPrefixChange={setAreaCode}
+                      onNationalChange={setPhone}
+                      disabled={submitting}
+                    />
+                  </View>
+                )}
+                {error ? <Text style={styles.error}>{error}</Text> : null}
+                <AuthGradientButton
+                  label="Enviar código"
+                  onPress={() => void sendCode()}
+                  disabled={submitting}
+                  loading={submitting}
+                  styles={styles}
+                />
               </View>
             ) : null}
 
@@ -194,20 +339,16 @@ export function ForgotPasswordView({ navigation }: Props) {
               <View>
                 <OtpInput value={otp} onChange={setOtp} editable={!submitting} />
                 {error ? <Text style={styles.error}>{error}</Text> : null}
-                <Pressable
-                  style={[styles.button, submitting && styles.buttonDisabled]}
-                  onPress={verifyCode}
-                  disabled={submitting}
-                >
-                  {submitting ? (
-                    <ActivityIndicator color={onDark} />
-                  ) : (
-                    <Text style={styles.buttonText}>Enviar verificación</Text>
-                  )}
-                </Pressable>
+                <AuthGradientButton
+                  label="Validar código"
+                  onPress={() => void verifyCode()}
+                  disabled={submitting || otp.trim().length !== 5}
+                  loading={submitting}
+                  styles={styles}
+                />
                 <Text style={styles.footer}>
                   ¿No llegó?{' '}
-                  <Text style={styles.link} onPress={sendCode}>
+                  <Text style={styles.link} onPress={() => void sendCode()}>
                     Reenviar código
                   </Text>
                 </Text>
@@ -216,8 +357,13 @@ export function ForgotPasswordView({ navigation }: Props) {
 
             {step === 'password' ? (
               <View>
+                {!passwordUnlocked ? (
+                  <Text style={styles.error}>
+                    Primero debes validar el código OTP.
+                  </Text>
+                ) : null}
                 <View style={styles.field}>
-                  <Text style={styles.label}>Nueva clave</Text>
+                  <Text style={styles.label}>Nueva contraseña</Text>
                   <View style={styles.inputWithIcon}>
                     <TextInput
                       style={styles.inputFlex}
@@ -226,7 +372,9 @@ export function ForgotPasswordView({ navigation }: Props) {
                       secureTextEntry={!showPassword}
                       placeholder="Mínimo 8 caracteres"
                       placeholderTextColor="#9CA3AF"
-                      editable={!submitting}
+                      editable={!submitting && passwordUnlocked}
+                      autoComplete="new-password"
+                      textContentType="newPassword"
                     />
                     <Pressable onPress={() => setShowPassword((v) => !v)}>
                       <AppIcon
@@ -238,7 +386,7 @@ export function ForgotPasswordView({ navigation }: Props) {
                   </View>
                 </View>
                 <View style={styles.field}>
-                  <Text style={styles.label}>Confirmar clave</Text>
+                  <Text style={styles.label}>Confirmar contraseña</Text>
                   <View style={styles.inputWithIcon}>
                     <TextInput
                       style={styles.inputFlex}
@@ -247,7 +395,9 @@ export function ForgotPasswordView({ navigation }: Props) {
                       secureTextEntry={!showConfirm}
                       placeholder="Repite la contraseña"
                       placeholderTextColor="#9CA3AF"
-                      editable={!submitting}
+                      editable={!submitting && passwordUnlocked}
+                      autoComplete="new-password"
+                      textContentType="newPassword"
                     />
                     <Pressable onPress={() => setShowConfirm((v) => !v)}>
                       <AppIcon
@@ -258,18 +408,24 @@ export function ForgotPasswordView({ navigation }: Props) {
                     </Pressable>
                   </View>
                 </View>
+                {password.length > 0 &&
+                confirm.length > 0 &&
+                password !== confirm ? (
+                  <Text style={styles.error}>Las contraseñas no coinciden.</Text>
+                ) : null}
                 {error ? <Text style={styles.error}>{error}</Text> : null}
-                <Pressable
-                  style={[styles.button, submitting && styles.buttonDisabled]}
-                  onPress={changePassword}
-                  disabled={submitting}
-                >
-                  {submitting ? (
-                    <ActivityIndicator color={onDark} />
-                  ) : (
-                    <Text style={styles.buttonText}>Cambiar clave</Text>
-                  )}
-                </Pressable>
+                <AuthGradientButton
+                  label="Validar y cambiar contraseña"
+                  onPress={() => void changePassword()}
+                  disabled={
+                    submitting ||
+                    !passwordUnlocked ||
+                    password.length < 8 ||
+                    password !== confirm
+                  }
+                  loading={submitting}
+                  styles={styles}
+                />
               </View>
             ) : null}
           </ScrollView>
@@ -279,23 +435,25 @@ export function ForgotPasswordView({ navigation }: Props) {
       <AuthFeedbackModal
         visible={result === 'success'}
         variant="success"
-        title="Recuperación de contraseña exitosa"
-        message="Regresa a la pantalla de inicio de sesión para ingresar a la aplicación."
-        buttonLabel="Regresar al inicio de sesión"
+        title="Contraseña actualizada"
+        message="Tu sesión se cerró. Inicia sesión de nuevo con tu nueva contraseña."
+        buttonLabel="Ir a iniciar sesión"
         colors={branding.colors}
-        onAction={() => navigation.navigate('Login')}
+        onAction={() => {
+          setResult(null);
+          void (async () => {
+            await logout();
+            onSuccess();
+          })();
+        }}
       />
-      <AuthFeedbackModal
-        visible={result === 'error'}
-        variant="error"
-        title="Recuperación de contraseña salió mal"
         message={error ?? 'Algo salió mal. Inténtalo de nuevo.'}
         buttonLabel="Intentar otra vez"
         colors={branding.colors}
         onAction={() => {
           setResult(null);
           setError(null);
-          setStep('email');
+          setStep('channel');
           setOtp('');
           setResetToken(null);
           setPassword('');
@@ -303,5 +461,15 @@ export function ForgotPasswordView({ navigation }: Props) {
         }}
       />
     </AuthBackground>
+  );
+}
+
+export function ForgotPasswordView({ navigation }: Props) {
+  return (
+    <ChangePasswordFlow
+      title="Recuperar contraseña"
+      onBack={() => navigation.navigate('Login')}
+      onSuccess={() => navigation.navigate('Login')}
+    />
   );
 }
