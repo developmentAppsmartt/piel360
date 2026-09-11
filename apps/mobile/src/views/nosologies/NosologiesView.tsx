@@ -18,6 +18,7 @@ import { PaymentsBillingView } from '../doctor/payments/PaymentsBillingView';
 import { PaymentsView } from '../doctor/payments/PaymentsView';
 import { DiagnosisLanguageView } from '../doctor/settings/DiagnosisLanguageView';
 import { SupportChatView } from '../support/SupportChatView';
+import { ChangePasswordFlow } from '../auth/forgot-password/ForgotPasswordView';
 import { LegalDocumentModal } from '../../components/legal/LegalDocumentModal';
 import type { LegalDocId } from '../../data/legal/documents';
 import { AppModuleChrome } from '../shared/AppModuleChrome';
@@ -39,7 +40,7 @@ export function NosologiesView({
 }: NosologiesViewProps) {
   const insets = useSafeAreaInsets();
   const branding = useBranding();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const styles = useMemo(
     () => createNosologiesStyles(branding.colors),
     [branding.colors],
@@ -54,6 +55,7 @@ export function NosologiesView({
   const [showingLanguage, setShowingLanguage] = useState(false);
   const [showingBilling, setShowingBilling] = useState(false);
   const [showingSupport, setShowingSupport] = useState(false);
+  const [showingPassword, setShowingPassword] = useState(false);
   const [legalDoc, setLegalDoc] = useState<LegalDocId | null>(null);
 
   useEffect(() => {
@@ -107,6 +109,8 @@ export function NosologiesView({
       setShowingLanguage(false);
       setShowingBilling(false);
       setShowingSupport(true);
+    } else if (id === 'password') {
+      setShowingPassword(true);
     } else if (id === 'acuerdo') {
       setLegalDoc('terms-professional');
     } else
@@ -115,6 +119,17 @@ export function NosologiesView({
         'Esta opción del menú se conectará en una siguiente iteración.',
       );
   };
+
+  if (showingPassword) {
+    return (
+      <ChangePasswordFlow
+        title="Cambiar contraseña"
+        initialEmail={user?.email ?? ''}
+        onBack={() => setShowingPassword(false)}
+        onSuccess={() => setShowingPassword(false)}
+      />
+    );
+  }
 
   if (showingLanguage) {
     return (

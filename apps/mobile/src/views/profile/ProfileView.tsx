@@ -90,10 +90,6 @@ export function ProfileView({ onBack, onOpenMessages }: ProfileViewProps) {
   );
   const role = user?.role ?? 'patient';
   const isDoctor = isClinicalPanelRole(role);
-  const doctorPending =
-    Boolean(doctor) &&
-    isDoctor &&
-    !isDoctorVerificationActive(user?.verificationStatus);
 
   const [patient, setPatient] = useState<PatientProfile | null>(null);
   const [doctor, setDoctor] = useState<DoctorProfile | null>(null);
@@ -109,6 +105,11 @@ export function ProfileView({ onBack, onOpenMessages }: ProfileViewProps) {
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
   const [EditDoctorView, setEditDoctorView] =
     useState<EditDoctorViewComponent | null>(null);
+
+  const doctorPending =
+    Boolean(doctor) &&
+    isDoctor &&
+    !isDoctorVerificationActive(user?.verificationStatus);
 
   useEffect(() => {
     if (!editing || !isDoctor) return;

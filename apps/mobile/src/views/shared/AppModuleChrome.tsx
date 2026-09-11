@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useBranding } from '../../context/BrandingContext';
 import type { LegalDocId } from '../../data/legal/documents';
 import { isClinicalPanelUser } from '../../types/auth';
+import { ChangePasswordFlow } from '../auth/forgot-password/ForgotPasswordView';
 import {
   AccountDrawer,
   type AccountMenuId,
@@ -19,10 +20,6 @@ import { createDoctorPatientsStyles } from '../doctor/patients/styles/patients.s
 
 const INFO_COPY: Partial<Record<AccountMenuId, { title: string; body: string }>> =
   {
-    password: {
-      title: 'Cambiar contraseña',
-      body: 'Pronto podrás cambiar tu contraseña desde aquí. Mientras tanto usa “Olvidé mi contraseña” en el inicio de sesión si necesitas restablecerla.',
-    },
     premios: {
       title: 'Premios',
       body: 'Aquí verás recompensas y beneficios de Piel 360. Este módulo se activará en una próxima versión.',
@@ -58,12 +55,24 @@ export function AppModuleChrome({
   );
   const [menuOpen, setMenuOpen] = useState(false);
   const [overlay, setOverlay] = useState<AccountMenuId | null>(null);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const [accountPanel, setAccountPanel] = useState<
     'idioma' | 'pagos' | 'soporte' | null
   >(null);
   const [legalDoc, setLegalDoc] = useState<LegalDocId | null>(null);
   const variant = isClinicalPanelUser(user) ? 'doctor' : 'patient';
   const info = overlay ? INFO_COPY[overlay] : null;
+
+  if (passwordOpen) {
+    return (
+      <ChangePasswordFlow
+        title="Cambiar contraseña"
+        initialEmail={user?.email ?? ''}
+        onBack={() => setPasswordOpen(false)}
+        onSuccess={() => setPasswordOpen(false)}
+      />
+    );
+  }
 
   if (accountPanel === 'idioma') {
     return (
@@ -117,6 +126,10 @@ export function AppModuleChrome({
     }
     if (id === 'soporte') {
       setAccountPanel('soporte');
+      return;
+    }
+    if (id === 'password') {
+      setPasswordOpen(true);
       return;
     }
     setAccountPanel(null);
