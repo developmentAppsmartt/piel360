@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Globe2, Save, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAllAppConfigs, useUpdateAppConfig } from "@/lib/queries/app-config";
+import { ParameterCatalogManager } from "@/components/admin/parameter-catalog-manager";
 
 // Monedas ISO 4217 más comunes para selector
 const COMMON_CURRENCIES = [
@@ -104,6 +105,8 @@ export default function ConfiguracionAdminPage() {
           </div>
         )}
       </div>
+
+      <ParameterCatalogManager />
 
       {/* Tabla de configs actuales */}
       {configs && configs.length > 0 && (

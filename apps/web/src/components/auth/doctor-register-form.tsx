@@ -19,6 +19,7 @@ import {
   type AuthActionState,
 } from "@/lib/actions/auth";
 import { sendEmailOtpAction, verifyEmailOtpAction } from "@/lib/actions/email-otp";
+import { CatalogCombobox } from "@/components/auth/catalog-combobox";
 import { sendPhoneOtpAction, verifyPhoneOtpAction } from "@/lib/actions/phone-otp";
 import { homeForUser } from "@/lib/auth-redirect";
 import { ApiError } from "@/lib/api-error";
@@ -89,6 +90,7 @@ export function DoctorRegisterForm() {
   const [licenseNumber, setLicenseNumber] = useState("");
   const [educationEntity, setEducationEntity] = useState("");
   const [graduationInstitution, setGraduationInstitution] = useState("");
+  const [technicalInstitution, setTechnicalInstitution] = useState("");
   const [cedula, setCedula] = useState<File | null>(null);
   const [medicalRegistryDoc, setMedicalRegistryDoc] = useState<File | null>(null);
   const [diploma, setDiploma] = useState<File | null>(null);
@@ -255,6 +257,10 @@ export function DoctorRegisterForm() {
           licenseNumber: licenseNumber.trim() || undefined,
           educationEntity: educationEntity.trim() || undefined,
           graduationInstitution: graduationInstitution.trim() || undefined,
+          technicalInstitution:
+            professionalKind === "labor"
+              ? technicalInstitution.trim() || undefined
+              : undefined,
         },
         { cedula, medicalRegistryDoc, diploma },
       );
@@ -585,21 +591,34 @@ export function DoctorRegisterForm() {
           />
         </Field>
         <Field label="Entidad educativa">
-          <input
+          <CatalogCombobox
+            typeSlug="education_entity"
             className={inputClass}
-            placeholder="Universidad"
+            placeholder="Busca tu universidad"
             value={educationEntity}
-            onChange={(e) => setEducationEntity(e.target.value)}
+            onChange={setEducationEntity}
           />
         </Field>
         <Field label="Institución de egreso">
-          <input
+          <CatalogCombobox
+            typeSlug="education_entity"
             className={inputClass}
-            placeholder="Facultad / Instituto"
+            placeholder="Busca la institución de egreso"
             value={graduationInstitution}
-            onChange={(e) => setGraduationInstitution(e.target.value)}
+            onChange={setGraduationInstitution}
           />
         </Field>
+        {professionalKind === "labor" ? (
+          <Field label="Institución de educación técnica">
+            <CatalogCombobox
+              typeSlug="technical_education_institution"
+              className={inputClass}
+              placeholder="Busca tu institución técnica"
+              value={technicalInstitution}
+              onChange={setTechnicalInstitution}
+            />
+          </Field>
+        ) : null}
       </div>
 
       <LocationPickerSection picker={locationPicker} />
