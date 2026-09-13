@@ -10,6 +10,50 @@ import { useRecommendedRoutines, type Routine } from "@/lib/queries/routines";
 import { useRecommendedTreatments, type Treatment } from "@/lib/queries/treatments";
 import { cn } from "@/lib/utils";
 
+/** Adapta el shape de RoutinesService al que ya consume `CareList`. */
+function mapRoutineToCareItem(routine: Routine): AnalysisCareItem {
+  return {
+    id: routine.id,
+    name: routine.name,
+    description: routine.description,
+    steps: routine.steps.map((s) => ({
+      id: s.id,
+      order: s.order,
+      title: s.title,
+      description: s.description,
+      mediaUrl: s.mediaUrl,
+      mediaType: s.mediaType,
+      productId: s.productId,
+      product: s.product
+        ? {
+            id: s.product.id,
+            productName: s.product.productName,
+            productType: s.product.productType,
+            productUrl: s.product.productUrl,
+            imageUrl: s.product.imageUrl,
+          }
+        : null,
+    })),
+  };
+}
+
+/** Adapta el shape de TreatmentsService al que ya consume `CareList`. */
+function mapTreatmentToCareItem(treatment: Treatment): AnalysisCareItem {
+  return {
+    id: treatment.id,
+    name: treatment.name,
+    description: treatment.description,
+    categoryName: treatment.category?.categoryName ?? null,
+    items: treatment.items.map((item) => ({
+      id: item.id,
+      productId: item.productId,
+      productName: item.product.productName,
+      productType: item.product.productType,
+      note: item.note,
+    })),
+  };
+}
+
 type Tab = "todas" | "rutinas" | "productos" | "suplementos" | "tratamientos";
 
 const TABS: { id: Tab; label: string }[] = [
@@ -255,9 +299,15 @@ export function RecommendationsPanel({
 }) {
   const [tab, setTab] = useState<Tab>("todas");
   const [mediaPreview, setMediaPreview] = useState<MediaPreview | null>(null);
-  const { data, isLoading } = useAnalysisCareRecommendations(analysisId);
+  const { data, isLoading: isLoadingSkinAge } = useAnalysisCareRecommendations(analysisId);
+  // Cuando hay una tarjeta de métrica puntual seleccionada arriba (ej.
+  // "Arrugas" → hd_wrinkle), se filtra por el motor de condiciones en vez de
+  // por la regla de edad de piel — mismo criterio que ya usaban (sin usar
+  // hoy) RecommendedRoutines/RecommendedTreatments.
+  const routinesQuery = useRecommendedRoutines(analysisId, !!metricType);
+  const treatmentsQuery = useRecommendedTreatments(analysisId, !!metricType);
 
-  const routines = useMemo(
+  const generalRoutines = useMemo(
     () =>
       firstNonEmpty(
         data?.recommendations.routines ?? [],
@@ -265,7 +315,7 @@ export function RecommendationsPanel({
       ),
     [data],
   );
-  const products = useMemo(
+  const generalProducts = useMemo(
     () =>
       firstNonEmpty(
         data?.recommendations.products ?? [],
@@ -273,7 +323,7 @@ export function RecommendationsPanel({
       ),
     [data],
   );
-  const supplements = useMemo(
+  const generalSupplements = useMemo(
     () =>
       firstNonEmpty(
         data?.recommendations.supplements ?? [],
@@ -281,7 +331,7 @@ export function RecommendationsPanel({
       ),
     [data],
   );
-  const treatments = useMemo(
+  const generalTreatments = useMemo(
     () =>
       firstNonEmpty(
         data?.recommendations.treatments ?? [],
@@ -289,6 +339,45 @@ export function RecommendationsPanel({
       ),
     [data],
   );
+
+  const filteredByMetric = useMemo(() => {
+    if (!metricType) return null;
+    const matchingRoutines = (routinesQuery.data ?? []).filter((r) =>
+      r.conditions.some((c) => c.metricType === metricType),
+    );
+    const matchingTreatments = (treatmentsQuery.data ?? []).filter((t) =>
+      t.conditions.some((c) => c.metricType === metricType),
+    );
+    const treatments = matchingTreatments
+      .filter((t) => !!t.categoryId)
+      .map(mapTreatmentToCareItem);
+    const plain = matchingTreatments.filter((t) => !t.categoryId);
+    const byProductType = (productType: "product" | "supplement") =>
+      plain
+        .map((t) => ({
+          ...t,
+          items: t.items.filter((i) => i.product.productType === productType),
+        }))
+        .filter((t) => t.items.length > 0)
+        .map(mapTreatmentToCareItem);
+
+    return {
+      routines: matchingRoutines.map(mapRoutineToCareItem),
+      treatments,
+      products: byProductType("product"),
+      supplements: byProductType("supplement"),
+    };
+  }, [metricType, routinesQuery.data, treatmentsQuery.data]);
+
+  const routines = filteredByMetric ? filteredByMetric.routines : generalRoutines;
+  const products = filteredByMetric ? filteredByMetric.products : generalProducts;
+  const supplements = filteredByMetric
+    ? filteredByMetric.supplements
+    : generalSupplements;
+  const treatments = filteredByMetric ? filteredByMetric.treatments : generalTreatments;
+  const isLoading = metricType
+    ? routinesQuery.isLoading || treatmentsQuery.isLoading
+    : isLoadingSkinAge;
 
   return (
     <div className="space-y-4">
