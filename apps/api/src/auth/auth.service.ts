@@ -184,6 +184,7 @@ export class AuthService implements OnModuleDestroy {
               licenseNumber: dto.licenseNumber?.trim() || null,
               educationEntity: dto.educationEntity?.trim() || null,
               graduationInstitution: dto.graduationInstitution?.trim() || null,
+              technicalInstitution: dto.technicalInstitution?.trim() || null,
               address: dto.address?.trim() || null,
               city: dto.city?.trim() || null,
               department: dto.department?.trim() || null,

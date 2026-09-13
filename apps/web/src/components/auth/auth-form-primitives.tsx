@@ -1,3 +1,5 @@
+import { CountryPhoneSelect } from "@/components/auth/country-phone-select";
+
 export function digitsOnly(value: string) {
   return value.replace(/\D/g, "");
 }
@@ -100,22 +102,13 @@ export function PhoneSplitInputs({
   className?: string;
 }) {
   const prefixControl = (
-    <div className="relative w-[5.5rem] shrink-0">
-      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-        +
-      </span>
-      <input
+    <div className="w-36 shrink-0">
+      <CountryPhoneSelect
         id={prefixId}
-        className={`${fieldInputClass} w-full pl-6`}
-        type="tel"
-        inputMode="numeric"
-        autoComplete="tel-country-code"
-        placeholder="57"
-        value={prefix}
+        className={`${fieldInputClass} w-full`}
+        callingCode={prefix}
         disabled={disabled}
-        maxLength={4}
-        aria-label="Prefijo de país"
-        onChange={(e) => onPrefixChange(digitsOnly(e.target.value).slice(0, 4))}
+        onChange={onPrefixChange}
       />
     </div>
   );
@@ -140,7 +133,7 @@ export function PhoneSplitInputs({
   if (showSubLabels) {
     return (
       <div className={`flex w-full items-end gap-2 ${className}`}>
-        <div className="flex w-[5.5rem] shrink-0 flex-col gap-1">
+        <div className="flex w-36 shrink-0 flex-col gap-1">
           <span className="text-[11px] font-normal leading-none text-muted-foreground">
             Indicativo
           </span>

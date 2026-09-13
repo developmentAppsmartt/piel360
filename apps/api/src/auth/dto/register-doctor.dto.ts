@@ -87,6 +87,11 @@ export class RegisterDoctorDto {
   @IsString()
   graduationInstitution?: string;
 
+  /** Solo técnicos laborales — institución de educación para el trabajo. */
+  @IsOptional()
+  @IsString()
+  technicalInstitution?: string;
+
   @IsOptional()
   @IsString()
   address?: string;

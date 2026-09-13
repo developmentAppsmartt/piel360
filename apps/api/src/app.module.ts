@@ -36,6 +36,7 @@ import { FitzpatrickRulesModule } from './fitzpatrick-rules/fitzpatrick-rules.mo
 import { DoctorReportsModule } from './doctor-reports/doctor-reports.module';
 import { EmailTemplatesModule } from './email-templates/email-templates.module';
 import { ReportsModule } from './reports/reports.module';
+import { ParametersModule } from './parameters/parameters.module';
 import { AgendaModule } from './agenda/agenda.module';
 import { AnalysisConditionsModule } from './analysis-conditions/analysis-conditions.module';
 import { AppConfigModule } from './app-config/app-config.module';
@@ -96,6 +97,7 @@ import { LaborTechnicianProfilesModule } from './labor-technician-profiles/labor
     DoctorReportsModule,
     EmailTemplatesModule,
     ReportsModule,
+    ParametersModule,
     AgendaModule,
     AnalysisConditionsModule,
     AppConfigModule,
