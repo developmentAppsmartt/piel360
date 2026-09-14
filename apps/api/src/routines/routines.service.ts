@@ -336,17 +336,15 @@ export class RoutinesService {
    * una se cumpla) matchean los resultados estructurados de un análisis
    * YouCam (analysis_results). Solo aplica a análisis YouCam. */
   async getRecommendedRoutines(userId: string, analysisId: string) {
-    const { results, patientBirthDate, analysisDate } =
+    const { results, patientBirthDate, analysisDate, catalogDoctorId } =
       await this.analysisConditions.loadAnalysisResultsForDoctor(
         userId,
         analysisId,
       );
     if (results.length === 0) return [];
 
-    const doctorId = await this.catalogDoctorId(userId);
-
     const routines = await this.prisma.routine.findMany({
-      where: { doctorId, isActive: true },
+      where: { doctorId: catalogDoctorId, isActive: true },
       include: this.routineInclude,
     });
 

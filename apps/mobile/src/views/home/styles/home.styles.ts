@@ -178,6 +178,32 @@ export function createHomeStyles(colors: AppBranding['colors']) {
       fontWeight: '600',
       color: colors.primary,
     },
+    historyFilterRow: {
+      gap: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingBottom: 2,
+    },
+    historyFilterChip: {
+      borderRadius: 999,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      backgroundColor: '#FFFFFF',
+      borderWidth: 1,
+      borderColor: '#E5E7EB',
+    },
+    historyFilterChipOn: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    historyFilterChipText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.muted,
+    },
+    historyFilterChipTextOn: {
+      color: colors.textOnDark,
+    },
     historyList: {
       backgroundColor: '#FFFFFF',
       borderRadius: 20,

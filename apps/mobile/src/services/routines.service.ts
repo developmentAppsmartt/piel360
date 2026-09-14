@@ -42,9 +42,10 @@ export const routinesService = {
     return apiRequest<RecommendedRoutine[]>('/routines', { auth: true });
   },
 
+  /** Usa /analyses para que el paciente (análisis compartido) también pueda leer. */
   async listRecommended(analysisId: string): Promise<RecommendedRoutine[]> {
     return apiRequest<RecommendedRoutine[]>(
-      `/routines/recommended/${encodeURIComponent(analysisId)}`,
+      `/analyses/${encodeURIComponent(analysisId)}/recommended-routines`,
       { auth: true },
     );
   },

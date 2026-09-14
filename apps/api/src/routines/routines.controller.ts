@@ -35,8 +35,9 @@ export class RoutinesController {
     return this.routinesService.getRoutines(user.sub);
   }
 
-  /** Rutinas recomendadas para un análisis YouCam ya completado. */
+  /** Rutinas recomendadas para un análisis YouCam (profesional o paciente con análisis compartido). */
   @Get('recommended/:analysisId')
+  @Roles('doctor', 'empresa', 'patient', 'superadmin')
   getRecommended(
     @CurrentUser() user: JwtPayload,
     @Param('analysisId') analysisId: string,

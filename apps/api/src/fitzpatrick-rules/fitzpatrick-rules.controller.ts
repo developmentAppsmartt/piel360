@@ -11,6 +11,7 @@ import {
 import { CurrentUser } from '../auth/current-user.decorator';
 import { ClinicalPanelOrSuperadminRoles } from '../auth/clinical-panel.roles.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import type { JwtPayload } from '../auth/types';
 import {
@@ -41,12 +42,14 @@ export class FitzpatrickRulesController {
     return this.fitzpatrickRulesService.simulate(user.sub, dto);
   }
 
+  /** Profesional o paciente con el análisis compartido. */
   @Get('recommended/:analysisId')
+  @Roles('doctor', 'empresa', 'patient', 'superadmin')
   recommendForAnalysis(
     @CurrentUser() user: JwtPayload,
     @Param('analysisId') analysisId: string,
   ) {
-    return this.fitzpatrickRulesService.recommendForAnalysis(
+    return this.fitzpatrickRulesService.careRecommendationsForAnalysis(
       user.sub,
       analysisId,
     );

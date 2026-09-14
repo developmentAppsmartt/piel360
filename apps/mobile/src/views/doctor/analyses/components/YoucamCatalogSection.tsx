@@ -21,6 +21,8 @@ import {
   type RoutineStep,
 } from '../../../../services/routines.service';
 import { skinAgeRulesService } from '../../../../services/skin-age-rules.service';
+import type { SkinAgeRecoItem } from '../../../../services/skin-age-rules.service';
+import { fitzpatrickRulesService } from '../../../../services/fitzpatrick-rules.service';
 import {
   treatmentsService,
   type RecommendedTreatment,
@@ -138,6 +140,86 @@ function matchesMetric(
   return (conditions ?? []).some((c) => c.metricType === metricType);
 }
 
+function mapRuleRoutines(routines: SkinAgeRecoItem[]): RecommendedRoutine[] {
+  return routines.map((routine) => ({
+    id: routine.id,
+    doctorId: '',
+    name: routine.name,
+    description: routine.description,
+    isActive: true,
+    conditions: [],
+    steps: (routine.steps ?? []).map((step) => ({
+      id: step.id,
+      routineId: routine.id,
+      order: step.order,
+      title: step.title,
+      description: step.description,
+      mediaUrl: step.mediaUrl,
+      mediaType: step.mediaType,
+      productId: step.productId ?? step.product?.id ?? null,
+      product: step.product
+        ? {
+            id: step.product.id,
+            productName: step.product.productName,
+            productType: step.product.productType,
+            productUrl: step.product.productUrl ?? null,
+            imageUrl: resolveMediaUrl(step.product.imageUrl),
+          }
+        : null,
+    })),
+  }));
+}
+
+function mapRuleTreatments(
+  treatments: SkinAgeRecoItem[],
+): RecommendedTreatment[] {
+  return treatments.map((treatment) => ({
+    id: treatment.id,
+    doctorId: '',
+    categoryId: treatment.id,
+    category: treatment.categoryName
+      ? { id: treatment.id, categoryName: treatment.categoryName }
+      : { id: treatment.id, categoryName: 'Tratamiento' },
+    name: treatment.name,
+    description: treatment.description,
+    isActive: true,
+    conditions: [],
+    items: (treatment.items ?? []).map((item, index) => ({
+      id: item.id,
+      treatmentId: treatment.id,
+      order: index,
+      note: item.note,
+      productId: item.productId,
+      product: {
+        id: item.productId,
+        productName: item.productName,
+        productType:
+          item.productType === 'supplement' ? 'supplement' : 'product',
+        productDescription: item.note,
+        productUrl: item.productUrl ?? null,
+        imageUrl: item.imageUrl ?? null,
+      },
+    })),
+  }));
+}
+
+function mapRuleProductCards(
+  products: SkinAgeRecoItem[],
+  kind: 'product' | 'supplement',
+): CatalogCard[] {
+  return products.map((product) => ({
+    id: product.id,
+    title: product.name,
+    subtitle: product.categoryName ?? undefined,
+    description: product.description,
+    imageUrl: resolveMediaUrl(
+      product.imageUrl ?? product.items?.[0]?.imageUrl ?? null,
+    ),
+    url: product.productUrl ?? product.items?.[0]?.productUrl ?? null,
+    kind,
+  }));
+}
+
 export function YoucamCatalogSection({
   styles,
   analysisId,
@@ -181,98 +263,46 @@ export function YoucamCatalogSection({
         return;
       }
       try {
-        if (metricType === 'skin_age') {
-          const age = await skinAgeRulesService.recommendForAnalysis(analysisId);
+        const isSkinAgeFilter =
+          metricType === 'skin_age' || metricType === 'all';
+        const isFototipoFilter = metricType === 'fitzpatrick';
+
+        if (isSkinAgeFilter || isFototipoFilter) {
+          const payload = isFototipoFilter
+            ? await fitzpatrickRulesService.recommendForAnalysis(analysisId)
+            : await skinAgeRulesService.recommendForAnalysis(analysisId);
           if (cancelled) return;
-          const reco = age.recommendations;
-          const diff = age.snapshot.skinAgeDifference;
-          const diffLabel =
-            diff == null ? null : `${diff > 0 ? '+' : ''}${diff} años`;
-          setSkinAgeNote(
-            age.matchedRule
-              ? `Según la diferencia de edad de la piel${diffLabel ? ` (${diffLabel})` : ''}: ${age.matchedRule.label}`
-              : age.snapshot.message,
-          );
-          setRoutines(
-            reco.routines.map((routine) => ({
-              id: routine.id,
-              doctorId: '',
-              name: routine.name,
-              description: routine.description,
-              isActive: true,
-              conditions: [],
-              steps: (routine.steps ?? []).map((step) => ({
-                id: step.id,
-                routineId: routine.id,
-                order: step.order,
-                title: step.title,
-                description: step.description,
-                mediaUrl: step.mediaUrl,
-                mediaType: step.mediaType,
-                productId: step.productId ?? step.product?.id ?? null,
-                product: step.product
-                  ? {
-                      id: step.product.id,
-                      productName: step.product.productName,
-                      productType: step.product.productType,
-                      productUrl: step.product.productUrl ?? null,
-                      imageUrl: resolveMediaUrl(step.product.imageUrl),
-                    }
-                  : null,
-              })),
-            })),
-          );
-          setTreatments(
-            reco.treatments.map((treatment) => ({
-              id: treatment.id,
-              doctorId: '',
-              categoryId: treatment.id,
-              category: treatment.categoryName
-                ? { id: treatment.id, categoryName: treatment.categoryName }
-                : { id: treatment.id, categoryName: 'Tratamiento' },
-              name: treatment.name,
-              description: treatment.description,
-              isActive: true,
-              conditions: [],
-              items: (treatment.items ?? []).map((item, index) => ({
-                id: item.id,
-                treatmentId: treatment.id,
-                order: index,
-                note: item.note,
-                productId: item.productId,
-                product: {
-                  id: item.productId,
-                  productName: item.productName,
-                  productType:
-                    item.productType === 'supplement' ? 'supplement' : 'product',
-                  productDescription: item.note,
-                  productUrl: item.productUrl ?? null,
-                  imageUrl: item.imageUrl ?? null,
-                },
-              })),
-            })),
-          );
-          setDirectProducts(
-            reco.products.map((product) => ({
-              id: product.id,
-              title: product.name,
-              subtitle: product.categoryName ?? undefined,
-              description: product.description,
-              imageUrl: resolveMediaUrl(product.imageUrl),
-              url: product.productUrl,
-              kind: 'product' as const,
-            })),
-          );
+          const reco = payload.recommendations;
+
+          if (isFototipoFilter) {
+            const foto = payload as Awaited<
+              ReturnType<typeof fitzpatrickRulesService.recommendForAnalysis>
+            >;
+            const scale = foto.snapshot.fitzpatrickScale;
+            setSkinAgeNote(
+              foto.matchedRule
+                ? `Según fototipo${scale ? ` (${scale})` : ''}: ${foto.matchedRule.label}`
+                : foto.snapshot.message,
+            );
+          } else {
+            const age = payload as Awaited<
+              ReturnType<typeof skinAgeRulesService.recommendForAnalysis>
+            >;
+            const diff = age.snapshot.skinAgeDifference;
+            const diffLabel =
+              diff == null ? null : `${diff > 0 ? '+' : ''}${diff} años`;
+            setSkinAgeNote(
+              age.matchedRule
+                ? `Según la diferencia de edad de la piel${diffLabel ? ` (${diffLabel})` : ''}: ${age.matchedRule.label}`
+                : age.snapshot.message,
+            );
+          }
+
+          setRoutines(mapRuleRoutines(reco.routines));
+          setTreatments(mapRuleTreatments(reco.treatments));
+          setDirectProducts(mapRuleProductCards(reco.products, 'product'));
           setDirectSupplements(
-            reco.supplements.map((product) => ({
-              id: product.id,
-              title: product.name,
-              subtitle: product.categoryName ?? undefined,
-              description: product.description,
-              imageUrl: resolveMediaUrl(product.imageUrl),
-              url: product.productUrl,
-              kind: 'supplement' as const,
-            })),
+            mapRuleProductCards(reco.supplements, 'supplement'),
           );
         } else {
           const [recs, treats] = await Promise.all([

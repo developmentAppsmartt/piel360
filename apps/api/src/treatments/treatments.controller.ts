@@ -12,6 +12,7 @@ import {
 import { CurrentUser } from '../auth/current-user.decorator';
 import { ClinicalPanelRoles } from '../auth/clinical-panel.roles.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import type { JwtPayload } from '../auth/types';
 import { TreatmentsService } from './treatments.service';
@@ -69,9 +70,9 @@ export class TreatmentsController {
     return this.treatmentsService.getTreatments(user.sub, { categoryId, kind });
   }
 
-  /** Tratamientos/productos sugeridos recomendados para un análisis YouCam
-   * ya completado. */
+  /** Tratamientos/productos sugeridos para un análisis YouCam (profesional o paciente con análisis compartido). */
   @Get('recommended/:analysisId')
+  @Roles('doctor', 'empresa', 'patient', 'superadmin')
   getRecommended(
     @CurrentUser() user: JwtPayload,
     @Param('analysisId') analysisId: string,

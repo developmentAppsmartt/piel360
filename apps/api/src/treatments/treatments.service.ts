@@ -363,17 +363,15 @@ export class TreatmentsService {
   /** Tratamientos/productos sugeridos activos del doctor cuyas condiciones
    * (lógica O) matchean los resultados estructurados de un análisis YouCam. */
   async getRecommendedTreatments(userId: string, analysisId: string) {
-    const { results, patientBirthDate, analysisDate } =
+    const { results, patientBirthDate, analysisDate, catalogDoctorId } =
       await this.analysisConditions.loadAnalysisResultsForDoctor(
         userId,
         analysisId,
       );
     if (results.length === 0) return [];
 
-    const doctorId = await this.catalogDoctorId(userId);
-
     const treatments = await this.prisma.treatment.findMany({
-      where: { doctorId, isActive: true },
+      where: { doctorId: catalogDoctorId, isActive: true },
       include: this.treatmentInclude,
     });
 

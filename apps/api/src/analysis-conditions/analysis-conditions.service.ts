@@ -141,8 +141,11 @@ export class AnalysisConditionsService {
     });
   }
 
-  /** Verifica que el análisis pertenezca a un paciente del doctor autenticado
-   * y devuelve sus AnalysisResult ya cargados. */
+  /**
+   * Carga resultados de un análisis YouCam para el motor de recomendaciones.
+   * Acceso: profesional del paciente, superadmin, o el paciente dueño si el
+   * análisis está compartido.
+   */
   async loadAnalysisResultsForDoctor(userId: string, analysisId: string) {
     const analysis = await this.prisma.analysis.findUnique({
       where: { id: BigInt(analysisId) },
@@ -150,11 +153,19 @@ export class AnalysisConditionsService {
     });
     if (!analysis) throw new NotFoundException('Análisis no encontrado');
 
-    const allowed = await this.orgContext.canAccessPatientDoctorId(
-      userId,
-      analysis.patient.doctorId,
-    );
-    if (!allowed) {
+    const patientUserId = analysis.patient.userId?.toString();
+    const isOwnerPatient = patientUserId === userId;
+    const sharedOk = isOwnerPatient && analysis.sharedWithPatient;
+    const doctorOk = await this.orgContext
+      .canAccessPatientDoctorId(userId, analysis.patient.doctorId)
+      .catch(() => false);
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: BigInt(userId) },
+      include: { roles: true },
+    });
+    const isSuperadmin = user?.roles.some((r) => r.name === 'superadmin');
+    if (!isSuperadmin && !doctorOk && !sharedOk) {
       throw new ForbiddenException('No tienes acceso a este análisis');
     }
 
@@ -167,12 +178,21 @@ export class AnalysisConditionsService {
       throw new NotFoundException('Médico del análisis no encontrado');
     }
 
+    let catalogDoctorId = doctor.id;
+    try {
+      const ctx = await this.orgContext.resolve(doctor.userId.toString());
+      catalogDoctorId = ctx.catalogDoctorId;
+    } catch {
+      // Sin org / sin perfil clínico usable → catálogo del doctor del paciente.
+    }
+
     const results = await this.prisma.analysisResult.findMany({
       where: { analysisId: BigInt(analysisId) },
     });
 
     return {
       doctor,
+      catalogDoctorId,
       results,
       patientBirthDate: analysis.patient.birthDate,
       analysisDate: analysis.createdAt,

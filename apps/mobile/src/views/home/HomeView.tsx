@@ -15,6 +15,10 @@ import { Icons } from '../../components/icons';
 import { LegalDocumentModal } from '../../components/legal/LegalDocumentModal';
 import { useAuth } from '../../context/AuthContext';
 import { useBranding } from '../../context/BrandingContext';
+import {
+  isAnalysisProviderSlug,
+  type AnalysisProviderSlug,
+} from '../../data/analysisProviderLabel';
 import type { LegalDocId } from '../../data/legal/documents';
 import { ApiError } from '../../services/api.client';
 import { analysesService } from '../../services/analyses.service';
@@ -59,6 +63,27 @@ import {
 } from './SkinDiseasesView';
 
 type PatientFlowKind = 'youcam' | 'skiniver' | 'fitzpatrick';
+type HistoryFilter = 'all' | AnalysisProviderSlug;
+
+const HISTORY_FILTER_CHIPS: { id: HistoryFilter; label: string }[] = [
+  { id: 'all', label: 'Todas' },
+  { id: 'youcam', label: 'Estético' },
+  { id: 'skiniver', label: 'Dermatológico' },
+  { id: 'fitzpatrick', label: 'Fototipo' },
+];
+
+function resolveAnalysisSlug(row: {
+  youcamTaskId?: string | null;
+  fitzpatrickTaskId?: string | null;
+  providerSlug?: string | null;
+}): AnalysisProviderSlug {
+  if (row.providerSlug && isAnalysisProviderSlug(row.providerSlug)) {
+    return row.providerSlug;
+  }
+  if (row.youcamTaskId) return 'youcam';
+  if (row.fitzpatrickTaskId) return 'fitzpatrick';
+  return 'skiniver';
+}
 
 type HomeViewProps = {
   onOpenProfile?: () => void;
@@ -228,6 +253,7 @@ export function HomeView({
   const [legalDoc, setLegalDoc] = useState<LegalDocId | null>(null);
   const [patient, setPatient] = useState<PatientProfile | null>(null);
   const [analyses, setAnalyses] = useState<PatientAnalysisSummary[]>([]);
+  const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('all');
   const [loading, setLoading] = useState(true);
   const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(
     null,
@@ -239,6 +265,13 @@ export function HomeView({
     () => analyses.filter(isDermatologyDiseaseAnalysis),
     [analyses],
   );
+
+  const filteredAnalyses = useMemo(() => {
+    if (historyFilter === 'all') return analyses;
+    return analyses.filter(
+      (item) => resolveAnalysisSlug(item) === historyFilter,
+    );
+  }, [analyses, historyFilter]);
 
   useEffect(() => {
     if (!homeIntent) return;
@@ -700,6 +733,40 @@ export function HomeView({
             </Pressable>
           </View>
 
+          {analyses.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.historyFilterRow}
+            >
+              {HISTORY_FILTER_CHIPS.map((chip) => {
+                const on = historyFilter === chip.id;
+                return (
+                  <Pressable
+                    key={chip.id}
+                    style={[
+                      styles.historyFilterChip,
+                      on && styles.historyFilterChipOn,
+                    ]}
+                    onPress={() => setHistoryFilter(chip.id)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on }}
+                    accessibilityLabel={`Filtrar por ${chip.label}`}
+                  >
+                    <Text
+                      style={[
+                        styles.historyFilterChipText,
+                        on && styles.historyFilterChipTextOn,
+                      ]}
+                    >
+                      {chip.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          ) : null}
+
           <View style={styles.historyList}>
             {analyses.length === 0 ? (
               <View style={styles.emptyHistory}>
@@ -707,15 +774,22 @@ export function HomeView({
                   Aún no tienes análisis compartidos por tu médico.
                 </Text>
               </View>
+            ) : filteredAnalyses.length === 0 ? (
+              <View style={styles.emptyHistory}>
+                <Text style={styles.emptyHistoryText}>
+                  No hay análisis en esta categoría.
+                </Text>
+              </View>
             ) : (
-              analyses.map((item, index) => {
+              filteredAnalyses.map((item, index) => {
                 const tone = analysisTone(item);
                 return (
                   <Pressable
                     key={item.id}
                     style={[
                       styles.historyRow,
-                      index === analyses.length - 1 && styles.historyRowLast,
+                      index === filteredAnalyses.length - 1 &&
+                        styles.historyRowLast,
                     ]}
                     onPress={() => setSelectedAnalysisId(item.id)}
                   >

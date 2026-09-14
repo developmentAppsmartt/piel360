@@ -19,7 +19,10 @@ import { RequirePermission } from '../auth/permissions.decorator';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import type { JwtPayload } from '../auth/types';
+import { FitzpatrickRulesService } from '../fitzpatrick-rules/fitzpatrick-rules.service';
+import { RoutinesService } from '../routines/routines.service';
 import { SkinAgeRulesService } from '../skin-age-rules/skin-age-rules.service';
+import { TreatmentsService } from '../treatments/treatments.service';
 import { AnalysesService } from './analyses.service';
 import { ConfirmAnalysisDto } from './dto/confirm-analysis.dto';
 import { CreateAnalysisDto } from './dto/create-analysis.dto';
@@ -34,6 +37,9 @@ export class AnalysesController {
   constructor(
     private readonly analysesService: AnalysesService,
     private readonly skinAgeRulesService: SkinAgeRulesService,
+    private readonly fitzpatrickRulesService: FitzpatrickRulesService,
+    private readonly routinesService: RoutinesService,
+    private readonly treatmentsService: TreatmentsService,
   ) {}
 
   @Post()
@@ -84,6 +90,36 @@ export class AnalysesController {
     @CurrentUser() user: JwtPayload,
   ) {
     return this.skinAgeRulesService.careRecommendationsForAnalysis(
+      user.sub,
+      id,
+    );
+  }
+
+  /** Rutinas recomendadas por métricas YouCam (profesional o paciente con análisis compartido). */
+  @Get(':id/recommended-routines')
+  recommendedRoutines(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.routinesService.getRecommendedRoutines(user.sub, id);
+  }
+
+  /** Tratamientos/productos recomendados por métricas YouCam (profesional o paciente con análisis compartido). */
+  @Get(':id/recommended-treatments')
+  recommendedTreatments(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.treatmentsService.getRecommendedTreatments(user.sub, id);
+  }
+
+  /** Recomendaciones por fototipo (profesional o paciente con análisis compartido). */
+  @Get(':id/fitzpatrick-recommendations')
+  fitzpatrickRecommendations(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.fitzpatrickRulesService.careRecommendationsForAnalysis(
       user.sub,
       id,
     );
