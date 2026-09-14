@@ -170,8 +170,9 @@ export class SpecialtyAccessService {
     if (permissionNames.has(professionalPerm)) return;
     if (patientPerm && permissionNames.has(patientPerm)) return;
 
+    // Paciente con solicitud pendiente del profesional para este proveedor.
     const isPatientOnly = Boolean(user?.patient) && !user?.doctor;
-    if (isPatientOnly && (providerSlug === 'youcam' || providerSlug === 'fitzpatrick')) {
+    if (isPatientOnly) {
       const patientId =
         options?.patientId ?? user?.patient?.id?.toString() ?? null;
       if (patientId && (await this.hasPendingRequest(patientId, providerSlug))) {

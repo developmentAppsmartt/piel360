@@ -6,6 +6,7 @@ import {
   Image,
   Modal,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -309,6 +310,9 @@ export function PatientDetailView({
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [dateQuery, setDateQuery] = useState('');
+  const [historyFilter, setHistoryFilter] = useState<
+    'all' | AnalysisProviderSlug
+  >('all');
   const [requestPickerOpen, setRequestPickerOpen] = useState(false);
   const [imageRequestOpen, setImageRequestOpen] = useState(false);
   const [sendingImage, setSendingImage] = useState(false);
@@ -519,8 +523,18 @@ export function PatientDetailView({
   }
 
   const listItems = useMemo(() => {
+    const matchesKind = (slug: AnalysisProviderSlug) =>
+      historyFilter === 'all' || historyFilter === slug;
+
     const requests = pendingRequests
       .filter((request) => matchesDateQuery(request.createdAt, dateQuery))
+      .filter((request) =>
+        matchesKind(
+          resolveAnalysisSlug({
+            providerSlug: request.providerSlug,
+          }),
+        ),
+      )
       .map((request) => ({
         kind: 'request' as const,
         id: `request-${request.id}`,
@@ -528,13 +542,14 @@ export function PatientDetailView({
       }));
     const history = analyses
       .filter((analysis) => matchesDateQuery(analysis.createdAt, dateQuery))
+      .filter((analysis) => matchesKind(resolveAnalysisSlug(analysis)))
       .map((analysis) => ({
         kind: 'analysis' as const,
         id: analysis.id,
         analysis,
       }));
     return [...requests, ...history];
-  }, [pendingRequests, analyses, dateQuery]);
+  }, [pendingRequests, analyses, dateQuery, historyFilter]);
 
   async function handleCancelRequest(request: AnalysisRequest) {
     if (cancellingId) return;
@@ -697,6 +712,42 @@ export function PatientDetailView({
                     color={muted}
                   />
                 </View>
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.historyFilterRow}
+                >
+                  {(
+                    [
+                      { id: 'all' as const, label: 'Todas' },
+                      { id: 'youcam' as const, label: 'Estético' },
+                      { id: 'skiniver' as const, label: 'Dermatológico' },
+                      { id: 'fitzpatrick' as const, label: 'Fototipo' },
+                    ] as const
+                  ).map((chip) => {
+                    const on = historyFilter === chip.id;
+                    return (
+                      <Pressable
+                        key={chip.id}
+                        style={[
+                          styles.historyFilterChip,
+                          on && styles.historyFilterChipOn,
+                        ]}
+                        onPress={() => setHistoryFilter(chip.id)}
+                      >
+                        <Text
+                          style={[
+                            styles.historyFilterChipText,
+                            on && styles.historyFilterChipTextOn,
+                          ]}
+                        >
+                          {chip.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
 
                 <View style={styles.newAnalysisSection}>
                   <Text style={styles.newAnalysisHint}>

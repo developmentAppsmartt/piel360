@@ -22,6 +22,7 @@ import {
   parseYoucamMetrics,
   YOUCAM_MAIN_METRIC_TYPES,
   youcamScoresByType,
+  youcamSkinAge,
 } from '../../../types/analysis';
 import { DoctorHeader } from '../patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
@@ -60,6 +61,7 @@ export function YoucamProgressView({
   );
 
   const [layout, setLayout] = useState<LayoutMode>('vertical');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [previous, setPrevious] = useState<PatientAnalysisSummary | null>(null);
 
@@ -119,6 +121,37 @@ export function YoucamProgressView({
     (type) => currentScores[type] != null || previousScores[type] != null,
   );
 
+  const categoryFilters = useMemo(
+    () => [
+      { id: 'all', label: 'Todas' },
+      { id: 'skin_age', label: 'Edad de la piel' },
+      ...rows.map((type) => ({
+        id: type,
+        label: YOUCAM_METRIC_LABELS[type] ?? type,
+      })),
+    ],
+    [rows],
+  );
+
+  const visibleRows = useMemo(() => {
+    if (categoryFilter === 'all') return rows;
+    if (categoryFilter === 'skin_age') return [];
+    return rows.filter((type) => type === categoryFilter);
+  }, [rows, categoryFilter]);
+
+  const currentSkinAge =
+    analysis.skinAgeYears ??
+    youcamSkinAge(
+      parseYoucamMetrics(analysis.aiRawResponse as YoucamRawResponse | null),
+    );
+  const previousSkinAge = previous
+    ? youcamSkinAge(
+        parseYoucamMetrics(
+          previous.aiRawResponse as YoucamRawResponse | null,
+        ),
+      )
+    : null;
+
   return (
     <View style={styles.progressScreen}>
       <StatusBar style="light" />
@@ -169,6 +202,32 @@ export function YoucamProgressView({
             : 'Columnas: barras verticales; desliza a la derecha para ver más.'}
         </Text>
 
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryFilterRow}
+        >
+          {categoryFilters.map((chip) => {
+            const on = categoryFilter === chip.id;
+            return (
+              <Pressable
+                key={chip.id}
+                style={[styles.categoryChip, on && styles.categoryChipOn]}
+                onPress={() => setCategoryFilter(chip.id)}
+              >
+                <Text
+                  style={[
+                    styles.categoryChipText,
+                    on && styles.categoryChipTextOn,
+                  ]}
+                >
+                  {chip.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
         <View style={styles.legendRow}>
           <View style={styles.legendItem}>
             <View
@@ -201,8 +260,24 @@ export function YoucamProgressView({
               </Text>
             ) : null}
 
+            {(categoryFilter === 'all' || categoryFilter === 'skin_age') &&
+            (currentSkinAge != null || previousSkinAge != null) ? (
+              <View style={styles.barRow}>
+                <Text style={styles.barLabel}>Edad de la piel</Text>
+                <Text style={styles.barMeta}>
+                  Actual:{' '}
+                  {currentSkinAge != null
+                    ? `${Math.round(currentSkinAge)} años`
+                    : '—'}
+                  {previousSkinAge != null
+                    ? ` · Anterior: ${Math.round(previousSkinAge)} años`
+                    : ''}
+                </Text>
+              </View>
+            ) : null}
+
             {layout === 'vertical' ? (
-              rows.map((type) => {
+              visibleRows.map((type) => {
                 const current = currentScores[type];
                 const prev = previousScores[type];
                 return (
@@ -249,7 +324,7 @@ export function YoucamProgressView({
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.colChartRow}
               >
-                {rows.map((type) => {
+                {visibleRows.map((type) => {
                   const current = currentScores[type] ?? 0;
                   const prev = previousScores[type];
                   return (

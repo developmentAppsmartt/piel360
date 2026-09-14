@@ -118,6 +118,33 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
       color: colors.text,
       padding: 0,
     },
+    historyFilterRow: {
+      paddingHorizontal: 16,
+      paddingBottom: 8,
+      gap: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    historyFilterChip: {
+      borderRadius: 999,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      backgroundColor: '#F3F4F6',
+      borderWidth: 1,
+      borderColor: '#E5E7EB',
+    },
+    historyFilterChipOn: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    historyFilterChipText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.muted,
+    },
+    historyFilterChipTextOn: {
+      color: colors.textOnDark,
+    },
     newAnalysisSection: {
       marginTop: 12,
       alignSelf: 'stretch',

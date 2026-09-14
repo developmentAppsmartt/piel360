@@ -1062,11 +1062,11 @@ export function YoucamResultsSection({
         styles={styles}
         analysisId={analysis.id}
         metricType={
-          selected?.type && selected.type !== PHOTOTYPE_TYPE
+          selected?.type
             ? selected.type === 'overview'
               ? 'all'
               : selected.type
-            : null
+            : 'skin_age'
         }
       />
     </View>

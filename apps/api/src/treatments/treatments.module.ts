@@ -15,5 +15,6 @@ import { AnalysisConditionsModule } from '../analysis-conditions/analysis-condit
   ],
   providers: [TreatmentsService],
   controllers: [TreatmentsController],
+  exports: [TreatmentsService],
 })
 export class TreatmentsModule {}

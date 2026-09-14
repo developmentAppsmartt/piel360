@@ -2,11 +2,14 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { DoctorsModule } from '../doctors/doctors.module';
+import { FitzpatrickRulesModule } from '../fitzpatrick-rules/fitzpatrick-rules.module';
 import { PatientsModule } from '../patients/patients.module';
+import { RoutinesModule } from '../routines/routines.module';
 import { SkinAgeRulesModule } from '../skin-age-rules/skin-age-rules.module';
 import { SkiniverModule } from '../skiniver/skiniver.module';
 import { StorageModule } from '../storage/storage.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
+import { TreatmentsModule } from '../treatments/treatments.module';
 import { AnalysesService } from './analyses.service';
 import { AnalysesController } from './analyses.controller';
 import { AnalysisImagesProcessor } from './analysis-images.processor';
@@ -23,6 +26,9 @@ import { ANALYSIS_IMAGES_QUEUE, ENCYCLOPEDIA_QUEUE } from './queues';
     DoctorsModule,
     PatientsModule,
     SkinAgeRulesModule,
+    FitzpatrickRulesModule,
+    RoutinesModule,
+    TreatmentsModule,
     SkiniverModule,
     SubscriptionsModule,
     StorageModule,

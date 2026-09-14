@@ -1098,6 +1098,33 @@ export function createYoucamResultsStyles(
       marginBottom: 12,
       paddingHorizontal: 8,
     },
+    categoryFilterRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingBottom: 12,
+      paddingHorizontal: 2,
+    },
+    categoryChip: {
+      borderRadius: 999,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      backgroundColor: '#F3F4F6',
+      borderWidth: 1,
+      borderColor: '#E5E7EB',
+    },
+    categoryChipOn: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    categoryChipText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.muted,
+    },
+    categoryChipTextOn: {
+      color: colors.textOnDark,
+    },
     colChartScroll: {
       paddingBottom: 16,
     },

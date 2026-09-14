@@ -47,9 +47,10 @@ export const treatmentsService = {
     });
   },
 
+  /** Usa /analyses para que el paciente (análisis compartido) también pueda leer. */
   async listRecommended(analysisId: string): Promise<RecommendedTreatment[]> {
     return apiRequest<RecommendedTreatment[]>(
-      `/treatments/recommended/${encodeURIComponent(analysisId)}`,
+      `/analyses/${encodeURIComponent(analysisId)}/recommended-treatments`,
       { auth: true },
     );
   },

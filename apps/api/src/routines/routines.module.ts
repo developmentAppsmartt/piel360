@@ -15,5 +15,6 @@ import { AnalysisConditionsModule } from '../analysis-conditions/analysis-condit
   ],
   providers: [RoutinesService],
   controllers: [RoutinesController],
+  exports: [RoutinesService],
 })
 export class RoutinesModule {}
