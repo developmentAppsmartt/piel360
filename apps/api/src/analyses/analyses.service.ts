@@ -94,17 +94,32 @@ export class AnalysesService {
   ) {
     // Verifica que el usuario puede operar sobre este paciente (scoping).
     await this.patients.findOne(dto.patientId, currentUser);
-    await this.orgContext.assertTeamPermissionForUser(currentUser.sub, 'analyses');
+
+    if (isDoctorPanelRole(currentUser.role)) {
+      await this.orgContext.assertTeamPermissionForUser(
+        currentUser.sub,
+        'analyses',
+      );
+    }
 
     const userId = BigInt(currentUser.sub);
-    await this.specialtyAccess.assertCanUseProvider(userId, SKINIVER_PROVIDER_SLUG);
+    await this.specialtyAccess.assertCanUseProvider(
+      userId,
+      SKINIVER_PROVIDER_SLUG,
+      { patientId: dto.patientId },
+    );
+    const billingUserId =
+      await this.subscriptions.resolveBillingUserIdForAnalysis(
+        userId,
+        dto.patientId,
+      );
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
     });
 
     const subscription = await this.subscriptions.findActiveForUser(
       this.prisma,
-      userId,
+      billingUserId,
       SKINIVER_PROVIDER_SLUG,
     );
     if (!subscription) {
