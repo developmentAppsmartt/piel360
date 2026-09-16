@@ -22,6 +22,7 @@ import {
   type AuthActionState,
 } from "@/lib/actions/auth";
 import { sendPhoneOtpAction, verifyPhoneOtpAction } from "@/lib/actions/phone-otp";
+import { CatalogCombobox } from "@/components/auth/catalog-combobox";
 import { homeForUser } from "@/lib/auth-redirect";
 import { ApiError } from "@/lib/api-error";
 import { registerEmpresaWithDocuments } from "@/lib/empresa-register-client";
@@ -89,6 +90,7 @@ export function EmpresaRegisterForm() {
   const [phoneNational, setPhoneNational] = useState("");
   const [organizationName, setOrganizationName] = useState("");
   const [ciiuCode, setCiiuCode] = useState("");
+  const [ciiuLabel, setCiiuLabel] = useState("");
   const [businessEmail, setBusinessEmail] = useState("");
   const [businessPhone, setBusinessPhone] = useState("");
   const [website, setWebsite] = useState("");
@@ -373,11 +375,15 @@ export function EmpresaRegisterForm() {
             />
           </Field>
           <Field label="Código CIIU principal">
-            <input
+            <CatalogCombobox
+              typeSlug="ciiu_code"
               className={inputClass}
-              value={ciiuCode}
-              onChange={(e) => setCiiuCode(e.target.value)}
-              placeholder="Ej. 8621"
+              placeholder="Busca la actividad económica"
+              value={ciiuLabel}
+              onSelect={(p) => {
+                setCiiuLabel(p.label);
+                setCiiuCode(p.code ?? "");
+              }}
             />
           </Field>
           <Field label="Correo electrónico empresarial">

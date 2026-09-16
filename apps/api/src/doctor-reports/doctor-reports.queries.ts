@@ -208,6 +208,86 @@ export function categoryTrendQuery(
   `;
 }
 
+// ─── Reportes segmentados (tipo de nacimiento / mascota / actividad física) ──
+//
+// Mismo criterio que arriba, pero sin comparación de periodo anterior: los
+// mockups del cliente muestran distribución/comparación absoluta, no deltas.
+// `column` siempre llega como uno de los 3 literales TS fijos con los que el
+// service llama a estas funciones — nunca interpolado desde el cliente — así
+// que Prisma.raw(column) es tan seguro como los arrays de tipo/región ya
+// unnest-eados arriba.
+
+export type SegmentColumn = 'birth_type' | 'mascot_type' | 'exercise_habit';
+
+export interface SegmentDistributionRow {
+  segment: string;
+  patients: number;
+  analyses: number;
+  avg_score: number | null;
+}
+
+/** Distribución de pacientes/análisis + puntaje promedio por valor de una
+ * columna demográfica de `patients`, ya expuesta en v_report_analyses. */
+export function segmentDistributionQuery(
+  doctorIds: DoctorIds,
+  from: Date,
+  toExclusive: Date,
+  column: SegmentColumn,
+): Prisma.Sql {
+  const col = Prisma.raw(column);
+  return Prisma.sql`
+    SELECT
+      ${col}                              AS segment,
+      COUNT(DISTINCT patient_id)::int     AS patients,
+      COUNT(*)::int                       AS analyses,
+      AVG(overall_score)::float8          AS avg_score
+    FROM v_report_analyses
+    WHERE doctor_id = ANY(${doctorIds}::bigint[])
+      AND created_at >= ${from}
+      AND created_at <  ${toExclusive}
+      AND ${col} IS NOT NULL
+    GROUP BY 1
+  `;
+}
+
+export interface SegmentCategoryRow {
+  segment: string;
+  type: string;
+  region: string | null;
+  avg_score: number | null;
+  samples: number;
+}
+
+/** Puntaje promedio por categoría reportable, partido por segmento — para el
+ * comparativo "categorías que más necesitan intervención" por grupo. */
+export function segmentCategoryQuery(
+  doctorIds: DoctorIds,
+  from: Date,
+  toExclusive: Date,
+  catTypes: string[],
+  catRegions: string[],
+  column: SegmentColumn,
+): Prisma.Sql {
+  const col = Prisma.raw(column);
+  return Prisma.sql`
+    SELECT
+      s.${col}                                      AS segment,
+      cat.type                                       AS type,
+      NULLIF(cat.region, '')                         AS region,
+      AVG(s.score)::float8                           AS avg_score,
+      COUNT(*)::int                                  AS samples
+    FROM v_skin_metric_scores s
+    JOIN unnest(${catTypes}::text[], ${catRegions}::text[]) AS cat(type, region)
+      ON cat.type = s.type
+     AND ((cat.region = '' AND s.is_general) OR cat.region = s.region)
+    WHERE s.doctor_id = ANY(${doctorIds}::bigint[])
+      AND s.created_at >= ${from}
+      AND s.created_at <  ${toExclusive}
+      AND s.${col} IS NOT NULL
+    GROUP BY 1, 2, 3
+  `;
+}
+
 export interface DerivedKpiRow {
   patients_current: number;
   patients_previous: number;

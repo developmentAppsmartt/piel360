@@ -44,7 +44,10 @@ apps/mobile/.expo/
 apps/mobile/ios/
 apps/mobile/android/
 
-docs
+docs/*
+# Catálogos reales usados por apps/api/prisma/seed-parameters.ts — deben
+# viajar al VPS, a diferencia del resto de docs/ (notas internas).
+!docs/catalogo/
 
 # TypeScript
 *.tsbuildinfo

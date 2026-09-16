@@ -50,10 +50,67 @@ export class EncyclopediaService {
       return cached;
     }
 
+    let article = await this.fetchArticle(url);
+    if (!article) {
+      // Skinive reorganiza de vez en cuando las categorías del atlas (ej.
+      // "precancer/id5-lentigo" pasó a "benign-formations/id5-lentigo").
+      // skinive.com mantiene el redirect 301 categoría-vieja → nueva del
+      // lado por defecto/inglés, pero NO del lado /es/ (Polylang) — ahí cae
+      // a un catch-all que devuelve la landing de "descarga la app"
+      // (fetchArticle ya lo descartó arriba). Reintentamos resolviendo la
+      // ruta canónica por el lado que sí redirige bien, y volviendo a
+      // pedir esa ruta en español.
+      const canonicalUrl = await this.resolveCanonicalUrl(rawUrl);
+      const retryUrl = canonicalUrl && this.toSpanishUrl(canonicalUrl);
+      if (retryUrl && retryUrl !== url) {
+        article = await this.fetchArticle(retryUrl);
+      }
+    }
+
+    if (!article) {
+      // No es un error transitorio: o Skinive dio de baja el artículo, o no
+      // hay forma de resolver la categoría nueva. No hacemos upsert —
+      // `findByUrl` sigue sin encontrar nada y el frontend ya muestra
+      // "Artículo aún no disponible" en ese caso, en vez de guardar la
+      // landing de marketing como si fuera contenido real.
+      this.logger.warn(`Artículo removido del atlas de Skinive: ${rawUrl}`);
+      throw new Error('El artículo ya no existe en el atlas de Skinive');
+    }
+
+    // Se guarda bajo `url` (la misma clave con la que se cachea arriba y con
+    // la que `findByUrl` va a preguntar) — NO bajo la URL canónica/resuelta.
+    // skinive.com hace 301 cuando el link no termina en "/" (el
+    // atlas_page_link real de Skiniver no siempre la trae) o cuando cambia
+    // de categoría; guardar bajo la URL final rompía el caché: quedaba
+    // huérfano, invisible para `findByUrl` (que siempre recalcula la key a
+    // partir del atlas_page_link original, que Skiniver nunca actualiza), y
+    // el doctor nunca veía el artículo aunque el scrape hubiera funcionado.
+    const { title, content } = article;
+    return this.prisma.encyclopediaEntry.upsert({
+      where: { url },
+      update: { title, content, originalUrl: rawUrl },
+      create: { url, originalUrl: rawUrl, title, content },
+    });
+  }
+
+  /** Descarga `url` y devuelve título+HTML limpio, o `null` si la respuesta
+   * no es realmente un artículo del atlas (ej. terminó en `/get-skinive/`,
+   * la landing de "descarga la app" a la que Skinive cae cuando no puede
+   * resolver la ruta pedida). Nunca lanza por esto — un `null` es una señal
+   * normal para que el caller decida si reintentar por otra ruta. */
+  private async fetchArticle(
+    url: string,
+  ): Promise<{ title: string; content: string } | null> {
     const response = await fetch(url, { redirect: 'follow' });
     if (!response.ok) {
       this.logger.warn(`No se pudo scrapear ${url}: ${response.status}`);
-      throw new Error(`Fetch de enciclopedia falló: ${response.status}`);
+      return null;
+    }
+    // Todo artículo real del atlas vive bajo /dermatlas/...; la landing de
+    // descarga y cualquier otro catch-all no.
+    if (!new URL(response.url).pathname.includes('/dermatlas/')) {
+      this.logger.warn(`${url} redirigió fuera del atlas: ${response.url}`);
+      return null;
     }
     const html = await response.text();
 
@@ -69,20 +126,18 @@ export class EncyclopediaService {
     });
     const title =
       $('h1').first().text().trim() || $('title').first().text().trim();
-    const content = $.html();
+    return { title, content: $.html() };
+  }
 
-    // Se guarda bajo `url` (la misma clave con la que se cachea arriba y con
-    // la que `findByUrl` va a preguntar) — NO bajo `response.url` (post-
-    // redirect). skinive.com hace 301 cuando el link no termina en "/" (el
-    // atlas_page_link real de Skiniver no siempre la trae); guardar bajo la
-    // URL final rompía el caché: quedaba huérfano, invisible para
-    // `findByUrl`, y el doctor nunca veía el artículo aunque el scrape
-    // hubiera funcionado.
-    return this.prisma.encyclopediaEntry.upsert({
-      where: { url },
-      update: { title, content, originalUrl: rawUrl },
-      create: { url, originalUrl: rawUrl, title, content },
-    });
+  /** Sigue los redirects de la URL ORIGINAL (bare, sin `/es/`) para
+   * descubrir la ruta canónica actual del artículo — Skinive mantiene esos
+   * redirects al reorganizar categorías, a diferencia del lado /es/. Null si
+   * tampoco resuelve a un artículo real (el artículo ya no existe). */
+  private async resolveCanonicalUrl(rawUrl: string): Promise<string | null> {
+    const response = await fetch(rawUrl, { redirect: 'follow' });
+    if (!response.ok) return null;
+    if (!new URL(response.url).pathname.includes('/dermatlas/')) return null;
+    return response.url;
   }
 
   findAll() {

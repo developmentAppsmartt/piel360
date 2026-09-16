@@ -3,6 +3,8 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { JwtPayload } from '../auth/types';
 import { SkinHealthReportQueryDto } from './dto/skin-health-report-query.dto';
+import { SkinSegmentsReportQueryDto } from './dto/skin-segments-report-query.dto';
+import { SkiniverReportQueryDto } from './dto/skiniver-report-query.dto';
 import { DoctorReportsService } from './doctor-reports.service';
 
 /**

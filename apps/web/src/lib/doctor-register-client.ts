@@ -22,6 +22,8 @@ export interface DoctorRegisterPayload {
   licenseNumber?: string;
   educationEntity?: string;
   graduationInstitution?: string;
+  /** Solo técnicos laborales — institución de educación para el trabajo. */
+  technicalInstitution?: string;
   address?: string;
   city?: string;
   country?: string;

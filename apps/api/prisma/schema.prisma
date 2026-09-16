@@ -115,6 +115,8 @@ model Doctor {
   licenseNumber        String?   @map("license_number")
   educationEntity      String?   @map("education_entity")
   graduationInstitution String?  @map("graduation_institution")
+  /** Solo técnicos laborales — institución de educación para el trabajo. */
+  technicalInstitution String?   @map("technical_institution")
   cedulaDocKey         String?   @map("cedula_doc_key")
   medicalRegistryDocKey String?  @map("medical_registry_doc_key")
   diplomaDocKey        String?   @map("diploma_doc_key")
@@ -692,6 +694,40 @@ model AppConfig {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("app_configs")
+}
+
+/** Catálogo genérico de parámetros administrables (docs/catalogo) — ej.
+ * "education_entity", "technical_education_institution", "ciiu_code". Sin
+ * relación con roles/RBAC (a diferencia de DoctorSpecialty/LaborTechnicianProfile) —
+ * son listas de referencia inertes, un tipo por slug. */
+model ParameterType {
+  id         BigInt      @id @default(autoincrement())
+  slug       String      @unique
+  name       String
+  createdAt  DateTime    @default(now()) @map("created_at")
+  parameters Parameter[]
+
+  @@map("parameter_types")
+}
+
+model Parameter {
+  id        BigInt        @id @default(autoincrement())
+  typeId    BigInt        @map("type_id")
+  type      ParameterType @relation(fields: [typeId], references: [id], onDelete: Cascade)
+  /** Código externo de referencia (código CIIU, codigo_institucion) — no es PK. */
+  code      String?
+  /** Texto mostrado en el select. */
+  label     String
+  /** Datos extra sin usar hoy (departamento/municipio/naturaleza) — reservado. */
+  metadata  Json?
+  sortOrder Int           @default(0) @map("sort_order")
+  isActive  Boolean       @default(true) @map("is_active")
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  @@unique([typeId, label])
+  @@index([typeId, isActive])
+  @@map("parameters")
 }
 
 /** Categorías de productos — scoped al doctor. */

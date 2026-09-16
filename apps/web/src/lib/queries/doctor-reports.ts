@@ -1,10 +1,14 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { SkinHealthReport } from "@piel360/shared";
+import type {
+  SkinHealthReport,
+  SkinReportSegmentsResponse,
+  SkiniverReport,
+} from "@piel360/shared";
 import { apiClientFetch } from "@/lib/api-client";
 
-export type { SkinHealthReport };
+export type { SkinHealthReport, SkinReportSegmentsResponse, SkiniverReport };
 
 export interface DoctorReportsFilters {
   /** YYYY-MM-DD inclusivo. */

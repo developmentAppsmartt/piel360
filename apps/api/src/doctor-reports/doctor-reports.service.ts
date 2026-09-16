@@ -4,18 +4,36 @@ import {
   Injectable,
 } from '@nestjs/common';
 import {
+  BIRTH_TYPE_LABELS,
+  classifyDiagnosisClass,
+  classifyDiseaseBucket,
+  EXERCISE_HABIT_LABELS,
+  MASCOT_TYPE_LABELS,
   REPORTABLE_SKIN_CATEGORIES,
+  SEGMENT_COLORS,
   SKIN_REPORT_BANDS,
+  SKIN_TONE_BUCKET_DEFS,
   reportableCategoryKey,
   reportableCategorySqlPairs,
+  skinToneBucketForFitzpatrick,
   type ReportDelta,
+  type SegmentType,
   type SkinHealthReport,
   type SkinReportCategory,
+  type SkinReportSegmentBucket,
+  type SkinReportSegmentCategoryComparison,
+  type SkinReportSegmentsResponse,
+  type SkinReportSegmentView,
   type SkinReportTrendPoint,
+  type SkiniverMonthlySeriesPoint,
+  type SkiniverReport,
+  type SkiniverSkinToneBucket,
 } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrgContextService } from '../organizations/org-context.service';
 import type { SkinHealthReportQueryDto } from './dto/skin-health-report-query.dto';
+import type { SkinSegmentsReportQueryDto } from './dto/skin-segments-report-query.dto';
+import type { SkiniverReportQueryDto } from './dto/skiniver-report-query.dto';
 import {
   categoryRankingQuery,
   categoryTrendQuery,
@@ -23,6 +41,8 @@ import {
   lifestyleSegmentQuery,
   providerVolumeQuery,
   scoreTrendQuery,
+  segmentCategoryQuery,
+  segmentDistributionQuery,
   summaryQuery,
   type CategoryRow,
   type CategoryTrendRow,
@@ -32,6 +52,14 @@ import {
   type SummaryRow,
   type TrendRow,
 } from './doctor-reports.queries';
+import {
+  skiniverAgeMonthlyQuery,
+  skiniverMonthlyDiagnosesQuery,
+  skiniverSkinToneQuery,
+  type SkiniverAgeRow,
+  type SkiniverDiagnosisRow,
+  type SkiniverSkinToneRow,
+} from './skiniver-reports.queries';
 
 const DEFAULT_RANGE_DAYS = 30;
 const DEFAULT_TREND_MONTHS = 6;
@@ -51,8 +79,7 @@ function toIsoDate(date: Date): string {
 }
 
 function delta(current: number | null, previous: number | null): ReportDelta {
-  const diff =
-    current != null && previous != null ? current - previous : null;
+  const diff = current != null && previous != null ? current - previous : null;
   // Sin base previa no hay variación porcentual que mostrar (el front pinta "—"
   // en vez de un "+∞%").
   const pct =
@@ -74,7 +101,28 @@ function monthKeys(end: Date, months: number): string[] {
     const d = new Date(
       Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() - i, 1),
     );
-    keys.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`);
+    keys.push(
+      `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`,
+    );
+  }
+  return keys;
+}
+
+/** Lista de "YYYY-MM" entre `from` y `to` (inclusivos), un mes por entrada.
+ * A diferencia de monthKeys() (últimos N meses terminando en `end`), este
+ * cubre exactamente el rango de fechas filtrado por el usuario — lo que
+ * necesita el reporte de Skiniver, sin una ventana de tendencia aparte. */
+function monthKeysInRange(from: Date, to: Date): string[] {
+  const keys: string[] = [];
+  const cursor = new Date(
+    Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1),
+  );
+  const end = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), 1));
+  while (cursor.getTime() <= end.getTime()) {
+    keys.push(
+      `${cursor.getUTCFullYear()}-${String(cursor.getUTCMonth() + 1).padStart(2, '0')}`,
+    );
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
   }
   return keys;
 }
@@ -122,7 +170,11 @@ export class DoctorReportsService {
     return [professional.doctorId];
   }
 
-  private resolveRange(query: SkinHealthReportQueryDto) {
+  private resolveRange(query: {
+    from?: string;
+    to?: string;
+    trendMonths?: number;
+  }) {
     const today = startOfUtcDay(new Date());
     const to = query.to ? startOfUtcDay(new Date(query.to)) : today;
     const from = query.from
@@ -165,46 +217,51 @@ export class DoctorReportsService {
     const { types, regions } = reportableCategorySqlPairs();
 
     const empty = doctorIds.length === 0;
-    const [summaryRows, trendRows, categoryRows, categoryTrendRows, derivedRows] =
-      empty
-        ? [[], [], [], [], []]
-        : await Promise.all([
-            this.prisma.$queryRaw<SummaryRow[]>(
-              summaryQuery(doctorIds, from, toExclusive, prevFrom),
+    const [
+      summaryRows,
+      trendRows,
+      categoryRows,
+      categoryTrendRows,
+      derivedRows,
+    ] = empty
+      ? [[], [], [], [], []]
+      : await Promise.all([
+          this.prisma.$queryRaw<SummaryRow[]>(
+            summaryQuery(doctorIds, from, toExclusive, prevFrom),
+          ),
+          this.prisma.$queryRaw<TrendRow[]>(
+            scoreTrendQuery(doctorIds, toExclusive, trendMonths),
+          ),
+          this.prisma.$queryRaw<CategoryRow[]>(
+            categoryRankingQuery(
+              doctorIds,
+              from,
+              toExclusive,
+              prevFrom,
+              types,
+              regions,
             ),
-            this.prisma.$queryRaw<TrendRow[]>(
-              scoreTrendQuery(doctorIds, toExclusive, trendMonths),
+          ),
+          this.prisma.$queryRaw<CategoryTrendRow[]>(
+            categoryTrendQuery(
+              doctorIds,
+              toExclusive,
+              trendMonths,
+              types,
+              regions,
             ),
-            this.prisma.$queryRaw<CategoryRow[]>(
-              categoryRankingQuery(
-                doctorIds,
-                from,
-                toExclusive,
-                prevFrom,
-                types,
-                regions,
-              ),
+          ),
+          this.prisma.$queryRaw<DerivedKpiRow[]>(
+            derivedKpiQuery(
+              doctorIds,
+              from,
+              toExclusive,
+              prevFrom,
+              types,
+              regions,
             ),
-            this.prisma.$queryRaw<CategoryTrendRow[]>(
-              categoryTrendQuery(
-                doctorIds,
-                toExclusive,
-                trendMonths,
-                types,
-                regions,
-              ),
-            ),
-            this.prisma.$queryRaw<DerivedKpiRow[]>(
-              derivedKpiQuery(
-                doctorIds,
-                from,
-                toExclusive,
-                prevFrom,
-                types,
-                regions,
-              ),
-            ),
-          ]);
+          ),
+        ]);
 
     const summary: SummaryRow = summaryRows[0] ?? {
       analyses_current: 0,
@@ -347,10 +404,18 @@ export class DoctorReportsService {
         ),
         metricPatients: derived.patients_current,
         worstCategory: worst
-          ? { key: worst.key, label: worst.label, avgScore: worst.avgScore as number }
+          ? {
+              key: worst.key,
+              label: worst.label,
+              avgScore: worst.avgScore as number,
+            }
           : null,
         bestCategory: best
-          ? { key: best.key, label: best.label, avgScore: best.avgScore as number }
+          ? {
+              key: best.key,
+              label: best.label,
+              avgScore: best.avgScore as number,
+            }
           : null,
       },
       distribution,

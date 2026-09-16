@@ -272,3 +272,106 @@ export interface SkinHealthReport {
   /** Ordenadas ascendente por avgScore: la cabeza son las necesidades prioritarias. */
   categories: SkinReportCategory[];
 }
+
+// ─── Reportes segmentados (nacimiento / mascota / actividad física) ─────────
+//
+// Comparan el mismo puntaje de salud de la piel (overall_score, 0-100) del
+// reporte principal, partido por un dato demográfico del paciente. Sin
+// comparación de periodo anterior: los mockups muestran distribución y
+// comparación absolutas, no deltas.
+
+export type SegmentType = "birthType" | "mascotType" | "exerciseHabit";
+
+export const BIRTH_TYPE_LABELS: Record<string, string> = {
+  normal: "Nacimiento normal",
+  cesarean: "Cesárea",
+};
+
+export const MASCOT_TYPE_LABELS: Record<string, string> = {
+  dog: "Perro",
+  cat: "Gato",
+  other: "Otra mascota",
+  none: "Sin mascota",
+};
+
+export const EXERCISE_HABIT_LABELS: Record<string, string> = {
+  regular: "Regular",
+  sometimes: "A veces",
+  never: "Nunca",
+};
+
+/** Paleta fija por segmento, asignada en orden de aparición (mismo criterio
+ * de color estable que SKIN_REPORT_BANDS, pero categórico en vez de por banda). */
+export const SEGMENT_COLORS: readonly string[] = [
+  "#0ea5e9",
+  "#a855f7",
+  "#f97316",
+  "#94a3b8",
+  "#22c55e",
+];
+
+export interface SkinReportSegmentBucket {
+  /** Valor crudo de Patient (ej. "normal", "dog", "regular"). */
+  value: string;
+  label: string;
+  color: string;
+  patients: number;
+  analyses: number;
+  avgScore: number | null;
+  /** 0-100, sobre el total de analizados con este segmento no nulo. */
+  pct: number;
+}
+
+export interface SkinReportSegmentCategoryComparison {
+  key: string;
+  label: string;
+  /** Puntaje promedio por valor de segmento (mismas claves que buckets[].value). */
+  scoresBySegment: Record<string, number | null>;
+}
+
+export interface SkinReportSegmentView {
+  type: SegmentType;
+  buckets: SkinReportSegmentBucket[];
+  total: number;
+  /** Ordenadas ascendente por el peor promedio entre segmentos: prioriza intervención. */
+  categories: SkinReportSegmentCategoryComparison[];
+}
+
+export interface SkinReportSegmentsResponse {
+  range: { from: string; to: string };
+  birthType: SkinReportSegmentView;
+  mascotType: SkinReportSegmentView;
+  exerciseHabit: SkinReportSegmentView;
+}
+
+// ─── Reporte "Análisis clínico IA" (Skiniver) ───────────────────────────────
+//
+// A diferencia de SkinHealthReport (YouCam), este reporte no compara un
+// puntaje: cuenta diagnósticos por mes, partidos por clase/enfermedad/edad
+// (packages/shared/src/skiniver-diagnosis-taxonomy.ts define esos buckets),
+// más la distribución por tono de piel (fototipo).
+
+export interface SkiniverMonthlySeriesPoint {
+  period: string;
+  /** Conteo por clave de bucket (clase, enfermedad o rango de edad). */
+  counts: Record<string, number>;
+}
+
+export interface SkiniverSkinToneBucket {
+  key: string;
+  label: string;
+  color: string;
+  count: number;
+  /** 0-100. */
+  pct: number;
+}
+
+export interface SkiniverReport {
+  range: { from: string; to: string };
+  /** Diagnósticos "sin patología" excluidos — ver isNoPathologyDiagnosis(). */
+  byClass: SkiniverMonthlySeriesPoint[];
+  byDisease: SkiniverMonthlySeriesPoint[];
+  byAge: SkiniverMonthlySeriesPoint[];
+  bySkinTone: SkiniverSkinToneBucket[];
+  skinToneTotal: number;
+}
