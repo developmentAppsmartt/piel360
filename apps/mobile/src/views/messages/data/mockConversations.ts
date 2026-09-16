@@ -51,7 +51,7 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
   },
   {
     id: 'c2',
-    peerName: 'Dr. Carlos Ruiz',
+    peerName: 'Carlos Ruiz',
     peerRole: 'doctor',
     peerInitials: 'CR',
     preview: '¿Puedo reprogramar mi cita del viernes?',
@@ -103,7 +103,7 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
   },
   {
     id: 'c4',
-    peerName: 'Dr. Luis Vega',
+    peerName: 'Luis Vega',
     peerRole: 'doctor',
     peerInitials: 'LV',
     preview: 'Te envío la receta actualizada.',

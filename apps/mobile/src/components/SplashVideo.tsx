@@ -1,20 +1,38 @@
-import { useEventListener } from 'expo';
 import * as SplashScreen from 'expo-splash-screen';
-import { useVideoPlayer, VideoView } from 'expo-video';
-import { useEffect, useRef } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Animated,
+  Image,
+  Modal,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
-const splashSource = require('../../assets/splash.mp4');
+const SPLASH_IMAGES = [
+  require('../../assets/splash-1.png'),
+  require('../../assets/splash-2.png'),
+] as const;
 
-/** Fallback por si el video no dispara playToEnd (error de carga, etc.). */
-const SPLASH_MAX_MS = 8_000;
+/** Tiempo visible por imagen (sin contar el crossfade). */
+const IMAGE_HOLD_MS = 4_000;
+/** Duración del fade entre imágenes / salida. */
+const FADE_MS = 700;
 
-type SplashVideoProps = {
+type SplashIntroProps = {
   onFinish: () => void;
 };
 
-export function SplashVideo({ onFinish }: SplashVideoProps) {
+/**
+ * Splash de marca: splash-1 → splash-2 → login, con transición suave.
+ * Modal a pantalla completa para no mostrar tabs/navegación debajo.
+ */
+export function SplashIntro({ onFinish }: SplashIntroProps) {
+  const { width, height } = useWindowDimensions();
   const finishedRef = useRef(false);
+  const [index, setIndex] = useState(0);
+  const opacity = useRef(new Animated.Value(0)).current;
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const finish = () => {
     if (finishedRef.current) return;
@@ -22,47 +40,88 @@ export function SplashVideo({ onFinish }: SplashVideoProps) {
     onFinish();
   };
 
-  const player = useVideoPlayer(splashSource, (p) => {
-    p.loop = false;
-    p.muted = true;
-    p.play();
-  });
-
-  useEventListener(player, 'playToEnd', finish);
-
-  useEventListener(player, 'statusChange', ({ status, error }) => {
-    if (status === 'error' || error) finish();
-  });
-
   useEffect(() => {
     void SplashScreen.hideAsync();
-    const timeout = setTimeout(finish, SPLASH_MAX_MS);
-    return () => clearTimeout(timeout);
+
+    Animated.timing(opacity, {
+      toValue: 1,
+      duration: FADE_MS,
+      useNativeDriver: true,
+    }).start();
+
+    const clearTimers = () => {
+      for (const t of timers.current) clearTimeout(t);
+      timers.current = [];
+    };
+
+    const t1 = setTimeout(() => {
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: FADE_MS,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (!finished || finishedRef.current) return;
+        setIndex(1);
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: FADE_MS,
+          useNativeDriver: true,
+        }).start();
+
+        const t2 = setTimeout(() => {
+          Animated.timing(opacity, {
+            toValue: 0,
+            duration: FADE_MS,
+            useNativeDriver: true,
+          }).start(({ finished: done }) => {
+            if (done) finish();
+          });
+        }, IMAGE_HOLD_MS);
+        timers.current.push(t2);
+      });
+    }, IMAGE_HOLD_MS);
+    timers.current.push(t1);
+
+    const safety = setTimeout(finish, IMAGE_HOLD_MS * 2 + FADE_MS * 4 + 1_000);
+    timers.current.push(safety);
+
+    return clearTimers;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- montaje único
   }, []);
 
   return (
-    <View style={styles.container} pointerEvents="none">
-      <VideoView
-        style={styles.video}
-        player={player}
-        contentFit="contain"
-        nativeControls={false}
-      />
-    </View>
+    <Modal
+      visible
+      animationType="none"
+      transparent={false}
+      statusBarTranslucent
+      presentationStyle="fullScreen"
+      onRequestClose={() => undefined}
+    >
+      <View style={styles.container}>
+        <Animated.View style={[styles.imageWrap, { opacity }]}>
+          <Image
+            source={SPLASH_IMAGES[index]}
+            style={{ width, height }}
+            resizeMode="cover"
+            accessibilityLabel={`Piel 360 — presentación ${index + 1}`}
+            accessibilityIgnoresInvertColors
+          />
+        </Animated.View>
+      </View>
+    </Modal>
   );
 }
 
+/** @deprecated Usar SplashIntro */
+export const SplashVideo = SplashIntro;
+
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
+    flex: 1,
     backgroundColor: '#FFFFFF',
-    zIndex: 1000,
   },
-  video: {
-    width: '100%',
-    aspectRatio: 16 / 9,
-    maxWidth: 520,
+  imageWrap: {
+    ...StyleSheet.absoluteFillObject,
   },
 });

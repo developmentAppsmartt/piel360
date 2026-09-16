@@ -14,6 +14,7 @@ export type AppBranding = {
     primary: string;
     primaryDark: string;
     secondary: string;
+    links: string;
     text: string;
     textOnDark: string;
     muted: string;
@@ -42,6 +43,7 @@ export const DEFAULT_BRANDING: AppBranding = {
     error: '#DC2626',
     success: '#16A34A',
     inputBackground: 'rgba(255,255,255,0.94)',
+    links: '#2DD4BF',
     overlay: 'rgba(11, 10, 18, 0.55)',
   },
   loginHeroImage: require('../../assets/login.png'),

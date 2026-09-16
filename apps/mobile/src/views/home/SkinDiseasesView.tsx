@@ -1,4 +1,5 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppIcon } from '../../components/AppIcon';
 import { Icons } from '../../components/icons';
 import { useBranding } from '../../context/BrandingContext';
@@ -43,15 +44,21 @@ export function SkinDiseasesView({
   onOpenAnalysis,
 }: SkinDiseasesViewProps) {
   const branding = useBranding();
+  const insets = useSafeAreaInsets();
   const styles = createHomeStyles(branding.colors);
   const primary = branding.colors.primary;
 
   return (
     <View style={styles.screen}>
-      <View style={styles.tipsHeader}>
+      <View
+        style={[
+          styles.tipsHeader,
+          { paddingTop: Math.max(insets.top, 12) },
+        ]}
+      >
         <Pressable
           onPress={onBack}
-          hitSlop={10}
+          hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel="Volver"
           style={styles.tipsBackBtn}
@@ -59,15 +66,18 @@ export function SkinDiseasesView({
           <AppIcon icon={Icons.back} size={22} color={branding.colors.textOnDark} />
         </Pressable>
         <Text style={styles.tipsHeaderTitle}>Enfermedades de la piel</Text>
-        <View style={{ width: 22 }} />
+        <View style={{ width: 30 }} />
       </View>
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom, 16) + 28 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.welcomeCard}>
+        <View style={styles.tipsSummaryCard}>
           <Text style={styles.welcomeTitle}>Análisis compartidos</Text>
           <Text style={styles.welcomeSubtitle}>
             Aquí verás los análisis dermatológicos que tu profesional te ha

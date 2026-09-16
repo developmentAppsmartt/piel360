@@ -62,7 +62,7 @@ export class FitzpatrickAnalysesService {
     );
     if (!subscription) {
       throw new BadRequestException(
-        'No tienes una suscripción activa de análisis de fototipo',
+        'Suscripción no disponible. Análisis de Fototipo Piel 360',
       );
     }
 

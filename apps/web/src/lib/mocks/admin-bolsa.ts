@@ -414,7 +414,7 @@ export const MOCK_COMPANY_CONSUMPTION = {
       derm: 3,
       total: 11,
       patients: 9,
-      professional: "Dr. Carlos Méndez",
+      professional: "Carlos Méndez",
     },
     {
       date: "03/07/2026",
@@ -438,7 +438,7 @@ export const MOCK_COMPANY_CONSUMPTION = {
       derm: 1,
       total: 5,
       patients: 5,
-      professional: "Dr. Carlos Méndez",
+      professional: "Carlos Méndez",
     },
   ] as DailyConsumption[],
 };

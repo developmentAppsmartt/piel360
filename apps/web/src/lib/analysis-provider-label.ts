@@ -2,9 +2,9 @@
 // cubren botones para iniciar un análisis nuevo (aún sin fila `provider`).
 // Nunca exponer nombres de API (Skiniver / YouCam / Fitzpatrick) al usuario.
 export const ANALYSIS_PROVIDER_STATIC_LABELS = {
-  skiniver: "Piel 360 AI · Dermatológico",
-  youcam: "Piel 360 AI · Estético",
-  fitzpatrick: "Piel 360 AI · Fototipo",
+  skiniver: "Análisis Dermatológico Piel 360",
+  youcam: "Análisis Estético Piel 360",
+  fitzpatrick: "Análisis de Fototipo Piel 360",
 } as const;
 
 function looksLikeApiVendor(label: string): boolean {

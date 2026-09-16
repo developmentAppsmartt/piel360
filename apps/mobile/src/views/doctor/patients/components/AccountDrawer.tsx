@@ -1,9 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppIcon } from '../../../../components/AppIcon';
 import { Icons, type AppIconName } from '../../../../components/icons';
 import { useBranding } from '../../../../context/BrandingContext';
+import {
+  clinicalModulesService,
+  type ClinicalSideModule,
+} from '../../../../services/clinical-modules.service';
+import type { ClinicalSideModuleId } from '../../../../lib/clinical-side-modules';
 import { createAccountDrawerStyles } from '../styles/accountDrawer.styles';
 
 export type AccountMenuId =
@@ -19,7 +24,8 @@ export type AccountMenuId =
   | 'acuerdo'
   | 'soporte'
   | 'salir'
-  | 'acerca';
+  | 'acerca'
+  | ClinicalSideModuleId;
 
 type MenuItem = {
   id: AccountMenuId;
@@ -29,13 +35,23 @@ type MenuItem = {
   nested?: boolean;
 };
 
-const DOCTOR_MENU: MenuItem[] = [
+const MODULE_ICONS: Record<ClinicalSideModuleId, AppIconName> = {
+  reportes: Icons.chartBar,
+  fototipo: Icons.fototipo,
+  edad_piel: Icons.heartPulse,
+  plantillas: Icons.clipboardList,
+};
+
+const DOCTOR_MENU_BASE: MenuItem[] = [
   { id: 'perfil', label: 'Mi Perfil', icon: Icons.account },
   { id: 'config', label: 'Configuración del perfil', icon: Icons.settings },
   { id: 'idioma', label: 'Idioma diagnóstico dermatológico', icon: Icons.translate },
   { id: 'suscripcion', label: 'Planes y suscripciones', icon: Icons.creditCard },
   { id: 'pagos', label: 'Mis pagos', icon: Icons.file },
   { id: 'compartir', label: 'Compartir con colega', icon: Icons.share },
+];
+
+const DOCTOR_MENU_TAIL: MenuItem[] = [
   { id: 'seguridad', label: 'Seguridad', icon: Icons.lock },
   { id: 'password', label: 'Cambiar contraseña', icon: Icons.password, nested: true },
   { id: 'premios', label: 'Premios', icon: Icons.gift },
@@ -76,7 +92,33 @@ export function AccountDrawer({
     [branding.colors],
   );
   const [securityOpen, setSecurityOpen] = useState(true);
-  const menu = variant === 'patient' ? PATIENT_MENU : DOCTOR_MENU;
+  const [crmModules, setCrmModules] = useState<ClinicalSideModule[]>([]);
+
+  useEffect(() => {
+    if (!visible || variant !== 'doctor') return;
+    let cancelled = false;
+    void clinicalModulesService
+      .listForMenu()
+      .then((mods) => {
+        if (!cancelled) setCrmModules(mods);
+      })
+      .catch(() => {
+        if (!cancelled) setCrmModules([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, variant]);
+
+  const menu = useMemo(() => {
+    if (variant === 'patient') return PATIENT_MENU;
+    const moduleItems: MenuItem[] = crmModules.map((m) => ({
+      id: m.id,
+      label: m.label,
+      icon: MODULE_ICONS[m.id],
+    }));
+    return [...DOCTOR_MENU_BASE, ...moduleItems, ...DOCTOR_MENU_TAIL];
+  }, [variant, crmModules]);
 
   const visibleItems = menu.filter((item) => {
     if (item.id === 'password') return securityOpen;

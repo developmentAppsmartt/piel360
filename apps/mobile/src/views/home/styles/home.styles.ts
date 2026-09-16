@@ -310,16 +310,25 @@ export function createHomeStyles(colors: AppBranding['colors']) {
       justifyContent: 'space-between',
       paddingHorizontal: 16,
       paddingBottom: 12,
-      paddingTop: 8,
       backgroundColor: colors.primaryDark,
     },
     tipsBackBtn: {
-      padding: 4,
+      width: 40,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     tipsHeaderTitle: {
       color: colors.textOnDark,
       fontSize: 17,
       fontWeight: '800',
+    },
+    tipsSummaryCard: {
+      backgroundColor: '#F4F9FF',
+      borderRadius: 20,
+      padding: 16,
+      gap: 6,
+      ...appShadow({ opacity: 0.06, radius: 10, offsetY: 2, elevation: 2 }),
     },
     tipsStatsRow: {
       flexDirection: 'row',

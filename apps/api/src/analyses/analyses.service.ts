@@ -11,6 +11,7 @@ import type { Prisma } from '@prisma/client';
 import { DOCTOR_PANEL_ROLES, type Role } from '@piel360/shared';
 import { OrgContextService } from '../organizations/org-context.service';
 import { DoctorsService } from '../doctors/doctors.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PatientsService } from '../patients/patients.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SkiniverService } from '../skiniver/skiniver.service';
@@ -57,6 +58,7 @@ export class AnalysesService {
     private readonly storage: StorageService,
     private readonly specialtyAccess: SpecialtyAccessService,
     private readonly imageUrls: AnalysisImageUrlsService,
+    private readonly notifications: NotificationsService,
     @InjectQueue(ANALYSIS_IMAGES_QUEUE)
     private readonly analysisImagesQueue: Queue<AnalysisImagesJobData>,
     @InjectQueue(ENCYCLOPEDIA_QUEUE)
@@ -123,7 +125,9 @@ export class AnalysesService {
       SKINIVER_PROVIDER_SLUG,
     );
     if (!subscription) {
-      throw new BadRequestException('No tienes una suscripción activa');
+      throw new BadRequestException(
+        'Suscripción no disponible. Análisis Dermatológico Piel 360',
+      );
     }
 
     const remaining = await this.subscriptions.remainingCredits(
@@ -151,7 +155,7 @@ export class AnalysesService {
 
     if (prediction.error) {
       throw new BadRequestException(
-        `Skiniver rechazó la imagen: ${prediction.error}`,
+        `El análisis dermatológico rechazó la imagen: ${prediction.error}`,
       );
     }
 
@@ -584,7 +588,10 @@ export class AnalysesService {
   async shareWithPatient(id: string, currentUser: JwtPayload) {
     const analysis = await this.prisma.analysis.findUnique({
       where: { id: BigInt(id) },
-      include: { patient: true },
+      include: {
+        patient: true,
+        provider: { select: { slug: true, displayLabel: true } },
+      },
     });
     if (!analysis) throw new NotFoundException('Análisis no encontrado');
     await this.assertCanAccess(analysis, currentUser);
@@ -605,8 +612,33 @@ export class AnalysesService {
         sharedWithPatient: true,
         sharedAt: new Date(),
       },
-      include: { patient: true },
+      include: {
+        patient: true,
+        provider: { select: { slug: true, displayLabel: true } },
+      },
     });
+
+    const kind = isAestheticAnalysis(updated)
+      ? 'estético'
+      : 'dermatológico';
+    const label =
+      updated.provider?.displayLabel?.trim() ||
+      `Diagnóstico ${kind}`;
+
+    void this.notifications
+      .create({
+        userId: updated.patient.userId,
+        type: 'analysis_shared',
+        title: 'Nuevo diagnóstico compartido',
+        body: `Tu médico compartió un diagnóstico ${kind}: ${label}. Ábrelo en tu historial.`,
+        data: {
+          analysisId: updated.id.toString(),
+          patientId: updated.patientId.toString(),
+          kind,
+        },
+      })
+      .catch(() => undefined);
+
     return this.imageUrls.withImageUrls(updated);
   }
 

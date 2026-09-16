@@ -224,11 +224,11 @@ export class YouCamService {
       );
     } catch (err) {
       throw new InternalServerErrorException(
-        `No se pudo contactar YouCam (file/skin-analysis): ${err instanceof Error ? err.message : String(err)}`,
+        `No se pudo contactar el servicio de análisis estético (file/skin-analysis): ${err instanceof Error ? err.message : String(err)}`,
       );
     }
     if (!declareResponse.ok) {
-      await this.throwYouCamError(declareResponse, 'YouCam file/skin-analysis');
+      await this.throwYouCamError(declareResponse, 'análisis estético file/skin-analysis');
     }
 
     const json = (await declareResponse.json()) as UploadUrlResponse;
@@ -237,7 +237,7 @@ export class YouCamService {
     const uploadUrl = uploadData?.requests?.[0]?.url;
     if (!fileId || !uploadUrl) {
       throw new InternalServerErrorException(
-        'El JSON de YouCam no contiene file_id o la URL de subida',
+        'El servicio de análisis estético no devolvió file_id o la URL de subida',
       );
     }
 
@@ -250,13 +250,13 @@ export class YouCamService {
       });
     } catch (err) {
       throw new InternalServerErrorException(
-        `No se pudo subir la imagen al storage de YouCam: ${err instanceof Error ? err.message : String(err)}`,
+        `No se pudo subir la imagen al almacenamiento del análisis estético: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
     if (!uploadResponse.ok) {
       const body = await uploadResponse.text();
       throw new InternalServerErrorException(
-        `Fallo al subir la imagen binaria al S3 de YouCam (${uploadResponse.status}): ${body}`,
+        `Fallo al subir la imagen binaria del análisis estético (${uploadResponse.status}): ${body}`,
       );
     }
 
@@ -285,18 +285,18 @@ export class YouCamService {
       });
     } catch (err) {
       throw new InternalServerErrorException(
-        `No se pudo contactar YouCam (task/skin-analysis): ${err instanceof Error ? err.message : String(err)}`,
+        `No se pudo contactar el servicio de análisis estético (task/skin-analysis): ${err instanceof Error ? err.message : String(err)}`,
       );
     }
     if (!response.ok) {
-      await this.throwYouCamError(response, 'YouCam task/skin-analysis');
+      await this.throwYouCamError(response, 'análisis estético task/skin-analysis');
     }
 
     const json = (await response.json()) as StartAnalysisResponse;
     const taskId = json.data?.task_id;
     if (!taskId) {
       throw new InternalServerErrorException(
-        'YouCam no devolvió task_id al iniciar el análisis',
+        'El análisis estético no devolvió task_id al iniciar',
       );
     }
     return taskId;
@@ -365,10 +365,10 @@ export class YouCamService {
         error_code?: string;
       };
       if (parsed.error_code === 'CreditInsufficiency') {
-        return 'El proveedor YouCam no tiene créditos disponibles en este momento — contacta al administrador para recargar la cuenta.';
+        return 'Suscripción no disponible. Análisis Estético Piel 360 — contacta al administrador para recargar la cuenta.';
       }
       if (parsed.error) {
-        return `YouCam rechazó la solicitud: ${parsed.error}`;
+        return `El análisis estético rechazó la solicitud: ${parsed.error}`;
       }
     } catch {
       // El cuerpo no es JSON — se usa el mensaje genérico con el texto crudo.

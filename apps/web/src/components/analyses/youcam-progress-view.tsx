@@ -133,7 +133,7 @@ export function YoucamProgressView({
         <ModuleCard className="space-y-4">
           {!previous ? (
             <p className="rounded-xl bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
-              Aún no hay un análisis YouCam anterior para comparar. Se muestran
+              Aún no hay un análisis estético anterior para comparar. Se muestran
               solo las métricas del análisis actual.
             </p>
           ) : null}

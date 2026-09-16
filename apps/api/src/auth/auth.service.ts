@@ -400,12 +400,15 @@ export class AuthService implements OnModuleDestroy {
     await this.assertPhoneTicket(dto.phoneTicket, phone);
 
     await this.assertEmailAvailable(email);
+    await assertDocumentNumberAvailable(this.prisma, dto.docNumber);
     const password = await argon2.hash(dto.password);
 
     const { areaCode, phone: nationalPhone } = splitPhoneDigits(phone);
     const birthDate = dto.birthDate?.trim()
       ? new Date(dto.birthDate.trim())
       : null;
+    const docType = dto.docType.trim();
+    const docNumber = dto.docNumber.trim();
 
     const user = await this.prisma.user.create({
       data: {
@@ -426,6 +429,8 @@ export class AuthService implements OnModuleDestroy {
             email,
             phone: nationalPhone || null,
             areaCode,
+            docType,
+            docNumber,
             ...(birthDate && !Number.isNaN(birthDate.getTime())
               ? { birthDate }
               : {}),

@@ -10,11 +10,13 @@ import {
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { AnalysisRequestToast } from '../../components/notifications/AnalysisRequestToast';
 import { AppIcon } from '../../components/AppIcon';
 import { Icons } from '../../components/icons';
 import { LegalDocumentModal } from '../../components/legal/LegalDocumentModal';
 import { useAuth } from '../../context/AuthContext';
 import { useBranding } from '../../context/BrandingContext';
+import { useNotificationsOptional } from '../../context/NotificationsContext';
 import {
   isAnalysisProviderSlug,
   type AnalysisProviderSlug,
@@ -22,11 +24,13 @@ import {
 import type { LegalDocId } from '../../data/legal/documents';
 import { ApiError } from '../../services/api.client';
 import { analysesService } from '../../services/analyses.service';
+import { notificationsService } from '../../services/notifications.service';
 import {
   patientsService,
   type AnalysisRequest,
   type UpdatePatientInput,
 } from '../../services/patients.service';
+import type { AppNotification } from '../../types/notifications';
 import type { PatientAnalysisSummary, YoucamRawResponse } from '../../types/analysis';
 import {
   parseYoucamMetrics,
@@ -234,6 +238,7 @@ export function HomeView({
 }: HomeViewProps) {
   const { logout, user } = useAuth();
   const branding = useBranding();
+  const notifications = useNotificationsOptional();
   const { width: windowWidth } = useWindowDimensions();
   const styles = useMemo(() => createHomeStyles(branding.colors), [branding.colors]);
   const headerStyles = useMemo(
@@ -258,6 +263,12 @@ export function HomeView({
   const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(
     null,
   );
+  const [requestToast, setRequestToast] = useState<{
+    title: string;
+    body: string;
+    notificationId?: string;
+  } | null>(null);
+  const toastShownRef = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
   const historyOffsetY = useRef(0);
 
@@ -295,6 +306,50 @@ export function HomeView({
   useEffect(() => {
     setLocalPending(pendingAnalysisRequests);
   }, [pendingAnalysisRequests]);
+
+  useEffect(() => {
+    if (toastShownRef.current || loading) return;
+    let cancelled = false;
+
+    void (async () => {
+      let notice: AppNotification | null = null;
+      try {
+        const list = await notificationsService.list(20);
+        notice =
+          list.find(
+            (n) => n.type === 'analysis_request' && !n.readAt,
+          ) ?? null;
+      } catch {
+        notice = null;
+      }
+
+      if (cancelled || toastShownRef.current) return;
+
+      if (notice) {
+        toastShownRef.current = true;
+        setRequestToast({
+          title: notice.title || 'Nueva solicitud de análisis',
+          body:
+            notice.body ||
+            'Tienes una solicitud pendiente de análisis de piel.',
+          notificationId: notice.id,
+        });
+        return;
+      }
+
+      if (pendingAnalysisRequests.length > 0) {
+        toastShownRef.current = true;
+        setRequestToast({
+          title: 'Nueva solicitud de análisis',
+          body: 'Tienes una solicitud pendiente de análisis de piel.',
+        });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, pendingAnalysisRequests]);
 
   useEffect(() => {
     if (consentRequestId <= 0) return;
@@ -571,7 +626,13 @@ export function HomeView({
           onOpenMessages={onOpenMessages}
           onOpenProfile={onOpenProfile}
         >
-          <AboutPiel360Content />
+          <ScrollView
+            style={{ flex: 1, backgroundColor: '#FFFFFF' }}
+            contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+            showsVerticalScrollIndicator={false}
+          >
+            <AboutPiel360Content />
+          </ScrollView>
         </AppModuleChrome>
       </View>
     );
@@ -604,6 +665,25 @@ export function HomeView({
         onOpenMenu={() => setMenuOpen(true)}
         onOpenMessages={onOpenMessages}
         onOpenGift={() => setOverlay('premios')}
+      />
+
+      <AnalysisRequestToast
+        visible={requestToast != null}
+        title={requestToast?.title}
+        body={requestToast?.body}
+        onClose={() => setRequestToast(null)}
+        onPressDetail={() => {
+          const id = requestToast?.notificationId;
+          setRequestToast(null);
+          if (id) {
+            void notifications?.consumeNotification(id);
+          }
+          if (localPending.length > 0) {
+            setPickerOpen(true);
+            return;
+          }
+          onOpenMessages?.();
+        }}
       />
 
       {loading ? (

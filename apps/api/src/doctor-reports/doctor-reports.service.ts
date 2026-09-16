@@ -38,6 +38,8 @@ import {
   categoryRankingQuery,
   categoryTrendQuery,
   derivedKpiQuery,
+  lifestyleSegmentQuery,
+  providerVolumeQuery,
   scoreTrendQuery,
   segmentCategoryQuery,
   segmentDistributionQuery,
@@ -45,9 +47,8 @@ import {
   type CategoryRow,
   type CategoryTrendRow,
   type DerivedKpiRow,
-  type SegmentCategoryRow,
-  type SegmentColumn,
-  type SegmentDistributionRow,
+  type LifestyleSegmentRow,
+  type ProviderSegmentRow,
   type SummaryRow,
   type TrendRow,
 } from './doctor-reports.queries';
@@ -424,245 +425,102 @@ export class DoctorReportsService {
     };
   }
 
-  /**
-   * Reportes segmentados (tipo de nacimiento, mascota, actividad física):
-   * comparan el mismo overall_score del reporte principal, partido por un
-   * dato demográfico de Patient. Un solo endpoint para los 3, mismo criterio
-   * que getSkinHealthReport (comparten scope y filtros).
-   */
-  async getSkinSegmentsReport(
-    userId: string,
-    query: SkinSegmentsReportQueryDto,
-  ): Promise<SkinReportSegmentsResponse> {
+  async getLifestyleReport(userId: string, query: SkinHealthReportQueryDto) {
     const doctorIds = await this.resolveDoctorIds(
       userId,
       query.professionalUserId,
     );
     const { from, to, toExclusive } = this.resolveRange(query);
-    const { types, regions } = reportableCategorySqlPairs();
-
-    const segmentDefs: {
-      column: SegmentColumn;
-      type: SegmentType;
-      labels: Record<string, string>;
-    }[] = [
-      { column: 'birth_type', type: 'birthType', labels: BIRTH_TYPE_LABELS },
-      { column: 'mascot_type', type: 'mascotType', labels: MASCOT_TYPE_LABELS },
-      {
-        column: 'exercise_habit',
-        type: 'exerciseHabit',
-        labels: EXERCISE_HABIT_LABELS,
-      },
-    ];
 
     const empty = doctorIds.length === 0;
-    const results = empty
-      ? segmentDefs.map(() => ({
-          dist: [] as SegmentDistributionRow[],
-          cat: [] as SegmentCategoryRow[],
-        }))
-      : await Promise.all(
-          segmentDefs.map(async (def) => {
-            const [dist, cat] = await Promise.all([
-              this.prisma.$queryRaw<SegmentDistributionRow[]>(
-                segmentDistributionQuery(
-                  doctorIds,
-                  from,
-                  toExclusive,
-                  def.column,
-                ),
-              ),
-              this.prisma.$queryRaw<SegmentCategoryRow[]>(
-                segmentCategoryQuery(
-                  doctorIds,
-                  from,
-                  toExclusive,
-                  types,
-                  regions,
-                  def.column,
-                ),
-              ),
-            ]);
-            return { dist, cat };
-          }),
-        );
-
-    const views = segmentDefs.map((def, i) =>
-      this.buildSegmentView(
-        def.type,
-        def.labels,
-        results[i].dist,
-        results[i].cat,
-      ),
-    );
-
-    return {
-      range: { from: toIsoDate(from), to: toIsoDate(to) },
-      birthType: views[0],
-      mascotType: views[1],
-      exerciseHabit: views[2],
-    };
-  }
-
-  /** Arma un SkinReportSegmentView: reparte colores fijos, calcula el % de
-   * cada bucket sobre el total del segmento, y pivota las filas de categoría
-   * en scoresBySegment por clave de categoría. */
-  private buildSegmentView(
-    type: SegmentType,
-    labels: Record<string, string>,
-    distRows: SegmentDistributionRow[],
-    catRows: SegmentCategoryRow[],
-  ): SkinReportSegmentView {
-    const total = distRows.reduce((sum, row) => sum + row.patients, 0);
-
-    const buckets: SkinReportSegmentBucket[] = distRows.map((row, i) => ({
-      value: row.segment,
-      label: labels[row.segment] ?? row.segment,
-      color: SEGMENT_COLORS[i % SEGMENT_COLORS.length],
-      patients: row.patients,
-      analyses: row.analyses,
-      avgScore: row.avg_score,
-      pct: pct(row.patients, total) ?? 0,
-    }));
-
-    const byCategory = new Map<string, SkinReportSegmentCategoryComparison>();
-    for (const row of catRows) {
-      const key = reportableCategoryKey(row.type, row.region);
-      const def = REPORTABLE_SKIN_CATEGORIES.find((c) => c.key === key);
-      const entry = byCategory.get(key) ?? {
-        key,
-        label: def?.label ?? key,
-        scoresBySegment: {},
-      };
-      entry.scoresBySegment[row.segment] = row.avg_score;
-      byCategory.set(key, entry);
-    }
-
-    const categories = Array.from(byCategory.values()).sort((a, b) => {
-      const worstA = Math.min(
-        ...Object.values(a.scoresBySegment).filter(
-          (v): v is number => v != null,
-        ),
-      );
-      const worstB = Math.min(
-        ...Object.values(b.scoresBySegment).filter(
-          (v): v is number => v != null,
-        ),
-      );
-      return worstA - worstB;
-    });
-
-    return { type, buckets, total, categories };
-  }
-
-  /**
-   * Reporte "Análisis clínico IA" (Skiniver): diagnósticos por mes partidos
-   * en clase/enfermedad/edad, más distribución por tono de piel. No usa
-   * v_report_analyses/v_skin_metric_scores (exclusivas de YouCam) — consulta
-   * `analyses` directo vía skiniver-reports.queries.ts. Sin comparación de
-   * periodo anterior ni ventana de tendencia aparte: cubre el rango
-   * filtrado completo (ver monthKeysInRange).
-   */
-  async getSkiniverReport(
-    userId: string,
-    query: SkiniverReportQueryDto,
-  ): Promise<SkiniverReport> {
-    const doctorIds = await this.resolveDoctorIds(
-      userId,
-      query.professionalUserId,
-    );
-    const { from, to, toExclusive } = this.resolveRange(query);
-    const periods = monthKeysInRange(from, to);
-
-    const empty = doctorIds.length === 0;
-    const [diagnosisRows, ageRows, skinToneRows] = empty
-      ? [[], [], []]
+    const [birthRows, petRows, activityRows, providerRows] = empty
+      ? [[], [], [], []]
       : await Promise.all([
-          this.prisma.$queryRaw<SkiniverDiagnosisRow[]>(
-            skiniverMonthlyDiagnosesQuery(doctorIds, from, toExclusive),
+          this.prisma.$queryRaw<LifestyleSegmentRow[]>(
+            lifestyleSegmentQuery(doctorIds, from, toExclusive, 'birth_type'),
           ),
-          this.prisma.$queryRaw<SkiniverAgeRow[]>(
-            skiniverAgeMonthlyQuery(doctorIds, from, toExclusive),
+          this.prisma.$queryRaw<LifestyleSegmentRow[]>(
+            lifestyleSegmentQuery(doctorIds, from, toExclusive, 'mascot_type'),
           ),
-          this.prisma.$queryRaw<SkiniverSkinToneRow[]>(
-            skiniverSkinToneQuery(doctorIds, from, toExclusive),
+          this.prisma.$queryRaw<LifestyleSegmentRow[]>(
+            lifestyleSegmentQuery(
+              doctorIds,
+              from,
+              toExclusive,
+              'exercise_habit',
+            ),
+          ),
+          this.prisma.$queryRaw<ProviderSegmentRow[]>(
+            providerVolumeQuery(doctorIds, from, toExclusive),
           ),
         ]);
 
-    // ── Por clase / por enfermedad ──────────────────────────────────────────
-    // "Piel Sin Patología" no es una enfermedad: classifyDiagnosisClass /
-    // classifyDiseaseBucket devuelven null para excluirla (no cae en "Otras").
-    const classByPeriod = new Map<string, Record<string, number>>();
-    const diseaseByPeriod = new Map<string, Record<string, number>>();
-    for (const row of diagnosisRows) {
-      const cls = classifyDiagnosisClass(row.ai_diagnosis);
-      const disease = classifyDiseaseBucket(row.ai_diagnosis);
-      if (cls) {
-        const bucket = classByPeriod.get(row.period) ?? {};
-        bucket[cls] = (bucket[cls] ?? 0) + row.count;
-        classByPeriod.set(row.period, bucket);
-      }
-      if (disease) {
-        const bucket = diseaseByPeriod.get(row.period) ?? {};
-        bucket[disease] = (bucket[disease] ?? 0) + row.count;
-        diseaseByPeriod.set(row.period, bucket);
-      }
-    }
-    const byClass: SkiniverMonthlySeriesPoint[] = periods.map((period) => ({
-      period,
-      counts: classByPeriod.get(period) ?? {},
-    }));
-    const byDisease: SkiniverMonthlySeriesPoint[] = periods.map((period) => ({
-      period,
-      counts: diseaseByPeriod.get(period) ?? {},
-    }));
+    const mapSegments = (
+      rows: LifestyleSegmentRow[],
+      labels: Record<string, string>,
+    ) => {
+      const total = rows.reduce((sum, r) => sum + r.patients, 0);
+      return rows.map((row) => ({
+        key: row.segment_key,
+        label: labels[row.segment_key] ?? row.segment_key,
+        patients: row.patients,
+        pct: total > 0 ? (row.patients / total) * 100 : 0,
+        avgScore: row.avg_score,
+      }));
+    };
 
-    // ── Por edad ─────────────────────────────────────────────────────────────
-    const ageByPeriod = new Map<string, Record<string, number>>();
-    for (const row of ageRows) {
-      const bucket = ageByPeriod.get(row.period) ?? {};
-      bucket[row.age_bucket] = (bucket[row.age_bucket] ?? 0) + row.count;
-      ageByPeriod.set(row.period, bucket);
-    }
-    const byAge: SkiniverMonthlySeriesPoint[] = periods.map((period) => ({
-      period,
-      counts: ageByPeriod.get(period) ?? {},
-    }));
+    const providerLabels: Record<string, string> = {
+      youcam: 'Análisis Estético Piel 360',
+      skiniver: 'Análisis Dermatológico Piel 360',
+      fitzpatrick: 'Fototipo',
+      unknown: 'Sin proveedor',
+    };
 
-    // ── Por tono de piel ─────────────────────────────────────────────────────
-    const skinToneCounts = new Map<string, number>();
-    for (const row of skinToneRows) {
-      const bucketKey = skinToneBucketForFitzpatrick(row.fitzpatrick_type);
-      if (!bucketKey) continue;
-      skinToneCounts.set(
-        bucketKey,
-        (skinToneCounts.get(bucketKey) ?? 0) + row.count,
-      );
-    }
-    const skinToneTotal = Array.from(skinToneCounts.values()).reduce(
-      (sum, n) => sum + n,
-      0,
-    );
-    const bySkinTone: SkiniverSkinToneBucket[] = SKIN_TONE_BUCKET_DEFS.map(
-      (def) => {
-        const count = skinToneCounts.get(def.key) ?? 0;
-        return {
-          key: def.key,
-          label: def.label,
-          color: def.color,
-          count,
-          pct: pct(count, skinToneTotal) ?? 0,
-        };
-      },
-    );
+    const providerTotal = providerRows.reduce((s, r) => s + r.analyses, 0);
 
     return {
-      range: { from: toIsoDate(from), to: toIsoDate(to) },
-      byClass,
-      byDisease,
-      byAge,
-      bySkinTone,
-      skinToneTotal,
+      range: {
+        from: toIsoDate(from),
+        to: toIsoDate(to),
+      },
+      birthType: {
+        title: 'Tipo de nacimiento',
+        segments: mapSegments(birthRows, {
+          normal: 'Parto natural',
+          cesarean: 'Cesárea',
+          unknown: 'Sin dato',
+        }),
+      },
+      pets: {
+        title: 'Mascotas y salud de la piel',
+        segments: mapSegments(petRows, {
+          none: 'Sin mascota',
+          dog: 'Perro',
+          cat: 'Gato',
+          other: 'Otra',
+          unknown: 'Sin dato',
+        }),
+      },
+      activity: {
+        title: 'Actividad física y deporte',
+        segments: mapSegments(activityRows, {
+          regular: 'Regular',
+          sometimes: 'A veces',
+          never: 'Nunca',
+          unknown: 'Sin dato',
+        }),
+      },
+      clinicalAi: {
+        title: 'Análisis clínico IA',
+        segments: providerRows.map((row) => ({
+          key: row.provider_slug,
+          label: providerLabels[row.provider_slug] ?? row.provider_slug,
+          patients: row.patients,
+          analyses: row.analyses,
+          pct: providerTotal > 0 ? (row.analyses / providerTotal) * 100 : 0,
+          avgScore: null as number | null,
+        })),
+      },
     };
   }
 }

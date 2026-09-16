@@ -315,7 +315,7 @@ export function createRegisterStyles(colors: AppBranding['colors']) {
       gap: 12,
     },
     link: {
-      color: colors.textOnDark,
+      color: colors.links,
       fontWeight: '700',
       textDecorationLine: 'underline',
     },

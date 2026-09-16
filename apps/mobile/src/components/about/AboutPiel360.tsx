@@ -35,19 +35,28 @@ function appVersion(): string {
 type AboutPiel360ContentProps = {
   onClose?: () => void;
   showClose?: boolean;
+  /** Ancho del contenido (p. ej. card del modal). */
+  contentMaxWidth?: number;
+  /** Logo más compacto para modal. */
+  compact?: boolean;
 };
 
 /** Contenido visual de «Acerca de»: logo oficial + copy + banner. */
 export function AboutPiel360Content({
   onClose,
   showClose = false,
+  contentMaxWidth,
+  compact = false,
 }: AboutPiel360ContentProps) {
   const branding = useBranding();
   const { width } = useWindowDimensions();
   const primary = branding.colors.primary;
   const primaryDark = branding.colors.primaryDark;
-  const contentWidth = Math.min(width - 32, 560);
-  const logoHeight = contentWidth * (408 / 612);
+  const contentWidth = Math.min(
+    contentMaxWidth ?? width - 32,
+    compact ? 420 : 560,
+  );
+  const logoHeight = contentWidth * (compact ? 0.42 : 408 / 612);
   const bannerHeight = contentWidth * (206 / 512);
   const styles = useMemo(
     () => createStyles(primary, primaryDark),
@@ -55,11 +64,7 @@ export function AboutPiel360Content({
   );
 
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={styles.inner}>
       {showClose && onClose ? (
         <View style={styles.topBar}>
           <Text style={styles.screenTitle}>Acerca de</Text>
@@ -124,7 +129,7 @@ export function AboutPiel360Content({
         Piel 360 AI — versión {appVersion()}. Esta app no sustituye una consulta
         médica presencial.
       </Text>
-    </ScrollView>
+    </View>
   );
 }
 
@@ -136,7 +141,10 @@ type AboutPiel360ModalProps = {
 export function AboutPiel360Modal({ visible, onClose }: AboutPiel360ModalProps) {
   const branding = useBranding();
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
   const primary = branding.colors.primary;
+  const cardWidth = Math.min(width - 28, 440);
+  const cardMaxHeight = Math.min(height - insets.top - insets.bottom - 24, height * 0.88);
 
   return (
     <Modal
@@ -144,18 +152,37 @@ export function AboutPiel360Modal({ visible, onClose }: AboutPiel360ModalProps) 
       transparent
       animationType="fade"
       onRequestClose={onClose}
+      statusBarTranslucent
     >
       <View
         style={[
           modalStyles.backdrop,
           {
-            paddingTop: Math.max(insets.top, 16),
-            paddingBottom: Math.max(insets.bottom, 16),
+            paddingTop: Math.max(insets.top, 12),
+            paddingBottom: Math.max(insets.bottom, 12),
           },
         ]}
       >
-        <View style={modalStyles.card}>
-          <AboutPiel360Content onClose={onClose} showClose />
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View
+          style={[
+            modalStyles.card,
+            { width: cardWidth, maxHeight: cardMaxHeight },
+          ]}
+        >
+          <ScrollView
+            style={modalStyles.scroll}
+            contentContainerStyle={modalStyles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
+            <AboutPiel360Content
+              onClose={onClose}
+              showClose
+              compact
+              contentMaxWidth={cardWidth - 32}
+            />
+          </ScrollView>
           <Pressable
             style={[modalStyles.doneBtn, { backgroundColor: primary }]}
             onPress={onClose}
@@ -170,14 +197,7 @@ export function AboutPiel360Modal({ visible, onClose }: AboutPiel360ModalProps) 
 
 function createStyles(primary: string, primaryDark: string) {
   return StyleSheet.create({
-    scroll: {
-      flex: 1,
-      backgroundColor: '#FFFFFF',
-    },
-    content: {
-      paddingHorizontal: 16,
-      paddingTop: 8,
-      paddingBottom: 28,
+    inner: {
       gap: 16,
       alignItems: 'stretch',
     },
@@ -271,18 +291,30 @@ const modalStyles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(15, 61, 115, 0.55)',
     justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 14,
   },
   card: {
-    maxHeight: '92%',
     backgroundColor: '#FFFFFF',
     borderRadius: 22,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(30, 90, 158, 0.14)',
+    // Altura mínima para que el contenido no colapse a solo el botón.
+    minHeight: 320,
+  },
+  scroll: {
+    flexGrow: 0,
+    flexShrink: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   doneBtn: {
     marginHorizontal: 16,
+    marginTop: 4,
     marginBottom: 16,
     borderRadius: 14,
     paddingVertical: 13,

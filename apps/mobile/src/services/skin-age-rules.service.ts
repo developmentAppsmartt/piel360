@@ -35,6 +35,33 @@ export type SkinAgeRecoItem = {
   }[];
 };
 
+export type SkinAgeRulePriority = 'low' | 'medium' | 'high' | 'very_high';
+export type SkinAgeRuleColorKey =
+  | 'green'
+  | 'blue'
+  | 'orange'
+  | 'amber'
+  | 'red';
+
+export type SkinAgeRule = {
+  id: string;
+  doctorId: string;
+  label: string;
+  description: string | null;
+  minDifference: number;
+  maxDifference: number;
+  priority: SkinAgeRulePriority;
+  colorKey: SkinAgeRuleColorKey;
+  sortOrder: number;
+  isActive: boolean;
+  routineIds: string[];
+  treatmentIds: string[];
+  productGroupIds: string[];
+  supplementGroupIds: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type SkinAgeMatchedRule = {
   id: string;
   label: string;
@@ -62,6 +89,32 @@ export type SkinAgeRecommended = {
 };
 
 export const skinAgeRulesService = {
+  async list(): Promise<SkinAgeRule[]> {
+    return apiRequest<SkinAgeRule[]>('/skin-age-rules', { auth: true });
+  },
+
+  async simulate(input: {
+    birthDate: string;
+    skinAgeYears: number;
+  }): Promise<SkinAgeRecommended> {
+    return apiRequest<SkinAgeRecommended>('/skin-age-rules/simulate', {
+      method: 'POST',
+      auth: true,
+      body: JSON.stringify(input),
+    });
+  },
+
+  async setActive(id: string, isActive: boolean): Promise<SkinAgeRule> {
+    return apiRequest<SkinAgeRule>(
+      `/skin-age-rules/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        auth: true,
+        body: JSON.stringify({ isActive }),
+      },
+    );
+  },
+
   async recommendForAnalysis(analysisId: string): Promise<SkinAgeRecommended> {
     return apiRequest<SkinAgeRecommended>(
       `/analyses/${encodeURIComponent(analysisId)}/care-recommendations`,
@@ -69,7 +122,6 @@ export const skinAgeRulesService = {
     );
   },
 
-  /** Consejos del paciente autenticado según reglas de edad de piel. */
   async getMySkinCareTips(): Promise<SkinAgeRecommended> {
     return apiRequest<SkinAgeRecommended>('/me/skin-care-tips', { auth: true });
   },

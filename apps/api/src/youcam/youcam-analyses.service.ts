@@ -83,7 +83,7 @@ export class YoucamAnalysesService {
     );
     if (!subscription) {
       throw new BadRequestException(
-        'No tienes una suscripción activa de YouCam',
+        'Suscripción no disponible. Análisis Estético Piel 360',
       );
     }
 

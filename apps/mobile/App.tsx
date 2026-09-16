@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppNoticeHost } from './src/components/notices/AppNoticeHost';
 import './src/components/notices/patchAlert';
-import { SplashVideo } from './src/components/SplashVideo';
+import { SplashIntro } from './src/components/SplashVideo';
 import { AuthProvider } from './src/context/AuthContext';
 import { BrandingProvider } from './src/context/BrandingContext';
 import { NotificationsProvider } from './src/context/NotificationsContext';
@@ -21,11 +21,12 @@ export default function App() {
       <BrandingProvider>
         <AuthProvider>
           <NotificationsProvider>
-            <RootNavigator />
-            <AppNoticeHost />
-            <StatusBar style="auto" />
+            {/* No montar la app con tabs mientras corre el splash. */}
+            {!showSplash ? <RootNavigator /> : null}
+            {!showSplash ? <AppNoticeHost /> : null}
+            <StatusBar style={showSplash ? 'light' : 'auto'} />
             {showSplash ? (
-              <SplashVideo onFinish={() => setShowSplash(false)} />
+              <SplashIntro onFinish={() => setShowSplash(false)} />
             ) : null}
           </NotificationsProvider>
         </AuthProvider>

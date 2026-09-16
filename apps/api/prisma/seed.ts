@@ -83,29 +83,29 @@ async function main() {
   const [skiniver, youcam, fitzpatrick] = await Promise.all([
     prisma.analysisProvider.upsert({
       where: { slug: 'skiniver' },
-      update: { displayLabel: 'Análisis Dermatológico' },
+      update: { displayLabel: 'Análisis Dermatológico Piel 360' },
       create: {
         name: 'Skiniver',
         slug: 'skiniver',
-        displayLabel: 'Análisis Dermatológico',
+        displayLabel: 'Análisis Dermatológico Piel 360',
       },
     }),
     prisma.analysisProvider.upsert({
       where: { slug: 'youcam' },
-      update: { displayLabel: 'Análisis Estético' },
+      update: { displayLabel: 'Análisis Estético Piel 360' },
       create: {
         name: 'YouCam',
         slug: 'youcam',
-        displayLabel: 'Análisis Estético',
+        displayLabel: 'Análisis Estético Piel 360',
       },
     }),
     prisma.analysisProvider.upsert({
       where: { slug: 'fitzpatrick' },
-      update: { displayLabel: 'Piel 360 AI · Fototipo' },
+      update: { displayLabel: 'Análisis de Fototipo Piel 360' },
       create: {
         name: 'Fototipo',
         slug: 'fitzpatrick',
-        displayLabel: 'Piel 360 AI · Fototipo',
+        displayLabel: 'Análisis de Fototipo Piel 360',
       },
     }),
   ]);
@@ -197,11 +197,11 @@ async function main() {
     permissionNames.map((name) => {
       const providerLabel =
         name === 'use_provider_skiniver'
-          ? 'Dermatológico (Skiniver)'
+          ? 'Análisis Dermatológico Piel 360'
           : name === 'use_provider_youcam'
-            ? 'Estético (YouCam)'
+            ? 'Análisis Estético Piel 360'
             : name === 'use_provider_fitzpatrick'
-              ? 'Fototipo (Fitzpatrick)'
+              ? 'Análisis de Fototipo Piel 360'
               : name === 'patient_run_youcam'
                 ? 'Paciente: ejecutar análisis estético'
                 : name === 'patient_run_fitzpatrick'

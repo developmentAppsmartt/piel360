@@ -25,19 +25,11 @@ export class DoctorReportsController {
     return this.doctorReports.getSkinHealthReport(user.sub, query);
   }
 
-  @Get('segments')
-  segments(
+  @Get('lifestyle')
+  lifestyle(
     @CurrentUser() user: JwtPayload,
-    @Query() query: SkinSegmentsReportQueryDto,
+    @Query() query: SkinHealthReportQueryDto,
   ) {
-    return this.doctorReports.getSkinSegmentsReport(user.sub, query);
-  }
-
-  @Get('skiniver')
-  skiniver(
-    @CurrentUser() user: JwtPayload,
-    @Query() query: SkiniverReportQueryDto,
-  ) {
-    return this.doctorReports.getSkiniverReport(user.sub, query);
+    return this.doctorReports.getLifestyleReport(user.sub, query);
   }
 }

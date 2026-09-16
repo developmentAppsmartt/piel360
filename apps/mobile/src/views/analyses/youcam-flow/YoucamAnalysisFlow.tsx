@@ -2,6 +2,10 @@ import { useCallback, useMemo, useState } from 'react';
 import { Alert, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useBranding } from '../../../context/BrandingContext';
+import {
+  ANALYSIS_PROVIDER_STATIC_LABELS,
+  maskVendorMessage,
+} from '../../../data/analysisProviderLabel';
 import { ANALYSIS_CONSENT_COPY } from '../../../data/legal/documents';
 import { DoctorHeader } from '../../doctor/patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../../doctor/patients/styles/patients.styles';
@@ -42,6 +46,7 @@ export function YoucamAnalysisFlow({
   );
   const [step, setStep] = useState<Step>('consent');
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const alertTitle = ANALYSIS_PROVIDER_STATIC_LABELS.youcam;
 
   const handleDone = useCallback(
     (analysisId: string) => {
@@ -50,11 +55,14 @@ export function YoucamAnalysisFlow({
     [onAnalysisCreated],
   );
 
-  const handleError = useCallback((message: string) => {
-    Alert.alert('Análisis estético', message);
-    setImageUri(null);
-    setStep('instructions');
-  }, []);
+  const handleError = useCallback(
+    (message: string) => {
+      Alert.alert(alertTitle, maskVendorMessage(message));
+      setImageUri(null);
+      setStep('instructions');
+    },
+    [alertTitle],
+  );
 
   return (
     <View style={styles.screen}>

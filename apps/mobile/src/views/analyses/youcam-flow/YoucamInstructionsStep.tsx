@@ -11,6 +11,10 @@ import { AppIcon } from '../../../components/AppIcon';
 import { BrandLogo } from '../../../components/BrandLogo';
 import { Icons } from '../../../components/icons';
 import { useBranding } from '../../../context/BrandingContext';
+import {
+  ANALYSIS_PROVIDER_STATIC_LABELS,
+  maskVendorMessage,
+} from '../../../data/analysisProviderLabel';
 import { requireGuidedFaceCapture } from '../../../native/guidedCapture';
 import { createYoucamFlowStyles } from './styles/youcamFlow.styles';
 
@@ -64,9 +68,9 @@ export function YoucamInstructionsStep({
       if (code === 'E_CANCELLED') return;
 
       Alert.alert(
-        'Análisis estético',
+        ANALYSIS_PROVIDER_STATIC_LABELS.youcam,
         err instanceof Error
-          ? err.message
+          ? maskVendorMessage(err.message)
           : 'No se pudo completar la captura.',
       );
     } finally {

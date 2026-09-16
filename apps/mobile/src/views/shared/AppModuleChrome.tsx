@@ -1,11 +1,16 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { PaymentsBillingView } from '../doctor/payments/PaymentsBillingView';
+import { PaymentsView } from '../doctor/payments/PaymentsView';
+import { DoctorReportsView } from '../doctor/reports/DoctorReportsView';
+import { FitzpatrickRulesView } from '../doctor/clinical-rules/FitzpatrickRulesView';
+import { SkinAgeRulesView } from '../doctor/clinical-rules/SkinAgeRulesView';
+import { EmailTemplatesView } from '../doctor/clinical-rules/EmailTemplatesView';
 import { SupportChatView } from '../support/SupportChatView';
 import { DiagnosisLanguageView } from '../doctor/settings/DiagnosisLanguageView';
 import { LegalDocumentModal } from '../../components/legal/LegalDocumentModal';
-import { AboutPiel360Content } from '../../components/about/AboutPiel360';
+import { AboutPiel360Modal } from '../../components/about/AboutPiel360';
 import { useAuth } from '../../context/AuthContext';
 import { useBranding } from '../../context/BrandingContext';
 import type { LegalDocId } from '../../data/legal/documents';
@@ -18,13 +23,16 @@ import {
 import { DoctorHeader } from '../doctor/patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../doctor/patients/styles/patients.styles';
 
-const INFO_COPY: Partial<Record<AccountMenuId, { title: string; body: string }>> =
-  {
-    premios: {
-      title: 'Premios',
-      body: 'Aquí verás recompensas y beneficios de Piel 360. Este módulo se activará en una próxima versión.',
-    },
-  };
+type AccountPanel =
+  | 'idioma'
+  | 'pagos'
+  | 'soporte'
+  | 'reportes'
+  | 'fototipo'
+  | 'edad_piel'
+  | 'plantillas'
+  | 'suscripcion'
+  | null;
 
 type AppModuleChromeProps = {
   children?: ReactNode;
@@ -54,14 +62,82 @@ export function AppModuleChrome({
     [branding.colors],
   );
   const [menuOpen, setMenuOpen] = useState(false);
-  const [overlay, setOverlay] = useState<AccountMenuId | null>(null);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
-  const [accountPanel, setAccountPanel] = useState<
-    'idioma' | 'pagos' | 'soporte' | null
-  >(null);
+  const [accountPanel, setAccountPanel] = useState<AccountPanel>(null);
   const [legalDoc, setLegalDoc] = useState<LegalDocId | null>(null);
   const variant = isClinicalPanelUser(user) ? 'doctor' : 'patient';
-  const info = overlay ? INFO_COPY[overlay] : null;
+
+  function handleMenuSelect(id: AccountMenuId) {
+    setMenuOpen(false);
+    if (id === 'idioma') {
+      setAccountPanel('idioma');
+      return;
+    }
+    if (id === 'pagos') {
+      setAccountPanel('pagos');
+      return;
+    }
+    if (id === 'soporte') {
+      setAccountPanel('soporte');
+      return;
+    }
+    if (id === 'reportes') {
+      setAccountPanel('reportes');
+      return;
+    }
+    if (id === 'fototipo') {
+      setAccountPanel('fototipo');
+      return;
+    }
+    if (id === 'edad_piel') {
+      setAccountPanel('edad_piel');
+      return;
+    }
+    if (id === 'plantillas') {
+      setAccountPanel('plantillas');
+      return;
+    }
+    if (id === 'password') {
+      setPasswordOpen(true);
+      return;
+    }
+    setAccountPanel(null);
+    if (id === 'salir') {
+      void logout();
+      return;
+    }
+    if (id === 'perfil') {
+      onOpenProfile?.();
+      return;
+    }
+    if (id === 'config') {
+      (onConfig ?? onOpenProfile)?.();
+      return;
+    }
+    if (id === 'suscripcion') {
+      if (onSubscription) {
+        onSubscription();
+        return;
+      }
+      setAccountPanel('suscripcion');
+      return;
+    }
+    if (id === 'acuerdo') {
+      setLegalDoc(variant === 'doctor' ? 'terms-professional' : 'terms');
+      return;
+    }
+    if (id === 'seguridad' || id === 'compartir' || id === 'premios') {
+      Alert.alert(
+        'Próximamente',
+        'Esta opción del menú se conectará en una siguiente iteración.',
+      );
+      return;
+    }
+    if (id === 'acerca') {
+      setAboutOpen(true);
+    }
+  }
 
   if (passwordOpen) {
     return (
@@ -88,12 +164,24 @@ export function AppModuleChrome({
           onSelect={handleMenuSelect}
           variant={variant}
         />
+        <AboutPiel360Modal
+          visible={aboutOpen}
+          onClose={() => setAboutOpen(false)}
+        />
       </>
     );
   }
 
   if (accountPanel === 'soporte') {
-    return <SupportChatView onClose={() => setAccountPanel(null)} />;
+    return (
+      <>
+        <SupportChatView onClose={() => setAccountPanel(null)} />
+        <AboutPiel360Modal
+          visible={aboutOpen}
+          onClose={() => setAboutOpen(false)}
+        />
+      </>
+    );
   }
 
   if (accountPanel === 'pagos') {
@@ -110,124 +198,100 @@ export function AppModuleChrome({
           onSelect={handleMenuSelect}
           variant={variant}
         />
+        <AboutPiel360Modal
+          visible={aboutOpen}
+          onClose={() => setAboutOpen(false)}
+        />
       </>
     );
   }
 
-  function handleMenuSelect(id: AccountMenuId) {
-    setMenuOpen(false);
-    if (id === 'idioma') {
-      setAccountPanel('idioma');
-      return;
-    }
-    if (id === 'pagos') {
-      setAccountPanel('pagos');
-      return;
-    }
-    if (id === 'soporte') {
-      setAccountPanel('soporte');
-      return;
-    }
-    if (id === 'password') {
-      setPasswordOpen(true);
-      return;
-    }
-    setAccountPanel(null);
-    if (id === 'salir') {
-      void logout();
-      return;
-    }
-    if (id === 'perfil') {
-      onOpenProfile?.();
-      return;
-    }
-    if (id === 'config') {
-      (onConfig ?? onOpenProfile)?.();
-      return;
-    }
-    if (id === 'suscripcion') {
-      if (onSubscription) {
-        onSubscription();
-        return;
-      }
-      Alert.alert(
-        'Próximamente',
-        'Esta opción del menú se conectará en una siguiente iteración.',
-      );
-      return;
-    }
-    if (id === 'acuerdo') {
-      setLegalDoc(variant === 'doctor' ? 'terms-professional' : 'terms');
-      return;
-    }
-    if (id === 'seguridad' || id === 'compartir') {
-      Alert.alert(
-        'Próximamente',
-        'Esta opción del menú se conectará en una siguiente iteración.',
-      );
-      return;
-    }
-    if (id === 'acerca') {
-      setOverlay('acerca');
-      return;
-    }
-    if (INFO_COPY[id]) {
-      setOverlay(id);
-    }
+  if (accountPanel === 'suscripcion') {
+    return (
+      <>
+        <PaymentsView
+          onBack={() => setAccountPanel(null)}
+          onOpenMenu={() => setMenuOpen(true)}
+          onOpenMessages={onOpenMessages}
+        />
+        <AccountDrawer
+          visible={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          onSelect={handleMenuSelect}
+          variant={variant}
+        />
+        <AboutPiel360Modal
+          visible={aboutOpen}
+          onClose={() => setAboutOpen(false)}
+        />
+      </>
+    );
   }
 
-  const showingAbout = overlay === 'acerca';
-  const showingInfo = Boolean(info);
+  if (accountPanel === 'reportes') {
+    return (
+      <DoctorReportsView
+        onBack={() => setAccountPanel(null)}
+        onOpenMessages={onOpenMessages}
+        onOpenProfile={onOpenProfile}
+      />
+    );
+  }
+
+  if (accountPanel === 'fototipo') {
+    return (
+      <FitzpatrickRulesView
+        onBack={() => setAccountPanel(null)}
+        onOpenMessages={onOpenMessages}
+      />
+    );
+  }
+
+  if (accountPanel === 'edad_piel') {
+    return (
+      <SkinAgeRulesView
+        onBack={() => setAccountPanel(null)}
+        onOpenMessages={onOpenMessages}
+      />
+    );
+  }
+
+  if (accountPanel === 'plantillas') {
+    return (
+      <EmailTemplatesView
+        onBack={() => setAccountPanel(null)}
+        onOpenMessages={onOpenMessages}
+      />
+    );
+  }
 
   return (
     <View style={{ flex: 1 }}>
       <StatusBar style="light" />
       <DoctorHeader
         styles={headerStyles}
-        showBack={showingAbout || showingInfo || showBack}
-        onBack={
-          showingAbout || showingInfo ? () => setOverlay(null) : onBack
-        }
+        showBack={showBack}
+        onBack={onBack}
         messageCount={messageCount}
         onOpenMenu={() => setMenuOpen(true)}
         onOpenMessages={onOpenMessages}
-        onOpenGift={() => setOverlay('premios')}
+        onOpenGift={() =>
+          Alert.alert(
+            'Premios',
+            'Aquí verás recompensas y beneficios de Piel 360. Este módulo se activará en una próxima versión.',
+          )
+        }
       />
-      {showingAbout ? (
-        <AboutPiel360Content />
-      ) : showingInfo && info ? (
-        <ScrollView
-          style={{ flex: 1, backgroundColor: '#FFFFFF' }}
-          contentContainerStyle={{ padding: 24, paddingBottom: 40 }}
-        >
-          <Text
-            style={{
-              fontSize: 20,
-              fontWeight: '700',
-              color: branding.colors.text,
-              marginBottom: 12,
-            }}
-          >
-            {info.title}
-          </Text>
-          <Text
-            style={{
-              fontSize: 15,
-              lineHeight: 22,
-              color: branding.colors.muted,
-            }}
-          >
-            {info.body}
-          </Text>
-        </ScrollView>
-      ) : (
-        children
-      )}
+      {children}
       <AccountDrawer
         visible={menuOpen}
         onClose={() => setMenuOpen(false)}
         onSelect={handleMenuSelect}
         variant={variant}
+      />
+      <AboutPiel360Modal
+        visible={aboutOpen}
+        onClose={() => setAboutOpen(false)}
       />
       <LegalDocumentModal
         docId={legalDoc}

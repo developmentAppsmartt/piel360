@@ -20,19 +20,47 @@ export interface DoctorReportsFilters {
   trendMonths?: number;
 }
 
-/**
- * Bundle de las tres pantallas de Reportes. Un solo endpoint porque comparten
- * filtros; ver apps/api/src/doctor-reports/doctor-reports.service.ts.
- */
-export function useDoctorSkinHealthReport(filters: DoctorReportsFilters) {
+export type LifestyleSegment = {
+  key: string;
+  label: string;
+  patients: number;
+  pct: number;
+  avgScore: number | null;
+  analyses?: number;
+};
+
+export type LifestyleReportSection = {
+  title: string;
+  segments: LifestyleSegment[];
+};
+
+export type LifestyleReport = {
+  range: { from: string; to: string };
+  birthType: LifestyleReportSection;
+  pets: LifestyleReportSection;
+  activity: LifestyleReportSection;
+  clinicalAi: LifestyleReportSection;
+};
+
+function buildQuery(filters: DoctorReportsFilters): string {
   const params = new URLSearchParams();
   if (filters.from) params.set("from", filters.from);
   if (filters.to) params.set("to", filters.to);
   if (filters.professionalUserId && filters.professionalUserId !== "all") {
     params.set("professionalUserId", filters.professionalUserId);
   }
-  if (filters.trendMonths) params.set("trendMonths", String(filters.trendMonths));
-  const query = params.toString();
+  if (filters.trendMonths) {
+    params.set("trendMonths", String(filters.trendMonths));
+  }
+  return params.toString();
+}
+
+/**
+ * Bundle de las tres pantallas de Reportes. Un solo endpoint porque comparten
+ * filtros; ver apps/api/src/doctor-reports/doctor-reports.service.ts.
+ */
+export function useDoctorSkinHealthReport(filters: DoctorReportsFilters) {
+  const query = buildQuery(filters);
 
   return useQuery({
     queryKey: ["doctor", "reports", "skin-health", filters],
@@ -43,63 +71,14 @@ export function useDoctorSkinHealthReport(filters: DoctorReportsFilters) {
   });
 }
 
-/**
- * Reportes segmentados (tipo de nacimiento, mascota, actividad física).
- * Mismos filtros de fecha/profesional que el resumen; `trendMonths` no se
- * envía porque este endpoint lo ignora (sin comparación de periodo anterior).
- */
-export function useDoctorSkinSegmentsReport(filters: DoctorReportsFilters) {
-  const params = new URLSearchParams();
-  if (filters.from) params.set("from", filters.from);
-  if (filters.to) params.set("to", filters.to);
-  if (filters.professionalUserId && filters.professionalUserId !== "all") {
-    params.set("professionalUserId", filters.professionalUserId);
-  }
-  const query = params.toString();
+export function useDoctorLifestyleReport(filters: DoctorReportsFilters) {
+  const query = buildQuery(filters);
 
   return useQuery({
-    queryKey: [
-      "doctor",
-      "reports",
-      "segments",
-      filters.from,
-      filters.to,
-      filters.professionalUserId,
-    ],
+    queryKey: ["doctor", "reports", "lifestyle", filters],
     queryFn: () =>
-      apiClientFetch<SkinReportSegmentsResponse>(
-        `/doctor/reports/segments${query ? `?${query}` : ""}`,
-      ),
-  });
-}
-
-/**
- * Reporte "Análisis clínico IA" (Skiniver): diagnósticos por clase/enfermedad
- * /edad por mes + distribución por tono de piel. `trendMonths` no aplica —
- * este reporte cubre el rango de fechas filtrado completo, no una ventana
- * de tendencia aparte.
- */
-export function useDoctorSkiniverReport(filters: DoctorReportsFilters) {
-  const params = new URLSearchParams();
-  if (filters.from) params.set("from", filters.from);
-  if (filters.to) params.set("to", filters.to);
-  if (filters.professionalUserId && filters.professionalUserId !== "all") {
-    params.set("professionalUserId", filters.professionalUserId);
-  }
-  const query = params.toString();
-
-  return useQuery({
-    queryKey: [
-      "doctor",
-      "reports",
-      "skiniver",
-      filters.from,
-      filters.to,
-      filters.professionalUserId,
-    ],
-    queryFn: () =>
-      apiClientFetch<SkiniverReport>(
-        `/doctor/reports/skiniver${query ? `?${query}` : ""}`,
+      apiClientFetch<LifestyleReport>(
+        `/doctor/reports/lifestyle${query ? `?${query}` : ""}`,
       ),
   });
 }

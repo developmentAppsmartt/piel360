@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { WebView } from 'react-native-webview';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { AppIcon } from '../../../../components/AppIcon';
 import { Icons, type AppIconName } from '../../../../components/icons';
 import { useBranding } from '../../../../context/BrandingContext';
@@ -88,9 +88,13 @@ function inferMediaKind(
   url: string,
 ): 'video' | 'image' {
   const type = (mediaType ?? '').toLowerCase().trim();
-  if (type === 'video') return 'video';
-  if (type === 'image' || type === 'gif') return 'image';
+  if (type === 'video' || type.startsWith('video/')) return 'video';
+  if (type === 'image' || type === 'gif' || type.startsWith('image/')) {
+    return 'image';
+  }
   if (/\.(mp4|mov|webm|m4v|mkv)(\?|#|$)/i.test(url)) return 'video';
+  // Keys S3 firmadas a menudo no traen extensión visible en el path.
+  if (/\/(videos?|media\/video|routines?\/video)/i.test(url)) return 'video';
   return 'image';
 }
 
@@ -960,6 +964,43 @@ function RoutineDetail({
   );
 }
 
+function RoutineVideoPlayer({
+  uri,
+  height,
+}: {
+  uri: string;
+  height: number;
+}) {
+  const player = useVideoPlayer({ uri }, (p) => {
+    p.loop = false;
+    p.muted = false;
+    p.play();
+  });
+
+  useEffect(() => {
+    try {
+      player.replace({ uri });
+      player.play();
+    } catch {
+      /* ignore replace race on unmount */
+    }
+  }, [uri, player]);
+
+  return (
+    <VideoView
+      player={player}
+      style={{
+        width: '100%',
+        height,
+        backgroundColor: '#0F172A',
+      }}
+      contentFit="contain"
+      nativeControls
+      accessibilityLabel="Reproductor de video de la rutina"
+    />
+  );
+}
+
 function RoutineMediaModal({
   preview,
   onClose,
@@ -971,12 +1012,7 @@ function RoutineMediaModal({
   onDark: string;
   primary: string;
 }) {
-  const mediaHeight = Math.min(Dimensions.get('window').height * 0.62, 520);
-  const videoHtml = preview
-    ? `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1" />
-<style>html,body{margin:0;height:100%;background:#0F172A;} video{width:100%;height:100%;object-fit:contain;background:#0F172A;}</style>
-</head><body><video src="${preview.url.replace(/"/g, '&quot;')}" controls playsinline autoplay></video></body></html>`
-    : '';
+  const mediaHeight = Math.min(Dimensions.get('window').height * 0.55, 480);
 
   return (
     <Modal
@@ -1039,14 +1075,8 @@ function RoutineMediaModal({
               }}
               contentFit="contain"
             />
-          ) : preview ? (
-            <WebView
-              originWhitelist={['*']}
-              source={{ html: videoHtml }}
-              style={{ height: mediaHeight, backgroundColor: '#0F172A' }}
-              allowsInlineMediaPlayback
-              mediaPlaybackRequiresUserAction={false}
-            />
+          ) : preview?.kind === 'video' && preview.url ? (
+            <RoutineVideoPlayer uri={preview.url} height={mediaHeight} />
           ) : null}
           {preview?.title ? (
             <Text

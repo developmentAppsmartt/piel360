@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppIcon } from '../../../components/AppIcon';
 import { Icons } from '../../../components/icons';
 import { useBranding } from '../../../context/BrandingContext';
@@ -26,6 +27,7 @@ export function DoctorStatsView({
   const branding = useBranding();
   const styles = createDoctorHomeStyles(branding.colors);
   const primary = branding.colors.primary;
+  const insets = useSafeAreaInsets();
 
   const slices = [
     {
@@ -48,7 +50,12 @@ export function DoctorStatsView({
   return (
     <View style={styles.screen}>
       <StatusBar style="dark" />
-      <View style={styles.statsHeader}>
+      <View
+        style={[
+          styles.statsHeader,
+          { paddingTop: Math.max(insets.top, 12) },
+        ]}
+      >
         <Pressable
           onPress={onBack}
           accessibilityLabel="Volver"
@@ -62,7 +69,10 @@ export function DoctorStatsView({
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.statsScroll}
+        contentContainerStyle={[
+          styles.statsScroll,
+          { paddingBottom: Math.max(insets.bottom, 16) + 24 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.statsPieCard}>

@@ -39,6 +39,10 @@ import { DoctorHeader } from '../patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
 import { PaymentsBillingView } from '../payments/PaymentsBillingView';
 import { PaymentsView } from '../payments/PaymentsView';
+import { DoctorReportsView } from '../reports/DoctorReportsView';
+import { FitzpatrickRulesView } from '../clinical-rules/FitzpatrickRulesView';
+import { SkinAgeRulesView } from '../clinical-rules/SkinAgeRulesView';
+import { EmailTemplatesView } from '../clinical-rules/EmailTemplatesView';
 import { DiagnosisLanguageView } from '../settings/DiagnosisLanguageView';
 import { createDoctorHomeStyles } from './styles/home.styles';
 import { DoctorStatsView } from './DoctorStatsView';
@@ -48,6 +52,7 @@ type DoctorHomeViewProps = {
   onOpenMessages?: () => void;
   onOpenProfile?: () => void;
   onOpenAgenda?: () => void;
+  onShowingStatsChange?: (showing: boolean) => void;
 };
 
 const PENDING_APPOINTMENT_STATUSES = new Set(['proposed', 'requested']);
@@ -80,7 +85,7 @@ function lastNameFromUserName(name: string | undefined): string {
 
 function doctorTitleFallback(name: string | undefined): string {
   const last = lastNameFromUserName(name);
-  return last ? `Dr. ${last}` : 'Doctor';
+  return last || 'Profesional';
 }
 
 function initials(name: string): string {
@@ -104,6 +109,7 @@ export function DoctorHomeView({
   onOpenMessages,
   onOpenProfile,
   onOpenAgenda,
+  onShowingStatsChange,
 }: DoctorHomeViewProps) {
   const branding = useBranding();
   const { user, logout } = useAuth();
@@ -135,10 +141,19 @@ export function DoctorHomeView({
   const [showingPassword, setShowingPassword] = useState(false);
   const [showingStats, setShowingStats] = useState(false);
   const [showingAbout, setShowingAbout] = useState(false);
+  const [showingReports, setShowingReports] = useState(false);
+  const [showingFototipo, setShowingFototipo] = useState(false);
+  const [showingEdadPiel, setShowingEdadPiel] = useState(false);
+  const [showingPlantillas, setShowingPlantillas] = useState(false);
   const [legalDoc, setLegalDoc] = useState<LegalDocId | null>(null);
   const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(
     null,
   );
+
+  useEffect(() => {
+    onShowingStatsChange?.(showingStats);
+    return () => onShowingStatsChange?.(false);
+  }, [showingStats, onShowingStatsChange]);
 
   const load = useCallback(async () => {
     try {
@@ -186,7 +201,7 @@ export function DoctorHomeView({
   }, [load]);
 
   const welcomeName = doctorLastName
-    ? `Dr. ${doctorLastName}`
+    ? doctorLastName
     : doctorTitleFallback(user?.name);
   const primary = branding.colors.primary;
   const primaryDark = branding.colors.primaryDark;
@@ -228,12 +243,16 @@ export function DoctorHomeView({
     else if (id === 'suscripcion') {
       setShowingLanguage(false);
       setShowingBilling(false);
+      setShowingReports(false);
+      setShowingFototipo(false);
+      setShowingEdadPiel(false);
+      setShowingPlantillas(false);
       setShowingPayments(true);
     } else if (id === 'idioma') {
       setShowingPayments(false);
       setShowingBilling(false);
       setShowingLanguage(true);
-    }     else if (id === 'pagos') {
+    } else if (id === 'pagos') {
       setShowingPayments(false);
       setShowingLanguage(false);
       setShowingBilling(true);
@@ -248,6 +267,26 @@ export function DoctorHomeView({
       setLegalDoc('terms-professional');
     } else if (id === 'acerca') {
       setShowingAbout(true);
+    } else if (id === 'reportes') {
+      setShowingFototipo(false);
+      setShowingEdadPiel(false);
+      setShowingPlantillas(false);
+      setShowingReports(true);
+    } else if (id === 'fototipo') {
+      setShowingReports(false);
+      setShowingEdadPiel(false);
+      setShowingPlantillas(false);
+      setShowingFototipo(true);
+    } else if (id === 'edad_piel') {
+      setShowingReports(false);
+      setShowingFototipo(false);
+      setShowingPlantillas(false);
+      setShowingEdadPiel(true);
+    } else if (id === 'plantillas') {
+      setShowingReports(false);
+      setShowingFototipo(false);
+      setShowingEdadPiel(false);
+      setShowingPlantillas(true);
     } else
       Alert.alert(
         'Próximamente',
@@ -316,6 +355,43 @@ export function DoctorHomeView({
         initialEmail={user?.email ?? ''}
         onBack={() => setShowingPassword(false)}
         onSuccess={() => setShowingPassword(false)}
+      />
+    );
+  }
+
+  if (showingReports) {
+    return (
+      <DoctorReportsView
+        onBack={() => setShowingReports(false)}
+        onOpenMessages={onOpenMessages}
+        onOpenProfile={onOpenProfile}
+      />
+    );
+  }
+
+  if (showingFototipo) {
+    return (
+      <FitzpatrickRulesView
+        onBack={() => setShowingFototipo(false)}
+        onOpenMessages={onOpenMessages}
+      />
+    );
+  }
+
+  if (showingEdadPiel) {
+    return (
+      <SkinAgeRulesView
+        onBack={() => setShowingEdadPiel(false)}
+        onOpenMessages={onOpenMessages}
+      />
+    );
+  }
+
+  if (showingPlantillas) {
+    return (
+      <EmailTemplatesView
+        onBack={() => setShowingPlantillas(false)}
+        onOpenMessages={onOpenMessages}
       />
     );
   }
@@ -472,7 +548,7 @@ export function DoctorHomeView({
               />
             ) : (
               <Text style={styles.avatarText}>
-                {initials(welcomeName.replace(/^Dr\.\s*/i, '')) || 'DR'}
+                {initials(welcomeName) || '?'}
               </Text>
             )}
           </Pressable>

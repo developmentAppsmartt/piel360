@@ -18,6 +18,11 @@ import { BrandLogo } from '../../../components/BrandLogo';
 import { useAuth } from '../../../context/AuthContext';
 import { useBranding } from '../../../context/BrandingContext';
 import { combinePhoneDigits, isValidE164Digits } from '../../../lib/phone';
+import {
+  isStrongPassword,
+  PASSWORD_STRENGTH_HINT,
+  PASSWORD_STRENGTH_MESSAGE,
+} from '../../../lib/password';
 import type { AuthStackParamList } from '../../../navigation/RootNavigator';
 import { ApiError } from '../../../services/api.client';
 import { authService } from '../../../services/auth.service';
@@ -187,8 +192,8 @@ export function ChangePasswordFlow({
       setError('Valida el código OTP antes de cambiar la contraseña.');
       return;
     }
-    if (password.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres.');
+    if (!isStrongPassword(password)) {
+      setError(PASSWORD_STRENGTH_MESSAGE);
       return;
     }
     if (password !== confirm) {
@@ -241,7 +246,7 @@ export function ChangePasswordFlow({
               <Text style={styles.backLink}>← Volver</Text>
             </Pressable>
 
-            <BrandLogo height={44} style={styles.logo} />
+            <BrandLogo variant="header" height={62} style={styles.logo} />
             <Text style={[styles.subtitle, { marginBottom: 8 }]}>{title}</Text>
             <Text style={styles.subtitle}>{subtitle}</Text>
 
@@ -435,7 +440,7 @@ export function ChangePasswordFlow({
                       value={password}
                       onChangeText={setPassword}
                       secureTextEntry={!showPassword}
-                      placeholder="Mínimo 8 caracteres"
+                      placeholder={PASSWORD_STRENGTH_HINT}
                       placeholderTextColor="#9CA3AF"
                       editable={!submitting && passwordUnlocked}
                       autoComplete="new-password"
@@ -485,7 +490,7 @@ export function ChangePasswordFlow({
                   disabled={
                     submitting ||
                     !passwordUnlocked ||
-                    password.length < 8 ||
+                    !isStrongPassword(password) ||
                     password !== confirm
                   }
                   loading={submitting}

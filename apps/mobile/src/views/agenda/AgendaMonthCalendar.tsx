@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 export type CalendarCell = { date: string | null; day: number | null };
 
@@ -159,104 +159,57 @@ export function AgendaMonthCalendar({
 
   return (
     <View>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 10,
-        }}
-      >
-        <Pressable
-          onPress={onPrevMonth}
-          hitSlop={10}
-          style={{
-            borderWidth: 1,
-            borderColor: '#E5E7EB',
-            borderRadius: 10,
-            paddingHorizontal: 12,
-            paddingVertical: 6,
-          }}
-        >
-          <Text style={{ fontWeight: '700', color: textColor }}>←</Text>
+      <View style={calStyles.navRow}>
+        <Pressable onPress={onPrevMonth} hitSlop={10} style={calStyles.navBtn}>
+          <Text style={[calStyles.navBtnText, { color: textColor }]}>←</Text>
         </Pressable>
-        <Text
-          style={{
-            fontSize: 14,
-            fontWeight: '800',
-            color: textColor,
-            textTransform: 'capitalize',
-          }}
-        >
+        <Text style={[calStyles.monthLabel, { color: textColor }]}>
           {monthLabel}
         </Text>
-        <Pressable
-          onPress={onNextMonth}
-          hitSlop={10}
-          style={{
-            borderWidth: 1,
-            borderColor: '#E5E7EB',
-            borderRadius: 10,
-            paddingHorizontal: 12,
-            paddingVertical: 6,
-          }}
-        >
-          <Text style={{ fontWeight: '700', color: textColor }}>→</Text>
+        <Pressable onPress={onNextMonth} hitSlop={10} style={calStyles.navBtn}>
+          <Text style={[calStyles.navBtnText, { color: textColor }]}>→</Text>
         </Pressable>
       </View>
 
-      <View style={{ flexDirection: 'row', marginBottom: 4 }}>
+      <View style={calStyles.weekHeader}>
         {['D', 'L', 'M', 'X', 'J', 'V', 'S'].map((d) => (
-          <View key={d} style={{ flex: 1, alignItems: 'center' }}>
-            <Text
-              style={{ fontSize: 11, fontWeight: '700', color: '#9CA3AF' }}
-            >
-              {d}
-            </Text>
+          <View key={d} style={calStyles.weekCell}>
+            <Text style={calStyles.weekText}>{d}</Text>
           </View>
         ))}
       </View>
 
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+      <View style={calStyles.grid}>
         {cells.map((cell, idx) => {
           if (!cell.date) {
-            return (
-              <View
-                key={`e-${idx}`}
-                style={{ width: '14.28%', aspectRatio: 1, padding: 2 }}
-              />
-            );
+            return <View key={`e-${idx}`} style={calStyles.dayCell} />;
           }
           const blocked = blockedByDate.get(cell.date);
           const count = apptCountByDate?.get(cell.date) ?? 0;
           const hasAppts = count > 0 && !blocked;
           const selected = selectedDate === cell.date;
           return (
-            <View
-              key={cell.date}
-              style={{ width: '14.28%', aspectRatio: 1, padding: 2 }}
-            >
+            <View key={cell.date} style={calStyles.dayCell}>
               <Pressable
                 onPress={() => onSelectDate(cell.date!)}
-                style={{
-                  flex: 1,
-                  borderRadius: 12,
-                  borderWidth: selected ? 2 : 1,
-                  borderColor: selected
-                    ? primaryColor
-                    : blocked
-                      ? '#FECACA'
+                style={[
+                  calStyles.dayBtn,
+                  {
+                    borderWidth: selected ? 2 : 1,
+                    borderColor: selected
+                      ? primaryColor
+                      : blocked
+                        ? '#FECACA'
+                        : hasAppts
+                          ? '#93C5FD'
+                          : '#E5E7EB',
+                    backgroundColor: blocked
+                      ? '#FEF2F2'
                       : hasAppts
-                        ? '#93C5FD'
-                        : '#E5E7EB',
-                  backgroundColor: blocked
-                    ? '#FEF2F2'
-                    : hasAppts
-                      ? '#DBEAFE'
-                      : '#FFFFFF',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+                        ? '#DBEAFE'
+                        : '#FFFFFF',
+                  },
+                ]}
               >
                 <Text
                   style={{
@@ -273,11 +226,10 @@ export function AgendaMonthCalendar({
                 </Text>
                 {count > 0 ? (
                   <Text
-                    style={{
-                      fontSize: 8,
-                      fontWeight: '700',
-                      color: blocked ? '#B91C1C' : '#1D4ED8',
-                    }}
+                    style={[
+                      calStyles.dayCount,
+                      { color: blocked ? '#B91C1C' : '#1D4ED8' },
+                    ]}
                   >
                     {count}c
                   </Text>
@@ -290,3 +242,37 @@ export function AgendaMonthCalendar({
     </View>
   );
 }
+
+const calStyles = StyleSheet.create({
+  navRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  navBtn: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  navBtnText: { fontWeight: '700' },
+  monthLabel: {
+    fontSize: 14,
+    fontWeight: '800',
+    textTransform: 'capitalize',
+  },
+  weekHeader: { flexDirection: 'row', marginBottom: 4 },
+  weekCell: { flex: 1, alignItems: 'center' },
+  weekText: { fontSize: 11, fontWeight: '700', color: '#9CA3AF' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  dayCell: { width: '14.28%', aspectRatio: 1, padding: 2 },
+  dayBtn: {
+    flex: 1,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayCount: { fontSize: 8, fontWeight: '700' },
+});

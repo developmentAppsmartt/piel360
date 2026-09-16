@@ -387,7 +387,7 @@ export function PatientDetailView({
     if (!allowed) {
       Alert.alert(
         label,
-        'No tienes un plan activo con créditos para este tipo de análisis. Revisa tu suscripción.',
+        'Suscripción no disponible para este tipo de análisis. Revisa tu plan o créditos.',
       );
       return;
     }
@@ -633,7 +633,7 @@ export function PatientDetailView({
             contentContainerStyle={styles.listContent}
             keyboardShouldPersistTaps="always"
             removeClippedSubviews={false}
-            ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+            ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
             ListHeaderComponent={
               <View>
                 <View style={styles.identity}>
@@ -774,6 +774,8 @@ export function PatientDetailView({
                               },
                             ]}
                             onPress={() => handleStart(card.slug, label)}
+                            accessibilityRole="button"
+                            accessibilityLabel={label}
                           >
                             <View
                               style={[
@@ -801,16 +803,11 @@ export function PatientDetailView({
                                   styles.providerCardText,
                                   { color: card.accent },
                                 ]}
-                                numberOfLines={1}
+                                numberOfLines={2}
                               >
                                 {card.line2}
                               </Text>
                             </View>
-                            <AppIcon
-                              icon={Icons.chevronRight}
-                              size={18}
-                              color={card.accent}
-                            />
                           </Pressable>
                         );
                       })}

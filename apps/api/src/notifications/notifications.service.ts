@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
-export type NotificationType = 'message' | 'analysis_request';
+export type NotificationType =
+  | 'message'
+  | 'analysis_request'
+  | 'analysis_shared';
 
 @Injectable()
 export class NotificationsService {

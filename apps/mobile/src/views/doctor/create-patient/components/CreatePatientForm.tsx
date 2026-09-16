@@ -7,8 +7,14 @@ import {
   View,
 } from 'react-native';
 import { AppIcon } from '../../../../components/AppIcon';
+import { BirthDateField } from '../../../../components/BirthDateField';
 import { LocationPicker } from '../../../../components/maps/LocationPicker';
 import { useBranding } from '../../../../context/BrandingContext';
+import {
+  isStrongPassword,
+  PASSWORD_STRENGTH_HINT,
+  PASSWORD_STRENGTH_MESSAGE,
+} from '../../../../lib/password';
 import {
   PATIENT_DOC_TYPES,
   PATIENT_FITZ_OPTIONS,
@@ -81,8 +87,16 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
       setError('Correo inválido.');
       return;
     }
-    if (passwordTrim.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres.');
+    if (!isStrongPassword(passwordTrim)) {
+      setError(PASSWORD_STRENGTH_MESSAGE);
+      return;
+    }
+    if (!docNumber.trim()) {
+      setError('El número de cédula / documento es obligatorio.');
+      return;
+    }
+    if (docNumber.trim().length < 4) {
+      setError('El número de documento debe tener al menos 4 caracteres.');
       return;
     }
     if (birthDate && !/^\d{4}-\d{2}-\d{2}$/.test(birthDate.trim())) {
@@ -96,8 +110,8 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
       email: emailTrim,
       password: passwordTrim,
       createAppAccess: true,
-      docType: opt(docType),
-      docNumber: opt(docNumber),
+      docType: docType.trim() || 'CC',
+      docNumber: docNumber.trim(),
       gender: opt(gender),
       address: opt(address),
       ...(lat != null && lng != null ? { lat, lng } : {}),
@@ -160,7 +174,10 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
             autoCapitalize="none"
             autoCorrect={false}
             textContentType="newPassword"
+            placeholder={PASSWORD_STRENGTH_HINT}
+            placeholderTextColor="#9CA3AF"
           />
+          <Text style={styles.hint}>{PASSWORD_STRENGTH_HINT}</Text>
         </View>
 
         <View style={styles.field}>
@@ -186,11 +203,13 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>No. Identificación</Text>
+          <Text style={styles.label}>No. Identificación *</Text>
           <TextInput
             style={styles.input}
             value={docNumber}
             onChangeText={setDocNumber}
+            placeholder="Obligatorio"
+            placeholderTextColor="#9CA3AF"
           />
         </View>
 
@@ -249,26 +268,27 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
           </View>
         </View>
 
-        <View style={styles.field}>
-          <Text style={styles.label}>Fecha de nacimiento (AAAA-MM-DD)</Text>
-          <TextInput
-            style={styles.input}
-            value={birthDate}
-            onChangeText={setBirthDate}
-            placeholder="1976-06-12"
-            placeholderTextColor="#9CA3AF"
-          />
-          {chronologicalAgeYears(birthDate || null, new Date()) != null ? (
-            <Text style={styles.hint}>
-              Edad cronológica:{' '}
-              {chronologicalAgeYears(birthDate, new Date())} años
-            </Text>
-          ) : (
-            <Text style={styles.hint}>
-              Se usa como edad cronológica en el análisis de salud de la piel.
-            </Text>
-          )}
-        </View>
+        <BirthDateField
+          value={birthDate}
+          onChange={setBirthDate}
+          label="Fecha de nacimiento"
+          labelStyle={styles.label}
+          fieldStyle={styles.field}
+          triggerStyle={styles.input}
+          valueStyle={{ color: text }}
+          accentColor={branding.colors.primary}
+          textColor={text}
+        />
+        {chronologicalAgeYears(birthDate || null, new Date()) != null ? (
+          <Text style={styles.hint}>
+            Edad cronológica:{' '}
+            {chronologicalAgeYears(birthDate, new Date())} años
+          </Text>
+        ) : (
+          <Text style={styles.hint}>
+            Se usa como edad cronológica en el análisis de salud de la piel.
+          </Text>
+        )}
 
         <PatientBirthTypeField
           values={{

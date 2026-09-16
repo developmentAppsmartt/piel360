@@ -10,7 +10,7 @@ import {
   type SkiniverDiseaseBucket,
 } from "@piel360/shared";
 import { ModuleCard } from "@/components/ui/module-card";
-import { BirthTypeReport } from "@/components/reports/birth-type-report";
+import { LifestyleReportPanel } from "@/components/reports/lifestyle-report-panel";
 import { NeedsMapView } from "@/components/reports/needs-map-view";
 import { PetsReport } from "@/components/reports/pets-report";
 import { PhysicalActivityReport } from "@/components/reports/physical-activity-report";
@@ -27,6 +27,7 @@ import {
 } from "@/components/reports/top-problems-table";
 import { downloadCsv } from "@/lib/csv-export";
 import {
+  useDoctorLifestyleReport,
   useDoctorSkinHealthReport,
   useDoctorSkinSegmentsReport,
   useDoctorSkiniverReport,
@@ -42,9 +43,9 @@ type ReportTab =
   | "nacimiento"
   | "mascotas"
   | "actividad"
-  | "skiniver";
+  | "clinico";
 
-const TABS: { key: ReportTab; label: string }[] = [
+const SKIN_TABS: { key: ReportTab; label: string }[] = [
   { key: "resumen", label: "Resumen de salud de la piel" },
   { key: "necesidades", label: "Mapa de necesidades" },
   { key: "top", label: "Top problemas" },
@@ -54,14 +55,12 @@ const TABS: { key: ReportTab; label: string }[] = [
   { key: "skiniver", label: "Análisis clínico IA" },
 ];
 
-const SEGMENT_TABS: ReportTab[] = ["nacimiento", "mascotas", "actividad"];
-
-const CLASS_KEYS = Object.keys(
-  SKINIVER_DIAGNOSIS_CLASS_DEFS,
-) as SkiniverDiagnosisClass[];
-const DISEASE_KEYS = Object.keys(
-  SKINIVER_DISEASE_BUCKET_DEFS,
-) as SkiniverDiseaseBucket[];
+const LIFESTYLE_TABS: { key: ReportTab; label: string }[] = [
+  { key: "nacimiento", label: "Tipo de nacimiento" },
+  { key: "mascotas", label: "Mascotas y salud de la piel" },
+  { key: "actividad", label: "Actividad física y deporte" },
+  { key: "clinico", label: "Análisis clínico IA" },
+];
 
 export default function ReportesPage() {
   const [filters, setFilters] = useState<DoctorReportsFilters>({
@@ -72,12 +71,16 @@ export default function ReportesPage() {
   const [sort, setSort] = useState<TopProblemsSort>("score");
 
   const report = useDoctorSkinHealthReport(filters);
-  const segments = useDoctorSkinSegmentsReport(filters);
-  const skiniver = useDoctorSkiniverReport(filters);
+  const lifestyle = useDoctorLifestyleReport(filters);
   const team = useOrganizationTeam();
   const members = team.data?.members ?? [];
-  // El backend solo acepta professionalUserId del dueño del equipo.
   const showProfessionalFilter = members.length > 1;
+
+  const isLifestyleTab =
+    tab === "nacimiento" ||
+    tab === "mascotas" ||
+    tab === "actividad" ||
+    tab === "clinico";
 
   function handleExport() {
     if (tab === "skiniver") {
@@ -172,6 +175,29 @@ export default function ReportesPage() {
       return;
     }
 
+    if (isLifestyleTab && lifestyle.data) {
+      const section =
+        tab === "nacimiento"
+          ? lifestyle.data.birthType
+          : tab === "mascotas"
+            ? lifestyle.data.pets
+            : tab === "actividad"
+              ? lifestyle.data.activity
+              : lifestyle.data.clinicalAi;
+      const rows: (string | number | null)[][] = [
+        ["Segmento", "Pacientes", "%", "Puntaje promedio", "Análisis"],
+        ...section.segments.map((s) => [
+          s.label,
+          s.patients,
+          s.pct.toFixed(1),
+          s.avgScore != null ? s.avgScore.toFixed(1) : "",
+          s.analyses ?? "",
+        ]),
+      ];
+      downloadCsv(`reporte-${tab}-${lifestyle.data.range.from}_${lifestyle.data.range.to}`, rows);
+      return;
+    }
+
     const k = data.kpis;
     const rows: (string | number | null)[][] = [
       ["Indicador", "Periodo actual", "Periodo anterior"],
@@ -230,115 +256,138 @@ export default function ReportesPage() {
         showProfessionalFilter={showProfessionalFilter}
         onExport={handleExport}
         exportDisabled={
-          isSkiniverTab
-            ? !skiniver.data
-            : isSegmentTab
-              ? !segments.data || isSegmentsEmpty
-              : !report.data || isEmpty
+          isLifestyleTab
+            ? !lifestyle.data
+            : !report.data || Boolean(isEmpty)
         }
       />
 
-      <div
-        role="tablist"
-        aria-label="Vista del reporte"
-        className="inline-flex flex-wrap gap-1 rounded-lg border border-border bg-muted/40 p-0.5"
-      >
-        {TABS.map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            role="tab"
-            aria-selected={tab === item.key}
-            onClick={() => setTab(item.key)}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              tab === item.key
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {item.label}
-          </button>
-        ))}
+      <div className="space-y-2">
+        <div
+          role="tablist"
+          aria-label="Vista del reporte de salud"
+          className="inline-flex flex-wrap gap-1 rounded-lg border border-border bg-muted/40 p-0.5"
+        >
+          {SKIN_TABS.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              role="tab"
+              aria-selected={tab === item.key}
+              onClick={() => setTab(item.key)}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                tab === item.key
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        <div
+          role="tablist"
+          aria-label="Vista del reporte lifestyle"
+          className="inline-flex flex-wrap gap-1 rounded-lg border border-border bg-muted/40 p-0.5"
+        >
+          {LIFESTYLE_TABS.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              role="tab"
+              aria-selected={tab === item.key}
+              onClick={() => setTab(item.key)}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                tab === item.key
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {(isSkiniverTab
-        ? skiniver.isLoading
-        : isSegmentTab
-          ? segments.isLoading
-          : report.isLoading) && (
+      {report.isLoading && !isLifestyleTab && (
         <p className="text-sm text-muted-foreground">Cargando reportes…</p>
       )}
-      {(isSkiniverTab
-        ? skiniver.error
-        : isSegmentTab
-          ? segments.error
-          : report.error) && (
+      {lifestyle.isLoading && isLifestyleTab && (
+        <p className="text-sm text-muted-foreground">Cargando reportes…</p>
+      )}
+      {report.error && !isLifestyleTab && (
+        <p className="text-sm text-destructive">No se pudieron cargar los reportes.</p>
+      )}
+      {lifestyle.error && isLifestyleTab && (
         <p className="text-sm text-destructive">No se pudieron cargar los reportes.</p>
       )}
 
-      {isSkiniverTab
-        ? null
-        : isSegmentTab
-        ? segments.data && isSegmentsEmpty && (
-            <ModuleCard className="flex flex-col items-center gap-3 p-10 text-center">
-              <span className="flex size-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                <BarChart3 className="size-6" />
-              </span>
-              <div>
-                <p className="font-semibold">Aún no hay datos en este periodo</p>
-                <p className="mt-1 max-w-md text-sm text-muted-foreground">
-                  Estos reportes se construyen con los análisis de piel con IA. Amplía
-                  el rango de fechas o realiza un análisis para empezar a ver
-                  resultados.
-                </p>
-              </div>
-            </ModuleCard>
-          )
-        : report.data &&
-          isEmpty && (
-            <ModuleCard className="flex flex-col items-center gap-3 p-10 text-center">
-              <span className="flex size-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                <BarChart3 className="size-6" />
-              </span>
-              <div>
-                <p className="font-semibold">Aún no hay datos en este periodo</p>
-                <p className="mt-1 max-w-md text-sm text-muted-foreground">
-                  Estos reportes se construyen con los análisis de piel con IA. Amplía
-                  el rango de fechas o realiza un análisis para empezar a ver
-                  resultados.
-                </p>
-              </div>
+      {report.data && isEmpty && !isLifestyleTab ? (
+        <ModuleCard className="flex flex-col items-center gap-3 p-10 text-center">
+          <span className="flex size-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+            <BarChart3 className="size-6" />
+          </span>
+          <div>
+            <p className="font-semibold">Aún no hay datos en este periodo</p>
+            <p className="mt-1 max-w-md text-sm text-muted-foreground">
+              Estos reportes se construyen con los análisis de piel con IA. Amplía el
+              rango de fechas o realiza un análisis para empezar a ver resultados.
+            </p>
+          </div>
+        </ModuleCard>
+      ) : null}
+
+      {report.data && !isEmpty ? (
+        <>
+          {tab === "resumen" && <SkinHealthSummary report={report.data} />}
+          {tab === "necesidades" && <NeedsMapView report={report.data} />}
+          {tab === "top" && (
+            <ModuleCard className="p-5">
+              <TopProblemsTable
+                categories={report.data.categories}
+                sort={sort}
+                onSortChange={setSort}
+              />
             </ModuleCard>
           )}
+        </>
+      ) : null}
 
-      {tab === "resumen" && report.data && !isEmpty && (
-        <SkinHealthSummary report={report.data} />
-      )}
-      {tab === "necesidades" && report.data && !isEmpty && (
-        <NeedsMapView report={report.data} />
-      )}
-      {tab === "top" && report.data && !isEmpty && (
-        <ModuleCard className="p-5">
-          <TopProblemsTable
-            categories={report.data.categories}
-            sort={sort}
-            onSortChange={setSort}
-          />
-        </ModuleCard>
-      )}
-      {tab === "nacimiento" && segments.data && !isSegmentsEmpty && (
-        <BirthTypeReport view={segments.data.birthType} />
-      )}
-      {tab === "mascotas" && segments.data && !isSegmentsEmpty && (
-        <PetsReport view={segments.data.mascotType} />
-      )}
-      {tab === "actividad" && segments.data && !isSegmentsEmpty && (
-        <PhysicalActivityReport view={segments.data.exerciseHabit} />
-      )}
-      {tab === "skiniver" && skiniver.data && (
-        <SkiniverReportView report={skiniver.data} />
-      )}
+      {isLifestyleTab && lifestyle.data ? (
+        <>
+          {tab === "nacimiento" && (
+            <LifestyleReportPanel
+              section={lifestyle.data.birthType}
+              mode="score"
+              description="Puntaje promedio de piel según tipo de nacimiento del paciente."
+            />
+          )}
+          {tab === "mascotas" && (
+            <LifestyleReportPanel
+              section={lifestyle.data.pets}
+              mode="score"
+              description="Relación entre mascotas en el hogar y el puntaje promedio de piel."
+            />
+          )}
+          {tab === "actividad" && (
+            <LifestyleReportPanel
+              section={lifestyle.data.activity}
+              mode="score"
+              description="Puntaje promedio de piel según hábito de actividad física."
+            />
+          )}
+          {tab === "clinico" && (
+            <LifestyleReportPanel
+              section={lifestyle.data.clinicalAi}
+              mode="volume"
+              description="Volumen de análisis por proveedor clínico (Dermatológico, Estético, Fototipo)."
+            />
+          )}
+        </>
+      ) : null}
     </div>
   );
 }
