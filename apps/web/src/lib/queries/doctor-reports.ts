@@ -16,25 +16,65 @@ export interface DoctorReportsFilters {
   trendMonths?: number;
 }
 
-/**
- * Bundle de las tres pantallas de Reportes. Un solo endpoint porque comparten
- * filtros; ver apps/api/src/doctor-reports/doctor-reports.service.ts.
- */
-export function useDoctorSkinHealthReport(filters: DoctorReportsFilters) {
+export type LifestyleSegment = {
+  key: string;
+  label: string;
+  patients: number;
+  pct: number;
+  avgScore: number | null;
+  analyses?: number;
+};
+
+export type LifestyleReportSection = {
+  title: string;
+  segments: LifestyleSegment[];
+};
+
+export type LifestyleReport = {
+  range: { from: string; to: string };
+  birthType: LifestyleReportSection;
+  pets: LifestyleReportSection;
+  activity: LifestyleReportSection;
+  clinicalAi: LifestyleReportSection;
+};
+
+function buildQuery(filters: DoctorReportsFilters): string {
   const params = new URLSearchParams();
   if (filters.from) params.set("from", filters.from);
   if (filters.to) params.set("to", filters.to);
   if (filters.professionalUserId && filters.professionalUserId !== "all") {
     params.set("professionalUserId", filters.professionalUserId);
   }
-  if (filters.trendMonths) params.set("trendMonths", String(filters.trendMonths));
-  const query = params.toString();
+  if (filters.trendMonths) {
+    params.set("trendMonths", String(filters.trendMonths));
+  }
+  return params.toString();
+}
+
+/**
+ * Bundle de las tres pantallas de Reportes. Un solo endpoint porque comparten
+ * filtros; ver apps/api/src/doctor-reports/doctor-reports.service.ts.
+ */
+export function useDoctorSkinHealthReport(filters: DoctorReportsFilters) {
+  const query = buildQuery(filters);
 
   return useQuery({
     queryKey: ["doctor", "reports", "skin-health", filters],
     queryFn: () =>
       apiClientFetch<SkinHealthReport>(
         `/doctor/reports/skin-health${query ? `?${query}` : ""}`,
+      ),
+  });
+}
+
+export function useDoctorLifestyleReport(filters: DoctorReportsFilters) {
+  const query = buildQuery(filters);
+
+  return useQuery({
+    queryKey: ["doctor", "reports", "lifestyle", filters],
+    queryFn: () =>
+      apiClientFetch<LifestyleReport>(
+        `/doctor/reports/lifestyle${query ? `?${query}` : ""}`,
       ),
   });
 }

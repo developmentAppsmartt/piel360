@@ -11,9 +11,15 @@ import {
 import { AppIcon } from '../../../../components/AppIcon';
 import { Icons } from '../../../../components/icons';
 import { LocationPicker } from '../../../../components/maps/LocationPicker';
+import { BirthDateField } from '../../../../components/BirthDateField';
 import { useAuth } from '../../../../context/AuthContext';
 import { useBranding } from '../../../../context/BrandingContext';
-import { PATIENT_FITZ_OPTIONS } from '../../../../data/patientFormOptions';
+import {
+  isStrongPassword,
+  PASSWORD_STRENGTH_HINT,
+  PASSWORD_STRENGTH_MESSAGE,
+} from '../../../../lib/password';
+import { PATIENT_DOC_TYPES, PATIENT_FITZ_OPTIONS } from '../../../../data/patientFormOptions';
 import {
   FITZPATRICK_DESCRIPTIONS,
   SURVEY_QUESTIONS,
@@ -55,17 +61,6 @@ const GENDERS = [
   { value: 'other', label: 'Otro' },
 ] as const;
 
-function normalizeBirthDate(raw: string): string | null {
-  const t = raw.trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
-  const m = /^(\d{1,2})\s*[-/]\s*(\d{1,2})\s*[-/]\s*(\d{4})$/.exec(t);
-  if (!m) return null;
-  const mm = m[1].padStart(2, '0');
-  const dd = m[2].padStart(2, '0');
-  const yyyy = m[3];
-  return `${yyyy}-${mm}-${dd}`;
-}
-
 export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
   const { registerPatient } = useAuth();
   const branding = useBranding();
@@ -86,6 +81,8 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
   const [terms, setTerms] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [docType, setDocType] = useState<string>('CC');
+  const [docNumber, setDocNumber] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [gender, setGender] = useState<string>('male');
   const [emailTicket, setEmailTicket] = useState<string | null>(null);
@@ -126,8 +123,8 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
       setError('Completa email y contraseña.');
       return;
     }
-    if (password.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres.');
+    if (!isStrongPassword(password)) {
+      setError(PASSWORD_STRENGTH_MESSAGE);
       return;
     }
     if (!captcha || !terms) {
@@ -147,8 +144,20 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
       setError('Completa nombres y apellidos.');
       return;
     }
-    if (birthDate.trim() && !normalizeBirthDate(birthDate)) {
-      setError('Fecha inválida. Usa AAAA-MM-DD o mm-dd-aaaa.');
+    if (!docType.trim()) {
+      setError('Selecciona el tipo de documento.');
+      return;
+    }
+    if (!docNumber.trim()) {
+      setError('El número de cédula / documento es obligatorio.');
+      return;
+    }
+    if (docNumber.trim().length < 4) {
+      setError('El número de documento debe tener al menos 4 caracteres.');
+      return;
+    }
+    if (birthDate.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(birthDate.trim())) {
+      setError('Selecciona una fecha válida en el calendario.');
       return;
     }
     goTo('contact');
@@ -179,14 +188,17 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
     setSubmitting(true);
     try {
       const fullPhone = combinePhoneDigits(areaCode, phone);
-      const iso = birthDate.trim()
-        ? normalizeBirthDate(birthDate)
-        : undefined;
+      const iso =
+        birthDate.trim() && /^\d{4}-\d{2}-\d{2}$/.test(birthDate.trim())
+          ? birthDate.trim()
+          : undefined;
       await registerPatient({
         email: email.trim().toLowerCase(),
         password,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
+        docType: docType.trim(),
+        docNumber: docNumber.trim(),
         phone: fullPhone,
         phoneTicket: phoneTicket!,
         emailTicket: emailTicket!,
@@ -203,6 +215,8 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
       if (patient) {
         // Refuerzo post-registro (por si algún campo no llegó en register).
         await patientsService.update(patient.id, {
+          docType: docType.trim(),
+          docNumber: docNumber.trim(),
           ...(iso ? { birthDate: iso } : {}),
           gender: gender || undefined,
           areaCode: `+${areaCode.replace(/\D/g, '')}`,
@@ -300,7 +314,7 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
               secureTextEntry={!showPassword}
               autoComplete="new-password"
               textContentType="newPassword"
-              placeholder="Mínimo 8 caracteres"
+              placeholder={PASSWORD_STRENGTH_HINT}
               placeholderTextColor="#9CA3AF"
               editable={!submitting}
             />
@@ -312,6 +326,9 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
               />
             </Pressable>
           </View>
+          <Text style={[styles.stepHint, { marginTop: 6, opacity: 0.85 }]}>
+            {PASSWORD_STRENGTH_HINT}
+          </Text>
         </View>
 
         <AuthConsent
@@ -397,16 +414,57 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.labelDark}>Fecha cumpleaños</Text>
+          <Text style={styles.labelDark}>Tipo Doc</Text>
+          <View style={styles.chips}>
+            {PATIENT_DOC_TYPES.map((d) => {
+              const active = docType === d;
+              return (
+                <Pressable
+                  key={d}
+                  style={[styles.chipDark, active && styles.chipActive]}
+                  onPress={() => setDocType(d)}
+                  disabled={submitting}
+                >
+                  <Text
+                    style={[
+                      styles.chipTextDark,
+                      active && styles.chipTextActive,
+                    ]}
+                  >
+                    {d}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.field}>
+          <Text style={styles.labelDark}>Cédula / Nº documento *</Text>
           <TextInput
             style={styles.inputCard}
-            value={birthDate}
-            onChangeText={setBirthDate}
-            placeholder="mm - dd - aaaa"
+            value={docNumber}
+            onChangeText={setDocNumber}
+            placeholder="Número de documento"
             placeholderTextColor="#9CA3AF"
+            keyboardType="default"
+            autoCapitalize="characters"
             editable={!submitting}
           />
         </View>
+
+        <BirthDateField
+          value={birthDate}
+          onChange={setBirthDate}
+          label="Fecha cumpleaños"
+          labelStyle={styles.labelDark}
+          fieldStyle={styles.field}
+          triggerStyle={styles.inputCard}
+          valueStyle={{ color: text }}
+          accentColor={primary}
+          textColor={text}
+          disabled={submitting}
+        />
 
         <View style={styles.field}>
           <Text style={styles.labelDark}>Género</Text>

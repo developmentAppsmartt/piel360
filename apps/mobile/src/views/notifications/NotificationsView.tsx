@@ -20,7 +20,8 @@ import { createNotificationsStyles } from './styles/notifications.styles';
 
 export type NotificationAction =
   | { kind: 'message'; conversationId: string }
-  | { kind: 'analysis_request' };
+  | { kind: 'analysis_request' }
+  | { kind: 'analysis_shared'; analysisId?: string };
 
 type NotificationsViewProps = {
   onBack: () => void;
@@ -119,6 +120,14 @@ export function NotificationsView({
     }
     if (item.type === 'analysis_request') {
       onSelect({ kind: 'analysis_request' });
+      return;
+    }
+    if (item.type === 'analysis_shared') {
+      const analysisId =
+        item.data && typeof item.data.analysisId === 'string'
+          ? item.data.analysisId
+          : undefined;
+      onSelect({ kind: 'analysis_shared', analysisId });
     }
   }
 
@@ -155,7 +164,9 @@ export function NotificationsView({
                   const icon =
               item.type === 'analysis_request'
                 ? Icons.dermAnalysis
-                : Icons.chat;
+                : item.type === 'analysis_shared'
+                  ? Icons.aesthetic
+                  : Icons.chat;
             return (
               <Pressable
                 style={[styles.card, unread && styles.cardUnread]}

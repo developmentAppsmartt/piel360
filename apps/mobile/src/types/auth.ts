@@ -57,6 +57,10 @@ export type RegisterPatientPayload = {
   phone: string;
   phoneTicket: string;
   emailTicket?: string;
+  /** Tipo de documento (CC, CE, TI, PA). */
+  docType: string;
+  /** Número de cédula / documento — obligatorio. */
+  docNumber: string;
   birthDate?: string;
   gender?: string;
   address?: string;

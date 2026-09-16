@@ -24,6 +24,7 @@ export default {
   },
   android: {
     package: 'com.piel360.app',
+    softwareKeyboardLayoutMode: 'resize',
     permissions: [
       'android.permission.CAMERA',
       'android.permission.ACCESS_COARSE_LOCATION',

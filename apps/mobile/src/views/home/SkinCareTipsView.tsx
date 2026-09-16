@@ -6,6 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppIcon } from '../../components/AppIcon';
 import { Icons } from '../../components/icons';
 import { useBranding } from '../../context/BrandingContext';
@@ -69,6 +70,7 @@ function RecoBlock({
 
 export function SkinCareTipsView({ onBack }: SkinCareTipsViewProps) {
   const branding = useBranding();
+  const insets = useSafeAreaInsets();
   const styles = createHomeStyles(branding.colors);
   const primary = branding.colors.primary;
   const [loading, setLoading] = useState(true);
@@ -99,10 +101,15 @@ export function SkinCareTipsView({ onBack }: SkinCareTipsViewProps) {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.tipsHeader}>
+      <View
+        style={[
+          styles.tipsHeader,
+          { paddingTop: Math.max(insets.top, 12) },
+        ]}
+      >
         <Pressable
           onPress={onBack}
-          hitSlop={10}
+          hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel="Volver"
           style={styles.tipsBackBtn}
@@ -110,7 +117,7 @@ export function SkinCareTipsView({ onBack }: SkinCareTipsViewProps) {
           <AppIcon icon={Icons.back} size={22} color={branding.colors.textOnDark} />
         </Pressable>
         <Text style={styles.tipsHeaderTitle}>Consejos de cuidado</Text>
-        <View style={{ width: 22 }} />
+        <View style={{ width: 30 }} />
       </View>
 
       {loading ? (
@@ -120,12 +127,15 @@ export function SkinCareTipsView({ onBack }: SkinCareTipsViewProps) {
       ) : (
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: Math.max(insets.bottom, 16) + 28 },
+          ]}
           showsVerticalScrollIndicator={false}
         >
           {error ? <Text style={styles.tipsError}>{error}</Text> : null}
 
-          <View style={styles.welcomeCard}>
+          <View style={styles.tipsSummaryCard}>
             <Text style={styles.welcomeTitle}>Según tu último análisis compartido</Text>
             <Text style={styles.welcomeSubtitle}>
               Usamos el análisis que tu profesional compartió contigo, comparamos
@@ -170,7 +180,7 @@ export function SkinCareTipsView({ onBack }: SkinCareTipsViewProps) {
               <Text style={styles.tipsRuleTitle}>Sin regla coincidente</Text>
               <Text style={styles.tipsRuleDesc}>
                 {snap?.message ??
-                  'Cuando tengas un análisis YouCam con edad de piel, verás aquí las recomendaciones.'}
+                  'Cuando tengas un análisis estético con edad de piel, verás aquí las recomendaciones.'}
               </Text>
             </View>
           )}

@@ -2,12 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { AppIcon } from '../../components/AppIcon';
+import { Icons } from '../../components/icons';
 import { useBranding } from '../../context/BrandingContext';
 import { ApiError } from '../../services/api.client';
 import {
@@ -17,8 +20,13 @@ import {
 } from '../../services/agenda.service';
 import { patientsService } from '../../services/patients.service';
 import type { PatientProfile } from '../../types/patient';
+import {
+  formatPatientDocument,
+  patientDisplayName,
+} from '../../types/patient';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { AppModuleChrome } from '../shared/AppModuleChrome';
-import { createHomeStyles } from '../home/styles/home.styles';
+import { createAgendaStyles } from './styles/agenda.styles';
 import {
   AgendaMonthCalendar,
   SLOT_MINUTES,
@@ -40,6 +48,150 @@ const STATUS_LABEL: Record<string, string> = {
 
 const DAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
+function normalizeSearch(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function dayKey(iso: string): string | null {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function formatStamp(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+}
+
+/** Acepta dd/mm/yyyy, dd-mm-yyyy o yyyy-mm-dd. */
+function parseFlexibleDate(raw: string): Date | null {
+  const t = raw.trim();
+  if (!t) return null;
+  const m = t.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (m) {
+    const day = Number(m[1]);
+    const month = Number(m[2]);
+    const year = Number(m[3]);
+    const d = new Date(year, month - 1, day);
+    if (
+      d.getFullYear() === year &&
+      d.getMonth() === month - 1 &&
+      d.getDate() === day
+    ) {
+      return d;
+    }
+    return null;
+  }
+  const iso = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (iso) {
+    const year = Number(iso[1]);
+    const month = Number(iso[2]);
+    const day = Number(iso[3]);
+    const d = new Date(year, month - 1, day);
+    if (
+      d.getFullYear() === year &&
+      d.getMonth() === month - 1 &&
+      d.getDate() === day
+    ) {
+      return d;
+    }
+  }
+  return null;
+}
+
+function matchesAppointmentDateQuery(iso: string, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+
+  const stamp = formatStamp(iso).toLowerCase();
+  const locale = new Date(iso).toLocaleString().toLowerCase();
+  const key = dayKey(iso);
+  if (
+    stamp.includes(q) ||
+    locale.includes(q) ||
+    (key && key.includes(q))
+  ) {
+    return true;
+  }
+
+  const rangeParts = q.split(/\s+(?:–|-|a|al)\s+/i).filter(Boolean);
+  if (rangeParts.length === 2) {
+    const from = parseFlexibleDate(rangeParts[0]);
+    const to = parseFlexibleDate(rangeParts[1]);
+    const item = new Date(iso);
+    if (from && to && !Number.isNaN(item.getTime())) {
+      const start = new Date(from);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(to);
+      end.setHours(23, 59, 59, 999);
+      return item >= start && item <= end;
+    }
+  }
+
+  const single = parseFlexibleDate(q);
+  if (single && key) {
+    const yyyy = single.getFullYear();
+    const mm = String(single.getMonth() + 1).padStart(2, '0');
+    const dd = String(single.getDate()).padStart(2, '0');
+    return key === `${yyyy}-${mm}-${dd}`;
+  }
+
+  return false;
+}
+
+function patientMatchesQuery(patient: PatientProfile, query: string): boolean {
+  const q = normalizeSearch(query);
+  if (!q) return false;
+  const name = normalizeSearch(patientDisplayName(patient));
+  const doc = normalizeSearch(patient.docNumber ?? '');
+  const docType = normalizeSearch(patient.docType ?? '');
+  const email = normalizeSearch(patient.email ?? '');
+  return (
+    name.includes(q) ||
+    doc.includes(q) ||
+    `${docType} ${doc}`.includes(q) ||
+    email.includes(q)
+  );
+}
+
+function PatientAvatar({
+  patient,
+  styles,
+  iconColor,
+}: {
+  patient: PatientProfile;
+  styles: ReturnType<typeof createAgendaStyles>;
+  iconColor: string;
+}) {
+  const uri = resolveMediaUrl(patient.avatarUrl);
+  return (
+    <View style={styles.searchAvatar}>
+      {uri ? (
+        <Image
+          source={{ uri }}
+          style={styles.searchAvatarImage}
+          accessibilityIgnoresInvertColors
+        />
+      ) : (
+        <AppIcon icon={Icons.account} size={18} color={iconColor} />
+      )}
+    </View>
+  );
+}
+
 type DoctorAgendaViewProps = {
   onOpenMessages?: () => void;
   onOpenProfile?: () => void;
@@ -50,7 +202,10 @@ export function DoctorAgendaView({
   onOpenProfile,
 }: DoctorAgendaViewProps) {
   const branding = useBranding();
-  const styles = createHomeStyles(branding.colors);
+  const styles = useMemo(
+    () => createAgendaStyles(branding.colors),
+    [branding.colors],
+  );
   const primary = branding.colors.primary;
 
   const [loading, setLoading] = useState(true);
@@ -63,9 +218,12 @@ export function DoctorAgendaView({
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [blockReason, setBlockReason] = useState('');
   const [patientId, setPatientId] = useState('');
+  const [patientQuery, setPatientQuery] = useState('');
+  const [hoursOpen, setHoursOpen] = useState(false);
   const [appointmentTime, setAppointmentTime] = useState('');
   const [title, setTitle] = useState('Consulta');
   const [openApptId, setOpenApptId] = useState<string | null>(null);
+  const [appointmentDateQuery, setAppointmentDateQuery] = useState('');
 
   const { from, to } = useMemo(() => monthBoundsLocal(anchor), [anchor]);
 
@@ -126,6 +284,35 @@ export function DoctorAgendaView({
     }
   }, [hourOptions, appointmentTime]);
 
+  const selectedPatient = useMemo(
+    () => patients.find((p) => p.id === patientId) ?? null,
+    [patients, patientId],
+  );
+
+  const filteredAppointments = useMemo(() => {
+    const list = overview?.appointments ?? [];
+    if (!appointmentDateQuery.trim()) return list;
+    return list.filter((a) =>
+      matchesAppointmentDateQuery(a.startsAt, appointmentDateQuery),
+    );
+  }, [overview?.appointments, appointmentDateQuery]);
+
+  const patientResults = useMemo(() => {
+    const q = patientQuery.trim();
+    if (q.length < 2) return [];
+    return patients.filter((p) => patientMatchesQuery(p, q)).slice(0, 8);
+  }, [patients, patientQuery]);
+
+  function selectPatient(patient: PatientProfile) {
+    setPatientId(patient.id);
+    setPatientQuery(patientDisplayName(patient));
+  }
+
+  function clearPatient() {
+    setPatientId('');
+    setPatientQuery('');
+  }
+
   async function toggleBlock() {
     if (!selectedDate) return;
     const existing = blockedByDate.get(selectedDate);
@@ -180,6 +367,9 @@ export function DoctorAgendaView({
         title: title.trim() || 'Cita',
       });
       setAppointmentTime('');
+      setPatientId('');
+      setPatientQuery('');
+      setHoursOpen(false);
       await load();
       Alert.alert('Listo', 'La propuesta llegó a la agenda del paciente.');
     } catch (err) {
@@ -210,7 +400,7 @@ export function DoctorAgendaView({
     : undefined;
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F3F4F6' }}>
+    <View style={styles.screen}>
       <AppModuleChrome
         onOpenMessages={onOpenMessages}
         onOpenProfile={onOpenProfile}
@@ -221,14 +411,12 @@ export function DoctorAgendaView({
           </View>
         ) : (
           <ScrollView
-            contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 40 }}
+            contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
           >
-            <View style={styles.welcomeCard}>
-              <Text style={[styles.welcomeTitle, { fontSize: 16 }]}>
-                Calendario
-              </Text>
-              <Text style={styles.welcomeSubtitle}>
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Calendario</Text>
+              <Text style={styles.sectionSubtitle}>
                 Rojo = no disponible. Toca un día para bloquearlo o asignar cita.
               </Text>
               <AgendaMonthCalendar
@@ -258,15 +446,12 @@ export function DoctorAgendaView({
 
               {selectedDate ? (
                 <View
-                  style={{
-                    marginTop: 12,
-                    padding: 12,
-                    borderRadius: 12,
-                    backgroundColor: selectedBlocked ? '#FEF2F2' : '#F3F4F6',
-                    gap: 8,
-                  }}
+                  style={[
+                    styles.dayPanel,
+                    selectedBlocked ? styles.dayPanelBlocked : null,
+                  ]}
                 >
-                  <Text style={{ fontWeight: '700' }}>
+                  <Text style={styles.dayPanelTitle}>
                     Día {selectedDate} ·{' '}
                     {DAY_LABELS[dayOfWeekFromYmd(selectedDate)]}
                   </Text>
@@ -276,18 +461,20 @@ export function DoctorAgendaView({
                     editable={!selectedBlocked}
                     placeholder="Motivo (días no disponibles)"
                     placeholderTextColor="#9CA3AF"
-                    style={inputStyle(branding.colors.text)}
+                    style={styles.input}
                   />
                   {selectedBlocked?.reason ? (
-                    <Text style={{ color: '#B91C1C', fontSize: 13 }}>
+                    <Text style={styles.errorText}>
                       Motivo: {selectedBlocked.reason}
                     </Text>
                   ) : null}
                   <Pressable
                     onPress={() => void toggleBlock()}
-                    style={btnStyle(selectedBlocked ? primary : '#DC2626')}
+                    style={
+                      selectedBlocked ? styles.primaryBtn : styles.dangerBtn
+                    }
                   >
-                    <Text style={btnText}>
+                    <Text style={styles.btnText}>
                       {selectedBlocked
                         ? 'Marcar como disponible'
                         : 'Marcar como no disponible'}
@@ -297,192 +484,362 @@ export function DoctorAgendaView({
               ) : null}
 
               {(overview?.weeklySlots.length ?? 0) > 0 ? (
-                <View style={{ marginTop: 12, gap: 4 }}>
-                  <Text style={{ fontWeight: '700', fontSize: 13 }}>
-                    Horarios de atención
-                  </Text>
-                  {overview!.weeklySlots.map((s) => (
-                    <Text key={s.id} style={styles.welcomeSubtitle}>
-                      {DAY_LABELS[s.dayOfWeek]} · {s.startTime}–{s.endTime}
-                    </Text>
-                  ))}
+                <View style={{ marginTop: 12, gap: 6 }}>
+                  <Text style={styles.dayPanelTitle}>Horarios de atención</Text>
+                  <View style={styles.weeklySlotsGrid}>
+                    {overview!.weeklySlots.map((s) => (
+                      <View key={s.id} style={styles.weeklySlotItem}>
+                        <Text style={styles.weeklySlotText}>
+                          {DAY_LABELS[s.dayOfWeek]} · {s.startTime}–{s.endTime}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
                 </View>
               ) : (
-                <Text style={[styles.welcomeSubtitle, { marginTop: 10 }]}>
+                <Text style={styles.sectionSubtitle}>
                   Sin horarios guardados: se ofrecen horas de 09:00 a 18:00.
                   Configúralos en el CRM para personalizarlos.
                 </Text>
               )}
             </View>
 
-            <View style={styles.welcomeCard}>
-              <Text style={[styles.welcomeTitle, { fontSize: 16 }]}>
-                Asignar cita
-              </Text>
-              <ScrollView
-                horizontal
-                nestedScrollEnabled
-                keyboardShouldPersistTaps="handled"
-                showsHorizontalScrollIndicator={false}
-              >
-                {patients.slice(0, 30).map((p) => (
-                  <Pressable
-                    key={p.id}
-                    onPress={() => setPatientId(p.id)}
-                    style={{
-                      paddingHorizontal: 12,
-                      paddingVertical: 8,
-                      marginRight: 8,
-                      borderRadius: 999,
-                      backgroundColor:
-                        patientId === p.id ? primary : '#E5E7EB',
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: patientId === p.id ? '#fff' : '#111',
-                        fontWeight: '600',
-                        fontSize: 12,
-                      }}
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Asignar cita</Text>
+
+              <View style={styles.stepBlock}>
+                <View style={styles.stepHeader}>
+                  <View style={styles.stepBadge}>
+                    <Text style={styles.stepBadgeText}>1</Text>
+                  </View>
+                  <Text style={styles.stepLabel}>Buscar paciente</Text>
+                </View>
+                <View style={styles.searchBar}>
+                  <AppIcon
+                    icon={Icons.search}
+                    size={18}
+                    color={branding.colors.muted}
+                  />
+                  <TextInput
+                    value={patientQuery}
+                    onChangeText={setPatientQuery}
+                    placeholder="Nombre, cédula o correo"
+                    placeholderTextColor="#9CA3AF"
+                    style={styles.searchInput}
+                    autoCorrect={false}
+                    autoCapitalize="words"
+                  />
+                  {patientQuery.length > 0 ? (
+                    <Pressable
+                      onPress={() => setPatientQuery('')}
+                      hitSlop={8}
                     >
-                      {p.firstName} {p.lastName}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
+                      <AppIcon
+                        icon={Icons.close}
+                        size={18}
+                        color={branding.colors.muted}
+                      />
+                    </Pressable>
+                  ) : null}
+                </View>
+                {patientQuery.trim().length >= 2 ? (
+                  <View style={styles.searchResults}>
+                    {patientResults.length === 0 ? (
+                      <Text style={styles.searchEmpty}>
+                        No se encontraron pacientes
+                      </Text>
+                    ) : (
+                      <ScrollView
+                        nestedScrollEnabled
+                        keyboardShouldPersistTaps="handled"
+                      >
+                        {patientResults.map((p) => {
+                          const doc = formatPatientDocument(
+                            p.docType,
+                            p.docNumber,
+                          );
+                          const active = patientId === p.id;
+                          return (
+                            <Pressable
+                              key={p.id}
+                              onPress={() => selectPatient(p)}
+                              style={[
+                                styles.searchResultRow,
+                                active && styles.searchResultRowActive,
+                              ]}
+                            >
+                              <PatientAvatar
+                                patient={p}
+                                styles={styles}
+                                iconColor={primary}
+                              />
+                              <View style={styles.searchResultBody}>
+                                <Text
+                                  style={styles.searchResultName}
+                                  numberOfLines={1}
+                                >
+                                  {patientDisplayName(p)}
+                                </Text>
+                                <Text style={styles.searchResultDoc}>
+                                  Cédula: {doc ?? '—'}
+                                </Text>
+                              </View>
+                              {active ? (
+                                <AppIcon
+                                  icon={Icons.check}
+                                  size={18}
+                                  color={primary}
+                                />
+                              ) : null}
+                            </Pressable>
+                          );
+                        })}
+                      </ScrollView>
+                    )}
+                  </View>
+                ) : !selectedPatient ? (
+                  <Text style={styles.mutedText}>
+                    Escribe al menos 2 caracteres para buscar.
+                  </Text>
+                ) : null}
+              </View>
+
+              <View style={styles.stepBlock}>
+                <View style={styles.stepHeader}>
+                  <View style={styles.stepBadge}>
+                    <Text style={styles.stepBadgeText}>2</Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.stepLabel,
+                      !selectedPatient && styles.stepLabelMuted,
+                    ]}
+                  >
+                    Paciente seleccionado
+                  </Text>
+                </View>
+                {selectedPatient ? (
+                  <View style={styles.selectedChip}>
+                    <PatientAvatar
+                      patient={selectedPatient}
+                      styles={styles}
+                      iconColor={primary}
+                    />
+                    <View style={styles.selectedChipBody}>
+                      <Text style={styles.selectedChipName} numberOfLines={1}>
+                        {patientDisplayName(selectedPatient)}
+                      </Text>
+                      <Text style={styles.selectedChipDoc}>
+                        {formatPatientDocument(
+                          selectedPatient.docType,
+                          selectedPatient.docNumber,
+                        ) ?? 'Sin documento'}
+                      </Text>
+                    </View>
+                    <Pressable onPress={clearPatient} hitSlop={8}>
+                      <AppIcon
+                        icon={Icons.close}
+                        size={18}
+                        color={branding.colors.muted}
+                      />
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Text style={styles.searchEmpty}>
+                    Aún no hay paciente seleccionado
+                  </Text>
+                )}
+              </View>
 
               <TextInput
                 value={title}
                 onChangeText={setTitle}
-                placeholder="Título"
+                placeholder="Título de la cita"
                 placeholderTextColor="#9CA3AF"
-                style={inputStyle(branding.colors.text)}
+                style={styles.input}
               />
 
-              <Text
-                style={{
-                  marginTop: 10,
-                  fontSize: 12,
-                  fontWeight: '700',
-                  color: '#6B7280',
-                }}
-              >
-                Día (calendario)
-              </Text>
-              <Text style={{ fontWeight: '700' }}>
-                {selectedDate
-                  ? `${selectedDate} · ${DAY_LABELS[dayOfWeekFromYmd(selectedDate)]}`
-                  : 'Selecciona un día'}
-              </Text>
-              {selectedBlocked ? (
-                <Text style={{ color: '#B91C1C', fontSize: 12, marginTop: 4 }}>
-                  Día no disponible
-                  {selectedBlocked.reason ? `: ${selectedBlocked.reason}` : ''}
-                </Text>
-              ) : null}
-
-              <Text
-                style={{
-                  marginTop: 10,
-                  fontSize: 12,
-                  fontWeight: '700',
-                  color: '#6B7280',
-                }}
-              >
-                Hora
-              </Text>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  flexWrap: 'wrap',
-                  gap: 8,
-                  marginTop: 4,
-                }}
-              >
-                {hourOptions.length === 0 ? (
-                  <Text style={styles.welcomeSubtitle}>
-                    {!selectedDate
-                      ? 'Elige un día'
-                      : selectedBlocked
-                        ? 'Día bloqueado'
-                        : 'Sin horas libres'}
+              <View style={styles.stepBlock}>
+                <View style={styles.stepHeader}>
+                  <View style={styles.stepBadge}>
+                    <Text style={styles.stepBadgeText}>3</Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.stepLabel,
+                      !selectedDate && styles.stepLabelMuted,
+                    ]}
+                  >
+                    Día (calendario)
                   </Text>
-                ) : (
-                  hourOptions.map((t) => (
-                    <Pressable
-                      key={t}
-                      onPress={() => setAppointmentTime(t)}
-                      hitSlop={6}
-                      style={{
-                        paddingHorizontal: 14,
-                        paddingVertical: 10,
-                        borderRadius: 999,
-                        backgroundColor:
-                          appointmentTime === t ? primary : '#E5E7EB',
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontWeight: '700',
-                          color: appointmentTime === t ? '#fff' : '#111',
-                        }}
-                      >
-                        {t}
-                      </Text>
-                    </Pressable>
-                  ))
-                )}
+                </View>
+                <View style={styles.selectField}>
+                  <AppIcon
+                    icon={Icons.calendarDay}
+                    size={18}
+                    color={branding.colors.muted}
+                  />
+                  <Text
+                    style={[
+                      styles.selectFieldText,
+                      !selectedDate && styles.selectFieldPlaceholder,
+                    ]}
+                  >
+                    {selectedDate
+                      ? `${selectedDate} · ${DAY_LABELS[dayOfWeekFromYmd(selectedDate)]}`
+                      : 'Selecciona un día en el calendario'}
+                  </Text>
+                </View>
+                {selectedBlocked ? (
+                  <Text style={styles.errorText}>
+                    Día no disponible
+                    {selectedBlocked.reason
+                      ? `: ${selectedBlocked.reason}`
+                      : ''}
+                  </Text>
+                ) : null}
               </View>
 
-              <Pressable onPress={() => void propose()} style={btnStyle(primary)}>
-                <Text style={btnText}>Enviar propuesta</Text>
+              <View style={styles.stepBlock}>
+                <View style={styles.stepHeader}>
+                  <View style={styles.stepBadge}>
+                    <Text style={styles.stepBadgeText}>4</Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.stepLabel,
+                      !appointmentTime && styles.stepLabelMuted,
+                    ]}
+                  >
+                    Hora
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => setHoursOpen((v) => !v)}
+                  style={styles.selectField}
+                >
+                  <AppIcon
+                    icon={Icons.clock}
+                    size={18}
+                    color={branding.colors.muted}
+                  />
+                  <Text
+                    style={[
+                      styles.selectFieldText,
+                      !appointmentTime && styles.selectFieldPlaceholder,
+                    ]}
+                  >
+                    {appointmentTime || 'Elige una hora'}
+                  </Text>
+                  <Text style={{ color: branding.colors.muted, fontSize: 12 }}>
+                    {hoursOpen ? '▲' : '▼'}
+                  </Text>
+                </Pressable>
+                {hoursOpen ? (
+                  <View style={styles.hoursPanel}>
+                    {hourOptions.length === 0 ? (
+                      <Text style={styles.sectionSubtitle}>
+                        {!selectedDate
+                          ? 'Elige un día en el calendario'
+                          : selectedBlocked
+                            ? 'Día bloqueado'
+                            : 'Sin horas libres'}
+                      </Text>
+                    ) : (
+                      <View style={styles.chipRow}>
+                        {hourOptions.map((t) => (
+                          <Pressable
+                            key={t}
+                            onPress={() => {
+                              setAppointmentTime(t);
+                              setHoursOpen(false);
+                            }}
+                            hitSlop={6}
+                            style={[
+                              styles.chip,
+                              appointmentTime === t && styles.chipActive,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.chipText,
+                                appointmentTime === t && styles.chipTextActive,
+                              ]}
+                            >
+                              {t}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ) : null}
+              </View>
+
+              <Pressable
+                onPress={() => void propose()}
+                style={styles.primaryBtn}
+              >
+                <Text style={styles.btnText}>Enviar propuesta</Text>
               </Pressable>
             </View>
 
-            <View style={styles.welcomeCard}>
-              <Text style={[styles.welcomeTitle, { fontSize: 16 }]}>Citas</Text>
-              <Text style={styles.welcomeSubtitle}>
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Citas</Text>
+              <Text style={styles.sectionSubtitle}>
                 Toca una cita para abrirla y cambiar el estado.
               </Text>
+              <View style={styles.searchBar}>
+                <AppIcon icon={Icons.calendar} size={18} color={primary} />
+                <TextInput
+                  style={styles.searchInput}
+                  value={appointmentDateQuery}
+                  onChangeText={setAppointmentDateQuery}
+                  placeholder="Buscar por fecha o rango"
+                  placeholderTextColor="#9CA3AF"
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                  clearButtonMode="while-editing"
+                  returnKeyType="search"
+                />
+                {appointmentDateQuery.trim() ? (
+                  <Pressable
+                    onPress={() => setAppointmentDateQuery('')}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Limpiar búsqueda"
+                  >
+                    <AppIcon icon={Icons.close} size={16} color={branding.colors.muted} />
+                  </Pressable>
+                ) : null}
+              </View>
               {(overview?.appointments ?? []).length === 0 ? (
-                <Text style={styles.welcomeSubtitle}>Sin citas este mes.</Text>
+                <Text style={styles.emptyText}>Sin citas este mes.</Text>
+              ) : filteredAppointments.length === 0 ? (
+                <Text style={styles.emptyText}>
+                  No hay citas que coincidan con esa fecha o rango.
+                </Text>
               ) : (
-                overview!.appointments.map((a: AgendaAppointment) => {
+                filteredAppointments.map((a: AgendaAppointment) => {
                   const open = openApptId === a.id;
                   return (
-                    <View
-                      key={a.id}
-                      style={{
-                        borderTopWidth: 1,
-                        borderTopColor: '#E5E7EB',
-                        marginTop: 10,
-                        paddingTop: 10,
-                        gap: 6,
-                      }}
-                    >
+                    <View key={a.id} style={styles.appointmentCard}>
                       <Pressable
                         onPress={() => setOpenApptId(open ? null : a.id)}
                       >
-                        <Text style={{ fontWeight: '700' }}>
+                        <Text style={styles.appointmentTitle}>
                           {a.patient
                             ? `${a.patient.firstName} ${a.patient.lastName}`
                             : 'Paciente'}{' '}
                           · {STATUS_LABEL[a.status] ?? a.status}
                           {open ? ' ▲' : ' ▼'}
                         </Text>
-                        <Text style={styles.welcomeSubtitle}>
+                        <Text style={styles.sectionSubtitle}>
                           {new Date(a.startsAt).toLocaleString()}
                         </Text>
                       </Pressable>
                       {open ? (
-                        <View
-                          style={{
-                            flexDirection: 'row',
-                            flexWrap: 'wrap',
-                            gap: 8,
-                            marginTop: 4,
-                          }}
-                        >
+                        <View style={styles.statusRow}>
                           {(
                             [
                               ['confirmed', 'Confirmada', '#16A34A'],
@@ -490,32 +847,31 @@ export function DoctorAgendaView({
                               ['cancelled', 'Cancelada', '#DC2626'],
                               ['declined', 'Rechazada', '#6B7280'],
                             ] as const
-                          ).map(([status, label, color]) => (
-                            <Pressable
-                              key={status}
-                              onPress={() => void updateAppt(a.id, status)}
-                              style={{
-                                ...btnStyle(
-                                  a.status === status ? color : '#fff',
-                                ),
-                                marginTop: 0,
-                                borderWidth: 1,
-                                borderColor:
-                                  a.status === status ? color : '#E5E7EB',
-                              }}
-                            >
-                              <Text
-                                style={{
-                                  color:
-                                    a.status === status ? '#fff' : '#111',
-                                  fontWeight: '700',
-                                  fontSize: 12,
-                                }}
+                          ).map(([status, label, color]) => {
+                            const active = a.status === status;
+                            return (
+                              <Pressable
+                                key={status}
+                                onPress={() => void updateAppt(a.id, status)}
+                                style={[
+                                  styles.statusBtn,
+                                  active && {
+                                    backgroundColor: color,
+                                    borderColor: color,
+                                  },
+                                ]}
                               >
-                                {label}
-                              </Text>
-                            </Pressable>
-                          ))}
+                                <Text
+                                  style={[
+                                    styles.statusBtnText,
+                                    active && styles.statusBtnTextActive,
+                                  ]}
+                                >
+                                  {label}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
                         </View>
                       ) : null}
                     </View>
@@ -529,27 +885,3 @@ export function DoctorAgendaView({
     </View>
   );
 }
-
-function inputStyle(color: string) {
-  return {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 8,
-    color,
-  } as const;
-}
-
-function btnStyle(bg: string) {
-  return {
-    marginTop: 10,
-    backgroundColor: bg,
-    borderRadius: 999,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    alignItems: 'center' as const,
-  };
-}
-
-const btnText = { color: '#fff', fontWeight: '700' as const };

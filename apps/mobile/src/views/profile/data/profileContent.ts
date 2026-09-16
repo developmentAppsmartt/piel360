@@ -166,7 +166,7 @@ function formatVerification(status: string | null | undefined): string {
 function doctorDisplayName(doctor: DoctorProfile, fallback: string): string {
   const full = `${doctor.firstName ?? ''} ${doctor.lastName ?? ''}`.trim();
   const base = full || fallback;
-  return base.startsWith('Dr.') ? base : `Dr. ${base}`;
+  return base.replace(/^dr\.?\s+/i, '').trim() || base;
 }
 
 function buildDoctorSections(doctor?: DoctorProfile | null): ProfileSectionConfig[] {
@@ -534,14 +534,9 @@ export function buildProfileContent({
   doctor,
 }: BuildProfileOptions): ProfileContent {
   if (isClinicalPanelRole(role)) {
-    const isEmpresa = role === 'empresa';
     const displayName = doctor
       ? doctorDisplayName(doctor, userName)
-      : isEmpresa
-        ? userName
-        : userName.startsWith('Dr.')
-          ? userName
-          : `Dr. ${userName}`;
+      : userName.replace(/^dr\.?\s+/i, '').trim() || userName;
     const registry =
       doctor?.licenseNumber?.trim() ||
       doctor?.medicalRegistry?.trim() ||
@@ -551,7 +546,7 @@ export function buildProfileContent({
       displayName,
       subtitle:
         orEmpty(doctor?.specialty) === EMPTY
-          ? 'Médico'
+          ? 'Profesional'
           : orEmpty(doctor?.specialty),
       secondarySubtitle: registry
         ? `Licencia / registro: ${registry}`

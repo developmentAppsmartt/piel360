@@ -20,11 +20,15 @@ import {
   categoryRankingQuery,
   categoryTrendQuery,
   derivedKpiQuery,
+  lifestyleSegmentQuery,
+  providerVolumeQuery,
   scoreTrendQuery,
   summaryQuery,
   type CategoryRow,
   type CategoryTrendRow,
   type DerivedKpiRow,
+  type LifestyleSegmentRow,
+  type ProviderSegmentRow,
   type SummaryRow,
   type TrendRow,
 } from './doctor-reports.queries';
@@ -353,6 +357,105 @@ export class DoctorReportsService {
       distributionTotal,
       scoreTrend,
       categories,
+    };
+  }
+
+  async getLifestyleReport(userId: string, query: SkinHealthReportQueryDto) {
+    const doctorIds = await this.resolveDoctorIds(
+      userId,
+      query.professionalUserId,
+    );
+    const { from, to, toExclusive } = this.resolveRange(query);
+
+    const empty = doctorIds.length === 0;
+    const [birthRows, petRows, activityRows, providerRows] = empty
+      ? [[], [], [], []]
+      : await Promise.all([
+          this.prisma.$queryRaw<LifestyleSegmentRow[]>(
+            lifestyleSegmentQuery(doctorIds, from, toExclusive, 'birth_type'),
+          ),
+          this.prisma.$queryRaw<LifestyleSegmentRow[]>(
+            lifestyleSegmentQuery(doctorIds, from, toExclusive, 'mascot_type'),
+          ),
+          this.prisma.$queryRaw<LifestyleSegmentRow[]>(
+            lifestyleSegmentQuery(
+              doctorIds,
+              from,
+              toExclusive,
+              'exercise_habit',
+            ),
+          ),
+          this.prisma.$queryRaw<ProviderSegmentRow[]>(
+            providerVolumeQuery(doctorIds, from, toExclusive),
+          ),
+        ]);
+
+    const mapSegments = (
+      rows: LifestyleSegmentRow[],
+      labels: Record<string, string>,
+    ) => {
+      const total = rows.reduce((sum, r) => sum + r.patients, 0);
+      return rows.map((row) => ({
+        key: row.segment_key,
+        label: labels[row.segment_key] ?? row.segment_key,
+        patients: row.patients,
+        pct: total > 0 ? (row.patients / total) * 100 : 0,
+        avgScore: row.avg_score,
+      }));
+    };
+
+    const providerLabels: Record<string, string> = {
+      youcam: 'Análisis Estético Piel 360',
+      skiniver: 'Análisis Dermatológico Piel 360',
+      fitzpatrick: 'Fototipo',
+      unknown: 'Sin proveedor',
+    };
+
+    const providerTotal = providerRows.reduce((s, r) => s + r.analyses, 0);
+
+    return {
+      range: {
+        from: toIsoDate(from),
+        to: toIsoDate(to),
+      },
+      birthType: {
+        title: 'Tipo de nacimiento',
+        segments: mapSegments(birthRows, {
+          normal: 'Parto natural',
+          cesarean: 'Cesárea',
+          unknown: 'Sin dato',
+        }),
+      },
+      pets: {
+        title: 'Mascotas y salud de la piel',
+        segments: mapSegments(petRows, {
+          none: 'Sin mascota',
+          dog: 'Perro',
+          cat: 'Gato',
+          other: 'Otra',
+          unknown: 'Sin dato',
+        }),
+      },
+      activity: {
+        title: 'Actividad física y deporte',
+        segments: mapSegments(activityRows, {
+          regular: 'Regular',
+          sometimes: 'A veces',
+          never: 'Nunca',
+          unknown: 'Sin dato',
+        }),
+      },
+      clinicalAi: {
+        title: 'Análisis clínico IA',
+        segments: providerRows.map((row) => ({
+          key: row.provider_slug,
+          label: providerLabels[row.provider_slug] ?? row.provider_slug,
+          patients: row.patients,
+          analyses: row.analyses,
+          pct: providerTotal > 0 ? (row.analyses / providerTotal) * 100 : 0,
+          avgScore: null as number | null,
+        })),
+      },
     };
   }
 }

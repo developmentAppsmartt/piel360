@@ -1,4 +1,7 @@
-export type AppNotificationType = 'message' | 'analysis_request';
+export type AppNotificationType =
+  | 'message'
+  | 'analysis_request'
+  | 'analysis_shared';
 
 export type AppNotification = {
   id: string;

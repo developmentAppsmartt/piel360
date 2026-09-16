@@ -265,3 +265,74 @@ export function derivedKpiQuery(
     FROM per_patient
   `;
 }
+
+export interface LifestyleSegmentRow {
+  segment_key: string;
+  patients: number;
+  avg_score: number | null;
+}
+
+/** Segmentos lifestyle cruzados con análisis YouCam del periodo. */
+export function lifestyleSegmentQuery(
+  doctorIds: DoctorIds,
+  from: Date,
+  toExclusive: Date,
+  column: 'birth_type' | 'mascot_type' | 'exercise_habit',
+): Prisma.Sql {
+  const field =
+    column === 'birth_type'
+      ? Prisma.sql`p.birth_type`
+      : column === 'mascot_type'
+        ? Prisma.sql`p.mascot_type`
+        : Prisma.sql`p.exercise_habit`;
+
+  return Prisma.sql`
+    WITH scored AS (
+      SELECT DISTINCT ON (a.patient_id)
+             a.patient_id,
+             a.overall_score
+      FROM v_report_analyses a
+      WHERE a.doctor_id = ANY(${doctorIds}::bigint[])
+        AND a.created_at >= ${from}
+        AND a.created_at <  ${toExclusive}
+      ORDER BY a.patient_id, a.created_at DESC
+    )
+    SELECT
+      COALESCE(${field}, 'unknown')::text AS segment_key,
+      COUNT(*)::int                       AS patients,
+      AVG(s.overall_score)::float8        AS avg_score
+    FROM scored s
+    INNER JOIN patients p ON p.id = s.patient_id
+    WHERE ${field} IS NOT NULL AND BTRIM(${field}::text) <> ''
+    GROUP BY 1
+    ORDER BY AVG(s.overall_score) ASC NULLS LAST
+  `;
+}
+
+export interface ProviderSegmentRow {
+  provider_slug: string;
+  analyses: number;
+  patients: number;
+}
+
+/** Volumen de análisis por proveedor en el periodo (clínico IA). */
+export function providerVolumeQuery(
+  doctorIds: DoctorIds,
+  from: Date,
+  toExclusive: Date,
+): Prisma.Sql {
+  return Prisma.sql`
+    SELECT
+      COALESCE(ap.slug, 'unknown')::text AS provider_slug,
+      COUNT(*)::int                      AS analyses,
+      COUNT(DISTINCT a.patient_id)::int  AS patients
+    FROM analyses a
+    INNER JOIN patients p ON p.id = a.patient_id
+    LEFT JOIN analysis_providers ap ON ap.id = a.provider_id
+    WHERE p.doctor_id = ANY(${doctorIds}::bigint[])
+      AND a.created_at >= ${from}
+      AND a.created_at <  ${toExclusive}
+    GROUP BY 1
+    ORDER BY COUNT(*) DESC
+  `;
+}

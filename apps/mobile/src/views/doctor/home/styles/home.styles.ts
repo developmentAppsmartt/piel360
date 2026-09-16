@@ -254,7 +254,6 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 12,
-      paddingTop: 14,
       paddingBottom: 10,
       backgroundColor: '#FFFFFF',
       borderBottomWidth: StyleSheet.hairlineWidth,

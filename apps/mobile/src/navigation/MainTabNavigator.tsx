@@ -88,6 +88,7 @@ export function MainTabNavigator() {
   );
   const [chatThreadOpen, setChatThreadOpen] = useState(false);
   const [creatingPatient, setCreatingPatient] = useState(false);
+  const [showingStats, setShowingStats] = useState(false);
   const [consentRequestId, setConsentRequestId] = useState(0);
   const [homeIntent, setHomeIntent] = useState<'tips' | 'history' | null>(
     null,
@@ -104,7 +105,8 @@ export function MainTabNavigator() {
   const hideTabBar =
     inboxOpen ||
     (activeTab === 'chat' && chatThreadOpen) ||
-    (isDoctor && activeTab === 'patients' && creatingPatient);
+    (isDoctor && activeTab === 'patients' && creatingPatient) ||
+    (isDoctor && activeTab === 'home' && showingStats);
 
   useEffect(() => {
     if (!isDoctor) return;
@@ -238,6 +240,13 @@ export function MainTabNavigator() {
       setActiveTab('home');
       setConsentRequestId((n) => n + 1);
       void refreshUnread();
+      return;
+    }
+    if (action.kind === 'analysis_shared') {
+      if (isDoctor) return;
+      setHomeIntent('history');
+      setActiveTab('home');
+      void refreshUnread();
     }
   }
 
@@ -263,6 +272,7 @@ export function MainTabNavigator() {
               onOpenMessages={openInbox}
               onOpenProfile={() => setActiveTab('profile')}
               onOpenAgenda={() => setActiveTab('agenda')}
+              onShowingStatsChange={setShowingStats}
             />
           ) : (
             <HomeView

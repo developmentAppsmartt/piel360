@@ -1,4 +1,6 @@
 import { randomBytes } from 'node:crypto';
+import { readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import puppeteer from 'puppeteer';
@@ -24,81 +26,68 @@ import { StorageService } from '../storage/storage.service';
 
 const BRAND_PRIMARY = '#1e5a9e';
 const BRAND_DARK = '#0f3d73';
-const BAND_COLOR: Record<string, string> = {
-  regular: '#F59E0B',
-  promedio: '#3B82F6',
-  buena: '#22C55E',
-};
 
-const RADAR_TYPES = [
-  'hd_moisture',
-  'hd_oiliness',
-  'hd_firmness',
-  'hd_age_spot',
-  'hd_wrinkle',
-  'hd_texture',
-  'hd_pore',
-  'hd_acne',
-] as const;
-
-/** Mismo cálculo de `RadarChart` en youcam-report-view.tsx, pero devolviendo
- * un string `<svg>` en vez de JSX (server-side, sin DOM). */
-function renderRadarSvg(scores: Record<string, number>): string {
-  const size = 280;
-  const cx = size / 2;
-  const cy = size / 2;
-  const radius = 95;
-  const axes = RADAR_TYPES.filter((t) => scores[t] != null);
-  if (axes.length < 3) return '';
-
-  const points = axes.map((type, i) => {
-    const angle = -Math.PI / 2 + (i * 2 * Math.PI) / axes.length;
-    const value = Math.max(0, Math.min(100, scores[type] ?? 0)) / 100;
-    return {
-      x: cx + Math.cos(angle) * radius * value,
-      y: cy + Math.sin(angle) * radius * value,
-      lx: cx + Math.cos(angle) * (radius + 20),
-      ly: cy + Math.sin(angle) * (radius + 20),
-      ax: cx + Math.cos(angle) * radius,
-      ay: cy + Math.sin(angle) * radius,
-      value: scores[type] ?? 0,
-    };
-  });
-  const polygon = points.map((p) => `${p.x},${p.y}`).join(' ');
-  const rings = [0.25, 0.5, 0.75, 1]
-    .map((r) => `<circle cx="${cx}" cy="${cy}" r="${radius * r}" fill="none" stroke="#e5e7eb" />`)
-    .join('');
-  const spokes = points
-    .map((p) => `<line x1="${cx}" y1="${cy}" x2="${p.ax}" y2="${p.ay}" stroke="#e5e7eb" />`)
-    .join('');
-  const labels = points
-    .map(
-      (p) =>
-        `<text x="${p.lx}" y="${p.ly}" text-anchor="middle" font-size="9" font-weight="bold" fill="#1a2b3c">${Math.round(p.value)}</text>`,
-    )
-    .join('');
-
-  return `<svg viewBox="0 0 ${size} ${size}" width="280" height="280">
-    ${rings}${spokes}
-    <polygon points="${polygon}" fill="${BRAND_PRIMARY}33" stroke="${BRAND_PRIMARY}" stroke-width="2" />
-    ${labels}
-  </svg>`;
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
-function buildSummary(scores: Record<string, number>, overall: number | null): string {
+function formatStamp(date: Date): string {
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const yyyy = date.getFullYear();
+  const hh = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+  return `${yyyy}/${mm}/${dd} ${hh}:${min}`;
+}
+
+function buildSummary(scores: Record<string, number>, overall: number | null, skinTypeLabel: string | null): string {
   const lows = Object.entries(scores)
     .filter(([, v]) => v < 70)
     .sort((a, b) => a[1] - b[1])
     .slice(0, 3)
     .map(([type]) => YOUCAM_METRIC_LABELS[type] ?? type);
 
+  const typeHint = skinTypeLabel
+    ? ` Tu tipo de piel es ${skinTypeLabel.toLowerCase()}.`
+    : '';
+
   if (overall != null && overall >= 90) {
-    return 'Su piel está en buen estado general. Mantén tu rutina de cuidado y protección solar diaria.';
+    return `Ya vas camino a una gran piel.${typeHint} Mantén tu rutina y protección solar diaria. Revisa el detalle de cada métrica abajo.`;
+  }
+  if (overall != null && overall >= 70) {
+    return `Vas en el promedio.${typeHint}${lows.length ? ` Prioriza: ${lows.join(', ')}.` : ''} Revisa el detalle de cada métrica abajo.`;
   }
   if (lows.length === 0) {
-    return 'Su piel está en el promedio. Revisa las zonas detalladas abajo para priorizar tu rutina.';
+    return `Hay espacio para mejorar.${typeHint} Revisa las zonas detalladas abajo para priorizar tu rutina.`;
   }
-  return `Prioriza mejorar: ${lows.join(', ')}. Considera hidratación adecuada, protección solar y consulta dermatológica si persisten las molestias.`;
+  return `Prioriza mejorar: ${lows.join(', ')}.${typeHint} Considera hidratación adecuada, protección solar y consulta dermatológica si persisten las molestias.`;
+}
+
+function defaultAdvice(band: string): string {
+  if (band === 'buena') {
+    return '¡Excelente resultado en esta métrica! Mantén tu rutina y la protección solar.';
+  }
+  if (band === 'promedio') {
+    return 'Vas en buen camino. Pequeños ajustes en hidratación y SPF pueden llevarte al siguiente nivel.';
+  }
+  return 'Con un poco más de cuidado enfocado puedes mejorar esta área. Revisa la rutina y la protección solar diaria.';
+}
+
+function loadLogoDataUri(candidates: string[], mime: string): string | null {
+  for (const filePath of candidates) {
+    if (!existsSync(filePath)) continue;
+    try {
+      const base64 = readFileSync(filePath).toString('base64');
+      return `data:${mime};base64,${base64}`;
+    } catch {
+      // siguiente candidato
+    }
+  }
+  return null;
 }
 
 interface ReportAnalysis {
@@ -113,14 +102,12 @@ interface ReportPatient {
   firstName: string;
   lastName: string;
   birthDate: Date | null;
+  fitzpatrickType?: string | null;
 }
 
 /**
- * Genera el PDF del "Reporte Salud de la Piel" (mismo diseño que
- * apps/web/src/components/analyses/youcam-report-view.tsx) para adjuntarlo
- * como link (`{report_url}`) al correo de "reporte listo" — ver
- * ReportEmailService. Solo cubre análisis de YouCam (Skiniver/Fitzpatrick
- * usan otro componente de resultados, con otro diseño).
+ * Genera el PDF del "Reporte Salud de la Piel" (una hoja A4, mismo layout
+ * que la descarga móvil) para adjuntarlo como link al correo de reporte listo.
  */
 @Injectable()
 export class ReportPdfService {
@@ -141,80 +128,166 @@ export class ReportPdfService {
       analysis.chronologicalAgeYears ?? chronologicalAgeYears(patient.birthDate, analysis.createdAt);
     const ageDiff = analysis.skinAgeDifference ?? skinAgeDifference(skinAge, chronologicalAge);
     const skinType = youcamSkinType(metrics);
+    const skinTypeLabel = skinType ? youcamSkinTypeLabel(skinType) : null;
     const band = overall != null ? youcamScoreBand(overall) : null;
     const name = `${patient.firstName} ${patient.lastName}`.trim();
+    const createdAt = formatStamp(analysis.createdAt);
 
-    const gridTypes = [...new Set([...YOUCAM_MAIN_METRIC_TYPES, ...Object.keys(scores)])].filter(
-      (t) => t !== 'all' && t !== 'skin_age' && t !== 'resize_image' && t !== 'hd_skin_type' && scores[t] != null,
+    const cwd = process.cwd();
+    const headerLogo = loadLogoDataUri(
+      [
+        join(cwd, 'apps/mobile/assets/logo-headers.png'),
+        join(cwd, '../mobile/assets/logo-headers.png'),
+        join(cwd, '../../apps/mobile/assets/logo-headers.png'),
+      ],
+      'image/png',
+    );
+    const footerLogo = loadLogoDataUri(
+      [
+        join(cwd, 'apps/mobile/assets/logo-piel360-brand.jpeg'),
+        join(cwd, '../mobile/assets/logo-piel360-brand.jpeg'),
+        join(cwd, '../../apps/mobile/assets/logo-piel360-brand.jpeg'),
+        join(cwd, 'apps/web/public/logo-piel360.png'),
+        join(cwd, '../web/public/logo-piel360.png'),
+      ],
+      'image/jpeg',
     );
 
-    const gridHtml = gridTypes
-      .map((type) => {
-        const score = scores[type] ?? 0;
-        const color = BAND_COLOR[youcamScoreBand(score)];
-        return `<td style="width:50%;padding:6px;">
-          <div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;">
-            <div style="display:flex;justify-content:space-between;font-size:13px;">
-              <strong>${YOUCAM_METRIC_LABELS[type] ?? type}</strong>
-              <span style="color:${color};font-weight:bold;">${youcamScoreBandLabel(youcamScoreBand(score))}</span>
-            </div>
-            <div style="margin-top:6px;height:8px;border-radius:4px;background:#f1f5f9;overflow:hidden;">
-              <div style="height:100%;width:${Math.max(0, Math.min(100, score))}%;background:${color};"></div>
-            </div>
-            <p style="text-align:right;margin:4px 0 0;font-weight:bold;">${Math.round(score)}</p>
-          </div>
-        </td>`;
-      })
-      .reduce<string[]>((rows, cell, i) => {
-        if (i % 2 === 0) rows.push(`<tr>${cell}`);
-        else rows[rows.length - 1] += `${cell}</tr>`;
-        return rows;
-      }, [])
-      .map((row) => (row.endsWith('</tr>') ? row : `${row}</tr>`))
+    const rows = YOUCAM_MAIN_METRIC_TYPES.filter((type) => scores[type] != null).map((type) => {
+      const score = scores[type] ?? 0;
+      const itemBand = youcamScoreBand(score);
+      return {
+        title: YOUCAM_METRIC_LABELS[type] ?? type,
+        score,
+        band: youcamScoreBandLabel(itemBand),
+        advice: defaultAdvice(itemBand),
+      };
+    });
+
+    const metricsHtml = rows
+      .map(
+        (row) => `<tr>
+          <td class="col-metric">${escapeHtml(row.title)}</td>
+          <td class="col-score">${Math.round(row.score)}</td>
+          <td class="col-band">${escapeHtml(row.band)}</td>
+          <td class="col-advice">${escapeHtml(row.advice)}</td>
+        </tr>`,
+      )
       .join('');
+
+    const stats = [
+      `Tipo de piel: ${skinTypeLabel ?? '—'}`,
+      patient.fitzpatrickType != null ? `Piel: Tipo ${patient.fitzpatrickType}` : null,
+      `Puntuación de la piel: ${overall != null ? Math.round(overall) : '—'}`,
+      `Edad de tu piel: ${skinAge != null ? `${Math.round(skinAge)} años` : '—'}`,
+      `Edad cronológica: ${chronologicalAge != null ? `${chronologicalAge} años` : '—'}`,
+      ageDiff != null ? `Diferencia: ${formatSignedYears(ageDiff)}` : null,
+      ageDiff != null ? skinAgeDifferenceMessage(ageDiff) : null,
+      band ? `Valoración: ${youcamScoreBandLabel(band)}` : null,
+    ]
+      .filter(Boolean)
+      .map((line) => `<p>${escapeHtml(String(line))}</p>`)
+      .join('');
+
+    const headerLogoHtml = headerLogo
+      ? `<img class="header-logo" src="${headerLogo}" alt="PIEL 360" />`
+      : '';
+    const footerLogoHtml = footerLogo
+      ? `<img class="footer-logo" src="${footerLogo}" alt="PIEL 360" />`
+      : `<div class="footer-logo-fallback"><strong>PIEL 360</strong><span>EXPLORA TU PIEL, ENTIENDE TU SALUD</span></div>`;
 
     return `<!DOCTYPE html>
 <html lang="es">
-<head><meta charset="utf-8" /></head>
-<body style="margin:0;padding:24px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#1a2b3c;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;margin:0 auto;">
-    <tr>
-      <td style="border-bottom:3px solid ${BRAND_PRIMARY};padding-bottom:16px;">
-        <h1 style="font-size:20px;margin:0;color:${BRAND_DARK};">Reporte Salud de la Piel</h1>
-        <p style="margin:4px 0 0;font-size:13px;color:#64748b;">${name} — ${analysis.createdAt.toLocaleDateString('es-CO')}</p>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding-top:16px;font-size:14px;line-height:1.6;">
-        <p>Tipo de piel: <strong>${skinType ? youcamSkinTypeLabel(skinType) : '—'}</strong></p>
-        <p>Puntuación de la piel: <strong>${overall != null ? Math.round(overall) : '—'}</strong></p>
-        <p>Edad de tu piel: <strong>${skinAge != null ? `${Math.round(skinAge)} años` : '—'}</strong></p>
-        <p>Edad cronológica: <strong>${chronologicalAge != null ? `${chronologicalAge} años` : '—'}</strong></p>
-        ${
-          ageDiff != null
-            ? `<p style="color:${ageDiff < 0 ? '#059669' : ageDiff > 0 ? '#dc2626' : '#64748b'};font-weight:bold;">
-                Diferencia: ${formatSignedYears(ageDiff)} — ${skinAgeDifferenceMessage(ageDiff)}
-              </p>`
-            : ''
-        }
-        ${band ? `<p style="color:${BRAND_PRIMARY};font-weight:bold;">Su piel está en el ${youcamScoreBandLabel(band).toLowerCase()}</p>` : ''}
-      </td>
-    </tr>
-    <tr>
-      <td style="padding:16px 0;background:#f8fafc;border-radius:10px;">
-        <p style="font-size:11px;font-weight:bold;color:#64748b;text-transform:uppercase;margin:0 0 4px 16px;">Resumen</p>
-        <p style="margin:0 16px;font-size:14px;line-height:1.5;">${buildSummary(scores, overall)}</p>
-      </td>
-    </tr>
-    <tr>
-      <td style="text-align:center;padding:16px 0;">${renderRadarSvg(scores)}</td>
-    </tr>
-    <tr>
-      <td>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${gridHtml}</table>
-      </td>
-    </tr>
-  </table>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; width: 210mm; height: 297mm; overflow: hidden;
+      font-family: Helvetica, Arial, sans-serif; color: #1A1A1A; background: #fff;
+    }
+    .page { width: 210mm; height: 297mm; display: flex; flex-direction: column; overflow: hidden; }
+    header {
+      flex: 0 0 auto; background: ${BRAND_PRIMARY}; color: #fff; padding: 10px 16px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .brand { font-size: 18px; font-weight: 800; letter-spacing: 0.4px; line-height: 1.1; }
+    .brandSub { font-size: 10px; opacity: 0.92; margin-top: 2px; }
+    .header-meta { font-size: 9px; opacity: 0.88; margin-top: 4px; }
+    .header-logo { height: 34px; width: auto; max-width: 150px; object-fit: contain; flex-shrink: 0; }
+    main { flex: 1 1 auto; padding: 12px 16px 8px; overflow: hidden; min-height: 0; }
+    h1 { font-size: 15px; margin: 0 0 3px; color: ${BRAND_DARK}; line-height: 1.2; }
+    .meta { color: #64748B; font-size: 11px; margin: 0 0 8px; }
+    .stats p { margin: 0 0 2px; font-size: 11px; line-height: 1.35; }
+    .summary {
+      margin-top: 8px; padding: 8px 10px; border-radius: 8px;
+      background: #F8FAFC; border: 1px solid #E5E7EB;
+    }
+    .summary h2 { margin: 0 0 3px; font-size: 10px; letter-spacing: 0.4px; color: ${BRAND_DARK}; }
+    .summary p { margin: 0; font-size: 10px; line-height: 1.35; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; table-layout: fixed; }
+    th, td {
+      text-align: left; padding: 3px 4px; border-bottom: 1px solid #E5E7EB;
+      vertical-align: top; font-size: 8.5px; line-height: 1.25;
+    }
+    th { color: ${BRAND_DARK}; font-size: 8px; text-transform: uppercase; letter-spacing: 0.3px; padding-bottom: 4px; }
+    .col-metric { width: 18%; font-weight: 600; }
+    .col-score { width: 10%; }
+    .col-band { width: 12%; }
+    .col-advice { width: 60%; color: #334155; }
+    footer {
+      flex: 0 0 auto; margin-top: auto; padding: 8px 16px 10px; border-top: 3px solid ${BRAND_PRIMARY};
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .footer-brand { color: ${BRAND_DARK}; font-size: 10px; font-weight: 700; line-height: 1.3; }
+    .disclaimer { color: #64748B; margin-top: 2px; font-size: 8.5px; line-height: 1.3; }
+    .footer-stamp { color: #94A3B8; margin-top: 2px; font-size: 8px; }
+    .footer-logo { height: 42px; width: auto; max-width: 150px; object-fit: contain; flex-shrink: 0; }
+    .footer-logo-fallback { text-align: right; color: ${BRAND_DARK}; flex-shrink: 0; }
+    .footer-logo-fallback strong { display: block; font-size: 12px; }
+    .footer-logo-fallback span { display: block; font-size: 7px; letter-spacing: 0.3px; margin-top: 1px; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div>
+        <div class="brand">PIEL 360</div>
+        <div class="brandSub">Reporte de análisis estético · Salud de la piel</div>
+        <div class="header-meta">Generado: ${escapeHtml(createdAt)}</div>
+      </div>
+      ${headerLogoHtml}
+    </header>
+    <main>
+      <h1>Reporte Salud de la Piel</h1>
+      <p class="meta">Paciente: ${escapeHtml(name)} · ${escapeHtml(createdAt)}</p>
+      <div class="stats">${stats}</div>
+      <div class="summary">
+        <h2>RESUMEN</h2>
+        <p>${escapeHtml(buildSummary(scores, overall, skinTypeLabel))}</p>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th class="col-metric">Métrica</th>
+            <th class="col-score">Puntaje</th>
+            <th class="col-band">Nivel</th>
+            <th class="col-advice">Lectura</th>
+          </tr>
+        </thead>
+        <tbody>${metricsHtml || '<tr><td colspan="4">Sin métricas disponibles.</td></tr>'}</tbody>
+      </table>
+    </main>
+    <footer>
+      <div>
+        <div class="footer-brand">PIEL 360 — Apoyo diagnóstico dermatológico con inteligencia artificial.</div>
+        <div class="disclaimer">Este reporte no sustituye una consulta médica presencial. Documento generado para el paciente ${escapeHtml(name)}.</div>
+        <div class="footer-stamp">Fecha y hora de creación: ${escapeHtml(createdAt)}</div>
+      </div>
+      ${footerLogoHtml}
+    </footer>
+  </div>
 </body>
 </html>`;
   }
@@ -226,10 +299,13 @@ export class ReportPdfService {
     });
     try {
       const page = await browser.newPage();
-      // Sin recursos externos (todo inline: SVG del radar, estilos) — 'load'
-      // basta, no hace falta esperar red.
       await page.setContent(html, { waitUntil: 'load' });
-      const pdf = await page.pdf({ format: 'a4', printBackground: true });
+      const pdf = await page.pdf({
+        format: 'a4',
+        printBackground: true,
+        margin: { top: '0', right: '0', bottom: '0', left: '0' },
+        pageRanges: '1',
+      });
       return Buffer.from(pdf);
     } finally {
       await browser.close();
@@ -241,7 +317,16 @@ export class ReportPdfService {
   async ensureReportUrl(analysisId: bigint): Promise<string | null> {
     const analysis = await this.prisma.analysis.findUnique({
       where: { id: analysisId },
-      include: { patient: { select: { firstName: true, lastName: true, birthDate: true } } },
+      include: {
+        patient: {
+          select: {
+            firstName: true,
+            lastName: true,
+            birthDate: true,
+            fitzpatrickType: true,
+          },
+        },
+      },
     });
     if (!analysis) return null;
 

@@ -7,7 +7,12 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import * as argon2 from 'argon2';
-import { DOCTOR_PANEL_ROLES, type Role } from '@piel360/shared';
+import {
+  DOCTOR_PANEL_ROLES,
+  isStrongPassword,
+  PASSWORD_STRENGTH_MESSAGE,
+  type Role,
+} from '@piel360/shared';
 import { AnalysisImageUrlsService } from '../analyses/analysis-image-urls.service';
 import type { JwtPayload } from '../auth/types';
 import { assertDocumentNumberAvailable } from '../common/document-number.util';
@@ -216,7 +221,7 @@ export class PatientsService {
     // formularios que siempre piden clave al crear paciente).
     const wantsLogin =
       createAppAccess === true ||
-      Boolean(emailNorm && password && password.length >= 8);
+      Boolean(emailNorm && password && isStrongPassword(password));
 
     await assertDocumentNumberAvailable(this.prisma, dto.docNumber);
 
@@ -226,10 +231,8 @@ export class PatientsService {
           'El correo es obligatorio para crear acceso del paciente',
         );
       }
-      if (!password || password.length < 8) {
-        throw new BadRequestException(
-          'La contraseña es obligatoria (mínimo 8 caracteres) para crear acceso',
-        );
+      if (!password || !isStrongPassword(password)) {
+        throw new BadRequestException(PASSWORD_STRENGTH_MESSAGE);
       }
 
       const existing = await this.prisma.user.findUnique({
@@ -607,16 +610,29 @@ export class PatientsService {
       },
     });
 
+    const professionalName = [
+      doctor.firstName,
+      doctor.lastName,
+    ]
+      .map((x) => x?.trim())
+      .filter(Boolean)
+      .join(' ')
+      .replace(/^dr\.?\s+/i, '')
+      .trim();
+
     void this.notifications
       .create({
         userId: patient.userId,
         type: 'analysis_request',
         title: 'Nueva solicitud de análisis',
-        body: 'Tu médico te pidió un nuevo análisis de piel',
+        body: professionalName
+          ? `${professionalName} ha solicitado un análisis de piel.`
+          : 'Tienes una solicitud pendiente de análisis de piel.',
         data: {
           analysisRequestId: row.id.toString(),
           providerSlug: dto.providerSlug,
           patientId: patient.id.toString(),
+          professionalName: professionalName || null,
         },
       })
       .catch(() => undefined);

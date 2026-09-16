@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { BarChart3 } from "lucide-react";
 import { ModuleCard } from "@/components/ui/module-card";
+import { LifestyleReportPanel } from "@/components/reports/lifestyle-report-panel";
 import { NeedsMapView } from "@/components/reports/needs-map-view";
 import {
   ReportFilters,
@@ -16,18 +17,33 @@ import {
 } from "@/components/reports/top-problems-table";
 import { downloadCsv } from "@/lib/csv-export";
 import {
+  useDoctorLifestyleReport,
   useDoctorSkinHealthReport,
   type DoctorReportsFilters,
 } from "@/lib/queries/doctor-reports";
 import { useOrganizationTeam } from "@/lib/queries/organizations";
 import { cn } from "@/lib/utils";
 
-type ReportTab = "resumen" | "necesidades" | "top";
+type ReportTab =
+  | "resumen"
+  | "necesidades"
+  | "top"
+  | "nacimiento"
+  | "mascotas"
+  | "actividad"
+  | "clinico";
 
-const TABS: { key: ReportTab; label: string }[] = [
+const SKIN_TABS: { key: ReportTab; label: string }[] = [
   { key: "resumen", label: "Resumen de salud de la piel" },
   { key: "necesidades", label: "Mapa de necesidades" },
   { key: "top", label: "Top problemas" },
+];
+
+const LIFESTYLE_TABS: { key: ReportTab; label: string }[] = [
+  { key: "nacimiento", label: "Tipo de nacimiento" },
+  { key: "mascotas", label: "Mascotas y salud de la piel" },
+  { key: "actividad", label: "Actividad física y deporte" },
+  { key: "clinico", label: "Análisis clínico IA" },
 ];
 
 export default function ReportesPage() {
@@ -39,10 +55,16 @@ export default function ReportesPage() {
   const [sort, setSort] = useState<TopProblemsSort>("score");
 
   const report = useDoctorSkinHealthReport(filters);
+  const lifestyle = useDoctorLifestyleReport(filters);
   const team = useOrganizationTeam();
   const members = team.data?.members ?? [];
-  // El backend solo acepta professionalUserId del dueño del equipo.
   const showProfessionalFilter = members.length > 1;
+
+  const isLifestyleTab =
+    tab === "nacimiento" ||
+    tab === "mascotas" ||
+    tab === "actividad" ||
+    tab === "clinico";
 
   function handleExport() {
     const data = report.data;
@@ -72,6 +94,29 @@ export default function ReportesPage() {
         ]),
       ];
       downloadCsv(`reporte-categorias-${data.range.from}_${data.range.to}`, rows);
+      return;
+    }
+
+    if (isLifestyleTab && lifestyle.data) {
+      const section =
+        tab === "nacimiento"
+          ? lifestyle.data.birthType
+          : tab === "mascotas"
+            ? lifestyle.data.pets
+            : tab === "actividad"
+              ? lifestyle.data.activity
+              : lifestyle.data.clinicalAi;
+      const rows: (string | number | null)[][] = [
+        ["Segmento", "Pacientes", "%", "Puntaje promedio", "Análisis"],
+        ...section.segments.map((s) => [
+          s.label,
+          s.patients,
+          s.pct.toFixed(1),
+          s.avgScore != null ? s.avgScore.toFixed(1) : "",
+          s.analyses ?? "",
+        ]),
+      ];
+      downloadCsv(`reporte-${tab}-${lifestyle.data.range.from}_${lifestyle.data.range.to}`, rows);
       return;
     }
 
@@ -129,41 +174,77 @@ export default function ReportesPage() {
         members={members}
         showProfessionalFilter={showProfessionalFilter}
         onExport={handleExport}
-        exportDisabled={!report.data || isEmpty}
+        exportDisabled={
+          isLifestyleTab
+            ? !lifestyle.data
+            : !report.data || Boolean(isEmpty)
+        }
       />
 
-      <div
-        role="tablist"
-        aria-label="Vista del reporte"
-        className="inline-flex flex-wrap gap-1 rounded-lg border border-border bg-muted/40 p-0.5"
-      >
-        {TABS.map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            role="tab"
-            aria-selected={tab === item.key}
-            onClick={() => setTab(item.key)}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              tab === item.key
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {item.label}
-          </button>
-        ))}
+      <div className="space-y-2">
+        <div
+          role="tablist"
+          aria-label="Vista del reporte de salud"
+          className="inline-flex flex-wrap gap-1 rounded-lg border border-border bg-muted/40 p-0.5"
+        >
+          {SKIN_TABS.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              role="tab"
+              aria-selected={tab === item.key}
+              onClick={() => setTab(item.key)}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                tab === item.key
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        <div
+          role="tablist"
+          aria-label="Vista del reporte lifestyle"
+          className="inline-flex flex-wrap gap-1 rounded-lg border border-border bg-muted/40 p-0.5"
+        >
+          {LIFESTYLE_TABS.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              role="tab"
+              aria-selected={tab === item.key}
+              onClick={() => setTab(item.key)}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                tab === item.key
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {report.isLoading && (
+      {report.isLoading && !isLifestyleTab && (
         <p className="text-sm text-muted-foreground">Cargando reportes…</p>
       )}
-      {report.error && (
+      {lifestyle.isLoading && isLifestyleTab && (
+        <p className="text-sm text-muted-foreground">Cargando reportes…</p>
+      )}
+      {report.error && !isLifestyleTab && (
+        <p className="text-sm text-destructive">No se pudieron cargar los reportes.</p>
+      )}
+      {lifestyle.error && isLifestyleTab && (
         <p className="text-sm text-destructive">No se pudieron cargar los reportes.</p>
       )}
 
-      {report.data && isEmpty ? (
+      {report.data && isEmpty && !isLifestyleTab ? (
         <ModuleCard className="flex flex-col items-center gap-3 p-10 text-center">
           <span className="flex size-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
             <BarChart3 className="size-6" />
@@ -190,6 +271,39 @@ export default function ReportesPage() {
                 onSortChange={setSort}
               />
             </ModuleCard>
+          )}
+        </>
+      ) : null}
+
+      {isLifestyleTab && lifestyle.data ? (
+        <>
+          {tab === "nacimiento" && (
+            <LifestyleReportPanel
+              section={lifestyle.data.birthType}
+              mode="score"
+              description="Puntaje promedio de piel según tipo de nacimiento del paciente."
+            />
+          )}
+          {tab === "mascotas" && (
+            <LifestyleReportPanel
+              section={lifestyle.data.pets}
+              mode="score"
+              description="Relación entre mascotas en el hogar y el puntaje promedio de piel."
+            />
+          )}
+          {tab === "actividad" && (
+            <LifestyleReportPanel
+              section={lifestyle.data.activity}
+              mode="score"
+              description="Puntaje promedio de piel según hábito de actividad física."
+            />
+          )}
+          {tab === "clinico" && (
+            <LifestyleReportPanel
+              section={lifestyle.data.clinicalAi}
+              mode="volume"
+              description="Volumen de análisis por proveedor clínico (Dermatológico, Estético, Fototipo)."
+            />
           )}
         </>
       ) : null}

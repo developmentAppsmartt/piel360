@@ -11,7 +11,7 @@ import { StatusBar } from 'expo-status-bar';
 import { AppIcon } from '../../../components/AppIcon';
 import { Icons } from '../../../components/icons';
 import { useBranding } from '../../../context/BrandingContext';
-import { ANALYSIS_PROVIDER_STATIC_LABELS } from '../../../data/analysisProviderLabel';
+import { ANALYSIS_PROVIDER_STATIC_LABELS, maskVendorMessage } from '../../../data/analysisProviderLabel';
 import { ANALYSIS_CONSENT_COPY } from '../../../data/legal/documents';
 import {
   BODY_PARTS_INFO,
@@ -141,7 +141,7 @@ export function SkiniverAnalysisFlow({
           selection={selection}
           onDone={onAnalysisCreated}
           onError={(message) => {
-            Alert.alert(label, message);
+            Alert.alert(label, maskVendorMessage(message));
             setStep('capture');
           }}
         />

@@ -6,10 +6,17 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
   Max,
   Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
+import {
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_STRENGTH_MESSAGE,
+  PASSWORD_STRENGTH_REGEX,
+} from '@piel360/shared';
 
 export class CreatePatientDto {
   @IsString()
@@ -28,9 +35,10 @@ export class CreatePatientDto {
   @IsBoolean()
   createAppAccess?: boolean;
 
-  @IsOptional()
+  @ValidateIf((o: CreatePatientDto) => Boolean(o.password))
   @IsString()
-  @MinLength(8)
+  @MinLength(PASSWORD_MIN_LENGTH)
+  @Matches(PASSWORD_STRENGTH_REGEX, { message: PASSWORD_STRENGTH_MESSAGE })
   password?: string;
 
   @IsOptional()

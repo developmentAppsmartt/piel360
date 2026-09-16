@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, View } from 'react-native';
+import {
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBranding } from '../../../context/BrandingContext';
 import { useAuth } from '../../../context/AuthContext';
 import { isClinicalPanelUser } from '../../../types/auth';
@@ -30,6 +37,7 @@ export function ChatThreadView({
 }: ChatThreadViewProps) {
   const branding = useBranding();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const isDoctor = isClinicalPanelUser(user);
   const styles = useMemo(
     () => createChatStyles(branding.colors),
@@ -38,6 +46,8 @@ export function ChatThreadView({
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [sending, setSending] = useState(false);
   const listRef = useRef<FlatList>(null);
+  /** Header del módulo + barra de estado aproximada. */
+  const keyboardOffset = insets.top + 56;
 
   const load = useCallback(async () => {
     const next = await messagesService.getConversation(conversationId);
@@ -159,95 +169,103 @@ export function ChatThreadView({
   return (
     <View style={styles.screen}>
       <AppModuleChrome showBack onBack={onBack} onOpenProfile={onOpenProfile}>
-      <ChatHeader
-        styles={styles}
-        name={conversation.peerName}
-        initials={conversation.peerInitials}
-        onMore={openOptions}
-      />
-      <FlatList
-        ref={listRef}
-        style={styles.messages}
-        contentContainerStyle={styles.messagesContent}
-        data={conversation.messages}
-        keyExtractor={(item) => item.id}
-        onContentSizeChange={() =>
-          listRef.current?.scrollToEnd({ animated: true })
-        }
-        renderItem={({ item }) => (
-          <ChatBubble
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={keyboardOffset}
+        >
+          <ChatHeader
             styles={styles}
-            message={item}
-            canDownloadImages={isDoctor}
-            accentColor={branding.colors.primary}
+            name={conversation.peerName}
+            initials={conversation.peerInitials}
+            onMore={openOptions}
           />
-        )}
-      />
-      <ChatQuickActions
-        styles={styles}
-        visibleIds={
-          isDoctor ? (['cita'] as ChatQuickActionId[]) : undefined
-        }
-        onAction={onQuickAction}
-      />
-      <ChatComposer
-        styles={styles}
-        sending={sending}
-        onSend={(text) => {
-          setSending(true);
-          void messagesService
-            .sendText(conversation.id, text)
-            .then((msg) => {
-              setConversation((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      messages: [...prev.messages, msg],
-                      preview: msg.text ?? prev.preview,
-                      timeLabel: msg.sentAt,
-                    }
-                  : prev,
-              );
-            })
-            .catch((err) =>
-              Alert.alert(
-                'Mensaje',
-                err instanceof ApiError
-                  ? err.message
-                  : 'No se pudo enviar el mensaje.',
-              ),
-            )
-            .finally(() => setSending(false));
-        }}
-        onSendAttachment={async (file) => {
-          setSending(true);
-          try {
-            const msg = await messagesService.sendAttachment(
-              conversation.id,
-              file,
-            );
-            setConversation((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    messages: [...prev.messages, msg],
-                    preview: msg.attachment?.name ?? prev.preview,
-                    timeLabel: msg.sentAt,
-                  }
-                : prev,
-            );
-          } catch (err) {
-            Alert.alert(
-              'Adjunto',
-              err instanceof ApiError
-                ? err.message
-                : 'No se pudo enviar el archivo.',
-            );
-          } finally {
-            setSending(false);
-          }
-        }}
-      />
+          <FlatList
+            ref={listRef}
+            style={styles.messages}
+            contentContainerStyle={styles.messagesContent}
+            data={conversation.messages}
+            keyExtractor={(item) => item.id}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            onContentSizeChange={() =>
+              listRef.current?.scrollToEnd({ animated: true })
+            }
+            renderItem={({ item }) => (
+              <ChatBubble
+                styles={styles}
+                message={item}
+                canDownloadImages={isDoctor}
+                accentColor={branding.colors.primary}
+              />
+            )}
+          />
+          <ChatQuickActions
+            styles={styles}
+            visibleIds={
+              isDoctor ? (['cita'] as ChatQuickActionId[]) : undefined
+            }
+            onAction={onQuickAction}
+          />
+          <ChatComposer
+            styles={styles}
+            sending={sending}
+            onSend={(text) => {
+              setSending(true);
+              void messagesService
+                .sendText(conversation.id, text)
+                .then((msg) => {
+                  setConversation((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          messages: [...prev.messages, msg],
+                          preview: msg.text ?? prev.preview,
+                          timeLabel: msg.sentAt,
+                        }
+                      : prev,
+                  );
+                })
+                .catch((err) =>
+                  Alert.alert(
+                    'Mensaje',
+                    err instanceof ApiError
+                      ? err.message
+                      : 'No se pudo enviar el mensaje.',
+                  ),
+                )
+                .finally(() => setSending(false));
+            }}
+            onSendAttachment={async (file) => {
+              setSending(true);
+              try {
+                const msg = await messagesService.sendAttachment(
+                  conversation.id,
+                  file,
+                );
+                setConversation((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        messages: [...prev.messages, msg],
+                        preview: msg.attachment?.name ?? prev.preview,
+                        timeLabel: msg.sentAt,
+                      }
+                    : prev,
+                );
+              } catch (err) {
+                Alert.alert(
+                  'Adjunto',
+                  err instanceof ApiError
+                    ? err.message
+                    : 'No se pudo enviar el archivo.',
+                );
+              } finally {
+                setSending(false);
+              }
+            }}
+          />
+        </KeyboardAvoidingView>
       </AppModuleChrome>
     </View>
   );

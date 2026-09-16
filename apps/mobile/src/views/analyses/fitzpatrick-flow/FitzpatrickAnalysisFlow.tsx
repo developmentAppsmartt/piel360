@@ -11,7 +11,7 @@ import { StatusBar } from 'expo-status-bar';
 import { AppIcon } from '../../../components/AppIcon';
 import { Icons } from '../../../components/icons';
 import { useBranding } from '../../../context/BrandingContext';
-import { ANALYSIS_PROVIDER_STATIC_LABELS } from '../../../data/analysisProviderLabel';
+import { ANALYSIS_PROVIDER_STATIC_LABELS, maskVendorMessage } from '../../../data/analysisProviderLabel';
 import { ANALYSIS_CONSENT_COPY } from '../../../data/legal/documents';
 import { requireGuidedFaceCapture } from '../../../native/guidedCapture';
 import { ApiError } from '../../../services/api.client';
@@ -87,9 +87,9 @@ export function FitzpatrickAnalysisFlow({
       Alert.alert(
         label,
         err instanceof ApiError
-          ? err.message
+          ? maskVendorMessage(err.message)
           : err instanceof Error
-            ? err.message
+            ? maskVendorMessage(err.message)
             : 'No se pudo completar el análisis de fototipo.',
       );
     } finally {

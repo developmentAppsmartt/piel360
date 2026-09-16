@@ -1,9 +1,9 @@
 /** Labels visibles al usuario — siempre marca Piel 360, sin nombres de API. */
 
 export const ANALYSIS_PROVIDER_STATIC_LABELS = {
-  skiniver: 'Piel 360 AI · Dermatológico',
-  youcam: 'Piel 360 AI · Estético',
-  fitzpatrick: 'Piel 360 AI · Fototipo',
+  skiniver: 'Análisis Dermatológico Piel 360',
+  youcam: 'Análisis Estético Piel 360',
+  fitzpatrick: 'Análisis de Fototipo Piel 360',
 } as const;
 
 export type AnalysisProviderSlug = keyof typeof ANALYSIS_PROVIDER_STATIC_LABELS;
@@ -23,7 +23,7 @@ export function isAnalysisProviderSlug(
 export function providerStaticLabel(slug: string): string {
   return isAnalysisProviderSlug(slug)
     ? ANALYSIS_PROVIDER_STATIC_LABELS[slug]
-    : 'Piel 360 AI';
+    : 'Piel 360';
 }
 
 /** Label para un análisis existente: prioriza `provider.displayLabel` si no es un nombre de API. */
@@ -33,7 +33,7 @@ export function analysisProviderLabel(row: {
   provider?: { displayLabel: string | null } | null;
 }): string {
   const raw = row.provider?.displayLabel?.trim();
-  if (raw && !looksLikeApiVendor(raw)) return raw;
+  if (raw && !looksLikeApiVendor(raw)) return maskVendorMessage(raw);
   if (row.youcamTaskId) return ANALYSIS_PROVIDER_STATIC_LABELS.youcam;
   if (row.fitzpatrickTaskId) return ANALYSIS_PROVIDER_STATIC_LABELS.fitzpatrick;
   return ANALYSIS_PROVIDER_STATIC_LABELS.skiniver;
@@ -47,6 +47,16 @@ function looksLikeApiVendor(label: string): boolean {
     lower.includes('fitzpatrick') ||
     lower.includes('perfect')
   );
+}
+
+/** Sustituye nombres de proveedor/API en textos que ve el usuario (alertas, toasts). */
+export function maskVendorMessage(message: string): string {
+  return message
+    .replace(/\bPerfect\s*Corp\b/gi, 'Análisis Estético Piel 360')
+    .replace(/\bPerfectCorp\b/gi, 'Análisis Estético Piel 360')
+    .replace(/\bYouCam\b/gi, 'Análisis Estético Piel 360')
+    .replace(/\bYoucam\b/gi, 'Análisis Estético Piel 360')
+    .replace(/\bSkiniver\b/gi, 'Análisis Dermatológico Piel 360');
 }
 
 export type AnalysisStatusKind =

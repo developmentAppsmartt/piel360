@@ -10,13 +10,19 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+import {
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_STRENGTH_MESSAGE,
+  PASSWORD_STRENGTH_REGEX,
+} from '@piel360/shared';
 
 export class RegisterPatientDto {
   @IsEmail()
   email!: string;
 
   @IsString()
-  @MinLength(8)
+  @MinLength(PASSWORD_MIN_LENGTH)
+  @Matches(PASSWORD_STRENGTH_REGEX, { message: PASSWORD_STRENGTH_MESSAGE })
   password!: string;
 
   @IsString()
@@ -24,6 +30,18 @@ export class RegisterPatientDto {
 
   @IsString()
   lastName!: string;
+
+  /** Tipo de documento (CC, CE, TI, PA, …). */
+  @IsString()
+  @MinLength(1, { message: 'El tipo de documento es obligatorio' })
+  docType!: string;
+
+  /** Número de cédula / documento — obligatorio. */
+  @IsString()
+  @MinLength(4, {
+    message: 'El número de documento es obligatorio (mínimo 4 caracteres)',
+  })
+  docNumber!: string;
 
   /**
    * Ticket de `POST /auth/otp/verify` (purpose=register).

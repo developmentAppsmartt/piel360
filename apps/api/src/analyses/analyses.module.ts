@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { DoctorsModule } from '../doctors/doctors.module';
 import { FitzpatrickRulesModule } from '../fitzpatrick-rules/fitzpatrick-rules.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { PatientsModule } from '../patients/patients.module';
 import { RoutinesModule } from '../routines/routines.module';
 import { SkinAgeRulesModule } from '../skin-age-rules/skin-age-rules.module';
@@ -25,6 +26,7 @@ import { ANALYSIS_IMAGES_QUEUE, ENCYCLOPEDIA_QUEUE } from './queues';
     OrganizationsModule,
     DoctorsModule,
     PatientsModule,
+    NotificationsModule,
     SkinAgeRulesModule,
     FitzpatrickRulesModule,
     RoutinesModule,

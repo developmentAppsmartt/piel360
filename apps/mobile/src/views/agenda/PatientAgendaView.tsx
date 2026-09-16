@@ -16,7 +16,7 @@ import {
   type PatientDoctorCalendar,
 } from '../../services/agenda.service';
 import { AppModuleChrome } from '../shared/AppModuleChrome';
-import { createHomeStyles } from '../home/styles/home.styles';
+import { createAgendaStyles } from './styles/agenda.styles';
 import {
   AgendaMonthCalendar,
   SLOT_MINUTES,
@@ -48,7 +48,10 @@ export function PatientAgendaView({
   onOpenProfile,
 }: PatientAgendaViewProps) {
   const branding = useBranding();
-  const styles = createHomeStyles(branding.colors);
+  const styles = useMemo(
+    () => createAgendaStyles(branding.colors),
+    [branding.colors],
+  );
   const primary = branding.colors.primary;
 
   const [loading, setLoading] = useState(true);
@@ -181,7 +184,7 @@ export function PatientAgendaView({
     : undefined;
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F3F4F6' }}>
+    <View style={styles.screen}>
       <AppModuleChrome
         onOpenMessages={onOpenMessages}
         onOpenProfile={onOpenProfile}
@@ -192,26 +195,24 @@ export function PatientAgendaView({
           </View>
         ) : (
           <ScrollView
-            contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 40 }}
+            contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            <View style={styles.welcomeCard}>
-              <Text style={styles.welcomeTitle}>
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>
                 {calendar?.doctor
                   ? `${calendar.doctor.firstName} ${calendar.doctor.lastName}`
                   : 'Sin profesional'}
               </Text>
-              <Text style={styles.welcomeSubtitle}>
+              <Text style={styles.sectionSubtitle}>
                 {calendar?.message ??
                   'Toca un día en el calendario. Rojo = no disponible.'}
               </Text>
             </View>
 
-            <View style={styles.welcomeCard}>
-              <Text style={[styles.welcomeTitle, { fontSize: 16 }]}>
-                Calendario
-              </Text>
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Calendario</Text>
               <AgendaMonthCalendar
                 anchor={anchor}
                 onPrevMonth={() =>
@@ -237,25 +238,24 @@ export function PatientAgendaView({
 
               {selectedDate ? (
                 <View
-                  style={{
-                    marginTop: 12,
-                    padding: 12,
-                    borderRadius: 12,
-                    backgroundColor: selectedBlocked ? '#FEF2F2' : '#F3F4F6',
-                  }}
+                  style={[
+                    styles.dayPanel,
+                    selectedBlocked ? styles.dayPanelBlocked : null,
+                  ]}
                 >
-                  <Text style={{ fontWeight: '700', color: branding.colors.text }}>
-                    Día {selectedDate} · {DAY_LABELS[dayOfWeekFromYmd(selectedDate)]}
+                  <Text style={styles.dayPanelTitle}>
+                    Día {selectedDate} ·{' '}
+                    {DAY_LABELS[dayOfWeekFromYmd(selectedDate)]}
                   </Text>
                   {selectedBlocked ? (
-                    <Text style={{ marginTop: 4, color: '#B91C1C', fontSize: 13 }}>
+                    <Text style={styles.errorText}>
                       No disponible
                       {selectedBlocked.reason
                         ? `: ${selectedBlocked.reason}`
                         : ''}
                     </Text>
                   ) : (
-                    <Text style={{ marginTop: 4, color: '#6B7280', fontSize: 13 }}>
+                    <Text style={styles.mutedText}>
                       Disponible para solicitud
                     </Text>
                   )}
@@ -263,68 +263,43 @@ export function PatientAgendaView({
               ) : null}
 
               {(calendar?.weeklySlots.length ?? 0) > 0 ? (
-                <View style={{ marginTop: 12, gap: 4 }}>
-                  <Text style={{ fontWeight: '700', fontSize: 13 }}>
-                    Horarios de atención
-                  </Text>
-                  {calendar!.weeklySlots.map((s) => (
-                    <Text key={s.id} style={styles.welcomeSubtitle}>
-                      {DAY_LABELS[s.dayOfWeek]} · {s.startTime}–{s.endTime}
-                    </Text>
-                  ))}
+                <View style={{ marginTop: 12, gap: 6 }}>
+                  <Text style={styles.dayPanelTitle}>Horarios de atención</Text>
+                  <View style={styles.weeklySlotsGrid}>
+                    {calendar!.weeklySlots.map((s) => (
+                      <View key={s.id} style={styles.weeklySlotItem}>
+                        <Text style={styles.weeklySlotText}>
+                          {DAY_LABELS[s.dayOfWeek]} · {s.startTime}–{s.endTime}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
                 </View>
               ) : (
-                <Text style={[styles.welcomeSubtitle, { marginTop: 10 }]}>
+                <Text style={styles.sectionSubtitle}>
                   Sin horarios del profesional: se ofrecen horas de 09:00 a
                   18:00.
                 </Text>
               )}
             </View>
 
-            <View style={styles.welcomeCard}>
-              <Text style={[styles.welcomeTitle, { fontSize: 16 }]}>
-                Solicitar cita
-              </Text>
-              <Text style={styles.welcomeSubtitle}>
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Solicitar cita</Text>
+              <Text style={styles.sectionSubtitle}>
                 Día desde el calendario · hora según horarios de atención
               </Text>
 
-              <Text
-                style={{
-                  marginTop: 10,
-                  fontSize: 12,
-                  fontWeight: '700',
-                  color: '#6B7280',
-                }}
-              >
-                Día
-              </Text>
-              <Text style={{ fontWeight: '700', color: branding.colors.text }}>
+              <Text style={styles.mutedText}>Día</Text>
+              <Text style={styles.dayPanelTitle}>
                 {selectedDate
                   ? `${selectedDate} · ${DAY_LABELS[dayOfWeekFromYmd(selectedDate)]}`
                   : 'Selecciona un día en el calendario'}
               </Text>
 
-              <Text
-                style={{
-                  marginTop: 10,
-                  fontSize: 12,
-                  fontWeight: '700',
-                  color: '#6B7280',
-                }}
-              >
-                Hora
-              </Text>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  flexWrap: 'wrap',
-                  gap: 8,
-                  marginTop: 4,
-                }}
-              >
+              <Text style={[styles.mutedText, { marginTop: 6 }]}>Hora</Text>
+              <View style={styles.chipRow}>
                 {hourOptions.length === 0 ? (
-                  <Text style={styles.welcomeSubtitle}>
+                  <Text style={styles.sectionSubtitle}>
                     {!selectedDate
                       ? 'Elige un día primero'
                       : selectedBlocked
@@ -337,19 +312,16 @@ export function PatientAgendaView({
                       key={t}
                       onPress={() => setAppointmentTime(t)}
                       hitSlop={6}
-                      style={{
-                        paddingHorizontal: 14,
-                        paddingVertical: 10,
-                        borderRadius: 999,
-                        backgroundColor:
-                          appointmentTime === t ? primary : '#E5E7EB',
-                      }}
+                      style={[
+                        styles.chip,
+                        appointmentTime === t && styles.chipActive,
+                      ]}
                     >
                       <Text
-                        style={{
-                          fontWeight: '700',
-                          color: appointmentTime === t ? '#fff' : '#111',
-                        }}
+                        style={[
+                          styles.chipText,
+                          appointmentTime === t && styles.chipTextActive,
+                        ]}
                       >
                         {t}
                       </Text>
@@ -363,67 +335,42 @@ export function PatientAgendaView({
                 onChangeText={setNotes}
                 placeholder="Nota (opcional)"
                 placeholderTextColor="#9CA3AF"
-                style={{
-                  borderWidth: 1,
-                  borderColor: '#E5E7EB',
-                  borderRadius: 12,
-                  padding: 12,
-                  marginTop: 10,
-                  color: branding.colors.text,
-                }}
+                style={styles.input}
               />
               <Pressable
                 onPress={() => void submitRequest()}
                 disabled={submitting || !calendar?.doctor}
-                style={{
-                  marginTop: 12,
-                  backgroundColor: primary,
-                  borderRadius: 999,
-                  paddingVertical: 12,
-                  alignItems: 'center',
-                  opacity: submitting || !calendar?.doctor ? 0.6 : 1,
-                }}
+                style={[
+                  styles.primaryBtn,
+                  {
+                    opacity: submitting || !calendar?.doctor ? 0.6 : 1,
+                  },
+                ]}
               >
-                <Text style={{ color: '#fff', fontWeight: '700' }}>
-                  Enviar solicitud
-                </Text>
+                <Text style={styles.btnText}>Enviar solicitud</Text>
               </Pressable>
             </View>
 
-            <View style={styles.welcomeCard}>
-              <Text style={[styles.welcomeTitle, { fontSize: 16 }]}>
-                Mis citas
-              </Text>
-              <Text style={styles.welcomeSubtitle}>
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Mis citas</Text>
+              <Text style={styles.sectionSubtitle}>
                 Toca una cita para abrirla y cambiar el estado.
               </Text>
               {appointments.length === 0 ? (
-                <Text style={styles.welcomeSubtitle}>Aún no tienes citas.</Text>
+                <Text style={styles.emptyText}>Aún no tienes citas.</Text>
               ) : (
                 appointments.map((a) => {
                   const open = openApptId === a.id;
                   return (
-                    <View
-                      key={a.id}
-                      style={{
-                        borderTopWidth: 1,
-                        borderTopColor: '#E5E7EB',
-                        paddingTop: 10,
-                        marginTop: 10,
-                        gap: 6,
-                      }}
-                    >
-                      <Pressable onPress={() => setOpenApptId(open ? null : a.id)}>
-                        <Text
-                          style={{
-                            fontWeight: '700',
-                            color: branding.colors.text,
-                          }}
-                        >
+                    <View key={a.id} style={styles.appointmentCard}>
+                      <Pressable
+                        onPress={() => setOpenApptId(open ? null : a.id)}
+                      >
+                        <Text style={styles.appointmentTitle}>
                           {STATUS_LABEL[a.status] ?? a.status}
                           {open ? ' ▲' : ' ▼'}
                         </Text>
-                        <Text style={styles.welcomeSubtitle}>
+                        <Text style={styles.sectionSubtitle}>
                           {new Date(a.startsAt).toLocaleString()} —{' '}
                           {new Date(a.endsAt).toLocaleTimeString([], {
                             hour: '2-digit',
@@ -434,35 +381,37 @@ export function PatientAgendaView({
                       {open ? (
                         <View style={{ gap: 8, marginTop: 4 }}>
                           {a.notes ? (
-                            <Text style={styles.welcomeSubtitle}>
+                            <Text style={styles.sectionSubtitle}>
                               Nota: {a.notes}
                             </Text>
                           ) : null}
                           {a.status === 'proposed' ? (
-                            <View style={{ flexDirection: 'row', gap: 8 }}>
+                            <View style={styles.statusRow}>
                               <Pressable
                                 onPress={() => void respond(a.id, 'confirmed')}
-                                style={{
-                                  backgroundColor: '#16A34A',
-                                  borderRadius: 999,
-                                  paddingHorizontal: 12,
-                                  paddingVertical: 8,
-                                }}
+                                style={[
+                                  styles.statusBtn,
+                                  {
+                                    backgroundColor: '#16A34A',
+                                    borderColor: '#16A34A',
+                                  },
+                                ]}
                               >
-                                <Text style={{ color: '#fff', fontWeight: '700' }}>
+                                <Text style={styles.statusBtnTextActive}>
                                   Aceptar
                                 </Text>
                               </Pressable>
                               <Pressable
                                 onPress={() => void respond(a.id, 'declined')}
-                                style={{
-                                  backgroundColor: '#DC2626',
-                                  borderRadius: 999,
-                                  paddingHorizontal: 12,
-                                  paddingVertical: 8,
-                                }}
+                                style={[
+                                  styles.statusBtn,
+                                  {
+                                    backgroundColor: '#DC2626',
+                                    borderColor: '#DC2626',
+                                  },
+                                ]}
                               >
-                                <Text style={{ color: '#fff', fontWeight: '700' }}>
+                                <Text style={styles.statusBtnTextActive}>
                                   Rechazar
                                 </Text>
                               </Pressable>
@@ -473,23 +422,17 @@ export function PatientAgendaView({
                           ) ? (
                             <Pressable
                               onPress={() => void respond(a.id, 'cancelled')}
-                              style={{
-                                borderWidth: 1,
-                                borderColor: '#FECACA',
-                                borderRadius: 999,
-                                paddingHorizontal: 12,
-                                paddingVertical: 8,
-                                alignSelf: 'flex-start',
-                              }}
+                              style={[
+                                styles.statusBtn,
+                                { borderColor: '#FECACA' },
+                              ]}
                             >
-                              <Text
-                                style={{ color: '#B91C1C', fontWeight: '700' }}
-                              >
+                              <Text style={styles.errorText}>
                                 Cancelar cita
                               </Text>
                             </Pressable>
                           ) : (
-                            <Text style={styles.welcomeSubtitle}>
+                            <Text style={styles.sectionSubtitle}>
                               Esta cita ya no admite cambios.
                             </Text>
                           )}

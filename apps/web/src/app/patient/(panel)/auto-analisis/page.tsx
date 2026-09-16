@@ -167,8 +167,8 @@ export default function AutoAnalisisPage() {
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
             {provider === "youcam"
-              ? "Se enviará la foto a YouCam para el análisis facial. El resultado puede tardar varios minutos en procesarse."
-              : "Se enviará la foto a Skiniver para el análisis. Esto puede tardar unos segundos."}
+              ? "Se enviará la foto para el Análisis Estético Piel 360. El resultado puede tardar varios minutos en procesarse."
+              : "Se enviará la foto para el Análisis Dermatológico Piel 360. Esto puede tardar unos segundos."}
           </p>
           {createAnalysis.error && (
             <p className="text-sm text-destructive">

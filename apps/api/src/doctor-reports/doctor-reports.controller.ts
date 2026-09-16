@@ -22,4 +22,12 @@ export class DoctorReportsController {
   ) {
     return this.doctorReports.getSkinHealthReport(user.sub, query);
   }
+
+  @Get('lifestyle')
+  lifestyle(
+    @CurrentUser() user: JwtPayload,
+    @Query() query: SkinHealthReportQueryDto,
+  ) {
+    return this.doctorReports.getLifestyleReport(user.sub, query);
+  }
 }
