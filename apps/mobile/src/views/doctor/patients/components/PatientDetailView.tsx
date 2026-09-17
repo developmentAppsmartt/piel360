@@ -8,13 +8,13 @@ import {
   Pressable,
   ScrollView,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 import { AppIcon } from '../../../../components/AppIcon';
+import { CalendarDateField } from '../../../../components/CalendarDateField';
 import { Icons } from '../../../../components/icons';
 import { useBranding } from '../../../../context/BrandingContext';
 import {
@@ -309,7 +309,8 @@ export function PatientDetailView({
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
-  const [dateQuery, setDateQuery] = useState('');
+  const [dateFrom, setDateFrom] = useState<string | null>(null);
+  const [dateTo, setDateTo] = useState<string | null>(null);
   const [historyFilter, setHistoryFilter] = useState<
     'all' | AnalysisProviderSlug
   >('all');
@@ -522,6 +523,25 @@ export function PatientDetailView({
     }
   }
 
+  const dateQuery = useMemo(() => {
+    if (!dateFrom) return '';
+    if (dateTo && dateTo !== dateFrom) return `${dateFrom} a ${dateTo}`;
+    return dateFrom;
+  }, [dateFrom, dateTo]);
+
+  const analysisCountByDate = useMemo(() => {
+    const map = new Map<string, number>();
+    const bump = (iso: string) => {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      map.set(key, (map.get(key) ?? 0) + 1);
+    };
+    for (const a of analyses) bump(a.createdAt);
+    for (const r of pendingRequests) bump(r.createdAt);
+    return map;
+  }, [analyses, pendingRequests]);
+
   const listItems = useMemo(() => {
     const matchesKind = (slug: AnalysisProviderSlug) =>
       historyFilter === 'all' || historyFilter === slug;
@@ -689,27 +709,27 @@ export function PatientDetailView({
                   </View>
                 </View>
 
-                <View style={styles.dateSearchWrap}>
-                  <AppIcon
-                    icon={Icons.calendar}
-                    size={18}
-                    color={primary}
-                  />
-                  <TextInput
-                    style={styles.dateSearchInput}
-                    value={dateQuery}
-                    onChangeText={setDateQuery}
+                <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
+                  <CalendarDateField
+                    value={dateFrom}
+                    rangeEnd={dateTo}
+                    onChange={(date) => {
+                      setDateFrom(date);
+                      setDateTo(date);
+                    }}
+                    onChangeRange={(from, to) => {
+                      setDateFrom(from);
+                      setDateTo(to);
+                    }}
+                    apptCountByDate={analysisCountByDate}
+                    title="Buscar análisis por fecha"
                     placeholder="Buscar por fecha o rango"
-                    placeholderTextColor="#9CA3AF"
-                    autoCorrect={false}
-                    autoCapitalize="none"
-                    clearButtonMode="while-editing"
-                    returnKeyType="search"
-                  />
-                  <AppIcon
-                    icon={Icons.settings}
-                    size={18}
-                    color={muted}
+                    accentColor={primary}
+                    textColor={branding.colors.text}
+                    mutedColor={muted}
+                    triggerStyle={styles.dateSearchWrap}
+                    valueStyle={styles.dateSearchInput}
+                    accessibilityLabel="Buscar por fecha en el calendario"
                   />
                 </View>
 

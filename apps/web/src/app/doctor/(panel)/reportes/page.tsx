@@ -2,24 +2,14 @@
 
 import { useState } from "react";
 import { BarChart3 } from "lucide-react";
-import {
-  SKINIVER_AGE_BUCKETS,
-  SKINIVER_DIAGNOSIS_CLASS_DEFS,
-  SKINIVER_DISEASE_BUCKET_DEFS,
-  type SkiniverDiagnosisClass,
-  type SkiniverDiseaseBucket,
-} from "@piel360/shared";
 import { ModuleCard } from "@/components/ui/module-card";
 import { LifestyleReportPanel } from "@/components/reports/lifestyle-report-panel";
 import { NeedsMapView } from "@/components/reports/needs-map-view";
-import { PetsReport } from "@/components/reports/pets-report";
-import { PhysicalActivityReport } from "@/components/reports/physical-activity-report";
 import {
   ReportFilters,
   rangeForDays,
 } from "@/components/reports/report-filters";
 import { SkinHealthSummary } from "@/components/reports/skin-health-summary";
-import { SkiniverReportView } from "@/components/reports/skiniver-report-view";
 import {
   TopProblemsTable,
   sortCategories,
@@ -29,8 +19,6 @@ import { downloadCsv } from "@/lib/csv-export";
 import {
   useDoctorLifestyleReport,
   useDoctorSkinHealthReport,
-  useDoctorSkinSegmentsReport,
-  useDoctorSkiniverReport,
   type DoctorReportsFilters,
 } from "@/lib/queries/doctor-reports";
 import { useOrganizationTeam } from "@/lib/queries/organizations";
@@ -49,10 +37,6 @@ const SKIN_TABS: { key: ReportTab; label: string }[] = [
   { key: "resumen", label: "Resumen de salud de la piel" },
   { key: "necesidades", label: "Mapa de necesidades" },
   { key: "top", label: "Top problemas" },
-  { key: "nacimiento", label: "Tipo de nacimiento" },
-  { key: "mascotas", label: "Mascotas y salud de la piel" },
-  { key: "actividad", label: "Actividad física y deporte" },
-  { key: "skiniver", label: "Análisis clínico IA" },
 ];
 
 const LIFESTYLE_TABS: { key: ReportTab; label: string }[] = [
@@ -83,65 +67,29 @@ export default function ReportesPage() {
     tab === "clinico";
 
   function handleExport() {
-    if (tab === "skiniver") {
-      const data = skiniver.data;
-      if (!data) return;
-      const rows: (string | number | null)[][] = [
-        ["Mes", ...CLASS_KEYS.map((k) => SKINIVER_DIAGNOSIS_CLASS_DEFS[k].label)],
-        ...data.byClass.map((p) => [
-          p.period,
-          ...CLASS_KEYS.map((k) => p.counts[k] ?? 0),
-        ]),
-        [],
-        ["Mes", ...DISEASE_KEYS.map((k) => SKINIVER_DISEASE_BUCKET_DEFS[k].label)],
-        ...data.byDisease.map((p) => [
-          p.period,
-          ...DISEASE_KEYS.map((k) => p.counts[k] ?? 0),
-        ]),
-        [],
-        ["Mes", ...SKINIVER_AGE_BUCKETS.map((b) => b.label)],
-        ...data.byAge.map((p) => [
-          p.period,
-          ...SKINIVER_AGE_BUCKETS.map((b) => p.counts[b.key] ?? 0),
-        ]),
-        [],
-        ["Tono de piel", "Análisis", "%"],
-        ...data.bySkinTone.map((b) => [b.label, b.count, b.pct.toFixed(1)]),
-      ];
-      downloadCsv(`reporte-skiniver-${data.range.from}_${data.range.to}`, rows);
-      return;
-    }
-
-    if (SEGMENT_TABS.includes(tab)) {
-      const data = segments.data;
-      if (!data) return;
-      const view =
+    if (isLifestyleTab && lifestyle.data) {
+      const section =
         tab === "nacimiento"
-          ? data.birthType
+          ? lifestyle.data.birthType
           : tab === "mascotas"
-            ? data.mascotType
-            : data.exerciseHabit;
-
+            ? lifestyle.data.pets
+            : tab === "actividad"
+              ? lifestyle.data.activity
+              : lifestyle.data.clinicalAi;
       const rows: (string | number | null)[][] = [
-        ["Grupo", "Pacientes", "Análisis", "%", "Puntaje promedio"],
-        ...view.buckets.map((b) => [
-          b.label,
-          b.patients,
-          b.analyses,
-          b.pct.toFixed(1),
-          b.avgScore != null ? b.avgScore.toFixed(1) : "",
-        ]),
-        [],
-        ["Categoría", ...view.buckets.map((b) => b.label)],
-        ...view.categories.map((c) => [
-          c.label,
-          ...view.buckets.map((b) => {
-            const score = c.scoresBySegment[b.value];
-            return score != null ? score.toFixed(1) : "";
-          }),
+        ["Segmento", "Pacientes", "%", "Puntaje promedio", "Análisis"],
+        ...section.segments.map((s) => [
+          s.label,
+          s.patients,
+          s.pct.toFixed(1),
+          s.avgScore != null ? s.avgScore.toFixed(1) : "",
+          s.analyses ?? "",
         ]),
       ];
-      downloadCsv(`reporte-${tab}-${data.range.from}_${data.range.to}`, rows);
+      downloadCsv(
+        `reporte-${tab}-${lifestyle.data.range.from}_${lifestyle.data.range.to}`,
+        rows,
+      );
       return;
     }
 
@@ -172,29 +120,6 @@ export default function ReportesPage() {
         ]),
       ];
       downloadCsv(`reporte-categorias-${data.range.from}_${data.range.to}`, rows);
-      return;
-    }
-
-    if (isLifestyleTab && lifestyle.data) {
-      const section =
-        tab === "nacimiento"
-          ? lifestyle.data.birthType
-          : tab === "mascotas"
-            ? lifestyle.data.pets
-            : tab === "actividad"
-              ? lifestyle.data.activity
-              : lifestyle.data.clinicalAi;
-      const rows: (string | number | null)[][] = [
-        ["Segmento", "Pacientes", "%", "Puntaje promedio", "Análisis"],
-        ...section.segments.map((s) => [
-          s.label,
-          s.patients,
-          s.pct.toFixed(1),
-          s.avgScore != null ? s.avgScore.toFixed(1) : "",
-          s.analyses ?? "",
-        ]),
-      ];
-      downloadCsv(`reporte-${tab}-${lifestyle.data.range.from}_${lifestyle.data.range.to}`, rows);
       return;
     }
 
@@ -234,10 +159,7 @@ export default function ReportesPage() {
     downloadCsv(`reporte-resumen-${data.range.from}_${data.range.to}`, rows);
   }
 
-  const isSegmentTab = SEGMENT_TABS.includes(tab);
-  const isSkiniverTab = tab === "skiniver";
   const isEmpty = report.data && report.data.distributionTotal === 0;
-  const isSegmentsEmpty = segments.data && segments.data.birthType.total === 0;
 
   return (
     <div className="space-y-5">

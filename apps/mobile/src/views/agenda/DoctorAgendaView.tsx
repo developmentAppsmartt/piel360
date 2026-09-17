@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { AppIcon } from '../../components/AppIcon';
+import { CalendarDateField } from '../../components/CalendarDateField';
 import { Icons } from '../../components/icons';
 import { useBranding } from '../../context/BrandingContext';
 import { ApiError } from '../../services/api.client';
@@ -223,7 +224,8 @@ export function DoctorAgendaView({
   const [appointmentTime, setAppointmentTime] = useState('');
   const [title, setTitle] = useState('Consulta');
   const [openApptId, setOpenApptId] = useState<string | null>(null);
-  const [appointmentDateQuery, setAppointmentDateQuery] = useState('');
+  const [searchFrom, setSearchFrom] = useState<string | null>(null);
+  const [searchTo, setSearchTo] = useState<string | null>(null);
 
   const { from, to } = useMemo(() => monthBoundsLocal(anchor), [anchor]);
 
@@ -291,11 +293,15 @@ export function DoctorAgendaView({
 
   const filteredAppointments = useMemo(() => {
     const list = overview?.appointments ?? [];
-    if (!appointmentDateQuery.trim()) return list;
+    if (!searchFrom) return list;
+    const query =
+      searchTo && searchTo !== searchFrom
+        ? `${searchFrom} a ${searchTo}`
+        : searchFrom;
     return list.filter((a) =>
-      matchesAppointmentDateQuery(a.startsAt, appointmentDateQuery),
+      matchesAppointmentDateQuery(a.startsAt, query),
     );
-  }, [overview?.appointments, appointmentDateQuery]);
+  }, [overview?.appointments, searchFrom, searchTo]);
 
   const patientResults = useMemo(() => {
     const q = patientQuery.trim();
@@ -673,23 +679,32 @@ export function DoctorAgendaView({
                     Día (calendario)
                   </Text>
                 </View>
-                <View style={styles.selectField}>
-                  <AppIcon
-                    icon={Icons.calendarDay}
-                    size={18}
-                    color={branding.colors.muted}
-                  />
-                  <Text
-                    style={[
-                      styles.selectFieldText,
-                      !selectedDate && styles.selectFieldPlaceholder,
-                    ]}
-                  >
-                    {selectedDate
-                      ? `${selectedDate} · ${DAY_LABELS[dayOfWeekFromYmd(selectedDate)]}`
-                      : 'Selecciona un día en el calendario'}
-                  </Text>
-                </View>
+                <CalendarDateField
+                  value={selectedDate}
+                  onChange={(date) => {
+                    setSelectedDate(date);
+                    setAppointmentTime('');
+                    if (!date) {
+                      setBlockReason('');
+                      return;
+                    }
+                    const [y, m] = date.split('-').map(Number);
+                    setAnchor(new Date(y, m - 1, 1));
+                    const blocked = blockedByDate.get(date);
+                    setBlockReason(blocked?.reason ?? '');
+                  }}
+                  onVisibleMonthChange={(month) => setAnchor(month)}
+                  blockedByDate={blockedByDate}
+                  apptCountByDate={apptCountByDate}
+                  title="Elegir día de la cita"
+                  placeholder="Toca para elegir el día"
+                  accentColor={primary}
+                  textColor={branding.colors.text}
+                  mutedColor={branding.colors.muted}
+                  triggerStyle={styles.selectField}
+                  valueStyle={styles.selectFieldText}
+                  accessibilityLabel="Elegir día en el calendario"
+                />
                 {selectedBlocked ? (
                   <Text style={styles.errorText}>
                     Día no disponible
@@ -789,30 +804,37 @@ export function DoctorAgendaView({
               <Text style={styles.sectionSubtitle}>
                 Toca una cita para abrirla y cambiar el estado.
               </Text>
-              <View style={styles.searchBar}>
-                <AppIcon icon={Icons.calendar} size={18} color={primary} />
-                <TextInput
-                  style={styles.searchInput}
-                  value={appointmentDateQuery}
-                  onChangeText={setAppointmentDateQuery}
-                  placeholder="Buscar por fecha o rango"
-                  placeholderTextColor="#9CA3AF"
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                  clearButtonMode="while-editing"
-                  returnKeyType="search"
-                />
-                {appointmentDateQuery.trim() ? (
-                  <Pressable
-                    onPress={() => setAppointmentDateQuery('')}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel="Limpiar búsqueda"
-                  >
-                    <AppIcon icon={Icons.close} size={16} color={branding.colors.muted} />
-                  </Pressable>
-                ) : null}
-              </View>
+              <CalendarDateField
+                value={searchFrom}
+                rangeEnd={searchTo}
+                onChange={(date) => {
+                  setSearchFrom(date);
+                  setSearchTo(date);
+                  if (date) {
+                    const [y, m] = date.split('-').map(Number);
+                    setAnchor(new Date(y, m - 1, 1));
+                  }
+                }}
+                onChangeRange={(fromDate, toDate) => {
+                  setSearchFrom(fromDate);
+                  setSearchTo(toDate);
+                  if (fromDate) {
+                    const [y, m] = fromDate.split('-').map(Number);
+                    setAnchor(new Date(y, m - 1, 1));
+                  }
+                }}
+                onVisibleMonthChange={(month) => setAnchor(month)}
+                blockedByDate={blockedByDate}
+                apptCountByDate={apptCountByDate}
+                title="Buscar citas por fecha"
+                placeholder="Buscar por fecha o rango"
+                accentColor={primary}
+                textColor={branding.colors.text}
+                mutedColor={branding.colors.muted}
+                triggerStyle={styles.searchBar}
+                valueStyle={styles.searchInput}
+                accessibilityLabel="Buscar citas por calendario"
+              />
               {(overview?.appointments ?? []).length === 0 ? (
                 <Text style={styles.emptyText}>Sin citas este mes.</Text>
               ) : filteredAppointments.length === 0 ? (
