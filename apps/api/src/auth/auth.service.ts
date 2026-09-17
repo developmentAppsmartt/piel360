@@ -16,6 +16,7 @@ import {
   resolveUserPrimaryPanel,
   TEAM_MEMBER_PERMISSIONS,
   SEAT_PLAN_LIMITS,
+  slugifyAlliedOrgName,
   type MembershipType,
   type PrimaryPanel,
   type Role,
@@ -228,6 +229,10 @@ export class AuthService implements OnModuleDestroy {
       await this.consumePhoneTicket(dto.phoneTicket, phone);
     }
 
+    if (dto.referralCode?.trim()) {
+      await this.attachAlliedReferral(user.id, dto.referralCode.trim());
+    }
+
     const session = this.resolveSessionContext(user);
     return this.buildAuthResult(user, session, client);
   }
@@ -256,6 +261,9 @@ export class AuthService implements OnModuleDestroy {
       nameParts.length > 1 ? nameParts.slice(1).join(' ') : firstName;
     const referralCode = empresaReferida ? this.generateReferralCode() : null;
     const orgType = empresaReferida ? 'empresa_aliada' : 'empresa';
+    const referralSlug = empresaReferida
+      ? `${slugifyAlliedOrgName(dto.organizationName.trim())}-${randomBytes(2).toString('hex')}`
+      : null;
     const address = dto.address.trim();
 
     const empresaRole = await this.prisma.role.findUnique({
@@ -335,6 +343,7 @@ export class AuthService implements OnModuleDestroy {
           seatPlan: 'two',
           seatLimit: SEAT_PLAN_LIMITS.two,
           referralCode,
+          referralSlug,
           status: 'pending',
           ciiuCode: dto.ciiuCode?.trim() || null,
           businessEmail: dto.businessEmail?.trim() || null,
@@ -348,6 +357,38 @@ export class AuthService implements OnModuleDestroy {
           city: dto.city?.trim() || null,
           department: dto.department?.trim() || null,
           country: dto.country?.trim() || 'CO',
+          bankName:
+            empresaReferida && dto.bankName?.trim()
+              ? dto.bankName.trim()
+              : null,
+          bankId:
+            empresaReferida && dto.bankId?.trim()
+              ? dto.bankId.trim()
+              : null,
+          bankAccountType:
+            empresaReferida && dto.bankAccountType?.trim()
+              ? dto.bankAccountType.trim().toUpperCase()
+              : null,
+          bankAccountNumber:
+            empresaReferida && dto.bankAccountNumber?.trim()
+              ? dto.bankAccountNumber.trim()
+              : null,
+          payoutBeneficiaryName:
+            empresaReferida && dto.payoutBeneficiaryName?.trim()
+              ? dto.payoutBeneficiaryName.trim()
+              : null,
+          payoutBeneficiaryEmail:
+            empresaReferida && dto.payoutBeneficiaryEmail?.trim()
+              ? dto.payoutBeneficiaryEmail.trim().toLowerCase()
+              : null,
+          payoutLegalIdType:
+            empresaReferida && dto.payoutLegalIdType?.trim()
+              ? dto.payoutLegalIdType.trim().toUpperCase()
+              : null,
+          payoutLegalId:
+            empresaReferida && dto.payoutLegalId?.trim()
+              ? dto.payoutLegalId.trim()
+              : null,
           ...(dto.lat != null && dto.lng != null
             ? { lat: dto.lat, lng: dto.lng }
             : {}),
@@ -357,9 +398,6 @@ export class AuthService implements OnModuleDestroy {
               memberRole: 'owner',
             },
           },
-          ...(referralCode
-            ? { referrals: { create: { code: referralCode } } }
-            : {}),
         },
       });
 
@@ -385,6 +423,82 @@ export class AuthService implements OnModuleDestroy {
 
   private generateReferralCode(): string {
     return `ALI-${randomBytes(4).toString('hex').toUpperCase()}`;
+  }
+
+  async resolveAlliedReferral(code: string) {
+    const normalized = code.trim().toUpperCase();
+    if (!normalized) {
+      throw new BadRequestException('Código de referido no válido');
+    }
+
+    const org = await this.prisma.organization.findFirst({
+      where: {
+        type: 'empresa_aliada',
+        referralCode: { equals: normalized, mode: 'insensitive' },
+      },
+      select: {
+        id: true,
+        name: true,
+        referralCode: true,
+        referralSlug: true,
+        status: true,
+      },
+    });
+
+    if (!org?.referralCode) {
+      throw new BadRequestException('Código de referido no encontrado');
+    }
+
+    let slug = org.referralSlug;
+    if (!slug) {
+      slug = slugifyAlliedOrgName(org.name);
+      await this.prisma.organization.update({
+        where: { id: org.id },
+        data: { referralSlug: slug },
+      });
+    }
+
+    const frontendUrl =
+      this.config.get<string>('FRONTEND_URL')?.replace(/\/$/, '') ??
+      'http://localhost:3001';
+
+    return {
+      code: org.referralCode,
+      organizationName: org.name,
+      slug,
+      status: org.status,
+      referralUrl: `${frontendUrl}/doctor/register?aliada=${encodeURIComponent(slug)}&ref=${encodeURIComponent(org.referralCode)}`,
+    };
+  }
+
+  private async attachAlliedReferral(userId: bigint, code: string) {
+    const normalized = code.trim().toUpperCase();
+    const org = await this.prisma.organization.findFirst({
+      where: {
+        type: 'empresa_aliada',
+        referralCode: { equals: normalized, mode: 'insensitive' },
+      },
+      select: { id: true, referralCode: true },
+    });
+    if (!org?.referralCode) {
+      throw new BadRequestException(
+        'El código de empresa aliada no es válido.',
+      );
+    }
+
+    const already = await this.prisma.referral.findFirst({
+      where: { referredUserId: userId },
+      select: { id: true },
+    });
+    if (already) return;
+
+    await this.prisma.referral.create({
+      data: {
+        organizationId: org.id,
+        code: org.referralCode,
+        referredUserId: userId,
+      },
+    });
   }
 
   async registerPatient(

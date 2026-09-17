@@ -38,9 +38,11 @@ declare global {
 export function WompiCheckoutButton({
   planId,
   label = "Suscribirse",
+  className,
 }: {
   planId: string;
   label?: string;
+  className?: string;
 }) {
   const [sdkReady, setSdkReady] = useState(false);
   const [activeSubscriptionId, setActiveSubscriptionId] = useState<string | null>(null);
@@ -106,7 +108,12 @@ export function WompiCheckoutButton({
     <div className="space-y-2">
       <Script src={WOMPI_WIDGET_URL} onReady={() => setSdkReady(true)} />
 
-      <Button type="button" disabled={!sdkReady || checkout.isPending || waiting} onClick={handleClick}>
+      <Button
+        type="button"
+        disabled={!sdkReady || checkout.isPending || waiting}
+        onClick={handleClick}
+        className={className}
+      >
         {checkout.isPending ? "Iniciando pago..." : label}
       </Button>
 

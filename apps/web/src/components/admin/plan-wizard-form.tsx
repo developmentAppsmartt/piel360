@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Check, Info, Users } from "lucide-react";
+import { Check, Info, Plus, Trash2, Users, X } from "lucide-react";
 import { TextField } from "@/components/auth/text-field";
 import { Button } from "@/components/ui/button";
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
@@ -19,7 +19,13 @@ import {
   PLAN_ROLE_OPTIONS,
 } from "@/lib/plan-roles";
 import { cn } from "@/lib/utils";
+import {
+  DEFAULT_PLAN_HEADER_COLOR,
+  PLAN_HEADER_COLORS,
+  resolvePlanHeaderColor,
+} from "@piel360/shared";
 
+export type PlanFeatureDraft = { label: string; included: boolean };
 const BUSINESS_WIZARD_STEPS = [
   { id: 1, label: "Información del plan" },
   { id: 2, label: "Usuarios permitidos" },
@@ -59,6 +65,8 @@ export type PlanWizardState = {
   durationDays: number;
   isActive: boolean;
   description: string;
+  features: PlanFeatureDraft[];
+  headerColor: string;
   maxUsers: number;
   roleLimits: Record<string, number>;
 };
@@ -114,6 +122,13 @@ function stateFromPlan(plan: PlanAdmin, roleOptions: PlanRoleOption[]): PlanWiza
     durationDays: plan.durationDays,
     isActive: plan.isActive,
     description: plan.description ?? "",
+    features: Array.isArray(plan.features)
+      ? plan.features.map((f) => ({
+          label: f.label ?? "",
+          included: f.included !== false,
+        }))
+      : [],
+    headerColor: resolvePlanHeaderColor(plan.headerColor).id,
     maxUsers: plan.maxUsers ?? 1,
     roleLimits: { ...emptyRoleLimits(roleOptions), ...(plan.roleLimits ?? {}) },
   };
@@ -154,6 +169,10 @@ function toPlanInput(
     durationDays: state.durationDays,
     isActive: state.isActive,
     description: state.description.trim() || undefined,
+    features: state.features
+      .map((f) => ({ label: f.label.trim(), included: f.included }))
+      .filter((f) => f.label.length > 0),
+    headerColor: state.headerColor || DEFAULT_PLAN_HEADER_COLOR,
     planType,
   };
 
@@ -312,6 +331,8 @@ export function PlanWizardForm({
           durationDays: 30,
           isActive: true,
           description: "",
+          features: [],
+          headerColor: DEFAULT_PLAN_HEADER_COLOR,
           maxUsers: isIndividual ? 1 : 10,
           roleLimits: emptyRoleLimits(PLAN_ROLE_OPTIONS),
         },
@@ -714,6 +735,164 @@ export function PlanWizardForm({
               />
               <span className="text-xs text-muted-foreground">Máximo 300 caracteres.</span>
             </label>
+
+            <div className="space-y-2">
+              <div>
+                <p className="text-sm font-medium">Color del header</p>
+                <p className="text-xs text-muted-foreground">
+                  Tinte de la franja superior de la card en el catálogo.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {PLAN_HEADER_COLORS.map((color) => {
+                  const selected = state.headerColor === color.id;
+                  return (
+                    <button
+                      key={color.id}
+                      type="button"
+                      title={color.label}
+                      aria-label={color.label}
+                      aria-pressed={selected}
+                      onClick={() => setState({ ...state, headerColor: color.id })}
+                      className={cn(
+                        "size-9 rounded-full border-2 transition-transform",
+                        selected
+                          ? "scale-110 border-foreground ring-2 ring-offset-2 ring-foreground/30"
+                          : "border-transparent hover:scale-105",
+                      )}
+                      style={{ backgroundColor: color.hex }}
+                    />
+                  );
+                })}
+              </div>
+              <div
+                className="overflow-hidden rounded-xl border border-border"
+                aria-hidden
+              >
+                <div
+                  className="px-3 py-2 text-center text-xs font-bold uppercase tracking-wide text-white"
+                  style={{
+                    backgroundColor: resolvePlanHeaderColor(state.headerColor).hex,
+                  }}
+                >
+                  {state.name.trim() || "Vista previa del header"}
+                </div>
+                <div className="bg-card px-3 py-2 text-center text-[11px] text-muted-foreground">
+                  Fondo blanco · botón azul del sistema
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium">Virtudes del plan</p>
+                  <p className="text-xs text-muted-foreground">
+                    Lista con ✓ (incluido) o ✗ (no incluido) que se muestra en la card del
+                    catálogo.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={state.features.length >= 12}
+                  onClick={() =>
+                    setState({
+                      ...state,
+                      features: [
+                        ...state.features,
+                        { label: "", included: true },
+                      ],
+                    })
+                  }
+                >
+                  <Plus className="mr-1.5 size-3.5" />
+                  Añadir
+                </Button>
+              </div>
+              {state.features.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-border bg-muted/20 px-3 py-4 text-xs text-muted-foreground">
+                  Sin virtudes aún. Añade ítems para destacar qué incluye (o no) el plan.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {state.features.map((feature, index) => (
+                    <li
+                      key={index}
+                      className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-background p-2"
+                    >
+                      <div className="flex shrink-0 gap-1">
+                        <button
+                          type="button"
+                          title="Incluido"
+                          aria-label="Marcar como incluido"
+                          className={cn(
+                            "inline-flex size-8 items-center justify-center rounded-full border transition-colors",
+                            feature.included
+                              ? "border-emerald-600 bg-emerald-500 text-white"
+                              : "border-border bg-muted/40 text-muted-foreground hover:bg-muted",
+                          )}
+                          onClick={() => {
+                            const features = state.features.slice();
+                            features[index] = { ...features[index], included: true };
+                            setState({ ...state, features });
+                          }}
+                        >
+                          <Check className="size-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          title="No incluido"
+                          aria-label="Marcar como no incluido"
+                          className={cn(
+                            "inline-flex size-8 items-center justify-center rounded-full border transition-colors",
+                            !feature.included
+                              ? "border-rose-600 bg-rose-500 text-white"
+                              : "border-border bg-muted/40 text-muted-foreground hover:bg-muted",
+                          )}
+                          onClick={() => {
+                            const features = state.features.slice();
+                            features[index] = { ...features[index], included: false };
+                            setState({ ...state, features });
+                          }}
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      </div>
+                      <input
+                        className={cn(inputClass, "min-w-0 flex-1")}
+                        value={feature.label}
+                        onChange={(e) => {
+                          const features = state.features.slice();
+                          features[index] = {
+                            ...features[index],
+                            label: e.target.value,
+                          };
+                          setState({ ...state, features });
+                        }}
+                        placeholder="Ej. Reportes clínicos en PDF"
+                        maxLength={80}
+                      />
+                      <button
+                        type="button"
+                        className="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+                        aria-label="Eliminar virtud"
+                        onClick={() =>
+                          setState({
+                            ...state,
+                            features: state.features.filter((_, i) => i !== index),
+                          })
+                        }
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
             <Button type="button" onClick={goNext}>
               Guardar y continuar
             </Button>
@@ -849,6 +1028,44 @@ export function PlanWizardForm({
             <p className="rounded-xl border border-border bg-muted/20 p-4 text-sm text-muted-foreground">
               {state.description}
             </p>
+          ) : null}
+          <div className="overflow-hidden rounded-xl border border-border">
+            <div
+              className="px-3 py-2 text-center text-xs font-bold uppercase tracking-wide text-white"
+              style={{
+                backgroundColor: resolvePlanHeaderColor(state.headerColor).hex,
+              }}
+            >
+              Header · {resolvePlanHeaderColor(state.headerColor).label}
+            </div>
+          </div>
+          {state.features.some((f) => f.label.trim()) ? (
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {state.features
+                .filter((f) => f.label.trim())
+                .map((feature, index) => (
+                  <li
+                    key={`${feature.label}-${index}`}
+                    className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm"
+                  >
+                    <span
+                      className={cn(
+                        "inline-flex size-5 shrink-0 items-center justify-center rounded-full text-white",
+                        feature.included ? "bg-emerald-500" : "bg-rose-500",
+                      )}
+                    >
+                      {feature.included ? (
+                        <Check className="size-3" />
+                      ) : (
+                        <X className="size-3" />
+                      )}
+                    </span>
+                    <span className={feature.included ? "" : "text-muted-foreground"}>
+                      {feature.label}
+                    </span>
+                  </li>
+                ))}
+            </ul>
           ) : null}
         </ModuleCard>
       ) : null}

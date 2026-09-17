@@ -1,4 +1,13 @@
-import { IsBoolean, IsIn, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsIn,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 const ENVIRONMENTS = ['sandbox', 'production'] as const;
 
@@ -26,6 +35,25 @@ export class UpdateGatewayConfigDto {
   @IsOptional()
   @IsString()
   webhookSecret?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  feePercent?: number;
+
+  @IsOptional()
+  @IsString()
+  payoutApiKey?: string;
+
+  @IsOptional()
+  @IsString()
+  payoutUserPrincipalId?: string;
+
+  @IsOptional()
+  @IsString()
+  payoutAccountId?: string;
 
   @IsOptional()
   @IsBoolean()

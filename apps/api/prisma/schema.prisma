@@ -52,6 +52,8 @@ model User {
   organizationMembers    OrganizationMember[]
   referredBy             Referral[]           @relation("ReferredUser")
   platformUnitRecharges  PlatformUnitRecharge[]
+  subscriptionInvoices   SubscriptionInvoice[]
+  alliedDispersals       SubscriptionInvoice[] @relation("AlliedDispersedBy")
 
   @@map("users")
 }
@@ -154,6 +156,26 @@ model Organization {
   seatPlan     String   @default("two") @map("seat_plan")
   seatLimit    Int      @default(2) @map("seat_limit")
   referralCode String?  @unique @map("referral_code")
+  /** Slug URL amigable (nombre de la empresa aliada). */
+  referralSlug String?  @unique @map("referral_slug")
+  /** Comisión % que gana la empresa aliada por referido (0–100). */
+  referralCommissionPercent Decimal? @map("referral_commission_percent") @db.Decimal(5, 2)
+  /** Banco destino para dispersión de comisiones (empresa aliada). */
+  bankName           String?  @map("bank_name")
+  /** UUID banco Wompi Pagos a Terceros (`GET /banks`). */
+  bankId             String?  @map("bank_id")
+  /** AHORROS | CORRIENTE */
+  bankAccountType    String?  @map("bank_account_type")
+  /** Número de cuenta bancaria para dispersión. */
+  bankAccountNumber  String?  @map("bank_account_number")
+  /** Titular de la cuenta de dispersión (independiente del registro app). */
+  payoutBeneficiaryName  String? @map("payout_beneficiary_name")
+  /** Email del beneficiario de dispersión (independiente del businessEmail). */
+  payoutBeneficiaryEmail String? @map("payout_beneficiary_email")
+  /** CC | NIT | CE — documento del titular de la cuenta de pago. */
+  payoutLegalIdType      String? @map("payout_legal_id_type")
+  /** Número de documento del titular de la cuenta de pago. */
+  payoutLegalId          String? @map("payout_legal_id")
   /** pending | active | suspended */
   status       String   @default("pending")
 
@@ -184,6 +206,8 @@ model Organization {
   owner   User                 @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
   members OrganizationMember[]
   referrals Referral[]
+  subscriptionInvoices SubscriptionInvoice[]
+  alliedPayoutBatches AlliedPayoutBatch[]
 
   @@index([ownerUserId])
   @@map("organizations")
@@ -430,6 +454,13 @@ model Plan {
   maxUsers           Int      @default(1) @map("max_users")
   modules            Json     @default("[]")
   roleLimits         Json     @default("{}") @map("role_limits")
+  /**
+   * Virtudes del plan para la card comercial:
+   * [{ "label": string, "included": boolean }]
+   */
+  features           Json     @default("[]")
+  /** Color del header de la card comercial (id de paleta o hex). */
+  headerColor        String?  @default("brand") @map("header_color")
   isActive           Boolean  @default(true) @map("is_active")
   description        String?  @db.Text
   createdAt          DateTime @default(now()) @map("created_at")
@@ -437,6 +468,7 @@ model Plan {
 
   provider      AnalysisProvider @relation(fields: [analysisProviderId], references: [id])
   subscriptions Subscription[]
+  invoices      SubscriptionInvoice[]
 
   @@map("plans")
 }
@@ -461,6 +493,7 @@ model Subscription {
   plan   Plan                @relation(fields: [planId], references: [id], onDelete: Cascade)
   usages SubscriptionUsage[]
   poolAllocation SubscriptionPoolAllocation?
+  invoice SubscriptionInvoice?
 
   @@index([wompiTransactionId])
   @@map("subscriptions")
@@ -517,11 +550,86 @@ model GatewayConfig {
   privateKey      String?  @map("private_key") @db.Text // cifrado en app (ver EncryptionService)
   integritySecret String?  @map("integrity_secret") @db.Text // cifrado en app
   webhookSecret   String?  @map("webhook_secret") @db.Text // cifrado en app
+  /** % de comisión de la pasarela sobre el bruto (se descuenta antes de % aliado). */
+  feePercent      Decimal  @default(2.99) @map("fee_percent") @db.Decimal(5, 2)
+  /** API Key de Pagos a Terceros (cifrada). Distinta de las llaves de checkout. */
+  payoutApiKey           String? @map("payout_api_key") @db.Text
+  /** user-principal-id del dashboard Wompi Payouts (cifrado). */
+  payoutUserPrincipalId  String? @map("payout_user_principal_id") @db.Text
+  /** accountId de la cuenta origen (`GET /accounts`). */
+  payoutAccountId        String? @map("payout_account_id")
   isActive        Boolean  @default(true) @map("is_active")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@map("gateway_configs")
+}
+
+/**
+ * Factura interna de una suscripción pagada.
+ * Separación referida vs común + comisión aliada (sobre neto tras fee pasarela).
+ */
+model SubscriptionInvoice {
+  id                       BigInt    @id @default(autoincrement())
+  subscriptionId           BigInt    @unique @map("subscription_id")
+  userId                   BigInt    @map("user_id")
+  planId                   BigInt    @map("plan_id")
+  organizationId           BigInt?   @map("organization_id")
+  grossAmount              Decimal   @map("gross_amount") @db.Decimal(12, 2)
+  gatewayFeePercent        Decimal   @map("gateway_fee_percent") @db.Decimal(5, 2)
+  gatewayFeeAmount         Decimal   @map("gateway_fee_amount") @db.Decimal(12, 2)
+  netAfterGateway          Decimal   @map("net_after_gateway") @db.Decimal(12, 2)
+  isReferredSale           Boolean   @default(false) @map("is_referred_sale")
+  alliedCommissionPercent  Decimal?  @map("allied_commission_percent") @db.Decimal(5, 2)
+  alliedCommissionAmount   Decimal   @default(0) @map("allied_commission_amount") @db.Decimal(12, 2)
+  platformNetAmount        Decimal   @map("platform_net_amount") @db.Decimal(12, 2)
+  currency                 String    @default("COP")
+  wompiTransactionId       String?   @map("wompi_transaction_id")
+  /** none | pending | processing | dispersed */
+  alliedPayoutStatus       String    @default("none") @map("allied_payout_status")
+  alliedPayoutBatchId      BigInt?   @map("allied_payout_batch_id")
+  alliedDispersedAt        DateTime? @map("allied_dispersed_at")
+  alliedDispersedByUserId  BigInt?   @map("allied_dispersed_by_user_id")
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
+
+  subscription        Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan                Plan          @relation(fields: [planId], references: [id], onDelete: Cascade)
+  organization        Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  alliedDispersedBy   User?         @relation("AlliedDispersedBy", fields: [alliedDispersedByUserId], references: [id], onDelete: SetNull)
+  alliedPayoutBatch   AlliedPayoutBatch? @relation(fields: [alliedPayoutBatchId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, alliedPayoutStatus])
+  @@index([isReferredSale])
+  @@index([planId])
+  @@index([createdAt])
+  @@index([alliedPayoutBatchId])
+  @@map("subscription_invoices")
+}
+
+/** Lote de dispersión de comisiones vía Wompi Pagos a Terceros. */
+model AlliedPayoutBatch {
+  id              BigInt    @id @default(autoincrement())
+  organizationId  BigInt    @map("organization_id")
+  reference       String    @unique
+  wompiPayoutId   String?   @map("wompi_payout_id")
+  /** submitted | processing | total_payment | partial_payment | failed | rejected */
+  status          String    @default("submitted")
+  totalAmount     Decimal   @map("total_amount") @db.Decimal(12, 2)
+  /** manual | cron */
+  triggeredBy     String    @map("triggered_by")
+  adminUserId     BigInt?   @map("admin_user_id")
+  errorMessage    String?   @map("error_message") @db.Text
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoices     SubscriptionInvoice[]
+
+  @@index([organizationId, status])
+  @@index([status])
+  @@map("allied_payout_batches")
 }
 
 model PasswordResetToken {

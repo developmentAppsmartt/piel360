@@ -150,19 +150,19 @@ export type ProviderPreviewItem = {
 export function selectedAnalysisProviders(
   permissions: Pick<Permission, "name" | "slug" | "isActive">[],
 ): ProviderPreviewItem[] {
-  const items: ProviderPreviewItem[] = [];
+  const bySlug = new Map<AnalysisProviderSlug, ProviderPreviewItem>();
   for (const permission of permissions) {
     if (permission.isActive === false) continue;
     const slug =
       providerSlugFromUsagePermission(permission.name) ??
       providerSlugFromUsagePermission(permission.slug);
-    if (!slug) continue;
-    items.push({
+    if (!slug || bySlug.has(slug)) continue;
+    bySlug.set(slug, {
       slug,
       label: ANALYSIS_PROVIDER_STATIC_LABELS[slug],
     });
   }
-  return items.sort((a, b) => a.label.localeCompare(b.label));
+  return [...bySlug.values()].sort((a, b) => a.label.localeCompare(b.label));
 }
 
 export function roleVisibilitySummary(

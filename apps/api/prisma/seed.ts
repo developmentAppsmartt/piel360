@@ -116,57 +116,47 @@ async function main() {
   );
 
   // --- Roles ---
-  const [
-    superadminRole,
-    doctorRole,
-    patientRole,
-    monitorRole,
-    empresaRole,
-  ] = await Promise.all([
-    prisma.role.upsert({
-      where: { name: 'superadmin' },
-      update: { primaryPanel: 'admin' },
-      create: { name: 'superadmin', primaryPanel: 'admin' },
-    }),
-    prisma.role.upsert({
-      where: { name: 'doctor' },
-      update: { primaryPanel: 'clinical' },
-      create: { name: 'doctor', primaryPanel: 'clinical' },
-    }),
-    prisma.role.upsert({
-      where: { name: 'patient' },
-      update: { primaryPanel: 'patient' },
-      create: { name: 'patient', primaryPanel: 'patient' },
-    }),
-    prisma.role.upsert({
-      where: { name: 'monitor' },
-      update: { primaryPanel: 'admin' },
-      create: { name: 'monitor', primaryPanel: 'admin' },
-    }),
-    prisma.role.upsert({
-      where: { name: 'empresa' },
-      update: {
-        label: 'Empresa',
-        description:
-          'Cuenta empresarial con equipo, planes business y gestión de organización.',
-        color: '#0EA5E9',
-        isActive: true,
-        primaryPanel: 'clinical',
-      },
-      create: {
-        name: 'empresa',
-        label: 'Empresa',
-        description:
-          'Cuenta empresarial con equipo, planes business y gestión de organización.',
-        color: '#0EA5E9',
-        primaryPanel: 'clinical',
-      },
-    }),
-  ]);
+  const [superadminRole, patientRole, monitorRole, empresaRole] =
+    await Promise.all([
+      prisma.role.upsert({
+        where: { name: 'superadmin' },
+        update: { primaryPanel: 'admin' },
+        create: { name: 'superadmin', primaryPanel: 'admin' },
+      }),
+      prisma.role.upsert({
+        where: { name: 'patient' },
+        update: { primaryPanel: 'patient' },
+        create: { name: 'patient', primaryPanel: 'patient' },
+      }),
+      prisma.role.upsert({
+        where: { name: 'monitor' },
+        update: { primaryPanel: 'admin' },
+        create: { name: 'monitor', primaryPanel: 'admin' },
+      }),
+      prisma.role.upsert({
+        where: { name: 'empresa' },
+        update: {
+          label: 'Empresa',
+          description:
+            'Cuenta empresarial con equipo, planes business y gestión de organización.',
+          color: '#0EA5E9',
+          isActive: true,
+          primaryPanel: 'clinical',
+        },
+        create: {
+          name: 'empresa',
+          label: 'Empresa',
+          description:
+            'Cuenta empresarial con equipo, planes business y gestión de organización.',
+          color: '#0EA5E9',
+          primaryPanel: 'clinical',
+        },
+      }),
+    ]);
 
-  // Compat: eliminar roles legacy si aún existen (no el rol `empresa` actual).
+  // Compat: eliminar roles legacy (incl. `doctor`; el panel clínico usa especialidades / empresa).
   await prisma.role.deleteMany({
-    where: { name: { in: ['empresa_aliada', 'admin'] } },
+    where: { name: { in: ['doctor', 'empresa_aliada', 'admin'] } },
   });
 
   const providerUsagePermissions = [
@@ -328,7 +318,6 @@ async function main() {
   ]);
 
   // Permisos de organization en catálogo; flags Doctor.empresa activan módulos UI.
-  void doctorRole;
   void ORG_OWNER_PERMS;
 
   // --- Roles de especialidad (registro doctor) ---
@@ -555,7 +544,7 @@ async function main() {
     `  - Providers: ${skiniver.slug}, ${youcam.slug}, ${fitzpatrick.slug}`,
   );
   console.log(
-    '  - Roles: superadmin, monitor, doctor, patient + especialidades',
+    '  - Roles: superadmin, monitor, empresa, patient + especialidades',
   );
   console.log(`  - Permisos: ${permissionNames.length}`);
   console.log(`  - Superadmin: ${adminUser.email} (password: ${adminPassword})`);

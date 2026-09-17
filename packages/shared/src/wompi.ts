@@ -23,6 +23,14 @@ export interface GatewayConfigSafe {
   hasPrivateKey: boolean;
   hasIntegritySecret: boolean;
   hasWebhookSecret: boolean;
+  /** % comisión de la pasarela sobre el bruto. */
+  feePercent?: number;
+  hasPayoutApiKey?: boolean;
+  hasPayoutUserPrincipalId?: boolean;
+  payoutAccountId?: string | null;
+  payoutsConfigured?: boolean;
+  /** false si los secretos existen pero no se pueden descifrar con ENCRYPTION_KEY. */
+  secretsReadable?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -34,6 +42,10 @@ export interface CreateGatewayConfigInput {
   privateKey?: string;
   integritySecret?: string;
   webhookSecret?: string;
+  feePercent?: number;
+  payoutApiKey?: string;
+  payoutUserPrincipalId?: string;
+  payoutAccountId?: string;
   isActive?: boolean;
 }
 
@@ -53,6 +65,12 @@ export interface PlanPoolAvailability {
 }
 
 /** `GET /plans` — catálogo de planes activos por proveedor. */
+export interface PlanFeature {
+  label: string;
+  /** true = incluido (✓), false = no incluido (✗) */
+  included: boolean;
+}
+
 export interface Plan extends PlanPoolAvailability {
   id: string;
   analysisProviderId: string;
@@ -70,6 +88,10 @@ export interface Plan extends PlanPoolAvailability {
     skiniver?: number;
     aesthetic?: number;
   };
+  /** Virtudes comerciales (✓ / ✗) para la card del catálogo. */
+  features?: PlanFeature[];
+  /** Color del header de la card (id de paleta o hex). */
+  headerColor?: string | null;
   isActive: boolean;
   description: string | null;
   provider: {

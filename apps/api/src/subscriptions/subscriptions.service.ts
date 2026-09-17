@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
 import type { AnalysisProviderSlug } from '@piel360/shared';
 import type { Prisma, Plan } from '@prisma/client';
+import { BillingService } from '../billing/billing.service';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrgContextService } from '../organizations/org-context.service';
@@ -44,6 +45,7 @@ export class SubscriptionsService {
     private readonly mail: MailService,
     private readonly orgContext: OrgContextService,
     private readonly subscriptionPool: SubscriptionPoolService,
+    private readonly billing: BillingService,
     @Inject(forwardRef(() => PlanPoolAvailabilityService))
     private readonly planPool: PlanPoolAvailabilityService,
   ) {}
@@ -534,6 +536,21 @@ export class SubscriptionsService {
         subscription.id,
         subscription.plan,
       );
+
+      try {
+        await this.billing.recordSubscriptionSale({
+          subscriptionId: subscription.id,
+          userId: subscription.userId,
+          planId: subscription.planId,
+          planPrice: subscription.plan.price,
+          wompiTransactionId,
+        });
+      } catch (err) {
+        this.logger.error(
+          `No se pudo registrar factura de suscripción ${subscription.id}`,
+          err instanceof Error ? err.stack : err,
+        );
+      }
 
       await this.mail.send({
         to: subscription.user.email,
