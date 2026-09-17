@@ -16,7 +16,7 @@ const gatewayConfigSchema = z.object({
   privateKey: z.string(),
   integritySecret: z.string(),
   webhookSecret: z.string(),
-  feePercent: z.coerce.number().min(0).max(100),
+  feePercent: z.number().min(0).max(100),
   payoutApiKey: z.string(),
   payoutUserPrincipalId: z.string(),
   payoutAccountId: z.string(),
@@ -175,7 +175,7 @@ export function GatewayConfigForm({
               step="0.01"
               min={0}
               max={100}
-              {...register("feePercent")}
+              {...register("feePercent", { valueAsNumber: true })}
             />
             <p className="mt-1 text-xs text-muted-foreground">
               Se descuenta del bruto antes del % del aliado.
