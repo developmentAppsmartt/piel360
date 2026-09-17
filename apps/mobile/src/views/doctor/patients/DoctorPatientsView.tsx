@@ -27,7 +27,6 @@ import { PaymentsView } from '../payments/PaymentsView';
 import { DoctorReportsView } from '../reports/DoctorReportsView';
 import { FitzpatrickRulesView } from '../clinical-rules/FitzpatrickRulesView';
 import { SkinAgeRulesView } from '../clinical-rules/SkinAgeRulesView';
-import { EmailTemplatesView } from '../clinical-rules/EmailTemplatesView';
 import { DiagnosisLanguageView } from '../settings/DiagnosisLanguageView';
 import type { AnalysisProviderSlug } from '../../../data/analysisProviderLabel';
 import { SupportChatView } from '../../support/SupportChatView';
@@ -117,7 +116,6 @@ export function DoctorPatientsView({
   const [showingReports, setShowingReports] = useState(false);
   const [showingFototipo, setShowingFototipo] = useState(false);
   const [showingEdadPiel, setShowingEdadPiel] = useState(false);
-  const [showingPlantillas, setShowingPlantillas] = useState(false);
   const [legalDoc, setLegalDoc] = useState<LegalDocId | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<PatientProfile | null>(
     null,
@@ -138,7 +136,6 @@ export function DoctorPatientsView({
       setShowingReports(false);
       setShowingFototipo(false);
       setShowingEdadPiel(false);
-      setShowingPlantillas(false);
       setShowingPayments(true);
     } else if (id === 'idioma') {
       setShowingPayments(false);
@@ -162,23 +159,15 @@ export function DoctorPatientsView({
     } else if (id === 'reportes') {
       setShowingFototipo(false);
       setShowingEdadPiel(false);
-      setShowingPlantillas(false);
       setShowingReports(true);
     } else if (id === 'fototipo') {
       setShowingReports(false);
       setShowingEdadPiel(false);
-      setShowingPlantillas(false);
       setShowingFototipo(true);
     } else if (id === 'edad_piel') {
       setShowingReports(false);
       setShowingFototipo(false);
-      setShowingPlantillas(false);
       setShowingEdadPiel(true);
-    } else if (id === 'plantillas') {
-      setShowingReports(false);
-      setShowingFototipo(false);
-      setShowingEdadPiel(false);
-      setShowingPlantillas(true);
     } else
       Alert.alert(
         'Próximamente',
@@ -250,15 +239,6 @@ export function DoctorPatientsView({
     return (
       <SkinAgeRulesView
         onBack={() => setShowingEdadPiel(false)}
-        onOpenMessages={onOpenMessages}
-      />
-    );
-  }
-
-  if (showingPlantillas) {
-    return (
-      <EmailTemplatesView
-        onBack={() => setShowingPlantillas(false)}
         onOpenMessages={onOpenMessages}
       />
     );

@@ -68,7 +68,7 @@ export const emailTemplatesService = {
       {
         method: 'PATCH',
         auth: true,
-        body: JSON.stringify({ isActive }),
+        body: { isActive },
       },
     );
   },

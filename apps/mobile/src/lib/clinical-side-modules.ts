@@ -21,17 +21,6 @@ export const CLINICAL_SIDE_MODULES = [
     label: 'Edad de piel',
     legacy: ['view_any_encyclopedia_entry', 'view_encyclopedia_entry'],
   },
-  {
-    id: 'plantillas' as const,
-    slug: 'clinical.email_templates',
-    label: 'Plantillas reportes',
-    legacy: [
-      'view_any_plan',
-      'view_plan',
-      'view_any_subscription',
-      'view_subscription',
-    ],
-  },
 ] as const;
 
 export type ClinicalSideModuleId = (typeof CLINICAL_SIDE_MODULES)[number]['id'];
