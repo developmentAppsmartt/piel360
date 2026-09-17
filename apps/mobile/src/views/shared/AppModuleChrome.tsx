@@ -6,7 +6,6 @@ import { PaymentsView } from '../doctor/payments/PaymentsView';
 import { DoctorReportsView } from '../doctor/reports/DoctorReportsView';
 import { FitzpatrickRulesView } from '../doctor/clinical-rules/FitzpatrickRulesView';
 import { SkinAgeRulesView } from '../doctor/clinical-rules/SkinAgeRulesView';
-import { EmailTemplatesView } from '../doctor/clinical-rules/EmailTemplatesView';
 import { SupportChatView } from '../support/SupportChatView';
 import { DiagnosisLanguageView } from '../doctor/settings/DiagnosisLanguageView';
 import { LegalDocumentModal } from '../../components/legal/LegalDocumentModal';
@@ -30,7 +29,6 @@ type AccountPanel =
   | 'reportes'
   | 'fototipo'
   | 'edad_piel'
-  | 'plantillas'
   | 'suscripcion'
   | null;
 
@@ -92,10 +90,6 @@ export function AppModuleChrome({
     }
     if (id === 'edad_piel') {
       setAccountPanel('edad_piel');
-      return;
-    }
-    if (id === 'plantillas') {
-      setAccountPanel('plantillas');
       return;
     }
     if (id === 'password') {
@@ -250,15 +244,6 @@ export function AppModuleChrome({
   if (accountPanel === 'edad_piel') {
     return (
       <SkinAgeRulesView
-        onBack={() => setAccountPanel(null)}
-        onOpenMessages={onOpenMessages}
-      />
-    );
-  }
-
-  if (accountPanel === 'plantillas') {
-    return (
-      <EmailTemplatesView
         onBack={() => setAccountPanel(null)}
         onOpenMessages={onOpenMessages}
       />

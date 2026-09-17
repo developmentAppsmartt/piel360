@@ -59,7 +59,7 @@ export const fitzpatrickRulesService = {
     return apiRequest<FitzpatrickRecommended>('/fitzpatrick-rules/simulate', {
       method: 'POST',
       auth: true,
-      body: JSON.stringify({ fitzpatrickScale }),
+      body: { fitzpatrickScale },
     });
   },
 
@@ -69,7 +69,7 @@ export const fitzpatrickRulesService = {
       {
         method: 'PATCH',
         auth: true,
-        body: JSON.stringify({ isActive }),
+        body: { isActive },
       },
     );
   },

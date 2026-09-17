@@ -39,7 +39,6 @@ const MODULE_ICONS: Record<ClinicalSideModuleId, AppIconName> = {
   reportes: Icons.chartBar,
   fototipo: Icons.fototipo,
   edad_piel: Icons.heartPulse,
-  plantillas: Icons.clipboardList,
 };
 
 const DOCTOR_MENU_BASE: MenuItem[] = [

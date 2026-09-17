@@ -100,7 +100,7 @@ export const skinAgeRulesService = {
     return apiRequest<SkinAgeRecommended>('/skin-age-rules/simulate', {
       method: 'POST',
       auth: true,
-      body: JSON.stringify(input),
+      body: input,
     });
   },
 
@@ -110,7 +110,7 @@ export const skinAgeRulesService = {
       {
         method: 'PATCH',
         auth: true,
-        body: JSON.stringify({ isActive }),
+        body: { isActive },
       },
     );
   },
