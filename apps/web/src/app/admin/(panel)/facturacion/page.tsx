@@ -1,10 +1,5 @@
-import { AdminStub } from "@/components/admin/admin-stub";
+import { BillingDashboard } from "@/components/admin/billing-dashboard";
 
 export default function Page() {
-  return (
-    <AdminStub
-      title="Facturación"
-      blurb="Emisión y seguimiento de facturas. Stub de UI del backoffice."
-    />
-  );
+  return <BillingDashboard />;
 }

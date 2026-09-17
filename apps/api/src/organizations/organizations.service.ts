@@ -5,10 +5,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as argon2 from 'argon2';
+import { randomBytes } from 'crypto';
 import {
   DEFAULT_TEAM_MEMBER_PERMISSIONS,
+  buildAlliedReferralUrl,
   parseTeamMemberPermissions,
+  slugifyAlliedOrgName,
   type Role,
   type TeamMemberPermission,
 } from '@piel360/shared';
@@ -20,6 +24,7 @@ import { isEnterpriseDoctor } from '../doctors/doctor-account.util';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
 import { StorageService } from '../storage/storage.service';
 import type { AddTeamDoctorDto } from './dto/add-team-doctor.dto';
+import type { UpdateAlliedOrganizationDto } from './dto/update-allied-organization.dto';
 import type { UpdateOrganizationProfileDto } from './dto/update-organization-profile.dto';
 import { syncOrganizationSeatLimitForUser } from './org-seat-limit.util';
 
@@ -47,6 +52,7 @@ export class OrganizationsService {
     private readonly doctors: DoctorsService,
     private readonly storage: StorageService,
     private readonly specialtyAccess: SpecialtyAccessService,
+    private readonly config: ConfigService,
   ) {}
 
   private async signDoc(key: string | null | undefined) {
@@ -153,6 +159,15 @@ export class OrganizationsService {
       seatLimit: org.seatLimit,
       seatUsed: org.members.length,
       referralCode: org.referralCode,
+      referralSlug: org.referralSlug,
+      referralCommissionPercent:
+        org.referralCommissionPercent != null
+          ? Number(org.referralCommissionPercent)
+          : null,
+      referralUrl:
+        org.referralCode && org.referralSlug
+          ? this.buildReferralUrl(org.referralSlug, org.referralCode)
+          : null,
       status: org.status,
       memberRole: membership.memberRole,
       ciiuCode: org.ciiuCode,
@@ -170,6 +185,14 @@ export class OrganizationsService {
       legalRepName: org.legalRepName,
       legalRepDocType: org.legalRepDocType,
       legalRepDocNumber: org.legalRepDocNumber,
+      bankName: org.bankName,
+      bankId: org.bankId,
+      bankAccountType: org.bankAccountType,
+      bankAccountNumber: org.bankAccountNumber,
+      payoutBeneficiaryName: org.payoutBeneficiaryName,
+      payoutBeneficiaryEmail: org.payoutBeneficiaryEmail,
+      payoutLegalIdType: org.payoutLegalIdType,
+      payoutLegalId: org.payoutLegalId,
       legalRepCedulaDocKey: org.legalRepCedulaDocKey,
       rutDocKey: org.rutDocKey,
       existenceCertDocKey: org.existenceCertDocKey,
@@ -232,6 +255,25 @@ export class OrganizationsService {
       data.legalRepDocType = dto.legalRepDocType.trim() || null;
     if (dto.legalRepDocNumber !== undefined)
       data.legalRepDocNumber = dto.legalRepDocNumber.trim() || null;
+    if (dto.bankName !== undefined)
+      data.bankName = dto.bankName.trim() || null;
+    if (dto.bankId !== undefined)
+      data.bankId = dto.bankId.trim() || null;
+    if (dto.bankAccountType !== undefined)
+      data.bankAccountType =
+        dto.bankAccountType.trim().toUpperCase() || null;
+    if (dto.bankAccountNumber !== undefined)
+      data.bankAccountNumber = dto.bankAccountNumber.trim() || null;
+    if (dto.payoutBeneficiaryName !== undefined)
+      data.payoutBeneficiaryName = dto.payoutBeneficiaryName.trim() || null;
+    if (dto.payoutBeneficiaryEmail !== undefined)
+      data.payoutBeneficiaryEmail =
+        dto.payoutBeneficiaryEmail.trim().toLowerCase() || null;
+    if (dto.payoutLegalIdType !== undefined)
+      data.payoutLegalIdType =
+        dto.payoutLegalIdType.trim().toUpperCase() || null;
+    if (dto.payoutLegalId !== undefined)
+      data.payoutLegalId = dto.payoutLegalId.trim() || null;
 
     if (dto.legalRepDocNumber !== undefined) {
       const ownerDoctor = await this.prisma.doctor.findUnique({
@@ -589,37 +631,269 @@ export class OrganizationsService {
       include: {
         owner: { select: { id: true, email: true, name: true } },
         members: true,
-        referrals: true,
+        referrals: { where: { referredUserId: { not: null } } },
       },
       orderBy: { id: 'asc' },
     });
 
-    return orgs.map((org) => ({
-      id: org.id.toString(),
-      type: org.type,
-      name: org.name,
-      seatPlan: org.seatPlan,
-      seatLimit: org.seatLimit,
-      seatUsed: org.members.length,
-      referralCode: org.referralCode,
-      status: org.status,
-      owner: {
-        id: org.owner.id.toString(),
-        email: org.owner.email,
-        name: org.owner.name,
+    return orgs.map((org) => this.serializeAdminOrg(org));
+  }
+
+  async listAlliedForAdmin() {
+    const orgs = await this.prisma.organization.findMany({
+      where: { type: 'empresa_aliada' },
+      include: {
+        owner: { select: { id: true, email: true, name: true } },
+        members: true,
+        referrals: {
+          where: { referredUserId: { not: null } },
+          include: {
+            referredUser: {
+              select: { id: true, email: true, name: true },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
       },
-      referralsCount: org.referrals.length,
-    }));
+      orderBy: { name: 'asc' },
+    });
+
+    const orgIds = orgs.map((o) => o.id);
+    const pending = orgIds.length
+      ? await this.prisma.subscriptionInvoice.groupBy({
+          by: ['organizationId'],
+          where: {
+            organizationId: { in: orgIds },
+            alliedPayoutStatus: { in: ['pending', 'processing'] },
+          },
+          _sum: { alliedCommissionAmount: true },
+          _count: { id: true },
+        })
+      : [];
+    const dispersed = orgIds.length
+      ? await this.prisma.subscriptionInvoice.groupBy({
+          by: ['organizationId'],
+          where: {
+            organizationId: { in: orgIds },
+            alliedPayoutStatus: 'dispersed',
+          },
+          _sum: { alliedCommissionAmount: true },
+        })
+      : [];
+
+    const pendingMap = new Map(
+      pending.map((p) => [
+        p.organizationId!.toString(),
+        {
+          amount: Number(p._sum.alliedCommissionAmount ?? 0),
+          count: p._count.id,
+        },
+      ]),
+    );
+    const dispersedMap = new Map(
+      dispersed.map((p) => [
+        p.organizationId!.toString(),
+        Number(p._sum.alliedCommissionAmount ?? 0),
+      ]),
+    );
+
+    return orgs.map((org) => {
+      const id = org.id.toString();
+      const pend = pendingMap.get(id) ?? { amount: 0, count: 0 };
+      const dispAmount = dispersedMap.get(id) ?? 0;
+      return {
+        ...this.serializeAdminOrg(org),
+        bankName: org.bankName,
+        bankId: org.bankId,
+        bankAccountType: org.bankAccountType,
+        bankAccountNumber: org.bankAccountNumber,
+        payoutBeneficiaryName: org.payoutBeneficiaryName,
+        payoutBeneficiaryEmail: org.payoutBeneficiaryEmail,
+        payoutLegalIdType: org.payoutLegalIdType,
+        payoutLegalId: org.payoutLegalId,
+        earnedPending: Math.round(pend.amount * 100) / 100,
+        earnedDispersed: Math.round(dispAmount * 100) / 100,
+        earnedTotal: Math.round((pend.amount + dispAmount) * 100) / 100,
+        pendingInvoiceCount: pend.count,
+        payoutReady: Boolean(
+          org.bankId?.trim() &&
+            org.bankAccountNumber?.trim() &&
+            org.bankAccountType?.trim() &&
+            org.payoutBeneficiaryName?.trim() &&
+            org.payoutBeneficiaryEmail?.trim() &&
+            org.payoutLegalId?.trim(),
+        ),
+        referrals: org.referrals.map((r) => ({
+          id: r.id.toString(),
+          code: r.code,
+          createdAt: r.createdAt.toISOString(),
+          referredUser: r.referredUser
+            ? {
+                id: r.referredUser.id.toString(),
+                email: r.referredUser.email,
+                name: r.referredUser.name,
+              }
+            : null,
+        })),
+      };
+    });
+  }
+
+  async updateAlliedConfig(id: string, dto: UpdateAlliedOrganizationDto) {
+    const org = await this.prisma.organization.findUnique({
+      where: { id: BigInt(id) },
+    });
+    if (!org) throw new NotFoundException('Organización no encontrada');
+    if (org.type !== 'empresa_aliada') {
+      throw new BadRequestException(
+        'Solo las empresas aliadas tienen configuración de referidos.',
+      );
+    }
+
+    let referralCode = org.referralCode;
+    if (dto.regenerateCode) {
+      referralCode = this.generateReferralCode();
+    } else if (dto.referralCode?.trim()) {
+      referralCode = dto.referralCode.trim().toUpperCase();
+    }
+    if (!referralCode) {
+      referralCode = this.generateReferralCode();
+    }
+
+    const referralSlug = await this.ensureUniqueReferralSlug(
+      org.name,
+      org.id,
+      org.referralSlug,
+    );
+
+    const updated = await this.prisma.organization.update({
+      where: { id: org.id },
+      data: {
+        referralCode,
+        referralSlug,
+        ...(dto.referralCommissionPercent !== undefined
+          ? {
+              referralCommissionPercent: new Prisma.Decimal(
+                dto.referralCommissionPercent,
+              ),
+            }
+          : {}),
+        ...(dto.bankName !== undefined
+          ? { bankName: dto.bankName.trim() || null }
+          : {}),
+        ...(dto.bankId !== undefined
+          ? { bankId: dto.bankId.trim() || null }
+          : {}),
+        ...(dto.bankAccountType !== undefined
+          ? {
+              bankAccountType: dto.bankAccountType.trim().toUpperCase() || null,
+            }
+          : {}),
+        ...(dto.bankAccountNumber !== undefined
+          ? { bankAccountNumber: dto.bankAccountNumber.trim() || null }
+          : {}),
+        ...(dto.payoutBeneficiaryName !== undefined
+          ? {
+              payoutBeneficiaryName:
+                dto.payoutBeneficiaryName.trim() || null,
+            }
+          : {}),
+        ...(dto.payoutBeneficiaryEmail !== undefined
+          ? {
+              payoutBeneficiaryEmail:
+                dto.payoutBeneficiaryEmail.trim().toLowerCase() || null,
+            }
+          : {}),
+        ...(dto.payoutLegalIdType !== undefined
+          ? {
+              payoutLegalIdType:
+                dto.payoutLegalIdType.trim().toUpperCase() || null,
+            }
+          : {}),
+        ...(dto.payoutLegalId !== undefined
+          ? { payoutLegalId: dto.payoutLegalId.trim() || null }
+          : {}),
+      },
+      include: {
+        owner: { select: { id: true, email: true, name: true } },
+        members: true,
+        referrals: { where: { referredUserId: { not: null } } },
+      },
+    });
+
+    return this.serializeAdminOrg(updated);
+  }
+
+  async resolveReferralCode(code: string) {
+    const normalized = code.trim().toUpperCase();
+    if (!normalized) {
+      throw new NotFoundException('Código de referido no válido');
+    }
+
+    const org = await this.prisma.organization.findFirst({
+      where: {
+        referralCode: { equals: normalized, mode: 'insensitive' },
+        type: 'empresa_aliada',
+      },
+      select: {
+        id: true,
+        name: true,
+        referralCode: true,
+        referralSlug: true,
+        status: true,
+      },
+    });
+
+    if (!org || !org.referralCode) {
+      throw new NotFoundException('Código de referido no encontrado');
+    }
+
+    const slug =
+      org.referralSlug ??
+      (await this.ensureUniqueReferralSlug(org.name, org.id, null));
+
+    if (!org.referralSlug) {
+      await this.prisma.organization.update({
+        where: { id: org.id },
+        data: { referralSlug: slug },
+      });
+    }
+
+    return {
+      code: org.referralCode,
+      organizationName: org.name,
+      slug,
+      status: org.status,
+      referralUrl: this.buildReferralUrl(slug, org.referralCode),
+    };
   }
 
   async listReferralsForAdmin() {
     const rows = await this.prisma.referral.findMany({
+      where: { referredUserId: { not: null } },
       include: {
         organization: {
-          select: { id: true, name: true, type: true, referralCode: true },
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            referralCode: true,
+            referralSlug: true,
+            referralCommissionPercent: true,
+          },
         },
         referredUser: {
-          select: { id: true, email: true, name: true },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            doctor: {
+              select: {
+                specialty: true,
+                verificationStatus: true,
+              },
+            },
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -634,15 +908,100 @@ export class OrganizationsService {
         name: r.organization.name,
         type: r.organization.type,
         referralCode: r.organization.referralCode,
+        referralSlug: r.organization.referralSlug,
+        referralCommissionPercent:
+          r.organization.referralCommissionPercent != null
+            ? Number(r.organization.referralCommissionPercent)
+            : null,
       },
       referredUser: r.referredUser
         ? {
             id: r.referredUser.id.toString(),
             email: r.referredUser.email,
             name: r.referredUser.name,
+            specialty: r.referredUser.doctor?.specialty ?? null,
+            verificationStatus:
+              r.referredUser.doctor?.verificationStatus ?? null,
           }
         : null,
     }));
+  }
+
+  private serializeAdminOrg(org: {
+    id: bigint;
+    type: string;
+    name: string;
+    seatPlan: string;
+    seatLimit: number;
+    status: string;
+    referralCode: string | null;
+    referralSlug: string | null;
+    referralCommissionPercent: Prisma.Decimal | null;
+    owner: { id: bigint; email: string; name: string };
+    members: unknown[];
+    referrals: unknown[];
+  }) {
+    const slug = org.referralSlug;
+    const code = org.referralCode;
+    return {
+      id: org.id.toString(),
+      type: org.type,
+      name: org.name,
+      seatPlan: org.seatPlan,
+      seatLimit: org.seatLimit,
+      seatUsed: org.members.length,
+      referralCode: code,
+      referralSlug: slug,
+      referralCommissionPercent:
+        org.referralCommissionPercent != null
+          ? Number(org.referralCommissionPercent)
+          : null,
+      referralUrl:
+        code && slug ? this.buildReferralUrl(slug, code) : null,
+      status: org.status,
+      owner: {
+        id: org.owner.id.toString(),
+        email: org.owner.email,
+        name: org.owner.name,
+      },
+      referralsCount: org.referrals.length,
+    };
+  }
+
+  private buildReferralUrl(slug: string, code: string) {
+    const frontendUrl =
+      this.config.get<string>('FRONTEND_URL')?.replace(/\/$/, '') ??
+      'http://localhost:3001';
+    return buildAlliedReferralUrl(frontendUrl, slug, code);
+  }
+
+  private generateReferralCode(): string {
+    return `ALI-${randomBytes(4).toString('hex').toUpperCase()}`;
+  }
+
+  async ensureUniqueReferralSlug(
+    name: string,
+    orgId: bigint,
+    currentSlug: string | null,
+  ): Promise<string> {
+    const base = slugifyAlliedOrgName(name);
+    if (currentSlug && currentSlug.startsWith(base)) {
+      return currentSlug;
+    }
+
+    let candidate = base;
+    for (let i = 0; i < 20; i++) {
+      const existing = await this.prisma.organization.findFirst({
+        where: {
+          referralSlug: candidate,
+          NOT: { id: orgId },
+        },
+        select: { id: true },
+      });
+      if (!existing) return candidate;
+      candidate = `${base}-${i + 2}`;
+    }
+    return `${base}-${orgId.toString()}`;
   }
 
   /** Marcadores de mapa scoped al doctor (equipo + pacientes propios). */

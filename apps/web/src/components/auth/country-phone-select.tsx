@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getCountries, getCountryCallingCode } from "libphonenumber-js";
 
 interface CountryOption {
@@ -9,8 +9,7 @@ interface CountryOption {
   name: string;
 }
 
-/** Nombres de país en español sin traer un paquete de datos aparte —
- * `Intl.DisplayNames` ya viene en el navegador. */
+/** Nombres de país en español — solo en cliente (Intl difiere Node vs browser). */
 let regionNames: Intl.DisplayNames | null = null;
 function countryName(iso2: string): string {
   if (typeof Intl === "undefined" || typeof Intl.DisplayNames === "undefined") {
@@ -27,8 +26,6 @@ function buildCountryOptions(): CountryOption[] {
       callingCode: getCountryCallingCode(iso2),
       name: countryName(iso2),
     }))
-    // Evita duplicados de indicativo en el <select> (ej. NANPA: US/CA/... = +1)
-    // mostrando el nombre de cada país igual — el usuario elige por nombre.
     .sort((a, b) => a.name.localeCompare(b.name, "es"));
 
   const co = options.find((o) => o.iso2 === "CO");
@@ -40,6 +37,17 @@ let cachedOptions: CountryOption[] | null = null;
 function countryOptions(): CountryOption[] {
   cachedOptions ??= buildCountryOptions();
   return cachedOptions;
+}
+
+/** Placeholder estable SSR/hidratación (mismo HTML en server y 1.er paint). */
+function stablePlaceholder(callingCode: string): {
+  iso2: string;
+  label: string;
+} {
+  if (callingCode === "57") {
+    return { iso2: "CO", label: "Colombia (+57)" };
+  }
+  return { iso2: "", label: callingCode ? `+${callingCode}` : "País" };
 }
 
 /**
@@ -62,11 +70,18 @@ export function CountryPhoneSelect({
   className?: string;
   id?: string;
 }) {
-  const options = useMemo(() => countryOptions(), []);
-  // El indicativo puede repetirse entre varios países (ej. +1) — se
-  // selecciona el primero que matchee para el value del <select>.
-  const selectedIso2 =
-    options.find((o) => o.callingCode === callingCode)?.iso2 ?? "";
+  // Lista completa solo tras mount: evita hydration mismatch por Intl.
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    setReady(true);
+  }, []);
+
+  const options = useMemo(() => (ready ? countryOptions() : []), [ready]);
+  const placeholder = stablePlaceholder(callingCode);
+
+  const selectedIso2 = ready
+    ? (options.find((o) => o.callingCode === callingCode)?.iso2 ?? "")
+    : placeholder.iso2;
 
   return (
     <select
@@ -80,14 +95,20 @@ export function CountryPhoneSelect({
         if (opt) onChange(opt.callingCode);
       }}
     >
-      {selectedIso2 === "" && callingCode ? (
-        <option value="">+{callingCode}</option>
-      ) : null}
-      {options.map((o) => (
-        <option key={o.iso2} value={o.iso2}>
-          {o.name} (+{o.callingCode})
-        </option>
-      ))}
+      {!ready ? (
+        <option value={placeholder.iso2}>{placeholder.label}</option>
+      ) : (
+        <>
+          {selectedIso2 === "" && callingCode ? (
+            <option value="">+{callingCode}</option>
+          ) : null}
+          {options.map((o) => (
+            <option key={o.iso2} value={o.iso2}>
+              {o.name} (+{o.callingCode})
+            </option>
+          ))}
+        </>
+      )}
     </select>
   );
 }

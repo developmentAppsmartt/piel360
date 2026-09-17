@@ -8,7 +8,16 @@ import {
   IsOptional,
   IsString,
   Min,
+  ValidateNested,
 } from 'class-validator';
+
+export class PlanFeatureDto {
+  @IsString()
+  label!: string;
+
+  @IsBoolean()
+  included!: boolean;
+}
 
 export class CreatePlanDto {
   @IsString()
@@ -64,6 +73,16 @@ export class CreatePlanDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PlanFeatureDto)
+  features?: PlanFeatureDto[];
+
+  @IsOptional()
+  @IsString()
+  headerColor?: string;
 
   @IsOptional()
   @IsString()

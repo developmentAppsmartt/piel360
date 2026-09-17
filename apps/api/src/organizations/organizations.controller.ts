@@ -23,20 +23,37 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { RequirePermission } from '../auth/permissions.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import type { JwtPayload } from '../auth/types';
+import { BillingService } from '../billing/billing.service';
 import { AddTeamDoctorDto } from './dto/add-team-doctor.dto';
+import { UpdateAlliedOrganizationDto } from './dto/update-allied-organization.dto';
 import { UpdateMemberPermissionsDto } from './dto/update-member-permissions.dto';
 import { UpdateOrganizationProfileDto } from './dto/update-organization-profile.dto';
 import { OrganizationsService } from './organizations.service';
 
 @Controller()
 export class OrganizationsController {
-  constructor(private readonly organizations: OrganizationsService) {}
+  constructor(
+    private readonly organizations: OrganizationsService,
+    private readonly billing: BillingService,
+  ) {}
 
   @Get('organizations/me')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ClinicalPanelOrSuperadminRoles()
   getMine(@CurrentUser() user: JwtPayload) {
     return this.organizations.getMine(user.sub);
+  }
+
+  @Get('organizations/wompi-banks')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ClinicalPanelOrSuperadminRoles()
+  listWompiBanksForOwner() {
+    return this.billing.listWompiPayoutBanksSafe();
+  }
+
+  @Get('public/wompi-banks')
+  listPublicWompiBanks() {
+    return this.billing.listWompiPayoutBanksSafe();
   }
 
   @Patch('organizations/me')
@@ -124,6 +141,40 @@ export class OrganizationsController {
   @RequirePermission('admin.companies')
   listAll() {
     return this.organizations.listAllForAdmin();
+  }
+
+  @Get('admin/organizations/allied')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('admin.settings.allied_companies')
+  listAllied() {
+    return this.organizations.listAlliedForAdmin();
+  }
+
+  @Get('admin/organizations/allied/wompi-banks')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('admin.settings.allied_companies')
+  listWompiBanks() {
+    return this.billing.listWompiPayoutBanksSafe();
+  }
+
+  @Patch('admin/organizations/:id/allied')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('admin.settings.allied_companies')
+  updateAllied(
+    @Param('id') id: string,
+    @Body() dto: UpdateAlliedOrganizationDto,
+  ) {
+    return this.organizations.updateAlliedConfig(id, dto);
+  }
+
+  @Post('admin/organizations/:id/allied/disperse')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('admin.settings.allied_companies')
+  disperseAllied(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.billing.disperseAlliedCommissions(id, user.sub, 'manual');
   }
 
   @Get('admin/empresas')

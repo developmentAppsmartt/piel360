@@ -18,6 +18,7 @@ import { SkiniverModule } from './skiniver/skiniver.module';
 import { EncyclopediaModule } from './encyclopedia/encyclopedia.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { PaymentsModule } from './payments/payments.module';
+import { BillingModule } from './billing/billing.module';
 import { PlansModule } from './plans/plans.module';
 import { StorageModule } from './storage/storage.module';
 import { AdminModule } from './admin/admin.module';
@@ -84,6 +85,7 @@ import { LaborTechnicianProfilesModule } from './labor-technician-profiles/labor
     EncyclopediaModule,
     SubscriptionsModule,
     PaymentsModule,
+    BillingModule,
     PlansModule,
     StorageModule,
     AdminModule,

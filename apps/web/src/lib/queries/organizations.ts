@@ -28,6 +28,14 @@ export type OrgCompanyProfile = {
   legalRepName: string | null;
   legalRepDocType: string | null;
   legalRepDocNumber: string | null;
+  bankName: string | null;
+  bankId: string | null;
+  bankAccountType: string | null;
+  bankAccountNumber: string | null;
+  payoutBeneficiaryName: string | null;
+  payoutBeneficiaryEmail: string | null;
+  payoutLegalIdType: string | null;
+  payoutLegalId: string | null;
   legalRepCedulaDocKey: string | null;
   rutDocKey: string | null;
   existenceCertDocKey: string | null;
@@ -53,6 +61,14 @@ export type OrgCompanyProfileInput = {
   legalRepName?: string;
   legalRepDocType?: string;
   legalRepDocNumber?: string;
+  bankName?: string;
+  bankId?: string;
+  bankAccountType?: string;
+  bankAccountNumber?: string;
+  payoutBeneficiaryName?: string;
+  payoutBeneficiaryEmail?: string;
+  payoutLegalIdType?: string;
+  payoutLegalId?: string;
 };
 
 export type OrgTeamMember = {

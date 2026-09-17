@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { RolePermissionsMatrix } from "@/components/admin/role-permissions-matrix";
 import { RoleVisibilityPreview } from "@/components/admin/role-visibility-preview";
@@ -10,6 +10,10 @@ import { TextField } from "@/components/auth/text-field";
 import { Button } from "@/components/ui/button";
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import { ApiError } from "@/lib/api-error";
+import {
+  adminComponentPermissionIds,
+  clinicalComponentPermissionIds,
+} from "@/lib/permission-catalog";
 import { useAdminLaborTechnicianProfiles } from "@/lib/queries/labor-technician-profiles";
 import { usePermissions, type Role, type RoleInput } from "@/lib/queries/roles";
 import { useAdminSpecialties } from "@/lib/queries/specialties";
@@ -135,6 +139,46 @@ export function RoleEditorForm({
     [specialties.data],
   );
 
+  const roleTechnicalName = defaultValues?.name ?? "";
+
+  useEffect(() => {
+    const catalog = permissionsQuery.data;
+    if (!catalog?.length || !roleTechnicalName) return;
+
+    const adminIds = new Set(adminComponentPermissionIds(catalog));
+    const clinicalIds = new Set(clinicalComponentPermissionIds(catalog));
+    const name = roleTechnicalName.trim().toLowerCase();
+
+    setSelectedPermissionIds((prev) => {
+      let changed = false;
+      const next = new Set(prev);
+      for (const id of prev) {
+        if (name !== "superadmin" && adminIds.has(id)) {
+          next.delete(id);
+          changed = true;
+        }
+        if (name === "patient" && clinicalIds.has(id)) {
+          next.delete(id);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [permissionsQuery.data, roleTechnicalName]);
+
+  function permissionIdsForSave(selected: Set<string>): string[] {
+    const catalog = permissionsQuery.data ?? [];
+    const adminIds = new Set(adminComponentPermissionIds(catalog));
+    const clinicalIds = new Set(clinicalComponentPermissionIds(catalog));
+    const name = roleTechnicalName.trim().toLowerCase();
+
+    return [...selected].filter((id) => {
+      if (name !== "superadmin" && adminIds.has(id)) return false;
+      if (name === "patient" && clinicalIds.has(id)) return false;
+      return true;
+    });
+  }
+
   async function handleSubmit(createAnother: boolean) {
     if (!label.trim()) {
       setError("El nombre del rol es requerido.");
@@ -155,7 +199,7 @@ export function RoleEditorForm({
         isActive,
         specialtyIds,
         laborTechnicianProfileId: laborTechnicianProfileId || null,
-        permissionIds: [...selectedPermissionIds],
+        permissionIds: permissionIdsForSave(selectedPermissionIds),
       });
 
       if (createAnother) {
@@ -194,9 +238,11 @@ export function RoleEditorForm({
           {mode === "create" ? "Crear rol y permisos" : `Editar ${defaultValues?.label ?? defaultValues?.name}`}
         </h1>
         <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-          Asigna módulos clínicos y permisos de acción a cualquier rol del sistema
-          (dermatólogo, empresa, técnico, etc.). Lo que marques aquí define el menú y las
-          acciones de los usuarios con ese rol.
+          {roleTechnicalName === "superadmin"
+            ? "Superadmin puede activar módulos del panel admin, clínicos y permisos de acción."
+            : roleTechnicalName === "patient"
+              ? "El rol paciente solo usa permisos de acción (API). No tiene menú admin ni clínico."
+              : "Asigna módulos clínicos y permisos de acción. Los módulos admin solo se editan en el rol superadmin."}
         </p>
       </div>
 
@@ -292,8 +338,11 @@ export function RoleEditorForm({
           <div>
             <ModuleCardTitle>Permisos del rol</ModuleCardTitle>
             <p className="mt-1 text-sm text-muted-foreground">
-              Marca los módulos de menú admin y/o clínico. Cada tarjeta controla una
-              entrada del sidebar. Sin restricciones por tipo de rol.
+              {roleTechnicalName === "superadmin"
+                ? "Marca módulos admin, clínicos y acciones API."
+                : roleTechnicalName === "patient"
+                  ? "Solo permisos de acción aplicables al paciente."
+                  : "Marca módulos clínicos y acciones API. El menú admin queda reservado a superadmin."}
             </p>
           </div>
         </div>
@@ -307,6 +356,7 @@ export function RoleEditorForm({
           selected={selectedPermissionIds}
           onChange={setSelectedPermissionIds}
           loading={permissionsQuery.isLoading}
+          roleName={roleTechnicalName || label.trim() || undefined}
         />
         {permissionsQuery.isError ? (
           <p className="text-sm text-destructive">

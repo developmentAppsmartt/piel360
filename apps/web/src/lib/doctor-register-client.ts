@@ -29,6 +29,8 @@ export interface DoctorRegisterPayload {
   country?: string;
   lat?: number;
   lng?: number;
+  /** Código de empresa aliada (registro vía URL/QR). */
+  referralCode?: string;
 }
 
 export interface AuthTokensResponse {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ChangeEvent } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CloudUpload } from "lucide-react";
@@ -23,6 +23,7 @@ import { CatalogCombobox } from "@/components/auth/catalog-combobox";
 import { sendPhoneOtpAction, verifyPhoneOtpAction } from "@/lib/actions/phone-otp";
 import { homeForUser } from "@/lib/auth-redirect";
 import { ApiError } from "@/lib/api-error";
+import { apiClientFetch } from "@/lib/api-client";
 import { registerDoctorWithDocuments } from "@/lib/doctor-register-client";
 import { useLaborTechnicianProfiles } from "@/lib/queries/labor-technician-profiles";
 import { useSpecialties } from "@/lib/queries/specialties";
@@ -64,7 +65,11 @@ function DocUploadCard({
   );
 }
 
-export function DoctorRegisterForm() {
+export function DoctorRegisterForm({
+  referralCode: initialReferralCode,
+}: {
+  referralCode?: string;
+} = {}) {
   const router = useRouter();
   const locationPicker = useLocationPicker();
   const specialtiesQuery = useSpecialties();
@@ -73,6 +78,53 @@ export function DoctorRegisterForm() {
   const laborProfiles = laborProfilesQuery.data?.map((item) => item.name) ?? [];
   const [state, setState] = useState<AuthActionState>({});
   const [isPending, setIsPending] = useState(false);
+  const [alliedReferral, setAlliedReferral] = useState<{
+    code: string;
+    organizationName: string;
+  } | null>(null);
+  const [referralLoading, setReferralLoading] = useState(
+    Boolean(initialReferralCode?.trim()),
+  );
+  const [referralError, setReferralError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const code = initialReferralCode?.trim();
+    if (!code) {
+      setReferralLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setReferralLoading(true);
+    setReferralError(null);
+
+    void apiClientFetch<{
+      code: string;
+      organizationName: string;
+    }>(`/auth/referral/${encodeURIComponent(code)}`)
+      .then((data) => {
+        if (cancelled) return;
+        setAlliedReferral({
+          code: data.code,
+          organizationName: data.organizationName,
+        });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setReferralError(
+          err instanceof ApiError
+            ? err.message
+            : "Código de empresa aliada no válido.",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setReferralLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialReferralCode]);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -261,6 +313,7 @@ export function DoctorRegisterForm() {
             professionalKind === "labor"
               ? technicalInstitution.trim() || undefined
               : undefined,
+          referralCode: alliedReferral?.code,
         },
         { cedula, medicalRegistryDoc, diploma },
       );
@@ -300,6 +353,35 @@ export function DoctorRegisterForm() {
           .
         </p>
       </div>
+
+      {referralLoading ? (
+        <p className="text-center text-sm text-zinc-500">
+          Validando código de empresa aliada…
+        </p>
+      ) : null}
+
+      {referralError ? (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
+          {referralError}
+        </p>
+      ) : null}
+
+      {alliedReferral ? (
+        <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-4 text-center">
+          <p className="text-xs font-medium uppercase tracking-wide text-sky-700">
+            Registro con empresa aliada
+          </p>
+          <p className="mt-1 text-sm text-sky-800">
+            {alliedReferral.organizationName}
+          </p>
+          <p className="mt-2 font-mono text-xl font-semibold tracking-wider text-sky-950">
+            {alliedReferral.code}
+          </p>
+          <p className="mt-1 text-xs text-sky-700">
+            Código de referido (no editable)
+          </p>
+        </div>
+      ) : null}
 
       <GoogleContinueButton role="doctor" label="Registrarme con Google" />
       <div className="flex items-center gap-3">
@@ -645,7 +727,12 @@ export function DoctorRegisterForm() {
 
       <button
         type="submit"
-        disabled={isPending || phoneTicket == null}
+        disabled={
+          isPending ||
+          phoneTicket == null ||
+          referralLoading ||
+          Boolean(initialReferralCode?.trim() && !alliedReferral)
+        }
         className="h-12 w-full rounded-xl bg-sky-500 text-sm font-semibold text-white hover:bg-sky-400 disabled:opacity-40 sm:w-auto sm:px-10"
       >
         {isPending ? "Creando cuenta…" : "Crear cuenta"}

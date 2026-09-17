@@ -1,10 +1,10 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import type { Plan } from '@prisma/client';
+import type { Plan, Prisma } from '@prisma/client';
 import type { JwtPayload } from '../auth/types';
 import { isEnterpriseDoctor } from '../doctors/doctor-account.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
-import type { CreatePlanDto } from './dto/create-plan.dto';
+import type { CreatePlanDto, PlanFeatureDto } from './dto/create-plan.dto';
 import type { UpdatePlanDto } from './dto/update-plan.dto';
 import {
   attachProvidersToPlan,
@@ -12,6 +12,19 @@ import {
   resolvePlanProviderIdsFromDto,
 } from './plan-providers.util';
 import { PlanPoolAvailabilityService } from './plan-pool-availability.service';
+
+function normalizePlanFeatures(
+  features: PlanFeatureDto[] | undefined,
+): Prisma.InputJsonValue | undefined {
+  if (features === undefined) return undefined;
+  return features
+    .map((f) => ({
+      label: String(f.label ?? '').trim(),
+      included: Boolean(f.included),
+    }))
+    .filter((f) => f.label.length > 0)
+    .slice(0, 20);
+}
 
 @Injectable()
 export class PlansService {
@@ -104,6 +117,8 @@ export class PlansService {
         roleLimits: isIndividual ? {} : (dto.roleLimits ?? {}),
         isActive: dto.isActive ?? true,
         description: dto.description,
+        features: normalizePlanFeatures(dto.features) ?? [],
+        headerColor: dto.headerColor?.trim() || 'brand',
       },
       include: { provider: true },
     });
@@ -144,6 +159,12 @@ export class PlansService {
         roleLimits: isIndividual ? {} : dto.roleLimits,
         isActive: dto.isActive,
         description: dto.description,
+        ...(dto.features !== undefined
+          ? { features: normalizePlanFeatures(dto.features) ?? [] }
+          : {}),
+        ...(dto.headerColor !== undefined
+          ? { headerColor: dto.headerColor.trim() || 'brand' }
+          : {}),
       },
       include: { provider: true },
     });

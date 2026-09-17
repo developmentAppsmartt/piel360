@@ -193,15 +193,24 @@ export const adminNav: NavItem[] = [
         permissionsAny: adminNavPermission("admin.settings.roles"),
       },
       {
-        label: "Equipos",
-        href: "/admin/configuracion/equipos",
-        icon: Users,
+        label: "Empresas",
+        href: "/admin/configuracion/empresas",
+        icon: Building2,
         permissionsAny: adminNavPermission("admin.settings.teams"),
+      },
+      {
+        label: "Empresa aliada",
+        href: "/admin/configuracion/empresas-aliadas",
+        icon: Gift,
+        permissionsAny: [
+          ...adminNavPermission("admin.settings.allied_companies"),
+          ...adminNavPermission("admin.settings.teams"),
+        ],
       },
       {
         label: "Referidos",
         href: "/admin/configuracion/referidos",
-        icon: Gift,
+        icon: Users,
         permissionsAny: adminNavPermission("admin.settings.referrals"),
       },
       {

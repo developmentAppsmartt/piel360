@@ -39,6 +39,8 @@ export interface PlanInput {
   roleLimits?: Record<string, number>;
   isActive?: boolean;
   description?: string;
+  features?: { label: string; included: boolean }[];
+  headerColor?: string;
 }
 
 export interface AnalysisProvider {

@@ -24,6 +24,14 @@ export interface EmpresaRegisterPayload {
   country?: string;
   lat?: number;
   lng?: number;
+  bankName?: string;
+  bankId?: string;
+  bankAccountType?: string;
+  bankAccountNumber?: string;
+  payoutBeneficiaryName?: string;
+  payoutBeneficiaryEmail?: string;
+  payoutLegalIdType?: string;
+  payoutLegalId?: string;
 }
 
 export interface AuthTokensResponse {

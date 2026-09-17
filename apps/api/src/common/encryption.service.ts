@@ -39,16 +39,27 @@ export class EncryptionService {
   }
 
   decrypt(payload: string): string {
-    const [ivHex, tagHex, dataHex] = payload.split(':');
-    const decipher = createDecipheriv(
-      ALGO,
-      this.key,
-      Buffer.from(ivHex, 'hex'),
-    );
-    decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
-    return Buffer.concat([
-      decipher.update(Buffer.from(dataHex, 'hex')),
-      decipher.final(),
-    ]).toString('utf8');
+    try {
+      const parts = payload.split(':');
+      if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) {
+        throw new Error('Formato de secreto cifrado inválido');
+      }
+      const [ivHex, tagHex, dataHex] = parts;
+      const decipher = createDecipheriv(
+        ALGO,
+        this.key,
+        Buffer.from(ivHex, 'hex'),
+      );
+      decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
+      return Buffer.concat([
+        decipher.update(Buffer.from(dataHex, 'hex')),
+        decipher.final(),
+      ]).toString('utf8');
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `No se pudo descifrar el secreto (ENCRYPTION_KEY distinta o dato corrupto). Vuelve a guardar la pasarela Wompi en admin. Detalle: ${detail}`,
+      );
+    }
   }
 }

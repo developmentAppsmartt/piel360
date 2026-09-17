@@ -29,11 +29,11 @@ export function DoctorPlansHub() {
         </Link>
       </div>
 
-      <section className="space-y-4">
-        <div>
+      <section className="space-y-5">
+        <div className="text-center sm:text-left">
           <h2 className="text-lg font-semibold text-foreground">Catálogo de planes</h2>
           <p className="text-sm text-muted-foreground">
-            Selecciona el tipo de análisis y contrata el plan que mejor se adapte a tu práctica.
+            Elige el tipo de análisis y el plan que mejor se adapte a tu práctica.
           </p>
         </div>
         <PlansBrowser

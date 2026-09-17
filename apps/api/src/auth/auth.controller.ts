@@ -4,6 +4,7 @@ import {
   Get,
   Headers,
   HttpCode,
+  Param,
   Post,
   Req,
   Res,
@@ -50,6 +51,11 @@ export class AuthController {
     @Headers('x-client') clientHeader?: string,
   ) {
     return this.authService.registerDoctor(dto, authClient(clientHeader));
+  }
+
+  @Get('referral/:code')
+  resolveReferral(@Param('code') code: string) {
+    return this.authService.resolveAlliedReferral(code);
   }
 
   @Post('register/empresa')

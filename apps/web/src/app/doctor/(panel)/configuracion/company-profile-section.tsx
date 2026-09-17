@@ -13,6 +13,7 @@ import {
   LocationPickerSection,
   useLocationPicker,
 } from "@/components/auth/location-picker-section";
+import { AlliedPayoutBankFields } from "@/components/auth/allied-payout-bank-fields";
 import { ApiError } from "@/lib/api-error";
 import {
   useMyOrganization,
@@ -151,6 +152,14 @@ function orgToForm(o: OrgCompanyProfile) {
     legalRepName: o.legalRepName ?? "",
     legalRepDocType: o.legalRepDocType ?? "CC",
     legalRepDocNumber: o.legalRepDocNumber ?? "",
+    bankName: o.bankName ?? "",
+    bankId: o.bankId ?? "",
+    bankAccountType: o.bankAccountType ?? "AHORROS",
+    bankAccountNumber: o.bankAccountNumber ?? "",
+    payoutBeneficiaryName: o.payoutBeneficiaryName ?? "",
+    payoutBeneficiaryEmail: o.payoutBeneficiaryEmail ?? "",
+    payoutLegalIdType: o.payoutLegalIdType ?? "NIT",
+    payoutLegalId: o.payoutLegalId ?? "",
   };
 }
 
@@ -220,6 +229,30 @@ export const CompanyProfileSection = forwardRef<CompanyProfileHandle>(
           throw new Error(msg);
         }
 
+        if (query.data?.type === "empresa_aliada") {
+          if (!form.payoutBeneficiaryName.trim()) {
+            const msg = "Indica el nombre del beneficiario de la cuenta de pago.";
+            setError(msg);
+            throw new Error(msg);
+          }
+          if (!form.payoutBeneficiaryEmail.trim()) {
+            const msg = "Indica el email del beneficiario de la cuenta de pago.";
+            setError(msg);
+            throw new Error(msg);
+          }
+          if (!form.payoutLegalId.trim()) {
+            const msg =
+              "Indica el documento del beneficiario (CC/NIT) para dispersión.";
+            setError(msg);
+            throw new Error(msg);
+          }
+          if (!form.bankAccountNumber.trim()) {
+            const msg = "Indica el número de cuenta para dispersión.";
+            setError(msg);
+            throw new Error(msg);
+          }
+        }
+
         const payload: OrgCompanyProfileInput = {
           name: form.name.trim(),
           ciiuCode: form.ciiuCode.trim() || undefined,
@@ -237,6 +270,20 @@ export const CompanyProfileSection = forwardRef<CompanyProfileHandle>(
           legalRepName: form.legalRepName.trim() || undefined,
           legalRepDocType: form.legalRepDocType || undefined,
           legalRepDocNumber: form.legalRepDocNumber.trim() || undefined,
+          ...(query.data?.type === "empresa_aliada"
+            ? {
+                bankName: form.bankName.trim() || undefined,
+                bankId: form.bankId.trim() || undefined,
+                bankAccountType: form.bankAccountType || undefined,
+                bankAccountNumber: form.bankAccountNumber.trim() || undefined,
+                payoutBeneficiaryName:
+                  form.payoutBeneficiaryName.trim() || undefined,
+                payoutBeneficiaryEmail:
+                  form.payoutBeneficiaryEmail.trim() || undefined,
+                payoutLegalIdType: form.payoutLegalIdType || undefined,
+                payoutLegalId: form.payoutLegalId.trim() || undefined,
+              }
+            : {}),
         };
 
         try {
@@ -368,6 +415,26 @@ export const CompanyProfileSection = forwardRef<CompanyProfileHandle>(
             </select>
           </Field>
         </div>
+
+        {org.type === "empresa_aliada" ? (
+          <AlliedPayoutBankFields
+            banksSource="me"
+            inputClassName={inputClass}
+            value={{
+              bankId: form.bankId,
+              bankName: form.bankName,
+              bankAccountType: form.bankAccountType,
+              bankAccountNumber: form.bankAccountNumber,
+              payoutBeneficiaryName: form.payoutBeneficiaryName,
+              payoutBeneficiaryEmail: form.payoutBeneficiaryEmail,
+              payoutLegalIdType: form.payoutLegalIdType,
+              payoutLegalId: form.payoutLegalId,
+            }}
+            onChange={(patch) => {
+              setForm((prev) => (prev ? { ...prev, ...patch } : prev));
+            }}
+          />
+        ) : null}
 
         <LocationPickerSection
           picker={locationPicker}

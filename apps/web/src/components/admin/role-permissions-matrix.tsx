@@ -6,6 +6,7 @@ import type { Permission } from "@/lib/queries/roles";
 import {
   allPermissionIds,
   assignablePermissions,
+  adminComponentPermissionIds,
   clinicalComponentPermissionIds,
   groupPermissionsBySection,
 } from "@/lib/permission-catalog";
@@ -25,6 +26,20 @@ const SCOPE_STYLES: Record<PermissionScope, string> = {
 };
 
 type SelectionMode = "id" | "name";
+
+function matrixScopeForRole(roleName: string | undefined): {
+  showAdminModules: boolean;
+  showClinicalModules: boolean;
+} {
+  const name = roleName?.trim().toLowerCase() ?? "";
+  if (name === "superadmin") {
+    return { showAdminModules: true, showClinicalModules: true };
+  }
+  if (name === "patient") {
+    return { showAdminModules: false, showClinicalModules: false };
+  }
+  return { showAdminModules: false, showClinicalModules: true };
+}
 
 type PermissionGroup = ReturnType<typeof groupPermissionsBySection>[number]["groups"][number];
 
@@ -227,25 +242,37 @@ export function RolePermissionsMatrix({
   onChange,
   selectionMode = "id",
   loading = false,
+  roleName,
 }: {
   permissions: Permission[];
   selected: Set<string>;
   onChange: (next: Set<string>) => void;
   selectionMode?: SelectionMode;
   loading?: boolean;
+  /** Nombre técnico del rol (`superadmin`, `patient`, …). */
+  roleName?: string;
 }) {
-  const assignable = useMemo(
-    () =>
-      assignablePermissions(permissions).filter(
-        (permission) =>
-          !(permission.kind === "component" && permission.panel === "admin"),
-      ),
-    [permissions],
-  );
-  const sections = useMemo(
-    () => groupPermissionsBySection(assignable),
-    [assignable],
-  );
+  const scope = useMemo(() => matrixScopeForRole(roleName), [roleName]);
+
+  const assignable = useMemo(() => {
+    const base = assignablePermissions(permissions);
+    return base.filter((permission) => {
+      if (permission.kind !== "component") return true;
+      if (permission.panel === "admin") return scope.showAdminModules;
+      if (permission.panel === "clinical" || permission.panel === "doctor") {
+        return scope.showClinicalModules;
+      }
+      return true;
+    });
+  }, [permissions, scope.showAdminModules, scope.showClinicalModules]);
+  const sections = useMemo(() => {
+    const all = groupPermissionsBySection(assignable);
+    return all.filter((section) => {
+      if (section.title.includes("panel admin")) return scope.showAdminModules;
+      if (section.title.includes("panel clínico")) return scope.showClinicalModules;
+      return true;
+    });
+  }, [assignable, scope.showAdminModules, scope.showClinicalModules]);
 
   const allKeys = useMemo(() => {
     if (selectionMode === "name") {
@@ -259,9 +286,18 @@ export function RolePermissionsMatrix({
     [assignable],
   );
 
+  const adminModuleIds = useMemo(
+    () => adminComponentPermissionIds(assignable),
+    [assignable],
+  );
+
   const allClinicalModulesSelected =
     clinicalModuleIds.length > 0 &&
     clinicalModuleIds.every((id) => selected.has(id));
+
+  const allAdminModulesSelected =
+    adminModuleIds.length > 0 &&
+    adminModuleIds.every((id) => selected.has(id));
 
   function keyFor(permission: { id: string; name: string }) {
     return selectionMode === "name" ? permission.name : permission.id;
@@ -301,6 +337,22 @@ export function RolePermissionsMatrix({
     onChange(next);
   }
 
+  function selectAdminModules() {
+    const next = new Set(selected);
+    for (const id of adminModuleIds) {
+      next.add(id);
+    }
+    onChange(next);
+  }
+
+  function clearAdminModules() {
+    const next = new Set(selected);
+    for (const id of adminModuleIds) {
+      next.delete(id);
+    }
+    onChange(next);
+  }
+
   const allSelected = allKeys.length > 0 && allKeys.every((key) => selected.has(key));
 
   if (loading) {
@@ -334,19 +386,36 @@ export function RolePermissionsMatrix({
           >
             Seleccionar todos
           </button>
-          <button
-            type="button"
-            className="font-medium text-primary hover:underline"
-            onClick={() =>
-              allClinicalModulesSelected
-                ? clearClinicalModules()
-                : selectClinicalModules()
-            }
-          >
-            {allClinicalModulesSelected
-              ? "Quitar módulos clínicos"
-              : "Módulos clínicos (completo)"}
-          </button>
+          {scope.showAdminModules ? (
+            <button
+              type="button"
+              className="font-medium text-primary hover:underline"
+              onClick={() =>
+                allAdminModulesSelected
+                  ? clearAdminModules()
+                  : selectAdminModules()
+              }
+            >
+              {allAdminModulesSelected
+                ? "Quitar módulos admin"
+                : "Módulos admin (completo)"}
+            </button>
+          ) : null}
+          {scope.showClinicalModules ? (
+            <button
+              type="button"
+              className="font-medium text-primary hover:underline"
+              onClick={() => {
+                allClinicalModulesSelected
+                  ? clearClinicalModules()
+                  : selectClinicalModules();
+              }}
+            >
+              {allClinicalModulesSelected
+                ? "Quitar módulos clínicos"
+                : "Módulos clínicos (completo)"}
+            </button>
+          ) : null}
           <button
             type="button"
             className="font-medium text-muted-foreground hover:text-foreground"
@@ -363,7 +432,9 @@ export function RolePermissionsMatrix({
 
       <div className="space-y-3">
         {sections.map((section, index) => {
-          const isMenuSection = section.title.includes("panel clínico");
+          const isMenuSection =
+            section.title.includes("panel clínico") ||
+            section.title.includes("panel admin");
           const selectedCount = countSelectedInGroups(
             section.groups,
             selected,
@@ -377,7 +448,11 @@ export function RolePermissionsMatrix({
               title={section.title}
               selectedCount={selectedCount}
               totalCount={totalCount}
-              defaultOpen={index === 0 || section.title.includes("acción (API)")}
+              defaultOpen={
+                index === 0 ||
+                section.title.includes("panel admin") ||
+                section.title.includes("acción (API)")
+              }
             >
               {isMenuSection ? (
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">

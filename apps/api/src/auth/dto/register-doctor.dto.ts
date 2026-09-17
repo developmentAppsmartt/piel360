@@ -126,4 +126,9 @@ export class RegisterDoctorDto {
   @IsOptional()
   @IsIn([...LOCATION_TYPES])
   locationType?: LocationType;
+
+  /** Código de empresa aliada (registro vía URL/QR de referidos). */
+  @IsOptional()
+  @IsString()
+  referralCode?: string;
 }

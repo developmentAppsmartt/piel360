@@ -155,16 +155,17 @@ export function SubscriptionsManager() {
   const [pageSize, setPageSize] = useState<(typeof ADMIN_PAGE_SIZES)[number]>(10);
 
   const stats = useMemo(() => {
-    const rows = (subscriptions.data ?? []).filter((s) => s.status !== "pending");
+    const rows = subscriptions.data ?? [];
     return {
       total: rows.length,
       active: rows.filter((s) => s.status === "active").length,
+      pending: rows.filter((s) => s.status === "pending").length,
       cancelled: rows.filter((s) => s.status === "cancelled").length,
     };
   }, [subscriptions.data]);
 
   const filtered = useMemo(() => {
-    const rows = (subscriptions.data ?? []).filter((s) => s.status !== "pending");
+    const rows = subscriptions.data ?? [];
     const q = search.trim().toLowerCase();
     return rows.filter((row) => {
       if (statusFilter !== "all" && row.status !== statusFilter) return false;
@@ -211,7 +212,7 @@ export function SubscriptionsManager() {
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <ModuleCard className="p-4">
           <p className="text-xs font-medium text-muted-foreground">Total</p>
           <p className="mt-1 text-2xl font-bold tabular-nums">{stats.total}</p>
@@ -219,6 +220,19 @@ export function SubscriptionsManager() {
         <ModuleCard className="p-4">
           <p className="text-xs font-medium text-muted-foreground">Activas</p>
           <p className="mt-1 text-2xl font-bold tabular-nums text-emerald-600">{stats.active}</p>
+        </ModuleCard>
+        <ModuleCard
+          className={cn(
+            "cursor-pointer p-4 transition-colors",
+            statusFilter === "pending" && "ring-2 ring-amber-400",
+          )}
+          onClick={() => {
+            setStatusFilter("pending");
+            setPage(1);
+          }}
+        >
+          <p className="text-xs font-medium text-muted-foreground">Pendientes</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-amber-600">{stats.pending}</p>
         </ModuleCard>
         <ModuleCard className="p-4">
           <p className="text-xs font-medium text-muted-foreground">Canceladas</p>
@@ -231,6 +245,7 @@ export function SubscriptionsManager() {
           [
             { id: "all" as const, label: "Todas" },
             { id: "active" as const, label: "Activas" },
+            { id: "pending" as const, label: "Pendientes" },
             { id: "cancelled" as const, label: "Canceladas" },
           ] as const
         ).map((item) => (

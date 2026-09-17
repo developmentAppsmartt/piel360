@@ -23,13 +23,32 @@ import {
 const WOMPI_CURRENCY = 'COP';
 
 /** Nunca se devuelven los secretos en claro por API, ni siquiera a un admin. */
-function toSafeGatewayConfig(config: GatewayConfig) {
-  const { privateKey, integritySecret, webhookSecret, ...rest } = config;
+function toSafeGatewayConfig(
+  config: GatewayConfig,
+  options?: { secretsReadable?: boolean },
+) {
+  const {
+    privateKey,
+    integritySecret,
+    webhookSecret,
+    payoutApiKey,
+    payoutUserPrincipalId,
+    ...rest
+  } = config;
   return {
     ...rest,
     hasPrivateKey: Boolean(privateKey),
     hasIntegritySecret: Boolean(integritySecret),
     hasWebhookSecret: Boolean(webhookSecret),
+    feePercent: config.feePercent != null ? Number(config.feePercent) : 2.99,
+    hasPayoutApiKey: Boolean(payoutApiKey),
+    hasPayoutUserPrincipalId: Boolean(payoutUserPrincipalId),
+    payoutAccountId: config.payoutAccountId ?? null,
+    payoutsConfigured: Boolean(
+      payoutApiKey && payoutUserPrincipalId && config.payoutAccountId,
+    ),
+    /** false = hay secretos pero ENCRYPTION_KEY no los puede leer. */
+    secretsReadable: options?.secretsReadable ?? true,
   };
 }
 
@@ -57,17 +76,29 @@ export class PaymentsService {
         webhookSecret: dto.webhookSecret
           ? this.encryption.encrypt(dto.webhookSecret)
           : undefined,
+        feePercent: dto.feePercent ?? 2.99,
+        payoutApiKey: dto.payoutApiKey
+          ? this.encryption.encrypt(dto.payoutApiKey)
+          : undefined,
+        payoutUserPrincipalId: dto.payoutUserPrincipalId
+          ? this.encryption.encrypt(dto.payoutUserPrincipalId)
+          : undefined,
+        payoutAccountId: dto.payoutAccountId?.trim() || undefined,
         isActive: dto.isActive ?? true,
       },
     });
-    return toSafeGatewayConfig(config);
+    return toSafeGatewayConfig(config, { secretsReadable: true });
   }
 
   async listGatewayConfigs() {
     const configs = await this.prisma.gatewayConfig.findMany({
       orderBy: { id: 'asc' },
     });
-    return configs.map(toSafeGatewayConfig);
+    return configs.map((config) =>
+      toSafeGatewayConfig(config, {
+        secretsReadable: this.canDecryptGatewaySecrets(config),
+      }),
+    );
   }
 
   async updateGatewayConfig(id: string, dto: UpdateGatewayConfigDto) {
@@ -87,9 +118,22 @@ export class PaymentsService {
         webhookSecret: dto.webhookSecret
           ? this.encryption.encrypt(dto.webhookSecret)
           : undefined,
+        feePercent: dto.feePercent,
+        payoutApiKey: dto.payoutApiKey
+          ? this.encryption.encrypt(dto.payoutApiKey)
+          : undefined,
+        payoutUserPrincipalId: dto.payoutUserPrincipalId
+          ? this.encryption.encrypt(dto.payoutUserPrincipalId)
+          : undefined,
+        payoutAccountId:
+          dto.payoutAccountId !== undefined
+            ? dto.payoutAccountId.trim() || null
+            : undefined,
       },
     });
-    return toSafeGatewayConfig(config);
+    return toSafeGatewayConfig(config, {
+      secretsReadable: this.canDecryptGatewaySecrets(config),
+    });
   }
 
   /** `POST /payments/wompi/checkout` — MIGRACION.md §2.4/§4 (Subscription.php). */
@@ -196,6 +240,25 @@ export class PaymentsService {
     return { received: true };
   }
 
+  private canDecryptGatewaySecrets(config: GatewayConfig): boolean {
+    const secrets = [
+      config.privateKey,
+      config.integritySecret,
+      config.webhookSecret,
+      config.payoutApiKey,
+      config.payoutUserPrincipalId,
+    ].filter((value): value is string => Boolean(value));
+    if (secrets.length === 0) return true;
+    try {
+      for (const secret of secrets) {
+        this.encryption.decrypt(secret);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   private async getActiveWompiConfig() {
     const config = await this.prisma.gatewayConfig.findFirst({
       where: { gatewayName: 'wompi', isActive: true },
@@ -205,17 +268,23 @@ export class PaymentsService {
         'No hay una pasarela Wompi activa configurada',
       );
     }
-    return {
-      ...config,
-      privateKey: config.privateKey
-        ? this.encryption.decrypt(config.privateKey)
-        : null,
-      integritySecret: config.integritySecret
-        ? this.encryption.decrypt(config.integritySecret)
-        : null,
-      webhookSecret: config.webhookSecret
-        ? this.encryption.decrypt(config.webhookSecret)
-        : null,
-    };
+    try {
+      return {
+        ...config,
+        privateKey: config.privateKey
+          ? this.encryption.decrypt(config.privateKey)
+          : null,
+        integritySecret: config.integritySecret
+          ? this.encryption.decrypt(config.integritySecret)
+          : null,
+        webhookSecret: config.webhookSecret
+          ? this.encryption.decrypt(config.webhookSecret)
+          : null,
+      };
+    } catch {
+      throw new BadRequestException(
+        'Los secretos de Wompi no se pueden leer con la ENCRYPTION_KEY actual. En Admin → Pasarelas, vuelve a pegar private key, integrity secret y webhook secret y guarda.',
+      );
+    }
   }
 }

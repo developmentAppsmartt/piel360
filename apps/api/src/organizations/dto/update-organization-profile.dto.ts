@@ -80,4 +80,43 @@ export class UpdateOrganizationProfileDto {
   @IsString()
   @MaxLength(64)
   legalRepDocNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  bankName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  bankId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(16)
+  bankAccountType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  bankAccountNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  payoutBeneficiaryName?: string;
+
+  @IsOptional()
+  @IsEmail()
+  payoutBeneficiaryEmail?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(16)
+  payoutLegalIdType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  payoutLegalId?: string;
 }

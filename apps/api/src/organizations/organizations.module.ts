@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BillingModule } from '../billing/billing.module';
 import { DoctorsModule } from '../doctors/doctors.module';
 import { SpecialtyAccessModule } from '../specialty-access/specialty-access.module';
 import { StorageModule } from '../storage/storage.module';
@@ -7,7 +8,7 @@ import { OrganizationsService } from './organizations.service';
 import { OrgContextService } from './org-context.service';
 
 @Module({
-  imports: [DoctorsModule, StorageModule, SpecialtyAccessModule],
+  imports: [DoctorsModule, StorageModule, SpecialtyAccessModule, BillingModule],
   controllers: [OrganizationsController],
   providers: [OrganizationsService, OrgContextService],
   exports: [OrganizationsService, OrgContextService],

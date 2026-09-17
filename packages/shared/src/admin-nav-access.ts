@@ -56,6 +56,11 @@ export const ADMIN_MODULE_LEGACY_ACTIONS: Record<string, readonly string[]> = {
     "create_organization",
     "update_organization",
   ],
+  "admin.settings.allied_companies": [
+    "view_organization",
+    "create_organization",
+    "update_organization",
+  ],
   "admin.settings.global": ["manage_app_config"],
   "admin.moderators": ["view_any_user"],
   "admin.maps": ["view_any_doctor", "view_any_patient"],

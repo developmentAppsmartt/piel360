@@ -112,4 +112,41 @@ export class RegisterEmpresaDto {
   @Min(-180)
   @Max(180)
   lng?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  bankName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  bankId?: string;
+
+  @IsOptional()
+  @IsIn(['AHORROS', 'CORRIENTE'])
+  bankAccountType?: 'AHORROS' | 'CORRIENTE';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  bankAccountNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  payoutBeneficiaryName?: string;
+
+  @IsOptional()
+  @IsEmail()
+  payoutBeneficiaryEmail?: string;
+
+  @IsOptional()
+  @IsIn(['CC', 'NIT', 'CE'])
+  payoutLegalIdType?: 'CC' | 'NIT' | 'CE';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  payoutLegalId?: string;
 }

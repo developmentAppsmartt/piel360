@@ -229,20 +229,26 @@ export function groupPermissions(permissions: Permission[]): PermissionGroup[] {
   return groupPermissionsBySection(permissions).flatMap((section) => section.groups);
 }
 
-/** Agrupa permisos en secciones: módulos clínicos + acciones API.
- * Los módulos del panel admin no se exponen aquí: no se asignan a roles
- * desde esta UI (quedan solo en superadmin vía seed). */
+/** Agrupa permisos en secciones: módulos admin + clínicos + acciones API. */
 export function groupPermissionsBySection(
   permissions: Permission[],
 ): PermissionGroupSection[] {
-  const active = assignablePermissions(permissions).filter(
-    (permission) =>
-      !(permission.kind === "component" && permission.panel === "admin"),
-  );
+  const active = assignablePermissions(permissions);
   const components = active.filter((permission) => permission.kind === "component");
   const actions = active.filter((permission) => permission.kind !== "component");
 
   const sections: PermissionGroupSection[] = [];
+
+  const adminComponents = components.filter(
+    (permission) => permission.panel === "admin",
+  );
+  const adminGroups = groupComponentPermissions(adminComponents);
+  if (adminGroups.length > 0) {
+    sections.push({
+      title: "Módulos del panel admin",
+      groups: adminGroups,
+    });
+  }
 
   const clinicalComponents = components.filter(
     (permission) => permission.panel === "clinical" || permission.panel === "doctor",

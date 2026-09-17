@@ -25,6 +25,7 @@ import { sendPhoneOtpAction, verifyPhoneOtpAction } from "@/lib/actions/phone-ot
 import { CatalogCombobox } from "@/components/auth/catalog-combobox";
 import { homeForUser } from "@/lib/auth-redirect";
 import { ApiError } from "@/lib/api-error";
+import { AlliedPayoutBankFields } from "@/components/auth/allied-payout-bank-fields";
 import { registerEmpresaWithDocuments } from "@/lib/empresa-register-client";
 
 const EMPLOYEE_RANGES = ["1-10", "11-50", "51-200", "201-500", "501+"] as const;
@@ -98,6 +99,14 @@ export function EmpresaRegisterForm() {
   const [legalRepName, setLegalRepName] = useState("");
   const [legalRepDocType, setLegalRepDocType] = useState<string>(DOC_TYPES[0]);
   const [legalRepDocNumber, setLegalRepDocNumber] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [bankId, setBankId] = useState("");
+  const [bankAccountType, setBankAccountType] = useState("AHORROS");
+  const [bankAccountNumber, setBankAccountNumber] = useState("");
+  const [payoutBeneficiaryName, setPayoutBeneficiaryName] = useState("");
+  const [payoutBeneficiaryEmail, setPayoutBeneficiaryEmail] = useState("");
+  const [payoutLegalIdType, setPayoutLegalIdType] = useState("NIT");
+  const [payoutLegalId, setPayoutLegalId] = useState("");
 
   const [legalRepCedula, setLegalRepCedula] = useState<File | null>(null);
   const [rut, setRut] = useState<File | null>(null);
@@ -182,6 +191,35 @@ export function EmpresaRegisterForm() {
       return;
     }
 
+    if (membershipType === "empresa_aliada") {
+      if (!payoutBeneficiaryName.trim()) {
+        setState({
+          error: "Indica el nombre del beneficiario de la cuenta de pago.",
+        });
+        return;
+      }
+      if (!payoutBeneficiaryEmail.trim()) {
+        setState({
+          error: "Indica el email del beneficiario de la cuenta de pago.",
+        });
+        return;
+      }
+      if (!payoutLegalId.trim()) {
+        setState({
+          error: "Indica el documento del beneficiario (CC/NIT) para dispersión.",
+        });
+        return;
+      }
+      if (!bankAccountNumber.trim()) {
+        setState({ error: "Indica el número de cuenta para dispersión." });
+        return;
+      }
+      if (!bankId.trim() && !bankName.trim()) {
+        setState({ error: "Indica el banco para dispersión." });
+        return;
+      }
+    }
+
     const businessPhoneDigits = digitsOnly(businessPhone);
     if (businessPhoneDigits && !/^\d{10,15}$/.test(businessPhoneDigits)) {
       setState({
@@ -215,6 +253,19 @@ export function EmpresaRegisterForm() {
           country: "CO",
           lat: locationPicker.location.lat,
           lng: locationPicker.location.lng,
+          ...(membershipType === "empresa_aliada"
+            ? {
+                bankName: bankName.trim() || undefined,
+                bankId: bankId.trim() || undefined,
+                bankAccountType: bankAccountType || undefined,
+                bankAccountNumber: bankAccountNumber.trim() || undefined,
+                payoutBeneficiaryName: payoutBeneficiaryName.trim() || undefined,
+                payoutBeneficiaryEmail:
+                  payoutBeneficiaryEmail.trim() || undefined,
+                payoutLegalIdType: payoutLegalIdType || undefined,
+                payoutLegalId: payoutLegalId.trim() || undefined,
+              }
+            : {}),
         },
         { legalRepCedula, rut, existenceCert },
       );
@@ -461,6 +512,39 @@ export function EmpresaRegisterForm() {
             </Field>
           </div>
         </div>
+
+        {membershipType === "empresa_aliada" ? (
+          <AlliedPayoutBankFields
+            banksSource="public"
+            inputClassName={inputClass}
+            value={{
+              bankId,
+              bankName,
+              bankAccountType,
+              bankAccountNumber,
+              payoutBeneficiaryName,
+              payoutBeneficiaryEmail,
+              payoutLegalIdType,
+              payoutLegalId,
+            }}
+            onChange={(patch) => {
+              if (patch.bankId !== undefined) setBankId(patch.bankId);
+              if (patch.bankName !== undefined) setBankName(patch.bankName);
+              if (patch.bankAccountType !== undefined)
+                setBankAccountType(patch.bankAccountType);
+              if (patch.bankAccountNumber !== undefined)
+                setBankAccountNumber(patch.bankAccountNumber);
+              if (patch.payoutBeneficiaryName !== undefined)
+                setPayoutBeneficiaryName(patch.payoutBeneficiaryName);
+              if (patch.payoutBeneficiaryEmail !== undefined)
+                setPayoutBeneficiaryEmail(patch.payoutBeneficiaryEmail);
+              if (patch.payoutLegalIdType !== undefined)
+                setPayoutLegalIdType(patch.payoutLegalIdType);
+              if (patch.payoutLegalId !== undefined)
+                setPayoutLegalId(patch.payoutLegalId);
+            }}
+          />
+        ) : null}
       </section>
 
       <LocationPickerSection
