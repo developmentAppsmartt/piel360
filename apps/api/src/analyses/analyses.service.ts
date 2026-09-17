@@ -625,19 +625,22 @@ export class AnalysesService {
       updated.provider?.displayLabel?.trim() ||
       `Diagnóstico ${kind}`;
 
-    void this.notifications
-      .create({
-        userId: updated.patient.userId,
-        type: 'analysis_shared',
-        title: 'Nuevo diagnóstico compartido',
-        body: `Tu médico compartió un diagnóstico ${kind}: ${label}. Ábrelo en tu historial.`,
-        data: {
-          analysisId: updated.id.toString(),
-          patientId: updated.patientId.toString(),
-          kind,
-        },
-      })
-      .catch(() => undefined);
+    const patientUserId = updated.patient.userId;
+    if (patientUserId != null) {
+      void this.notifications
+        .create({
+          userId: patientUserId,
+          type: 'analysis_shared',
+          title: 'Nuevo diagnóstico compartido',
+          body: `Tu médico compartió un diagnóstico ${kind}: ${label}. Ábrelo en tu historial.`,
+          data: {
+            analysisId: updated.id.toString(),
+            patientId: updated.patientId.toString(),
+            kind,
+          },
+        })
+        .catch(() => undefined);
+    }
 
     return this.imageUrls.withImageUrls(updated);
   }

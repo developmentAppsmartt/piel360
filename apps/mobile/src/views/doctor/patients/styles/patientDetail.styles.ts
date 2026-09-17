@@ -99,9 +99,9 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
       fontWeight: '500',
     },
     dateSearchWrap: {
-      marginHorizontal: 16,
-      marginTop: 2,
-      marginBottom: 12,
+      marginTop: 0,
+      marginBottom: 0,
+      marginHorizontal: 0,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
@@ -117,6 +117,7 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
       fontSize: 14,
       color: colors.text,
       padding: 0,
+      fontWeight: '600',
     },
     historyFilterRow: {
       paddingHorizontal: 16,
