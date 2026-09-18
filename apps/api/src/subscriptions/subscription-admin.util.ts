@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { toPublicProviderSlug } from '@piel360/shared';
 import type { AnalysisProvider, Plan, Prisma } from '@prisma/client';
 import { isEnterpriseDoctor } from '../doctors/doctor-account.util';
 import { attachProvidersToPlan } from '../plans/plan-providers.util';
@@ -118,8 +119,11 @@ export function serializeUserSubscription(
           ? (row.plan.roleLimits as Record<string, number>)
           : {},
       provider: {
-        slug: row.plan.provider.slug,
-        name: row.plan.provider.name,
+        slug: toPublicProviderSlug(row.plan.provider.slug),
+        name:
+          /youcam|skiniver|perfect/i.test(row.plan.provider.name)
+            ? toPublicProviderSlug(row.plan.provider.slug)
+            : row.plan.provider.name,
       },
     },
   };

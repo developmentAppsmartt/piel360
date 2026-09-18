@@ -1,6 +1,7 @@
 // Chrome del panel admin. Protección de rol (equivalente a EnsurePanelRole,
 // MIGRACION.md §6) en src/proxy.ts, que intercepta /admin/(panel)/*.
 import { redirect } from "next/navigation";
+import { toPublicProviderPermissions } from "@piel360/shared";
 import { PanelShell } from "@/components/layout/panel-shell";
 import { fetchUserPermissionsFromCookies } from "@/lib/server-auth-permissions";
 import { getSession } from "@/lib/session";
@@ -16,7 +17,9 @@ export default async function AdminPanelLayout({
 
   const isMonitor = session.role === "monitor";
   const freshPermissions = await fetchUserPermissionsFromCookies();
-  const permissions = freshPermissions ?? session.permissions ?? [];
+  const permissions = toPublicProviderPermissions(
+    freshPermissions ?? session.permissions ?? [],
+  );
 
   const navFeatures = {
     email: session.email,

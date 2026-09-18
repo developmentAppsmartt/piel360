@@ -29,9 +29,12 @@ export const CLINICAL_MODULE_LEGACY_ACTIONS: Record<string, readonly string[]> =
     "view_any_analysis",
     "view_analysis",
     "create_analysis",
+    "use_provider_analisisdermapiel360",
+    "use_provider_analisispiel360",
+    "use_provider_fitzpatrick",
+    // Alias internos (JWT / BD) — hasAnyPermission acepta ambos
     "use_provider_skiniver",
     "use_provider_youcam",
-    "use_provider_fitzpatrick",
   ],
   "clinical.plans": ["view_any_plan", "view_plan", "view_any_subscription", "view_subscription"],
   "clinical.consumption": [

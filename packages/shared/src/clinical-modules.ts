@@ -46,9 +46,11 @@ export const CLINICAL_MODULES: readonly ClinicalModuleDef[] = [
       "view_any_analysis",
       "view_analysis",
       "create_analysis",
+      "use_provider_analisisdermapiel360",
+      "use_provider_analisispiel360",
+      "use_provider_fitzpatrick",
       "use_provider_skiniver",
       "use_provider_youcam",
-      "use_provider_fitzpatrick",
     ],
   },
   {

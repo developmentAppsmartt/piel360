@@ -2,7 +2,7 @@
 // La protección de rol (equivalente a EnsurePanelRole, MIGRACION.md §6) vive en
 // src/proxy.ts, que intercepta /doctor/(panel)/* antes de llegar aquí.
 import { redirect } from "next/navigation";
-import { isDoctorVerificationActive } from "@piel360/shared";
+import { isDoctorVerificationActive, toPublicProviderPermissions } from "@piel360/shared";
 import { PanelShell } from "@/components/layout/panel-shell";
 import { fetchUserPermissionsFromCookies } from "@/lib/server-auth-permissions";
 import { getSession } from "@/lib/session";
@@ -17,7 +17,9 @@ export default async function DoctorPanelLayout({
   if (!session) redirect("/doctor/login");
 
   const freshPermissions = await fetchUserPermissionsFromCookies();
-  const permissions = freshPermissions ?? session.permissions ?? [];
+  const permissions = toPublicProviderPermissions(
+    freshPermissions ?? session.permissions ?? [],
+  );
 
   const active = isDoctorVerificationActive(session.verificationStatus);
   const subtitle = !active

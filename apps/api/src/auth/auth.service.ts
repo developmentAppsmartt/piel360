@@ -17,6 +17,7 @@ import {
   TEAM_MEMBER_PERMISSIONS,
   SEAT_PLAN_LIMITS,
   slugifyAlliedOrgName,
+  toPublicProviderPermissions,
   type MembershipType,
   type PrimaryPanel,
   type Role,
@@ -1283,6 +1284,11 @@ export class AuthService implements OnModuleDestroy {
     });
     if (!user) return [];
     return this.resolvePermissions(user);
+  }
+
+  /** Permisos para UI/cliente: enmascara slugs de proveedores vendor. */
+  async getPublicPermissionsForUser(userId: string): Promise<string[]> {
+    return toPublicProviderPermissions(await this.getPermissionsForUser(userId));
   }
 
   private normalizeEmail(email: string): string {
