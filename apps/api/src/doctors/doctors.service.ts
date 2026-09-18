@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { toPublicProviderSlugs } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { MailService } from '../mail/mail.service';
@@ -437,7 +438,7 @@ export class DoctorsService {
       : await this.withDocumentUrls(doctor);
     return {
       ...base,
-      allowedProviderSlugs,
+      allowedProviderSlugs: toPublicProviderSlugs(allowedProviderSlugs),
     };
   }
 

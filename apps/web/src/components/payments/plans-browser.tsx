@@ -10,13 +10,21 @@ import {
   providerLabel,
 } from "@/components/payments/subscription-utils";
 import type { Plan, PlanFeature } from "@piel360/shared";
-import { resolvePlanHeaderColor } from "@piel360/shared";
+import {
+  PROVIDER_PUBLIC_ALIASES,
+  providerSlugMatches,
+  resolvePlanHeaderColor,
+} from "@piel360/shared";
 import { useMyDoctorProfile, isEnterpriseDoctor } from "@/lib/queries/doctors";
 import { usePlans } from "@/lib/queries/plans";
 import { useMySubscriptions } from "@/lib/queries/subscriptions";
 import { cn } from "@/lib/utils";
 
-const PROVIDER_ORDER = ["youcam", "skiniver", "fitzpatrick"] as const;
+const PROVIDER_ORDER = [
+  PROVIDER_PUBLIC_ALIASES.youcam,
+  PROVIDER_PUBLIC_ALIASES.skiniver,
+  "fitzpatrick",
+] as const;
 
 function planProviderSlugs(plan: Plan): string[] {
   if (plan.providers?.length) return plan.providers.map((p) => p.slug);
@@ -85,7 +93,7 @@ function PlanPricingCard({
         </div>
 
         <div className="w-full space-y-2 py-2">
-          <p className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+          <p className="text-4xl font-bold tracking-tight text-foreground sm:text-4xl">
             {formatCOP(plan.price)}
           </p>
           <p className="text-sm font-semibold text-foreground">
@@ -202,7 +210,9 @@ export function PlansBrowser({
     const slugs = new Set(catalog.flatMap((p) => planProviderSlugs(p)));
     let list = Array.from(slugs);
     const allowed = doctorProfile.data?.allowedProviderSlugs;
-    if (allowed) list = list.filter((slug) => allowed.includes(slug));
+    if (allowed) {
+      list = list.filter((slug) => providerSlugMatches(slug, allowed));
+    }
     return sortProviderSlugs(list);
   }, [catalog, doctorProfile.data?.allowedProviderSlugs]);
 
