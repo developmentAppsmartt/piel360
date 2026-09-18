@@ -35,6 +35,14 @@ export async function getSession(): Promise<Session | null> {
   }
 }
 
+/**
+ * Sin `Domain`, la cookie queda host-only (solo `piel360.com` exacto) y el
+ * navegador NO la manda en el fetch cross-subdominio a `api.piel360.com`
+ * (`api-client.ts`, `credentials: "include"`) aunque sea el mismo sitio.
+ * `COOKIE_DOMAIN=.piel360.com` la hace válida para todos los subdominios.
+ */
+const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || undefined;
+
 export async function setSessionCookies(
   accessToken: string,
   refreshToken: string,
@@ -47,6 +55,7 @@ export async function setSessionCookies(
     secure,
     sameSite: "lax",
     path: "/",
+    domain: COOKIE_DOMAIN,
     maxAge: 60 * 15, // 15 min — igual al exp del access token (auth.service.ts)
   });
   store.set(REFRESH_COOKIE, refreshToken, {
@@ -54,12 +63,13 @@ export async function setSessionCookies(
     secure,
     sameSite: "lax",
     path: "/",
+    domain: COOKIE_DOMAIN,
     maxAge: 60 * 60 * 24 * 7, // 7 días
   });
 }
 
 export async function clearSessionCookies() {
   const store = await cookies();
-  store.delete(ACCESS_COOKIE);
-  store.delete(REFRESH_COOKIE);
+  store.delete({ name: ACCESS_COOKIE, path: "/", domain: COOKIE_DOMAIN });
+  store.delete({ name: REFRESH_COOKIE, path: "/", domain: COOKIE_DOMAIN });
 }
