@@ -12,14 +12,21 @@ import {
   MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { LOCATION_TYPES, type LocationType } from '@piel360/shared';
+import {
+  LOCATION_TYPES,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_STRENGTH_MESSAGE,
+  PASSWORD_STRENGTH_REGEX,
+  type LocationType,
+} from '@piel360/shared';
 
 export class RegisterDoctorDto {
   @IsEmail()
   email!: string;
 
   @IsString()
-  @MinLength(8)
+  @MinLength(PASSWORD_MIN_LENGTH)
+  @Matches(PASSWORD_STRENGTH_REGEX, { message: PASSWORD_STRENGTH_MESSAGE })
   password!: string;
 
   @IsString()

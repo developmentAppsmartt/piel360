@@ -3,7 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { isStrongPassword, PASSWORD_STRENGTH_MESSAGE } from "@piel360/shared";
 import { Field, inputClass } from "@/components/auth/auth-form-primitives";
+import { PasswordRequirements } from "@/components/ui/password-requirements";
 import {
   resetPasswordAction,
   sendPasswordResetOtpAction,
@@ -60,8 +62,8 @@ export function ForgotPasswordForm() {
 
   async function handleResetPassword() {
     setError(null);
-    if (password.length < 8) {
-      setError("La contraseña debe tener al menos 8 caracteres.");
+    if (!isStrongPassword(password)) {
+      setError(PASSWORD_STRENGTH_MESSAGE);
       return;
     }
     if (password !== confirmPassword) {
@@ -103,9 +105,10 @@ export function ForgotPasswordForm() {
             onChange={(e) => setPassword(e.target.value)}
             minLength={8}
             autoComplete="new-password"
-            placeholder="Mínimo 8 caracteres"
+            placeholder="Crea una contraseña segura"
           />
         </Field>
+        {password ? <PasswordRequirements password={password} /> : null}
         <Field label="Confirmar contraseña" required>
           <input
             type="password"

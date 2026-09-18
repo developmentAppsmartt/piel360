@@ -4,6 +4,8 @@ import { useEffect, useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CloudUpload } from "lucide-react";
+import { isStrongPassword, PASSWORD_STRENGTH_MESSAGE } from "@piel360/shared";
+import { PasswordRequirements } from "@/components/ui/password-requirements";
 import { LocationPickerSection, useLocationPicker } from "@/components/auth/location-picker-section";
 import {
   combinePhoneParts,
@@ -264,6 +266,10 @@ export function DoctorRegisterForm({
     }
     if (!docNumber.trim()) {
       setState({ error: "Ingresa el número de documento." });
+      return;
+    }
+    if (!isStrongPassword(password)) {
+      setState({ error: PASSWORD_STRENGTH_MESSAGE });
       return;
     }
     if (!professionalKind) {
@@ -645,16 +651,19 @@ export function DoctorRegisterForm({
           ) : null}
         </div>
         <Field label="Contraseña" required>
-          <input
-            className={inputClass}
-            type="password"
-            minLength={8}
-            required
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Mínimo 8 caracteres"
-          />
+          <div className="space-y-2">
+            <input
+              className={inputClass}
+              type="password"
+              minLength={8}
+              required
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Crea una contraseña segura"
+            />
+            {password ? <PasswordRequirements password={password} /> : null}
+          </div>
         </Field>
         <Field label="Registro médico">
           <input

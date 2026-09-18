@@ -11,7 +11,12 @@ import {
   MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import type { MembershipType } from '@piel360/shared';
+import {
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_STRENGTH_MESSAGE,
+  PASSWORD_STRENGTH_REGEX,
+  type MembershipType,
+} from '@piel360/shared';
 
 const EMPRESA_MEMBERSHIP_TYPES = [
   'empresa',
@@ -23,7 +28,8 @@ export class RegisterEmpresaDto {
   email!: string;
 
   @IsString()
-  @MinLength(8)
+  @MinLength(PASSWORD_MIN_LENGTH)
+  @Matches(PASSWORD_STRENGTH_REGEX, { message: PASSWORD_STRENGTH_MESSAGE })
   password!: string;
 
   @Matches(/^\d{10,15}$/, {

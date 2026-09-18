@@ -5,9 +5,11 @@ import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
+import { isStrongPassword, PASSWORD_STRENGTH_MESSAGE } from "@piel360/shared";
 import { AddressLocationPicker } from "@/components/maps";
 import { Button } from "@/components/ui/button";
 import { ModuleCard, ModuleCardDescription, ModuleCardTitle } from "@/components/ui/module-card";
+import { PasswordRequirements } from "@/components/ui/password-requirements";
 import { ApiError } from "@/lib/api-error";
 import {
   PATIENT_BIRTH_TYPE_OPTIONS,
@@ -72,11 +74,11 @@ function createPatientSchema(isCreate: boolean) {
           message: "El correo es obligatorio para crear acceso",
         });
       }
-      if (password.length < 8) {
+      if (!isStrongPassword(password)) {
         ctx.addIssue({
           code: "custom",
           path: ["password"],
-          message: "Mínimo 8 caracteres",
+          message: PASSWORD_STRENGTH_MESSAGE,
         });
       }
     });
@@ -242,6 +244,7 @@ export function PatientForm({
   const addressValue = watch("address");
   const latValue = watch("lat");
   const lngValue = watch("lng");
+  const passwordValue = watch("password");
   const chronologicalAge = chronologicalAgeYears(birthDateValue || null, new Date());
   const fitzHint = PATIENT_FITZ_OPTIONS.find((f) => f.value === fitz)?.hint;
 
@@ -411,25 +414,27 @@ export function PatientForm({
               label="Contraseña"
               id="password"
               required
-              hint="Mínimo 8 caracteres."
               error={errors.password?.message}
             >
-              <div className="relative max-w-sm">
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  className={cn(inputClass, "pr-10")}
-                  {...register("password")}
-                />
-                <button
-                  type="button"
-                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                >
-                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </button>
+              <div className="max-w-sm space-y-2">
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    className={cn(inputClass, "pr-10")}
+                    {...register("password")}
+                  />
+                  <button
+                    type="button"
+                    className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  >
+                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+                {passwordValue ? <PasswordRequirements password={passwordValue} /> : null}
               </div>
             </FormField>
           ) : (
