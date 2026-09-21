@@ -5,6 +5,7 @@ import { DoctorsModule } from '../doctors/doctors.module';
 import { FitzpatrickRulesModule } from '../fitzpatrick-rules/fitzpatrick-rules.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PatientsModule } from '../patients/patients.module';
+import { ReportsModule } from '../reports/reports.module';
 import { RoutinesModule } from '../routines/routines.module';
 import { SkinAgeRulesModule } from '../skin-age-rules/skin-age-rules.module';
 import { SkiniverModule } from '../skiniver/skiniver.module';
@@ -34,6 +35,7 @@ import { ANALYSIS_IMAGES_QUEUE, ENCYCLOPEDIA_QUEUE } from './queues';
     SkiniverModule,
     SubscriptionsModule,
     StorageModule,
+    ReportsModule,
   ],
   providers: [
     AnalysesService,

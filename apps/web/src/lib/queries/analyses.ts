@@ -202,6 +202,16 @@ export function useConfirmAnalysis(id: string, patientId: string) {
   });
 }
 
+/** URL pública y permanente del PDF "Reporte Salud de la Piel" (generado por
+ * `ReportPdfService` en el backend, mismo PDF que ya se adjunta al correo de
+ * "reporte listo") — solo disponible para análisis YouCam. */
+export function useDownloadYoucamReport(id: string) {
+  return useMutation({
+    mutationFn: () =>
+      apiClientFetch<{ url: string }>(`/analyses/${id}/report-pdf`),
+  });
+}
+
 export function useEncyclopediaByUrl(url: string | undefined) {
   return useQuery({
     queryKey: ["encyclopedia", "by-url", url],

@@ -144,13 +144,11 @@ export class ReportPdfService {
     );
     const footerLogo = loadLogoDataUri(
       [
-        join(cwd, 'apps/mobile/assets/logo-piel360-brand.jpeg'),
-        join(cwd, '../mobile/assets/logo-piel360-brand.jpeg'),
-        join(cwd, '../../apps/mobile/assets/logo-piel360-brand.jpeg'),
         join(cwd, 'apps/web/public/logo-piel360.png'),
         join(cwd, '../web/public/logo-piel360.png'),
+        join(cwd, '../../apps/web/public/logo-piel360.png'),
       ],
-      'image/jpeg',
+      'image/png',
     );
 
     const rows = YOUCAM_MAIN_METRIC_TYPES.filter((type) => scores[type] != null).map((type) => {
@@ -281,7 +279,7 @@ export class ReportPdfService {
     </main>
     <footer>
       <div>
-        <div class="footer-brand">PIEL 360 — Apoyo diagnóstico dermatológico con inteligencia artificial.</div>
+        <div class="footer-brand">Reporte Salud de la Piel</div>
         <div class="disclaimer">Este reporte no sustituye una consulta médica presencial. Documento generado para el paciente ${escapeHtml(name)}.</div>
         <div class="footer-stamp">Fecha y hora de creación: ${escapeHtml(createdAt)}</div>
       </div>
