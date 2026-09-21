@@ -30,8 +30,15 @@ function Requirement({ met, title, hint }: { met: boolean; title: string; hint: 
   );
 }
 
-/** Checklist visual de requisitos de contraseña, reutilizado en todos los
- * formularios que piden crear/cambiar contraseña. */
+/**
+ * Checklist visual de requisitos de contraseña, reutilizado en todos los
+ * formularios que piden crear/cambiar contraseña.
+ *
+ * Se posiciona en `absolute` para flotar sobre el contenido en vez de
+ * empujarlo hacia abajo — el contenedor que lo envuelve debe tener
+ * `position: relative` (ver usos en doctor-register-form/patient-form/
+ * forgot-password-form).
+ */
 export function PasswordRequirements({
   password,
   footer = "Una contraseña segura protege tu información.",
@@ -46,7 +53,11 @@ export function PasswordRequirements({
   return (
     <div
       className={cn(
-        "space-y-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm",
+        // z-[1300]: por encima de cualquier otro elemento del formulario
+        // (ej. el buscador de dirección en location-picker-section.tsx usa
+        // hasta z-[1200] para su lista de sugerencias) — mientras está
+        // enfocado debe verse completo y sin que nada lo tape.
+        "absolute left-0 top-full z-1300 mt-2 w-full space-y-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-lg",
         className,
       )}
     >
