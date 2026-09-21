@@ -1,6 +1,6 @@
 "use client";
 
-import DOMPurify from "dompurify";
+import Image from "next/image";
 import type { SkiniverDiagnosisCandidate } from "@piel360/shared";
 import {
   Dialog,
@@ -29,6 +29,13 @@ export function DiagnosisDetailDialog({
         {item && (
           <>
             <DialogHeader>
+              <Image
+                src="/logo-piel360.png"
+                alt="Piel360"
+                width={575}
+                height={210}
+                className="mb-1 h-auto w-32"
+              />
               <DialogTitle>{item.class}</DialogTitle>
             </DialogHeader>
             <p className="text-sm text-muted-foreground">
@@ -44,16 +51,13 @@ export function DiagnosisDetailDialog({
             {item.atlas_page_link && entry.isLoading && (
               <p className="text-sm text-muted-foreground">Cargando artículo...</p>
             )}
-            {item.atlas_page_link && !entry.isLoading && !entry.data?.content && (
+            {item.atlas_page_link && !entry.isLoading && !entry.data?.title && (
               <p className="text-sm text-muted-foreground">
                 Artículo aún no disponible — vuelve a intentarlo en unos minutos.
               </p>
             )}
-            {entry.data?.content && (
-              <div
-                className="max-h-[70vh] overflow-y-auto text-sm [&_img]:max-w-full [&_a]:underline"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(entry.data.content) }}
-              />
+            {entry.data?.title && (
+              <p className="text-sm font-medium text-foreground">{entry.data.title}</p>
             )}
           </>
         )}
