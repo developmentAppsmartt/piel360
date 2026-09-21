@@ -4,11 +4,7 @@ import { useMemo, useState } from "react";
 import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WompiCheckoutButton } from "@/components/payments/wompi-checkout-button";
-import {
-  formatCOP,
-  maskVendorPoolMessage,
-  providerLabel,
-} from "@/components/payments/subscription-utils";
+import { formatCOP, providerLabel } from "@/components/payments/subscription-utils";
 import type { Plan, PlanFeature } from "@piel360/shared";
 import { resolvePlanHeaderColor } from "@piel360/shared";
 import { useMyDoctorProfile, isEnterpriseDoctor } from "@/lib/queries/doctors";
@@ -98,10 +94,7 @@ function PlanPricingCard({
 
         {!canPurchase ? (
           <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-            Temporalmente no disponible
-            {plan.poolUnavailableReason
-              ? ` · ${maskVendorPoolMessage(plan.poolUnavailableReason)}`
-              : ""}
+            Temporalmente no disponible. Contáctanos para más información.
           </p>
         ) : null}
 
