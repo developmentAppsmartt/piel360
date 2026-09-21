@@ -1,6 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+import {
+  ChevronDown,
+  ChevronUp,
+  ClipboardList,
+  Pill,
+  ShoppingBag,
+  Syringe,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ModuleCard } from "@/components/ui/module-card";
 import {
   useAnalysisCareRecommendations,
@@ -10,7 +26,7 @@ import { useRecommendedRoutines, type Routine } from "@/lib/queries/routines";
 import { useRecommendedTreatments, type Treatment } from "@/lib/queries/treatments";
 import { cn } from "@/lib/utils";
 
-/** Adapta el shape de RoutinesService al que ya consume `CareList`. */
+/** Adapta el shape de RoutinesService al que ya consume este panel. */
 function mapRoutineToCareItem(routine: Routine): AnalysisCareItem {
   return {
     id: routine.id,
@@ -23,21 +39,18 @@ function mapRoutineToCareItem(routine: Routine): AnalysisCareItem {
       description: s.description,
       mediaUrl: s.mediaUrl,
       mediaType: s.mediaType,
-      productId: s.productId,
-      product: s.product
-        ? {
-            id: s.product.id,
-            productName: s.product.productName,
-            productType: s.product.productType,
-            productUrl: s.product.productUrl,
-            imageUrl: s.product.imageUrl,
-          }
-        : null,
+      products: s.products.map((link) => ({
+        id: link.product.id,
+        productName: link.product.productName,
+        productType: link.product.productType,
+        productUrl: link.product.productUrl,
+        imageUrl: link.product.imageUrl,
+      })),
     })),
   };
 }
 
-/** Adapta el shape de TreatmentsService al que ya consume `CareList`. */
+/** Adapta el shape de TreatmentsService al que ya consume este panel. */
 function mapTreatmentToCareItem(treatment: Treatment): AnalysisCareItem {
   return {
     id: treatment.id,
@@ -54,15 +67,19 @@ function mapTreatmentToCareItem(treatment: Treatment): AnalysisCareItem {
   };
 }
 
-type Tab = "todas" | "rutinas" | "productos" | "suplementos" | "tratamientos";
+type CatalogKind = "routine" | "product" | "treatment" | "supplement";
+type RecoKind = "productos" | "rutinas" | "tratamientos" | "suplementos";
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: "todas", label: "Todas" },
-  { id: "productos", label: "Productos" },
-  { id: "rutinas", label: "Rutinas" },
-  { id: "suplementos", label: "Suplementos" },
-  { id: "tratamientos", label: "Tratamientos" },
-];
+type CatalogDetail = {
+  title: string;
+  subtitle?: string;
+  description?: string | null;
+  imageUrl: string | null;
+  url?: string | null;
+  kind: CatalogKind;
+  /** Líneas extra (ej. productos de un grupo/tratamiento plano). */
+  extras?: string[];
+};
 
 type MediaPreview = {
   kind: "video" | "image";
@@ -86,6 +103,76 @@ function inferMediaKind(
   if (type === "image" || type === "gif") return "image";
   if (/\.(mp4|mov|webm|m4v|mkv)(\?|#|$)/i.test(url)) return "video";
   return "image";
+}
+
+function mentions(text: string | null | undefined, words: string[]): boolean {
+  const n = (text ?? "").toLowerCase();
+  return words.some((w) => n.includes(w));
+}
+
+/** Mañana/Noche detectados por palabras clave en el nombre/pasos de la
+ * rutina — mismo criterio que la versión mobile (YoucamCatalogSection). */
+function routineHasMoment(routine: AnalysisCareItem, kind: "am" | "pm") {
+  const words =
+    kind === "am"
+      ? ["mañana", "manana", "am", "morning", "día", "dia"]
+      : ["noche", "pm", "night", "evening"];
+  if (mentions(routine.name, words) || mentions(routine.description, words)) {
+    return true;
+  }
+  return (routine.steps ?? []).some(
+    (s) => mentions(s.title, words) || mentions(s.description, words),
+  );
+}
+
+function stepMedia(step: NonNullable<AnalysisCareItem["steps"]>[number]): MediaPreview | null {
+  if (!step.mediaUrl) return null;
+  return {
+    kind: inferMediaKind(step.mediaType, step.mediaUrl),
+    url: step.mediaUrl,
+    title: step.title,
+  };
+}
+
+function routineMediaItems(routine: AnalysisCareItem): MediaPreview[] {
+  return [...(routine.steps ?? [])]
+    .sort((a, b) => a.order - b.order)
+    .map(stepMedia)
+    .filter((item): item is MediaPreview => item != null);
+}
+
+function routineImages(routine: AnalysisCareItem): string[] {
+  return routineMediaItems(routine)
+    .filter((item) => item.kind === "image")
+    .map((item) => item.url)
+    .slice(0, 3);
+}
+
+/** Productos vinculados a los pasos de una rutina, sin duplicados — cada
+ * link de paso ya trae nombre/imagen/URL del producto, no hace falta
+ * cruzarlo contra otra lista. */
+function linkedProductsForRoutine(routine: AnalysisCareItem): CatalogDetail[] {
+  const seen = new Set<string>();
+  const linked: CatalogDetail[] = [];
+  for (const step of [...(routine.steps ?? [])].sort((a, b) => a.order - b.order)) {
+    for (const product of step.products) {
+      if (seen.has(product.id)) continue;
+      seen.add(product.id);
+      linked.push({
+        title: product.productName,
+        subtitle: "Producto vinculado",
+        description: null,
+        imageUrl: product.imageUrl ?? null,
+        url: product.productUrl ?? null,
+        kind: product.productType === "supplement" ? "supplement" : "product",
+      });
+    }
+  }
+  return linked;
+}
+
+function openUrl(url?: string | null) {
+  if (url) window.open(url, "_blank", "noreferrer");
 }
 
 function MediaLightbox({
@@ -146,143 +233,404 @@ function MediaLightbox({
   );
 }
 
-function CareList({
+function RecoSection({
   title,
-  items,
-  emptyMessage,
-  onOpenMedia,
+  icon: Icon,
+  open,
+  onToggle,
+  onSeeAll,
+  children,
 }: {
   title: string;
+  icon: typeof ShoppingBag;
+  open: boolean;
+  onToggle: () => void;
+  onSeeAll: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex min-w-0 items-center gap-2 text-sm font-semibold"
+        >
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Icon className="size-4" />
+          </span>
+          <span className="truncate">{title}</span>
+          {open ? (
+            <ChevronUp className="size-4 shrink-0 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+          )}
+        </button>
+        {open ? (
+          <button
+            type="button"
+            onClick={onSeeAll}
+            className="shrink-0 text-xs font-medium text-primary hover:underline"
+          >
+            Ver todas
+          </button>
+        ) : null}
+      </div>
+      <div className="h-0.5 rounded-full bg-primary/20" />
+      {open ? children : null}
+    </div>
+  );
+}
+
+function itemToDetail(item: AnalysisCareItem, kind: CatalogKind): CatalogDetail {
+  return {
+    title: item.name,
+    subtitle: item.categoryName ?? undefined,
+    description: item.description,
+    imageUrl: item.imageUrl ?? null,
+    url: item.productUrl ?? null,
+    kind,
+    extras: item.items?.length
+      ? item.items.map((row) => `${row.productName}${row.note ? ` — ${row.note}` : ""}`)
+      : undefined,
+  };
+}
+
+function CardCarousel({
+  items,
+  kind,
+  emptyMessage,
+  onOpen,
+}: {
   items: AnalysisCareItem[];
+  kind: CatalogKind;
   emptyMessage: string;
-  onOpenMedia: (preview: MediaPreview) => void;
+  onOpen: (detail: CatalogDetail) => void;
 }) {
   if (items.length === 0) {
     return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;
   }
-
   return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-semibold">{title}</h3>
+    <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
       {items.map((item) => (
-        <ModuleCard key={item.id} className="space-y-3 p-4">
-          <div className="flex gap-3">
-            {item.imageUrl ? (
-              <button
-                type="button"
-                className="shrink-0"
-                onClick={() =>
-                  onOpenMedia({
-                    kind: "image",
-                    url: item.imageUrl!,
-                    title: item.name,
-                  })
-                }
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={item.imageUrl}
-                  alt=""
-                  className="h-16 w-16 rounded-lg border border-border object-cover"
-                />
-              </button>
-            ) : null}
-            <div className="min-w-0">
-              <p className="font-medium">{item.name}</p>
-              {(item.description || item.categoryName) && (
-                <p className="text-sm text-muted-foreground">
-                  {item.description ?? item.categoryName}
-                </p>
-              )}
-              {item.stepsCount != null && !item.steps?.length ? (
-                <p className="text-xs text-muted-foreground">
-                  {item.stepsCount} paso{item.stepsCount === 1 ? "" : "s"}
-                </p>
-              ) : null}
+        <button
+          key={item.id}
+          type="button"
+          onClick={() => onOpen(itemToDetail(item, kind))}
+          className="w-32 shrink-0 space-y-1.5 rounded-xl border border-border bg-card p-2 text-left hover:border-primary/40"
+        >
+          {item.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={item.imageUrl}
+              alt=""
+              className="h-20 w-full rounded-lg object-cover"
+            />
+          ) : (
+            <div className="flex h-20 w-full items-center justify-center rounded-lg bg-muted text-lg font-bold text-primary">
+              {item.name.slice(0, 1).toUpperCase()}
             </div>
-          </div>
-
-          {item.steps && item.steps.length > 0 ? (
-            <ol className="space-y-3">
-              {[...item.steps]
-                .sort((a, b) => a.order - b.order)
-                .map((step, index) => {
-                  const mediaUrl = step.mediaUrl;
-                  const kind = mediaUrl
-                    ? inferMediaKind(step.mediaType, mediaUrl)
-                    : null;
-                  return (
-                    <li key={step.id} className="flex gap-3">
-                      {mediaUrl && kind ? (
-                        <button
-                          type="button"
-                          className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg"
-                          onClick={() =>
-                            onOpenMedia({
-                              kind,
-                              url: mediaUrl,
-                              title: step.title,
-                            })
-                          }
-                        >
-                          {kind === "video" ? (
-                            <video
-                              src={mediaUrl}
-                              className="h-full w-full object-cover"
-                              muted
-                              playsInline
-                            />
-                          ) : (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={mediaUrl}
-                              alt=""
-                              className="h-full w-full border border-border object-cover"
-                            />
-                          )}
-                          <span className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5 text-[10px] font-semibold text-white">
-                            Ampliar
-                          </span>
-                        </button>
-                      ) : null}
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium">
-                          {index + 1}. {step.title}
-                        </p>
-                        {step.description ? (
-                          <p className="text-sm text-muted-foreground">
-                            {step.description}
-                          </p>
-                        ) : null}
-                        {step.product ? (
-                          <p className="mt-1 text-xs text-[#1E5A9E]">
-                            Producto vinculado: {step.product.productName}
-                          </p>
-                        ) : null}
-                      </div>
-                    </li>
-                  );
-                })}
-            </ol>
+          )}
+          <p className="line-clamp-2 text-xs font-medium">{item.name}</p>
+          {item.categoryName ? (
+            <p className="truncate text-[11px] text-muted-foreground">{item.categoryName}</p>
           ) : null}
-
-          {item.items && item.items.length > 0 ? (
-            <ol className="space-y-2">
-              {item.items.map((row, index) => (
-                <li key={row.id} className="text-sm">
-                  <span className="font-medium">
-                    {index + 1}. {row.productName}
-                  </span>
-                  {row.note ? (
-                    <span className="text-muted-foreground"> — {row.note}</span>
-                  ) : null}
-                </li>
-              ))}
-            </ol>
-          ) : null}
-        </ModuleCard>
+        </button>
       ))}
     </div>
+  );
+}
+
+function DetailCardCarousel({
+  cards,
+  onOpen,
+}: {
+  cards: CatalogDetail[];
+  onOpen: (detail: CatalogDetail) => void;
+}) {
+  if (cards.length === 0) return null;
+  return (
+    <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
+      {cards.map((card, index) => (
+        <button
+          key={`${card.title}-${index}`}
+          type="button"
+          onClick={() => onOpen(card)}
+          className="w-28 shrink-0 space-y-1.5 rounded-xl border border-border bg-card p-2 text-left hover:border-primary/40"
+        >
+          {card.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={card.imageUrl}
+              alt=""
+              className="h-16 w-full rounded-lg object-cover"
+            />
+          ) : (
+            <div className="flex h-16 w-full items-center justify-center rounded-lg bg-muted text-base font-bold text-primary">
+              {card.title.slice(0, 1).toUpperCase()}
+            </div>
+          )}
+          <p className="line-clamp-2 text-xs font-medium">{card.title}</p>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function RoutineCarousel({
+  routines,
+  selectedId,
+  onSelect,
+}: {
+  routines: AnalysisCareItem[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
+      {routines.map((routine, index) => {
+        const active = routine.id === selectedId;
+        const images = routineImages(routine);
+        const am = routineHasMoment(routine, "am");
+        const pm = routineHasMoment(routine, "pm");
+        return (
+          <button
+            key={routine.id}
+            type="button"
+            onClick={() => onSelect(routine.id)}
+            className={cn(
+              "w-36 shrink-0 space-y-1.5 rounded-xl border p-2 text-left",
+              active ? "border-primary bg-primary/5" : "border-border bg-card",
+            )}
+          >
+            <div className="relative flex h-20 w-full overflow-hidden rounded-lg bg-muted">
+              {index === 0 ? (
+                <span className="absolute left-1 top-1 z-10 rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-semibold text-primary-foreground">
+                  Recomendada
+                </span>
+              ) : null}
+              {images.length > 0 ? (
+                images.map((url) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={url} src={url} alt="" className="h-full flex-1 object-cover" />
+                ))
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-lg font-bold text-primary">
+                  {routine.name.slice(0, 1).toUpperCase()}
+                </div>
+              )}
+            </div>
+            <p className="line-clamp-2 text-xs font-medium">{routine.name}</p>
+            {am || pm ? (
+              <p className="truncate text-[11px] font-medium text-primary">
+                {[am ? "Mañana" : null, pm ? "Noche" : null].filter(Boolean).join(" / ")}
+              </p>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function RoutineDetail({
+  routine,
+  onOpenMedia,
+  onOpenProduct,
+}: {
+  routine: AnalysisCareItem;
+  onOpenMedia: (preview: MediaPreview) => void;
+  onOpenProduct: (detail: CatalogDetail) => void;
+}) {
+  const am = routineHasMoment(routine, "am");
+  const pm = routineHasMoment(routine, "pm");
+  const mediaItems = routineMediaItems(routine);
+  const linkedProducts = linkedProductsForRoutine(routine);
+  const steps = [...(routine.steps ?? [])].sort((a, b) => a.order - b.order);
+
+  return (
+    <ModuleCard className="space-y-4 p-4">
+      <div>
+        <p className="font-medium">{routine.name}</p>
+        {routine.description ? (
+          <p className="text-sm text-muted-foreground">{routine.description}</p>
+        ) : null}
+        {am || pm ? (
+          <p className="mt-1 text-xs font-medium text-primary">
+            {[am ? "☀ Mañana" : null, pm ? "☾ Noche" : null].filter(Boolean).join("   ·   ")}
+          </p>
+        ) : null}
+      </div>
+
+      {steps.length > 0 ? (
+        <ol className="space-y-2">
+          {steps.map((step, index) => (
+            <li key={step.id} className="text-sm">
+              <span className="font-medium">
+                {index + 1}. {step.title}
+              </span>
+              {step.description ? (
+                <span className="text-muted-foreground"> — {step.description}</span>
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      ) : null}
+
+      {mediaItems.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground">
+            ¿Cómo seguir esta rutina?
+          </p>
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1">
+            {mediaItems.map((item) => (
+              <button
+                key={`${item.kind}-${item.url}`}
+                type="button"
+                onClick={() => onOpenMedia(item)}
+                className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg"
+              >
+                {item.kind === "video" ? (
+                  <video src={item.url} className="h-full w-full object-cover" muted playsInline />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={item.url} alt="" className="h-full w-full object-cover" />
+                )}
+                <span className="absolute inset-x-0 bottom-0 bg-black/55 px-1 py-0.5 text-[9px] font-semibold text-white">
+                  {item.kind === "video" ? "Ver video" : "Ampliar"}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {linkedProducts.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground">Productos vinculados</p>
+          <DetailCardCarousel cards={linkedProducts} onOpen={onOpenProduct} />
+        </div>
+      ) : null}
+    </ModuleCard>
+  );
+}
+
+function CatalogDetailModal({
+  detail,
+  onClose,
+  onOpenMedia,
+}: {
+  detail: CatalogDetail | null;
+  onClose: () => void;
+  onOpenMedia: (preview: MediaPreview) => void;
+}) {
+  const kindLabel =
+    detail?.kind === "routine"
+      ? "Rutina"
+      : detail?.kind === "treatment"
+        ? "Tratamiento"
+        : detail?.kind === "supplement"
+          ? "Suplemento"
+          : "Producto";
+
+  return (
+    <Dialog
+      open={detail != null}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{kindLabel}</DialogTitle>
+        </DialogHeader>
+        {detail?.imageUrl ? (
+          <button
+            type="button"
+            onClick={() =>
+              onOpenMedia({ kind: "image", url: detail.imageUrl!, title: detail.title })
+            }
+            className="relative block overflow-hidden rounded-lg"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={detail.imageUrl}
+              alt=""
+              className="max-h-56 w-full bg-muted object-contain"
+            />
+            <span className="absolute bottom-2 right-2 rounded-full bg-black/70 px-2 py-1 text-[11px] font-semibold text-white">
+              Ampliar
+            </span>
+          </button>
+        ) : null}
+        <div className="space-y-1">
+          <p className="text-base font-semibold">{detail?.title}</p>
+          {detail?.subtitle ? (
+            <p className="text-sm font-medium text-primary">{detail.subtitle}</p>
+          ) : null}
+          {detail?.description ? (
+            <p className="text-sm text-muted-foreground">{detail.description}</p>
+          ) : null}
+        </div>
+        {detail?.extras?.length ? (
+          <ul className="space-y-1 text-sm">
+            {detail.extras.map((line) => (
+              <li key={line} className="text-muted-foreground">
+                {line}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {detail?.url ? (
+          <Button
+            type="button"
+            className="w-fit"
+            onClick={() => openUrl(detail.url)}
+          >
+            Ver más
+          </Button>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SeeAllDialog({
+  section,
+  onClose,
+}: {
+  section: { title: string; names: string[] } | null;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog
+      open={section != null}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{section?.title}</DialogTitle>
+        </DialogHeader>
+        {section && section.names.length > 0 ? (
+          <ul className="max-h-80 space-y-1 overflow-y-auto text-sm">
+            {section.names.map((name, index) => (
+              <li key={`${name}-${index}`}>{name}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Aún no hay ítems en esta categoría.
+          </p>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cerrar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -297,7 +645,18 @@ export function RecommendationsPanel({
    * rutinas/tratamientos) en vez de por la regla de edad de piel. */
   metricType: string | null;
 }) {
-  const [tab, setTab] = useState<Tab>("todas");
+  const [panelOpen, setPanelOpen] = useState(true);
+  const [sectionOpen, setSectionOpen] = useState<Record<RecoKind, boolean>>({
+    productos: true,
+    rutinas: true,
+    tratamientos: true,
+    suplementos: true,
+  });
+  const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(null);
+  const [seeAllSection, setSeeAllSection] = useState<{ title: string; names: string[] } | null>(
+    null,
+  );
+  const [catalogDetail, setCatalogDetail] = useState<CatalogDetail | null>(null);
   const [mediaPreview, setMediaPreview] = useState<MediaPreview | null>(null);
   const { data, isLoading: isLoadingSkinAge } = useAnalysisCareRecommendations(analysisId);
   // Cuando hay una tarjeta de métrica puntual seleccionada arriba (ej.
@@ -342,11 +701,19 @@ export function RecommendationsPanel({
 
   const filteredByMetric = useMemo(() => {
     if (!metricType) return null;
+    // Ojo: filtrar por `conditions.some(c => c.metricType === metricType)`
+    // solo mira si la rutina/tratamiento TIENE una condición de esa métrica,
+    // no si fue la que realmente matcheó (las condiciones se combinan con
+    // lógica O — pudo matchear por otra distinta). Eso hacía que, por
+    // ejemplo, una rutina para piel grasa apareciera bajo el filtro de
+    // "Tipo de piel: seca" solo por tener esa condición configurada sin
+    // haber matcheado. `matchedMetricTypes` (ver routines/treatments
+    // .service.ts#getRecommended*) trae solo las que sí matchearon.
     const matchingRoutines = (routinesQuery.data ?? []).filter((r) =>
-      r.conditions.some((c) => c.metricType === metricType),
+      r.matchedMetricTypes?.includes(metricType),
     );
     const matchingTreatments = (treatmentsQuery.data ?? []).filter((t) =>
-      t.conditions.some((c) => c.metricType === metricType),
+      t.matchedMetricTypes?.includes(metricType),
     );
     const treatments = matchingTreatments
       .filter((t) => !!t.categoryId)
@@ -379,111 +746,154 @@ export function RecommendationsPanel({
     ? routinesQuery.isLoading || treatmentsQuery.isLoading
     : isLoadingSkinAge;
 
-  return (
-    <div className="space-y-4">
-      <h3 className="text-base font-semibold">Recomendaciones</h3>
+  // Sin useEffect: si la selección actual ya no está en la lista (ej. cambió
+  // la métrica), cae a la primera rutina disponible — no hace falta
+  // sincronizar `selectedRoutineId` de vuelta, `onSelect` ya lo actualiza
+  // cuando el doctor elige una rutina distinta.
+  const selectedRoutine =
+    routines.find((r) => r.id === selectedRoutineId) ?? routines[0] ?? null;
 
-      {data?.matchedRule ? (
-        <p className="text-sm text-muted-foreground">
-          Según edad de piel: {data.matchedRule.label}
-          {data.snapshot.skinAgeDifference != null
-            ? ` (diferencia ${data.snapshot.skinAgeDifference > 0 ? "+" : ""}${data.snapshot.skinAgeDifference})`
-            : ""}
-        </p>
-      ) : data?.snapshot.message ? (
-        <p className="text-sm text-muted-foreground">{data.snapshot.message}</p>
+  function toggleSection(kind: RecoKind) {
+    setSectionOpen((current) => ({ ...current, [kind]: !current[kind] }));
+  }
+
+  return (
+    <div className="space-y-3">
+      <button
+        type="button"
+        onClick={() => setPanelOpen((v) => !v)}
+        className="flex w-full items-center justify-between rounded-xl bg-muted/60 px-4 py-3 text-left"
+      >
+        <span className="text-base font-semibold">
+          {panelOpen ? "Ocultar recomendaciones" : "Ver recomendaciones"}
+        </span>
+        {panelOpen ? (
+          <ChevronUp className="size-5 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="size-5 text-muted-foreground" />
+        )}
+      </button>
+
+      {panelOpen ? (
+        isLoading ? (
+          <p className="text-sm text-muted-foreground">Cargando recomendaciones…</p>
+        ) : (
+          <div className="space-y-6">
+            {data?.matchedRule ? (
+              <p className="text-sm text-muted-foreground">
+                Según edad de piel: {data.matchedRule.label}
+                {data.snapshot.skinAgeDifference != null
+                  ? ` (diferencia ${data.snapshot.skinAgeDifference > 0 ? "+" : ""}${data.snapshot.skinAgeDifference})`
+                  : ""}
+              </p>
+            ) : data?.snapshot.message ? (
+              <p className="text-sm text-muted-foreground">{data.snapshot.message}</p>
+            ) : null}
+
+            <RecoSection
+              title="Productos sugeridos"
+              icon={ShoppingBag}
+              open={sectionOpen.productos}
+              onToggle={() => toggleSection("productos")}
+              onSeeAll={() =>
+                setSeeAllSection({
+                  title: "Productos sugeridos",
+                  names: products.map((p) => p.name),
+                })
+              }
+            >
+              <CardCarousel
+                items={products}
+                kind="product"
+                emptyMessage="No hay productos configurados todavía."
+                onOpen={setCatalogDetail}
+              />
+            </RecoSection>
+
+            <RecoSection
+              title="Rutinas"
+              icon={ClipboardList}
+              open={sectionOpen.rutinas}
+              onToggle={() => toggleSection("rutinas")}
+              onSeeAll={() =>
+                setSeeAllSection({
+                  title: "Rutinas",
+                  names: routines.map((r) => r.name),
+                })
+              }
+            >
+              {routines.length > 0 ? (
+                <div className="space-y-3">
+                  <RoutineCarousel
+                    routines={routines}
+                    selectedId={selectedRoutine?.id ?? null}
+                    onSelect={setSelectedRoutineId}
+                  />
+                  {selectedRoutine ? (
+                    <RoutineDetail
+                      routine={selectedRoutine}
+                      onOpenMedia={setMediaPreview}
+                      onOpenProduct={setCatalogDetail}
+                    />
+                  ) : null}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No hay rutinas configuradas todavía.
+                </p>
+              )}
+            </RecoSection>
+
+            <RecoSection
+              title="Tratamientos"
+              icon={Syringe}
+              open={sectionOpen.tratamientos}
+              onToggle={() => toggleSection("tratamientos")}
+              onSeeAll={() =>
+                setSeeAllSection({
+                  title: "Tratamientos",
+                  names: treatments.map((t) => t.name),
+                })
+              }
+            >
+              <CardCarousel
+                items={treatments}
+                kind="treatment"
+                emptyMessage="No hay tratamientos configurados todavía."
+                onOpen={setCatalogDetail}
+              />
+            </RecoSection>
+
+            <RecoSection
+              title="Suplementos"
+              icon={Pill}
+              open={sectionOpen.suplementos}
+              onToggle={() => toggleSection("suplementos")}
+              onSeeAll={() =>
+                setSeeAllSection({
+                  title: "Suplementos",
+                  names: supplements.map((s) => s.name),
+                })
+              }
+            >
+              <CardCarousel
+                items={supplements}
+                kind="supplement"
+                emptyMessage="No hay suplementos configurados todavía."
+                onOpen={setCatalogDetail}
+              />
+            </RecoSection>
+          </div>
+        )
       ) : null}
 
-      <div className="flex flex-wrap gap-1 rounded-xl bg-muted p-1 w-fit">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={cn(
-              "rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
-              tab === t.id
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground">Cargando recomendaciones…</p>
-      ) : (
-        <>
-          {tab === "todas" && (
-            <div className="space-y-6">
-              <CareList
-                title="Productos sugeridos"
-                items={products}
-                emptyMessage="No hay productos configurados todavía."
-                onOpenMedia={setMediaPreview}
-              />
-              <CareList
-                title="Rutinas"
-                items={routines}
-                emptyMessage="No hay rutinas configuradas todavía."
-                onOpenMedia={setMediaPreview}
-              />
-              <CareList
-                title="Suplementos"
-                items={supplements}
-                emptyMessage="No hay suplementos configurados todavía."
-                onOpenMedia={setMediaPreview}
-              />
-              <CareList
-                title="Tratamientos"
-                items={treatments}
-                emptyMessage="No hay tratamientos configurados todavía."
-                onOpenMedia={setMediaPreview}
-              />
-            </div>
-          )}
-
-          {tab === "productos" && (
-            <CareList
-              title="Productos sugeridos"
-              items={products}
-              emptyMessage="No hay productos configurados todavía."
-              onOpenMedia={setMediaPreview}
-            />
-          )}
-          {tab === "rutinas" && (
-            <CareList
-              title="Rutinas"
-              items={routines}
-              emptyMessage="No hay rutinas configuradas todavía."
-              onOpenMedia={setMediaPreview}
-            />
-          )}
-          {tab === "suplementos" && (
-            <CareList
-              title="Suplementos"
-              items={supplements}
-              emptyMessage="No hay suplementos configurados todavía."
-              onOpenMedia={setMediaPreview}
-            />
-          )}
-          {tab === "tratamientos" && (
-            <CareList
-              title="Tratamientos"
-              items={treatments}
-              emptyMessage="No hay tratamientos configurados todavía."
-              onOpenMedia={setMediaPreview}
-            />
-          )}
-        </>
-      )}
-
-      <MediaLightbox
-        preview={mediaPreview}
-        onClose={() => setMediaPreview(null)}
+      <CatalogDetailModal
+        detail={catalogDetail}
+        onClose={() => setCatalogDetail(null)}
+        onOpenMedia={setMediaPreview}
       />
+      <SeeAllDialog section={seeAllSection} onClose={() => setSeeAllSection(null)} />
+      <MediaLightbox preview={mediaPreview} onClose={() => setMediaPreview(null)} />
     </div>
   );
 }
