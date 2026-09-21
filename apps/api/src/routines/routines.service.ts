@@ -377,13 +377,26 @@ export class RoutinesService {
       include: this.routineInclude,
     });
 
-    const matched = routines.filter((routine) =>
-      this.analysisConditions.matchesAnyCondition(routine.conditions, results, {
-        patientBirthDate,
-        analysisDate,
-      }),
-    );
+    const skinAge = { patientBirthDate, analysisDate };
+    const matched = routines
+      .map((routine) => ({
+        routine,
+        matchedConditions: this.analysisConditions.getMatchedConditions(
+          routine.conditions,
+          results,
+          skinAge,
+        ),
+      }))
+      .filter((r) => r.matchedConditions.length > 0);
 
-    return Promise.all(matched.map((r) => this.withResolvedSteps(r)));
+    const resolved = await Promise.all(
+      matched.map((r) => this.withResolvedSteps(r.routine)),
+    );
+    return resolved.map((routine, i) => ({
+      ...routine,
+      matchedMetricTypes: [
+        ...new Set(matched[i].matchedConditions.map((c) => c.metricType)),
+      ],
+    }));
   }
 }

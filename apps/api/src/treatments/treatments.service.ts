@@ -375,14 +375,26 @@ export class TreatmentsService {
       include: this.treatmentInclude,
     });
 
-    const matched = treatments.filter((treatment) =>
-      this.analysisConditions.matchesAnyCondition(
-        treatment.conditions,
-        results,
-        { patientBirthDate, analysisDate },
-      ),
-    );
+    const skinAge = { patientBirthDate, analysisDate };
+    const matched = treatments
+      .map((treatment) => ({
+        treatment,
+        matchedConditions: this.analysisConditions.getMatchedConditions(
+          treatment.conditions,
+          results,
+          skinAge,
+        ),
+      }))
+      .filter((t) => t.matchedConditions.length > 0);
 
-    return Promise.all(matched.map((t) => this.withResolvedItems(t)));
+    const resolved = await Promise.all(
+      matched.map((t) => this.withResolvedItems(t.treatment)),
+    );
+    return resolved.map((treatment, i) => ({
+      ...treatment,
+      matchedMetricTypes: [
+        ...new Set(matched[i].matchedConditions.map((c) => c.metricType)),
+      ],
+    }));
   }
 }

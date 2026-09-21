@@ -51,6 +51,10 @@ export interface Treatment {
   updatedAt: string;
   conditions: TreatmentCondition[];
   items: TreatmentItem[];
+  /** Solo en `/treatments/recommended/:analysisId` — metricTypes de las
+   * condiciones que efectivamente matchearon (no todas las de `conditions`,
+   * ya que se combinan con lógica O). */
+  matchedMetricTypes?: string[];
 }
 
 export interface CreateTreatmentInput {

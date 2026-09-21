@@ -53,6 +53,10 @@ export interface Routine {
   updatedAt: string;
   conditions: RoutineCondition[];
   steps: RoutineStep[];
+  /** Solo en `/routines/recommended/:analysisId` — metricTypes de las
+   * condiciones que efectivamente matchearon (no todas las de `conditions`,
+   * ya que se combinan con lógica O). */
+  matchedMetricTypes?: string[];
 }
 
 export interface CreateRoutineInput {
