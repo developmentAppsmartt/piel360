@@ -22,7 +22,10 @@ import {
 import { ApiError } from "@/lib/api-error";
 import { usePatient, usePatientAnalyses } from "@/lib/queries/patients";
 import { useMyDoctorProfile } from "@/lib/queries/doctors";
-import type { AnalysisProviderSlug } from "@piel360/shared";
+import {
+  PROVIDER_PUBLIC_ALIASES,
+  providerSlugMatches,
+} from "@piel360/shared";
 
 export default function PacienteDetallePage() {
   const { id } = useParams<{ id: string }>();
@@ -31,13 +34,12 @@ export default function PacienteDetallePage() {
   const analyses = usePatientAnalyses(id);
   const doctorProfile = useMyDoctorProfile();
 
-  const allowedProviders = new Set(
-    (doctorProfile.data?.allowedProviderSlugs ?? [
-      "skiniver",
-      "youcam",
-      "fitzpatrick",
-    ]) as AnalysisProviderSlug[],
-  );
+  const allowedProviders = doctorProfile.data?.allowedProviderSlugs ?? [
+    PROVIDER_PUBLIC_ALIASES.skiniver,
+    PROVIDER_PUBLIC_ALIASES.youcam,
+    "fitzpatrick",
+  ];
+  const allows = (slug: string) => providerSlugMatches(slug, allowedProviders);
 
   const authError =
     (patient.error instanceof ApiError && patient.error.status === 401) ||
@@ -67,7 +69,7 @@ export default function PacienteDetallePage() {
         >
           Editar
         </Button>
-        {allowedProviders.has("skiniver") ? (
+        {allows("skiniver") ? (
           <Button
             variant="outline"
             nativeButton={false}
@@ -76,18 +78,20 @@ export default function PacienteDetallePage() {
             {ANALYSIS_PROVIDER_STATIC_LABELS.skiniver}
           </Button>
         ) : null}
-        {allowedProviders.has("youcam") ? (
+        {allows("youcam") ? (
           <Button
             variant="outline"
             nativeButton={false}
             render={
-              <Link href={`/doctor/pacientes/${p.id}/nuevo-analisis-youcam`} />
+              <Link
+                href={`/doctor/pacientes/${p.id}/nuevo-analisis-analisispiel360`}
+              />
             }
           >
             {ANALYSIS_PROVIDER_STATIC_LABELS.youcam}
           </Button>
         ) : null}
-        {allowedProviders.has("fitzpatrick") ? (
+        {allows("fitzpatrick") ? (
           <Button
             variant="outline"
             nativeButton={false}

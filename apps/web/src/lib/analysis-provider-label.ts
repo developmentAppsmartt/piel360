@@ -1,10 +1,14 @@
 // Fuente de verdad: AnalysisProvider.displayLabel (backend). Estas constantes
 // cubren botones para iniciar un análisis nuevo (aún sin fila `provider`).
 // Nunca exponer nombres de API (Skiniver / YouCam / Fitzpatrick) al usuario.
+import { PROVIDER_PUBLIC_ALIASES } from "@piel360/shared";
+
 export const ANALYSIS_PROVIDER_STATIC_LABELS = {
   skiniver: "Análisis Dermatológico Piel 360",
   youcam: "Análisis Estético Piel 360",
   fitzpatrick: "Análisis de Fototipo Piel 360",
+  [PROVIDER_PUBLIC_ALIASES.skiniver]: "Análisis Dermatológico Piel 360",
+  [PROVIDER_PUBLIC_ALIASES.youcam]: "Análisis Estético Piel 360",
 } as const;
 
 function looksLikeApiVendor(label: string): boolean {

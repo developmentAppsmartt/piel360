@@ -168,7 +168,7 @@ export class AuthController {
   @Get('me/permissions')
   @UseGuards(JwtAuthGuard)
   async mePermissions(@CurrentUser() user: JwtPayload) {
-    const permissions = await this.authService.getPermissionsForUser(user.sub);
+    const permissions = await this.authService.getPublicPermissionsForUser(user.sub);
     return { permissions };
   }
 

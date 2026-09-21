@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { Plan, Prisma } from '@prisma/client';
+import { toPublicPlanProviders } from '@piel360/shared';
 import type { JwtPayload } from '../auth/types';
 import { isEnterpriseDoctor } from '../doctors/doctor-account.util';
 import { PrismaService } from '../prisma/prisma.service';
@@ -55,7 +56,10 @@ export class PlansService {
     const enriched = await this.enrichPlans(plans);
     const withPool = await this.planPool.enrichPlans(enriched);
 
-    if (!user || user.role !== 'doctor') return withPool;
+    const toPublic = <T extends (typeof withPool)[number]>(list: T[]) =>
+      list.map((plan) => toPublicPlanProviders(plan));
+
+    if (!user || user.role !== 'doctor') return toPublic(withPool);
 
     const doctor = await this.prisma.doctor.findUnique({
       where: { userId: BigInt(user.sub) },
@@ -68,12 +72,13 @@ export class PlansService {
 
     const expectedPlanType = doctor && isEnterpriseDoctor(doctor) ? 'business' : 'individual';
 
-    return withPool.filter((plan) => {
+    const filtered = withPool.filter((plan) => {
       if (plan.planType !== expectedPlanType) return false;
       return plan.providers.some((provider) =>
         allowed.includes(provider.slug as (typeof allowed)[number]),
       );
     });
+    return toPublic(filtered);
   }
 
   /** `GET /admin/plans` */

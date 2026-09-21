@@ -1,5 +1,7 @@
 /** Permisos RBAC requeridos para secciones del panel doctor (JWT `permissions`). */
 
+import { expandProviderPermissionAliases } from "@piel360/shared";
+
 export const DOCTOR_PANEL_ACCESS = {
   mapsDoctors: ["view_any_doctor", "view_doctor"],
   mapsPatients: ["view_any_patient", "view_patient"],
@@ -8,8 +10,8 @@ export const DOCTOR_PANEL_ACCESS = {
     "view_any_analysis",
     "view_analysis",
     "create_analysis",
-    "use_provider_skiniver",
-    "use_provider_youcam",
+    "use_provider_analisisdermapiel360",
+    "use_provider_analisispiel360",
     "use_provider_fitzpatrick",
   ],
   plans: ["view_any_plan", "view_plan"],
@@ -28,8 +30,14 @@ export function hasAnyPermission(
 ): boolean {
   if (required.length === 0) return true;
   if (!userPermissions?.length) return false;
-  const set = new Set(userPermissions);
-  return required.some((permission) => set.has(permission));
+  const set = new Set(
+    userPermissions.flatMap((permission) =>
+      expandProviderPermissionAliases(permission),
+    ),
+  );
+  return required.some((permission) =>
+    expandProviderPermissionAliases(permission).some((alias) => set.has(alias)),
+  );
 }
 
 /** Rutas del panel doctor → permisos (cualquiera basta). Orden: prefijos más largos primero. */

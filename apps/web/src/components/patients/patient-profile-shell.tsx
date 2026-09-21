@@ -169,7 +169,7 @@ export function PatientProfileShell({
               <Button
                 nativeButton={false}
                 render={
-                  <Link href={`/doctor/pacientes/${patient.id}/nuevo-analisis-youcam`} />
+                  <Link href={`/doctor/pacientes/${patient.id}/nuevo-analisis-analisispiel360`} />
                 }
                 className="gap-1.5"
               >
