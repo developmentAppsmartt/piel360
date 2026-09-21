@@ -273,6 +273,8 @@ model Patient {
   exerciseSessionDuration String? @map("exercise_session_duration")
   skinType          String?   @map("skin_type")
   fitzpatrickType   String?   @map("fitzpatrick_type")
+  /** Notas importantes libres — máx. 500 caracteres (validado en el DTO). */
+  importantNotes    String?   @map("important_notes") @db.Text
   /** Último snapshot YouCam: salud de la piel (años). */
   lastSkinAgeYears          Float?    @map("last_skin_age_years")
   /** Edad cronológica al momento de ese análisis. */

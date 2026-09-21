@@ -1,4 +1,4 @@
-import { IsBoolean, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class ConfirmAnalysisDto {
   @IsOptional()
@@ -11,5 +11,6 @@ export class ConfirmAnalysisDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   doctorNotes?: string;
 }

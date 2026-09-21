@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   Max,
+  MaxLength,
   Min,
 } from 'class-validator';
 
@@ -97,6 +98,11 @@ export class UpdatePatientDto {
   @IsOptional()
   @IsString()
   fitzpatrickType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  importantNotes?: string;
 
   /**
    * Solo superadmin/monitor: asigna o desasigna el profesional
