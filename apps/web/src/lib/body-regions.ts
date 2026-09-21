@@ -51,6 +51,13 @@ export const BODY_PARTS_INFO: Record<string, BodyPartInfo> = {
   right_sole: { label: "Planta Pie Derecho", description: "Región plantar derecha" },
 };
 
+/** Label en español para un `bodyRegion` crudo (ej. "left_upper_arm" →
+ * "Brazo Izquierdo") — si no está en el catálogo, devuelve el valor tal cual. */
+export function bodyRegionLabel(region: string | null | undefined): string | null {
+  if (!region) return null;
+  return BODY_PARTS_INFO[region]?.label ?? region;
+}
+
 export function normalizeMeshName(name: string): string {
   return name.toLowerCase().replace(/[\s_]+/g, "_");
 }

@@ -6,6 +6,7 @@ import { AnalysisResultsView } from "@/components/analyses/analysis-results-view
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { analysisProviderLabel } from "@/lib/analysis-provider-label";
+import { bodyRegionLabel } from "@/lib/body-regions";
 import { useAnalysis } from "@/lib/queries/analyses";
 
 export default function AnalisisDetallePage() {
@@ -27,7 +28,7 @@ export default function AnalisisDetallePage() {
               {new Date(analysis.data.createdAt).toLocaleDateString("es-CO", {
                 dateStyle: "long",
               })}
-              {analysis.data.bodyRegion ? ` — ${analysis.data.bodyRegion}` : ""}
+              {analysis.data.bodyRegion ? ` — ${bodyRegionLabel(analysis.data.bodyRegion)}` : ""}
             </p>
           )}
         </div>

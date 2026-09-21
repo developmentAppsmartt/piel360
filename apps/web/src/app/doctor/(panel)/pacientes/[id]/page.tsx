@@ -20,6 +20,8 @@ import {
   analysisProviderLabel,
 } from "@/lib/analysis-provider-label";
 import { ApiError } from "@/lib/api-error";
+import { bodyRegionLabel } from "@/lib/body-regions";
+import { formatAnalysisDate } from "@/lib/patient-comparison";
 import { usePatient, usePatientAnalyses } from "@/lib/queries/patients";
 import { useMyDoctorProfile } from "@/lib/queries/doctors";
 import type { AnalysisProviderSlug } from "@piel360/shared";
@@ -163,7 +165,7 @@ export default function PacienteDetallePage() {
                     <TableCell>
                       <Badge variant="outline">{analysisProviderLabel(a)}</Badge>
                     </TableCell>
-                    <TableCell>{a.bodyRegion ?? "—"}</TableCell>
+                    <TableCell>{bodyRegionLabel(a.bodyRegion) ?? "—"}</TableCell>
                     <TableCell>{a.finalDiagnosis ?? a.aiDiagnosis ?? "—"}</TableCell>
                     <TableCell>
                       {!a.isValid ? (
@@ -175,7 +177,7 @@ export default function PacienteDetallePage() {
                       )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {new Date(a.createdAt).toLocaleDateString("es-CO")}
+                      {formatAnalysisDate(a.createdAt)}
                     </TableCell>
                   </TableRow>
                 ))}
