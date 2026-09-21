@@ -7,9 +7,14 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { Alert } from 'react-native';
 import { isPhoneVerificationSkipped } from '../config/env';
 import { authService } from '../services/auth.service';
 import { doctorsService } from '../services/doctors.service';
+import {
+  onSessionEnded,
+  SESSION_REPLACED_MESSAGE,
+} from '../services/session-events';
 import {
   completeGoogleLoginFromUrl,
   loginWithGoogle as googleLogin,
@@ -150,6 +155,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authService.logout();
     setUser(null);
     setNeedsPhoneVerification(false);
+  }, []);
+
+  /**
+   * La sesión dejó de valer del lado del servidor (otro login la cerró, o
+   * venció el refresh): antes la app se quedaba abierta con todas las
+   * peticiones fallando en silencio.
+   */
+  useEffect(() => {
+    onSessionEnded((reason) => {
+      void (async () => {
+        await storageService.clearSession();
+        setUser(null);
+        setNeedsPhoneVerification(false);
+        Alert.alert(
+          'Sesión finalizada',
+          reason === 'replaced'
+            ? SESSION_REPLACED_MESSAGE
+            : 'Tu sesión expiró. Inicia sesión de nuevo.',
+        );
+      })();
+    });
+    return () => onSessionEnded(null);
   }, []);
 
   const completePhoneVerification = useCallback(() => {

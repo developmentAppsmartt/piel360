@@ -14,6 +14,8 @@ import {
   OAUTH_DOCTOR_DEFAULT_SPECIALTY,
   parseTeamMemberPermissions,
   resolveUserPrimaryPanel,
+  SESSION_REPLACED,
+  SESSION_REPLACED_MESSAGE,
   TEAM_MEMBER_PERMISSIONS,
   SEAT_PLAN_LIMITS,
   slugifyAlliedOrgName,
@@ -44,11 +46,17 @@ import type { ConfirmPhoneVerificationDto } from './dto/confirm-phone-verificati
 import type { SendPhoneOtpDto } from './dto/send-phone-otp.dto';
 import type { VerifyPhoneOtpDto } from './dto/verify-phone-otp.dto';
 import type { GoogleProfile } from './google.strategy';
+import { sessionSlotFor } from './session-policy';
 import type { JwtPayload } from './types';
 
 /** TTL del código de intercambio de Google OAuth: solo debe vivir el tiempo
  * del redirect navegador → API → front (segundos). */
 const GOOGLE_EXCHANGE_TTL_SECONDS = 60;
+
+/** Duración del access token (web y móvil) y del refresh token. Si cambian,
+ * ajustar también el `maxAge` de las cookies en apps/web/src/lib/session.ts. */
+const ACCESS_TOKEN_TTL = '24h';
+const REFRESH_TOKEN_TTL = '7d';
 
 /** TTL del token de recuperación de contraseña. */
 const PASSWORD_RESET_TTL_MINUTES = 30;
@@ -615,12 +623,14 @@ export class AuthService implements OnModuleDestroy {
     client: 'mobile' | 'web' = 'web',
   ): Promise<AuthResult> {
     let sub: string;
+    let sid: string | undefined;
     try {
-      const payload = await this.jwt.verifyAsync<{ sub: string }>(
+      const payload = await this.jwt.verifyAsync<{ sub: string; sid?: string }>(
         refreshToken,
         { secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET') },
       );
       sub = payload.sub;
+      sid = payload.sid;
     } catch {
       throw new UnauthorizedException('Sesión expirada, inicia sesión de nuevo');
     }
@@ -631,8 +641,29 @@ export class AuthService implements OnModuleDestroy {
     });
     if (!user) throw new UnauthorizedException();
 
+    // Refresh tokens emitidos antes de las sesiones no traen `sid`: se les
+    // abre una sesión nueva en vez de rechazarlos, para no desloguear a todo
+    // el mundo en el deploy.
+    let activeSessionId: string | undefined;
+    if (sid) {
+      const stored = await this.prisma.userSession.findUnique({
+        where: { id: sid },
+        select: { userId: true, revokedAt: true, revokedReason: true },
+      });
+      if (!stored || stored.userId !== user.id || stored.revokedAt) {
+        throw new UnauthorizedException({
+          code: SESSION_REPLACED,
+          message:
+            stored?.revokedReason === 'replaced'
+              ? SESSION_REPLACED_MESSAGE
+              : 'Sesión expirada, inicia sesión de nuevo',
+        });
+      }
+      activeSessionId = sid;
+    }
+
     const session = this.resolveSessionContext(user);
-    return this.buildAuthResult(user, session, client);
+    return this.buildAuthResult(user, session, client, activeSessionId);
   }
 
   /** Include común para construir `AuthUser` (login/refresh) — roles+permisos
@@ -1437,7 +1468,42 @@ export class AuthService implements OnModuleDestroy {
     return Array.from(slugs);
   }
 
-  private buildAuthResult(
+  /** Abre una sesión y cierra la que ocupaba el mismo cupo — gana el login
+   * más nuevo (ver session-policy.ts para los cupos por rol). */
+  private async openSession(
+    userId: bigint,
+    role: Role,
+    client: 'mobile' | 'web',
+  ): Promise<string> {
+    const slot = sessionSlotFor(role, client);
+    const session = await this.prisma.$transaction(async (tx) => {
+      await tx.userSession.updateMany({
+        where: { userId, slot, revokedAt: null },
+        data: { revokedAt: new Date(), revokedReason: 'replaced' },
+      });
+      return tx.userSession.create({ data: { userId, slot, client } });
+    });
+    return session.id;
+  }
+
+  /** Refresh: la sesión sigue siendo la misma, solo se marca el uso. */
+  private async touchSession(sessionId: string): Promise<string> {
+    await this.prisma.userSession.update({
+      where: { id: sessionId },
+      data: { lastUsedAt: new Date() },
+    });
+    return sessionId;
+  }
+
+  /** Cierra la sesión del token actual (logout explícito). */
+  async revokeSession(sessionId: string): Promise<void> {
+    await this.prisma.userSession.updateMany({
+      where: { id: sessionId, revokedAt: null },
+      data: { revokedAt: new Date(), revokedReason: 'logout' },
+    });
+  }
+
+  private async buildAuthResult(
     user: AuthUser,
     session: {
       role: Role;
@@ -1449,8 +1515,14 @@ export class AuthService implements OnModuleDestroy {
       isOrgMember: boolean;
     },
     client: 'mobile' | 'web' = 'web',
-  ): AuthResult {
+    /** Solo en refresh: mantiene viva la sesión existente en vez de abrir
+     * una nueva (que expulsaría a la del mismo cupo). */
+    existingSessionId?: string,
+  ): Promise<AuthResult> {
     this.assertMobileLoginAllowed(session.role, client);
+    const sid = existingSessionId
+      ? await this.touchSession(existingSessionId)
+      : await this.openSession(user.id, session.role, client);
     const empresa = user.doctor?.empresa ?? false;
     const empresaReferida = user.doctor?.empresaReferida ?? false;
     const verificationStatus = user.doctor?.verificationStatus ?? 'pending';
@@ -1461,6 +1533,7 @@ export class AuthService implements OnModuleDestroy {
     const payload: JwtPayload = {
       sub: user.id.toString(),
       email: user.email,
+      sid,
       role: session.role,
       primaryPanel: session.primaryPanel,
       roleSlugs: session.roleSlugs,
@@ -1475,14 +1548,14 @@ export class AuthService implements OnModuleDestroy {
       ...doctorFlags,
     };
 
-    // Mobile: 24h (sesión más larga en app). Web: 15m + refresh cookie.
-    const accessExpiresIn = client === 'mobile' ? '24h' : '15m';
-    const accessToken = this.jwt.sign(payload, { expiresIn: accessExpiresIn });
+    // 24h en ambas plataformas: antes web duraba 15m y cualquier navegación
+    // tras ese rato caía al login (el proxy no refresca por su cuenta).
+    const accessToken = this.jwt.sign(payload, { expiresIn: ACCESS_TOKEN_TTL });
     const refreshToken = this.jwt.sign(
-      { sub: payload.sub },
+      { sub: payload.sub, sid },
       {
         secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
-        expiresIn: '7d',
+        expiresIn: REFRESH_TOKEN_TTL,
       },
     );
 

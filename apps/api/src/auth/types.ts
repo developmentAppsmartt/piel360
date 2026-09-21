@@ -5,6 +5,9 @@ import type { PrimaryPanel, Role, TeamMemberPermission } from '@piel360/shared';
 export interface JwtPayload {
   sub: string;
   email: string;
+  /** Id de `UserSession` — permite cerrar esta sesión a distancia. Opcional
+   * solo por compatibilidad con tokens emitidos antes de las sesiones. */
+  sid?: string;
   role: Role;
   /** Panel principal del usuario (admin | clinical | patient). */
   primaryPanel: PrimaryPanel;

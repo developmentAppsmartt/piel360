@@ -1,15 +1,19 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import type { Role } from "@piel360/shared";
+import { SESSION_REPLACED_MESSAGE, type Role } from "@piel360/shared";
 import { ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { loginAction, type AuthActionState } from "@/lib/actions/auth";
 import { googleOAuthRole } from "@/lib/google-auth";
+import { SESSION_REPLACED_REASON } from "@/lib/login-path";
 import { GoogleContinueButton } from "./google-continue-button";
 import { LoginIconField } from "./login-icon-field";
 
 const initialState: AuthActionState = {};
+
+/** El motivo llega en la URL y no cambia mientras la página vive. */
+const subscribeToNothing = () => () => {};
 
 export function LoginForm({
   role,
@@ -24,9 +28,24 @@ export function LoginForm({
   const [state, formAction, isPending] = useActionState(boundAction, initialState);
   const [showPassword, setShowPassword] = useState(false);
   const oauthRole = googleOAuthRole(role);
+  // Se lee del navegador (no con useSearchParams) para que las páginas de
+  // login sigan siendo estáticas en el build; useSyncExternalStore evita el
+  // desajuste de hidratación al no existir `window` en el servidor.
+  const sessionReplaced = useSyncExternalStore(
+    subscribeToNothing,
+    () =>
+      new URLSearchParams(window.location.search).get("reason") ===
+      SESSION_REPLACED_REASON,
+    () => false,
+  );
 
   return (
     <form action={formAction} className="w-full space-y-5">
+      {sessionReplaced ? (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {SESSION_REPLACED_MESSAGE}
+        </p>
+      ) : null}
       <LoginIconField
         label="Correo electrónico"
         id="email"

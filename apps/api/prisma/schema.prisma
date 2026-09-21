@@ -54,8 +54,35 @@ model User {
   platformUnitRecharges  PlatformUnitRecharge[]
   subscriptionInvoices   SubscriptionInvoice[]
   alliedDispersals       SubscriptionInvoice[] @relation("AlliedDispersedBy")
+  sessions               UserSession[]
 
   @@map("users")
+}
+
+/**
+ * Sesión activa de un usuario — lo que permite limitar cuántas hay abiertas
+ * por rol y cerrar una a distancia (el access token lleva su id en `sid`).
+ * `slot` es el cupo que ocupa: "web"/"mobile" para profesionales (1 de cada
+ * uno) y "any" para el resto de roles (1 sola sesión en cualquier
+ * dispositivo) — ver src/auth/session-policy.ts.
+ */
+model UserSession {
+  id            String    @id @default(uuid())
+  userId        BigInt    @map("user_id")
+  /** "any" | "web" | "mobile". */
+  slot          String
+  /** Plataforma real desde la que se inició (header X-Client). */
+  client        String
+  createdAt     DateTime  @default(now()) @map("created_at")
+  lastUsedAt    DateTime  @default(now()) @map("last_used_at")
+  revokedAt     DateTime? @map("revoked_at")
+  /** "replaced" (gana el login nuevo) | "logout". */
+  revokedReason String?   @map("revoked_reason")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, slot])
+  @@map("user_sessions")
 }
 
 /** Perfil de moderador (rol RBAC `monitor`) — validación de doctores. */

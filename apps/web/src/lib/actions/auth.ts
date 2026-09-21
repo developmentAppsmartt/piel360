@@ -1,5 +1,6 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Role } from "@piel360/shared";
 import { ApiError, apiFetch } from "@/lib/api";
@@ -116,6 +117,15 @@ export async function registerAction(
 }
 
 export async function logoutAction() {
+  // Cierra la sesión también del lado del servidor: libera el cupo del rol
+  // y deja inservible el access token, que si no seguiría valiendo 24h.
+  const token = (await cookies()).get("piel360_token")?.value;
+  if (token) {
+    await apiFetch("/auth/logout", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => undefined);
+  }
   await clearSessionCookies();
   redirect("/");
 }

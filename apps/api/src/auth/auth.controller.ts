@@ -97,6 +97,15 @@ export class AuthController {
     return this.authService.refreshTokens(refreshToken, authClient(clientHeader));
   }
 
+  /** Cierra la sesión actual del lado del servidor (libera su cupo y deja
+   * inservible el access token, que de otro modo seguiría valiendo 24h). */
+  @Post('logout')
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard)
+  async logout(@CurrentUser() user: JwtPayload) {
+    if (user.sid) await this.authService.revokeSession(user.sid);
+  }
+
   // Límite por IP más estricto que el global (100/min de toda la API) — el
   // OTP de registro/reset es el blanco natural de fuerza bruta/enumeración.
   @Post('otp/send')

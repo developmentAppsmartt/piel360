@@ -34,6 +34,12 @@ export async function POST() {
   } catch (err) {
     await clearSessionCookies();
     const status = err instanceof ApiError ? err.status : 401;
-    return NextResponse.json({ error: "Sesión expirada" }, { status: status || 401 });
+    // `code` distingue "te sacaron desde otro dispositivo" de un simple
+    // vencimiento, para que api-client.ts muestre el aviso correcto.
+    const code = err instanceof ApiError ? err.code : undefined;
+    return NextResponse.json(
+      { error: err instanceof ApiError ? err.message : "Sesión expirada", code },
+      { status: status || 401 },
+    );
   }
 }

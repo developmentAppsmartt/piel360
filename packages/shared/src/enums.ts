@@ -16,6 +16,17 @@ export type Role = (typeof ROLES)[number];
 /** Roles de panel admin que no pueden usar la app móvil. */
 export const MOBILE_BLOCKED_ROLES = ["superadmin", "monitor"] as const;
 
+/**
+ * Código que devuelve el API (401) cuando la sesión fue cerrada porque se
+ * inició otra en el mismo cupo — ver apps/api/src/auth/session-policy.ts.
+ * Web y mobile lo usan para mostrar el aviso correcto en vez de un
+ * "sesión expirada" genérico.
+ */
+export const SESSION_REPLACED = "SESSION_REPLACED";
+
+export const SESSION_REPLACED_MESSAGE =
+  "Tu sesión se cerró porque se inició en otro dispositivo.";
+
 export function isMobileLoginAllowed(role: Role | undefined): boolean {
   if (!role) return false;
   return !(MOBILE_BLOCKED_ROLES as readonly Role[]).includes(role);

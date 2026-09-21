@@ -138,6 +138,11 @@ export const authService = {
   },
 
   async logout(): Promise<void> {
+    // Libera el cupo de sesión en el backend (best effort: si falla la red,
+    // igual se limpia la sesión local).
+    await apiRequest('/auth/logout', { method: 'POST', auth: true }).catch(
+      () => undefined,
+    );
     await storageService.clearSession();
   },
 

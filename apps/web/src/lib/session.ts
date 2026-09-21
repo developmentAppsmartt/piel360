@@ -56,7 +56,7 @@ export async function setSessionCookies(
     sameSite: "lax",
     path: "/",
     domain: COOKIE_DOMAIN,
-    maxAge: 60 * 15, // 15 min — igual al exp del access token (auth.service.ts)
+    maxAge: 60 * 60 * 24, // 24h — igual al exp del access token (auth.service.ts)
   });
   store.set(REFRESH_COOKIE, refreshToken, {
     httpOnly: true,
