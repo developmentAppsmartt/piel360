@@ -23,6 +23,7 @@ export function ForgotPasswordForm() {
   const [code, setCode] = useState("");
   const [resetToken, setResetToken] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordFocused, setPasswordFocused] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
@@ -98,17 +99,23 @@ export function ForgotPasswordForm() {
     return (
       <div className="space-y-4">
         <Field label="Nueva contraseña" required>
-          <input
-            type="password"
-            className={inputClass}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            minLength={8}
-            autoComplete="new-password"
-            placeholder="Crea una contraseña segura"
-          />
+          <div className="relative">
+            <input
+              type="password"
+              className={inputClass}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onFocus={() => setPasswordFocused(true)}
+              onBlur={() => setPasswordFocused(false)}
+              minLength={8}
+              autoComplete="new-password"
+              placeholder="Crea una contraseña segura"
+            />
+            {passwordFocused && password ? (
+              <PasswordRequirements password={password} />
+            ) : null}
+          </div>
         </Field>
-        {password ? <PasswordRequirements password={password} /> : null}
         <Field label="Confirmar contraseña" required>
           <input
             type="password"

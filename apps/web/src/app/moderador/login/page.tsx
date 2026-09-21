@@ -21,7 +21,7 @@ export default function ModeradorLoginPage() {
         </Link>
       }
     >
-      <LoginForm role="monitor" showForgotPassword={false} />
+      <LoginForm role="monitor" />
     </LoginPageShell>
   );
 }
