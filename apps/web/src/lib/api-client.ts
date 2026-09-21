@@ -1,6 +1,8 @@
 "use client";
 
+import { SESSION_REPLACED } from "@piel360/shared";
 import { ApiError } from "./api-error";
+import { loginPathForCurrentPanel } from "./login-path";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api";
 
@@ -16,7 +18,19 @@ function refreshSession(): Promise<boolean> {
       method: "POST",
       credentials: "include",
     })
-      .then((res) => res.ok)
+      .then(async (res) => {
+        if (res.ok) return true;
+        // Sesión cerrada desde otro dispositivo: no tiene sentido dejar al
+        // usuario en una pantalla que va a fallar en cada query — se manda
+        // al login con el motivo para mostrarle el aviso.
+        const body = await res.json().catch(() => null);
+        if (body?.code === SESSION_REPLACED) {
+          window.location.href = `${loginPathForCurrentPanel(
+            window.location.pathname,
+          )}?reason=session_replaced`;
+        }
+        return false;
+      })
       .catch(() => false)
       .finally(() => {
         refreshInFlight = null;
@@ -66,7 +80,7 @@ export async function apiClientFetch<T>(path: string, init?: RequestInit): Promi
       : typeof raw === "string"
         ? raw
         : "Error inesperado";
-    throw new ApiError(message, res.status);
+    throw new ApiError(message, res.status, body?.code);
   }
 
   return body as T;

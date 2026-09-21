@@ -6,6 +6,7 @@ import {
   canAccessPatientPanel,
   isClinicalPanelRole,
   isDoctorVerificationActive,
+  SESSION_REPLACED,
   teamPermissionAllowsNavHref,
   type PrimaryPanel,
   type Role,
@@ -13,6 +14,7 @@ import {
 } from "@piel360/shared";
 import { adminRouteAllowed } from "@/lib/admin-panel-permissions";
 import { clinicalRouteAllowed } from "@/lib/clinical-panel-permissions";
+import { SESSION_REPLACED_REASON } from "@/lib/login-path";
 
 const PANELS = ["doctor", "patient", "admin"] as const;
 type Panel = (typeof PANELS)[number];
@@ -96,10 +98,13 @@ function clinicalPathAllowedWhilePending(pathname: string): boolean {
   );
 }
 
+/** `sessionEnded` marca que el backend ya no reconoce la sesión (la cerró
+ * otro login): el token sigue siendo válido por firma, así que es la única
+ * forma de detectarlo en el proxy. */
 async function getFreshPermissions(
   token: string | undefined,
-): Promise<string[] | undefined> {
-  if (!token) return undefined;
+): Promise<{ permissions?: string[]; sessionEnded?: boolean }> {
+  if (!token) return {};
   try {
     const apiUrl =
       process.env.API_URL ??
@@ -109,11 +114,15 @@ async function getFreshPermissions(
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
     });
-    if (!res.ok) return undefined;
+    if (res.status === 401) {
+      const body = (await res.json().catch(() => null)) as { code?: string } | null;
+      return { sessionEnded: body?.code === SESSION_REPLACED };
+    }
+    if (!res.ok) return {};
     const data = (await res.json()) as { permissions?: string[] };
-    return data.permissions;
+    return { permissions: data.permissions };
   } catch {
-    return undefined;
+    return {};
   }
 }
 
@@ -147,9 +156,22 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(`/${panel}/login`, request.url));
   }
 
+  // Se consulta en los tres paneles (no solo doctor/admin): es la única
+  // forma de enterarse de que otro login cerró esta sesión, porque el token
+  // sigue siendo válido por firma. Sin esto, una pantalla que no consulta
+  // nada al API (p. ej. la encuesta del paciente) seguía navegable.
+  const fresh = await getFreshPermissions(token);
+  if (fresh.sessionEnded) {
+    const url = new URL(`/${panel}/login`, request.url);
+    url.searchParams.set("reason", SESSION_REPLACED_REASON);
+    const response = NextResponse.redirect(url);
+    response.cookies.delete("piel360_token");
+    response.cookies.delete("piel360_refresh");
+    return response;
+  }
   const permissions =
     panel === "doctor" || panel === "admin"
-      ? ((await getFreshPermissions(token)) ?? session.permissions)
+      ? (fresh.permissions ?? session.permissions)
       : session.permissions;
 
   if (

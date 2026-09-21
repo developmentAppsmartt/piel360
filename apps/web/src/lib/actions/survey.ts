@@ -11,6 +11,7 @@ interface SessionClaims {
   email: string;
   role: Role;
   surveyCompletedAt?: string | null;
+  [claim: string]: unknown;
 }
 
 /**
@@ -31,15 +32,21 @@ export async function refreshSurveySession() {
   try {
     const { payload } = await jwtVerify<SessionClaims>(token, secret);
 
+    // Se copian TODOS los claims (incluido `sid`, que identifica la sesión
+    // activa): quedarse solo con sub/email/role invalidaría la sesión en el
+    // backend y sacaría al paciente apenas termine la encuesta. `exp`/`iat`
+    // los vuelve a poner SignJWT.
+    const claims = { ...payload };
+    delete claims.exp;
+    delete claims.iat;
+
     const newToken = await new SignJWT({
-      sub: payload.sub,
-      email: payload.email,
-      role: payload.role,
+      ...claims,
       surveyCompletedAt: new Date().toISOString(),
     })
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()
-      .setExpirationTime("15m")
+      .setExpirationTime("24h")
       .sign(secret);
 
     store.set(ACCESS_COOKIE, newToken, {
@@ -47,7 +54,8 @@ export async function refreshSurveySession() {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 15,
+      domain: process.env.COOKIE_DOMAIN || undefined,
+      maxAge: 60 * 60 * 24,
     });
   } catch {
     // Token inválido/expirado — el próximo login normal lo resuelve.
