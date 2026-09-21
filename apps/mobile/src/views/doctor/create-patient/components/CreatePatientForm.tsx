@@ -63,6 +63,7 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
   const [exerciseSessionDuration, setExerciseSessionDuration] = useState('');
   const [skinType, setSkinType] = useState('');
   const [fitzpatrickType, setFitz] = useState('');
+  const [importantNotes, setImportantNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const onDark = branding.colors.textOnDark;
@@ -125,6 +126,7 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
       exerciseSessionDuration: opt(exerciseSessionDuration),
       skinType: opt(skinType),
       fitzpatrickType: opt(fitzpatrickType),
+      importantNotes: opt(importantNotes),
     });
   }
 
@@ -389,6 +391,19 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
             })}
           </View>
           {fitzHint ? <Text style={styles.hint}>{fitzHint}</Text> : null}
+        </View>
+
+        <View style={styles.field}>
+          <Text style={styles.label}>Notas importantes</Text>
+          <TextInput
+            style={[styles.input, { minHeight: 80 }]}
+            value={importantNotes}
+            onChangeText={setImportantNotes}
+            multiline
+            maxLength={500}
+            textAlignVertical="top"
+          />
+          <Text style={styles.hint}>{importantNotes.length}/500</Text>
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}

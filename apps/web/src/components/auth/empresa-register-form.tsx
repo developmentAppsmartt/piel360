@@ -425,7 +425,7 @@ export function EmpresaRegisterForm() {
               required
             />
           </Field>
-          <Field label="Código CIIU principal">
+          <Field label="Código CIIU principal" required>
             <CatalogCombobox
               typeSlug="ciiu_code"
               className={inputClass}
@@ -435,38 +435,43 @@ export function EmpresaRegisterForm() {
                 setCiiuLabel(p.label);
                 setCiiuCode(p.code ?? "");
               }}
+              required
             />
           </Field>
-          <Field label="Correo electrónico empresarial">
+          <Field label="Correo electrónico empresarial" required>
             <input
               className={inputClass}
               type="email"
               value={businessEmail}
               onChange={(e) => setBusinessEmail(e.target.value)}
+              required
             />
           </Field>
-          <Field label="Teléfono de contacto">
+          <Field label="Teléfono de contacto" required>
             <input
               className={inputClass}
               type="tel"
               value={businessPhone}
               onChange={(e) => setBusinessPhone(e.target.value)}
+              required
             />
           </Field>
-          <Field label="Sitio web" optional>
+          <Field label="Sitio web" required>
             <input
               className={inputClass}
               type="url"
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
               placeholder="https://"
+              required
             />
           </Field>
-          <Field label="Número de empleados (aprox.)">
+          <Field label="Número de empleados (aprox.)" required>
             <select
               className={inputClass}
               value={employeeCountRange}
               onChange={(e) => setEmployeeCountRange(e.target.value)}
+              required
             >
               <option value="">Seleccionar</option>
               {EMPLOYEE_RANGES.map((range) => (
@@ -489,11 +494,12 @@ export function EmpresaRegisterForm() {
                 required
               />
             </Field>
-            <Field label="Tipo de documento">
+            <Field label="Tipo de documento" required>
               <select
                 className={inputClass}
                 value={legalRepDocType}
                 onChange={(e) => setLegalRepDocType(e.target.value)}
+                required
               >
                 {DOC_TYPES.map((type) => (
                   <option key={type} value={type}>

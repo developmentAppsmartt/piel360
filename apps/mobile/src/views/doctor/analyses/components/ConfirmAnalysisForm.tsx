@@ -110,9 +110,11 @@ export function ConfirmAnalysisForm({
           placeholder="Notas del médico (opcional)"
           placeholderTextColor="#9CA3AF"
           multiline
+          maxLength={500}
           textAlignVertical="top"
           editable={!submitting}
         />
+        <Text style={styles.confirmLabel}>{doctorNotes.length}/500</Text>
         {error ? <Text style={styles.confirmError}>{error}</Text> : null}
         <View style={styles.confirmActions}>
           <Pressable

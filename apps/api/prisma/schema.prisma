@@ -273,6 +273,8 @@ model Patient {
   exerciseSessionDuration String? @map("exercise_session_duration")
   skinType          String?   @map("skin_type")
   fitzpatrickType   String?   @map("fitzpatrick_type")
+  /** Notas importantes libres — máx. 500 caracteres (validado en el DTO). */
+  importantNotes    String?   @map("important_notes") @db.Text
   /** Último snapshot YouCam: salud de la piel (años). */
   lastSkinAgeYears          Float?    @map("last_skin_age_years")
   /** Edad cronológica al momento de ese análisis. */
@@ -873,10 +875,10 @@ model Product {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  doctor         Doctor             @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  category       ProductCategory    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  routineSteps   RoutineStep[]
-  treatmentItems TreatmentProduct[]
+  doctor           Doctor                @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  category         ProductCategory       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  routineStepLinks RoutineStepProduct[]
+  treatmentItems   TreatmentProduct[]
 
   @@index([doctorId])
   @@index([categoryId])
@@ -941,16 +943,33 @@ model RoutineStep {
   mediaUrl    String?  @map("media_url")
   /** "image" | "video" | "gif". */
   mediaType   String?  @map("media_type")
-  productId   BigInt?  @map("product_id")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  routine Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
-  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  routine  Routine              @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  products RoutineStepProduct[]
 
   @@index([routineId])
-  @@index([productId])
   @@map("routine_steps")
+}
+
+/** Productos vinculados a un paso de rutina — varios por paso, con orden
+ * propio. onDelete: Cascade en product porque una fila sin su producto no
+ * tiene sentido (mismo criterio que TreatmentProduct); borrar el producto
+ * solo quita el link, no afecta el RoutineStep en sí. */
+model RoutineStepProduct {
+  id        BigInt   @id @default(autoincrement())
+  stepId    BigInt   @map("step_id")
+  productId BigInt   @map("product_id")
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  step    RoutineStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  product Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([stepId])
+  @@index([productId])
+  @@map("routine_step_products")
 }
 
 /** Categorías de tratamiento — scoped al doctor, texto libre (ej. "Invasivo",

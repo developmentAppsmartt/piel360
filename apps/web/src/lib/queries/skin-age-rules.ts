@@ -134,14 +134,13 @@ export type AnalysisCareItem = SkinAgeRuleGroupPreview & {
     description: string | null;
     mediaUrl: string | null;
     mediaType: string | null;
-    productId?: string | null;
-    product?: {
+    products: {
       id: string;
       productName: string;
       productType: string;
       productUrl?: string | null;
       imageUrl?: string | null;
-    } | null;
+    }[];
   }[];
 };
 

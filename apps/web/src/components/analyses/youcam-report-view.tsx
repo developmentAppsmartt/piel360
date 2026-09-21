@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { ArrowLeft, Download, FileText } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import { cn } from "@/lib/utils";
-import type { AnalysisDetail } from "@/lib/queries/analyses";
+import { ApiError } from "@/lib/api-error";
+import { type AnalysisDetail, useDownloadYoucamReport } from "@/lib/queries/analyses";
 import { YOUCAM_METRIC_LABELS, youcamSkinTypeLabel } from "@/lib/youcam-metric-labels";
 import {
   chronologicalAgeYears,
@@ -184,6 +185,22 @@ export function YoucamReportView({
       ? `${analysis.patient.firstName} ${analysis.patient.lastName}`.trim()
       : "Paciente");
 
+  const downloadReport = useDownloadYoucamReport(analysis.id);
+
+  async function handleDownloadPdf() {
+    if (downloadReport.isPending) return;
+    try {
+      const { url } = await downloadReport.mutateAsync();
+      window.open(url, "_blank", "noreferrer");
+    } catch (err) {
+      window.alert(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudo generar el reporte en PDF. Inténtalo de nuevo en unos segundos.",
+      );
+    }
+  }
+
   const gridTypes = useMemo(() => {
     const types = new Set<string>([...YOUCAM_MAIN_METRIC_TYPES]);
     for (const key of Object.keys(scores)) {
@@ -215,28 +232,18 @@ export function YoucamReportView({
             Reporte Salud de la Piel
           </h2>
         </div>
-        <div className="flex gap-1">
-          <button
-            type="button"
-            className="rounded-lg p-2 text-muted-foreground hover:bg-muted"
-            title="Descargar (próximamente)"
-            onClick={() =>
-              window.alert("La descarga del reporte se conectará próximamente.")
-            }
-          >
-            <Download className="size-4" />
-          </button>
-          <button
-            type="button"
-            className="rounded-lg p-2 text-muted-foreground hover:bg-muted"
-            title="PDF (próximamente)"
-            onClick={() =>
-              window.alert("La exportación a PDF se conectará próximamente.")
-            }
-          >
-            <FileText className="size-4" />
-          </button>
-        </div>
+        <button
+          type="button"
+          className="flex items-center gap-1.5 rounded-lg p-2 text-muted-foreground hover:bg-muted disabled:opacity-50"
+          title="Descargar PDF"
+          disabled={downloadReport.isPending}
+          onClick={() => void handleDownloadPdf()}
+        >
+          <Download className="size-4" />
+          <span className="text-sm font-medium">
+            {downloadReport.isPending ? "Generando…" : "Descargar PDF"}
+          </span>
+        </button>
       </div>
 
       <ModuleCard className="space-y-4">

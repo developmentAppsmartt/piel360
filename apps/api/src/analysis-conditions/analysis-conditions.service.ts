@@ -7,7 +7,7 @@ import type { AnalysisResult } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrgContextService } from '../organizations/org-context.service';
 
-interface Condition {
+export interface Condition {
   metricType: string;
   region: string | null;
   operator: string;
@@ -101,44 +101,73 @@ export class AnalysisConditionsService {
     private readonly orgContext: OrgContextService,
   ) {}
 
+  private conditionMatches<C extends Condition>(
+    condition: C,
+    results: AnalysisResult[],
+    skinAge: SkinAgeContext,
+  ): boolean {
+    // hd_skin_type es categórico ("oily", "dry"...) — igualdad de texto,
+    // no tiene sentido "mayor/menor que" un tipo de piel.
+    if (condition.metricType === 'hd_skin_type') {
+      const result = findResultForCondition(results, condition);
+      if (!result || !condition.textValue || !result.skinType) return false;
+      return (
+        result.skinType.toLowerCase() === condition.textValue.toLowerCase()
+      );
+    }
+
+    // patient_age es la edad cronológica real del paciente — no viene de
+    // ningún AnalysisResult de YouCam, se calcula directo de
+    // Patient.birthDate. Con operator "between" (límite genérico, no
+    // solo para edad) se pueden armar rangos acotados como "13 a 18".
+    let score: number | null;
+    if (condition.metricType === 'patient_age') {
+      if (!skinAge.patientBirthDate) return false;
+      score = ageInYears(skinAge.patientBirthDate, skinAge.analysisDate);
+    } else {
+      const result = findResultForCondition(results, condition);
+      if (!result) return false;
+      score = resolveScore(result);
+    }
+
+    if (score == null || condition.value == null) return false;
+    return operatorMatches(
+      condition.operator,
+      score,
+      condition.value,
+      condition.valueTo,
+    );
+  }
+
   matchesAnyCondition<C extends Condition>(
     conditions: C[],
     results: AnalysisResult[],
     skinAge: SkinAgeContext,
   ): boolean {
-    return conditions.some((condition) => {
-      // hd_skin_type es categórico ("oily", "dry"...) — igualdad de texto,
-      // no tiene sentido "mayor/menor que" un tipo de piel.
-      if (condition.metricType === 'hd_skin_type') {
-        const result = findResultForCondition(results, condition);
-        if (!result || !condition.textValue || !result.skinType) return false;
-        return (
-          result.skinType.toLowerCase() === condition.textValue.toLowerCase()
-        );
-      }
+    return conditions.some((condition) =>
+      this.conditionMatches(condition, results, skinAge),
+    );
+  }
 
-      // patient_age es la edad cronológica real del paciente — no viene de
-      // ningún AnalysisResult de YouCam, se calcula directo de
-      // Patient.birthDate. Con operator "between" (límite genérico, no
-      // solo para edad) se pueden armar rangos acotados como "13 a 18".
-      let score: number | null;
-      if (condition.metricType === 'patient_age') {
-        if (!skinAge.patientBirthDate) return false;
-        score = ageInYears(skinAge.patientBirthDate, skinAge.analysisDate);
-      } else {
-        const result = findResultForCondition(results, condition);
-        if (!result) return false;
-        score = resolveScore(result);
-      }
-
-      if (score == null || condition.value == null) return false;
-      return operatorMatches(
-        condition.operator,
-        score,
-        condition.value,
-        condition.valueTo,
-      );
-    });
+  /**
+   * Subconjunto de `conditions` que efectivamente matchean — a diferencia de
+   * `matchesAnyCondition` (bool), esto identifica CUÁLES condiciones
+   * dispararon el match. Necesario porque una rutina/tratamiento puede tener
+   * varias condiciones combinadas con lógica O: que exista una condición de
+   * `hd_skin_type` en la rutina no implica que esa condición particular haya
+   * matcheado (pudo matchear por otra condición distinta, ej. hd_wrinkle) —
+   * confundir "existe" con "matcheó" hacía que el filtro por métrica en
+   * RecommendationsPanel mostrara rutinas con el tipo de piel o rango
+   * equivocado.
+   */
+  getMatchedConditions<C extends Condition>(
+    conditions: C[],
+    results: AnalysisResult[],
+    skinAge: SkinAgeContext,
+  ): C[] {
+    return conditions.filter((condition) =>
+      this.conditionMatches(condition, results, skinAge),
+    );
   }
 
   /**

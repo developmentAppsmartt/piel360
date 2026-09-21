@@ -8,6 +8,7 @@ import {
   IsString,
   Matches,
   Max,
+  MaxLength,
   Min,
   MinLength,
   ValidateIf,
@@ -110,4 +111,9 @@ export class CreatePatientDto {
   @IsOptional()
   @IsString()
   fitzpatrickType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  importantNotes?: string;
 }

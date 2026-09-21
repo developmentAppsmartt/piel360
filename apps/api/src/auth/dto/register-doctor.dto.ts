@@ -12,14 +12,21 @@ import {
   MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { LOCATION_TYPES, type LocationType } from '@piel360/shared';
+import {
+  LOCATION_TYPES,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_STRENGTH_MESSAGE,
+  PASSWORD_STRENGTH_REGEX,
+  type LocationType,
+} from '@piel360/shared';
 
 export class RegisterDoctorDto {
   @IsEmail()
   email!: string;
 
   @IsString()
-  @MinLength(8)
+  @MinLength(PASSWORD_MIN_LENGTH)
+  @Matches(PASSWORD_STRENGTH_REGEX, { message: PASSWORD_STRENGTH_MESSAGE })
   password!: string;
 
   @IsString()
@@ -58,36 +65,41 @@ export class RegisterDoctorDto {
   docNumber?: string;
 
   /** ISO date `YYYY-MM-DD`. */
-  @IsOptional()
   @IsDateString()
-  birthDate?: string;
+  birthDate!: string;
 
-  @IsOptional()
   @IsString()
-  gender?: string;
+  @IsNotEmpty()
+  gender!: string;
 
   /** Nombre de la especialidad médica o del perfil de técnico laboral. */
   @IsString()
   @IsNotEmpty()
   specialty!: string;
 
-  @IsOptional()
   @IsString()
-  medicalRegistry?: string;
+  @IsNotEmpty()
+  medicalRegistry!: string;
 
-  @IsOptional()
   @IsString()
-  licenseNumber?: string;
+  @IsNotEmpty()
+  licenseNumber!: string;
 
-  @IsOptional()
   @IsString()
-  educationEntity?: string;
+  @IsNotEmpty()
+  educationEntity!: string;
 
-  @IsOptional()
   @IsString()
-  graduationInstitution?: string;
+  @IsNotEmpty()
+  graduationInstitution!: string;
 
-  /** Solo técnicos laborales — institución de educación para el trabajo. */
+  /**
+   * Solo técnicos laborales — institución de educación para el trabajo.
+   * Se deja opcional a nivel de DTO: el backend no puede distinguir de forma
+   * confiable "especialidad médica" vs "técnico laboral" (ambos casos
+   * comparten el campo `specialty`) — el frontend ya lo exige (`required`)
+   * únicamente cuando corresponde.
+   */
   @IsOptional()
   @IsString()
   technicalInstitution?: string;

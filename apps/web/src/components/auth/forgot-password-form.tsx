@@ -3,7 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { isStrongPassword, PASSWORD_STRENGTH_MESSAGE } from "@piel360/shared";
 import { Field, inputClass } from "@/components/auth/auth-form-primitives";
+import { PasswordRequirements } from "@/components/ui/password-requirements";
 import {
   resetPasswordAction,
   sendPasswordResetOtpAction,
@@ -21,6 +23,7 @@ export function ForgotPasswordForm() {
   const [code, setCode] = useState("");
   const [resetToken, setResetToken] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordFocused, setPasswordFocused] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
@@ -60,8 +63,8 @@ export function ForgotPasswordForm() {
 
   async function handleResetPassword() {
     setError(null);
-    if (password.length < 8) {
-      setError("La contraseña debe tener al menos 8 caracteres.");
+    if (!isStrongPassword(password)) {
+      setError(PASSWORD_STRENGTH_MESSAGE);
       return;
     }
     if (password !== confirmPassword) {
@@ -96,15 +99,22 @@ export function ForgotPasswordForm() {
     return (
       <div className="space-y-4">
         <Field label="Nueva contraseña" required>
-          <input
-            type="password"
-            className={inputClass}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            minLength={8}
-            autoComplete="new-password"
-            placeholder="Mínimo 8 caracteres"
-          />
+          <div className="relative">
+            <input
+              type="password"
+              className={inputClass}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onFocus={() => setPasswordFocused(true)}
+              onBlur={() => setPasswordFocused(false)}
+              minLength={8}
+              autoComplete="new-password"
+              placeholder="Crea una contraseña segura"
+            />
+            {passwordFocused && password ? (
+              <PasswordRequirements password={password} />
+            ) : null}
+          </div>
         </Field>
         <Field label="Confirmar contraseña" required>
           <input

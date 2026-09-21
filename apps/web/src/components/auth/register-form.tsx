@@ -10,6 +10,8 @@ import { GoogleContinueButton } from "./google-continue-button";
 
 const initialState: AuthActionState = {};
 
+const DOC_TYPES = ["CC", "CE", "TI", "PA"] as const;
+
 export function RegisterForm({
   role,
   loginHref,
@@ -90,6 +92,34 @@ export function RegisterForm({
         minLength={8}
         autoComplete="new-password"
       />
+
+      <div className="grid grid-cols-2 gap-4">
+        <label className="flex flex-col gap-1.5 text-sm text-zinc-900">
+          <span className="font-medium">
+            Tipo de documento<span className="text-red-500"> *</span>
+          </span>
+          <select
+            id="docType"
+            name="docType"
+            required
+            defaultValue="CC"
+            className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-sky-500"
+          >
+            {DOC_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </label>
+        <TextField
+          label="Número de documento"
+          id="docNumber"
+          name="docNumber"
+          required
+          autoComplete="off"
+        />
+      </div>
 
       <div className="space-y-2">
         <TextField

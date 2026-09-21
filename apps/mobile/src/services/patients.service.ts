@@ -23,6 +23,7 @@ export type UpdatePatientInput = {
   exerciseSessionDuration?: string;
   skinType?: string;
   fitzpatrickType?: string;
+  importantNotes?: string;
 };
 
 export type CreatePatientInput = {
@@ -48,6 +49,7 @@ export type CreatePatientInput = {
   exerciseSessionDuration?: string;
   skinType?: string;
   fitzpatrickType?: string;
+  importantNotes?: string;
 };
 
 export const patientsService = {

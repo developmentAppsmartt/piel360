@@ -32,9 +32,17 @@ function StepEditForm({
   const updateStep = useUpdateRoutineStep(routineId, step?.id ?? "");
   const [title, setTitle] = useState(step?.title ?? "");
   const [description, setDescription] = useState(step?.description ?? "");
-  const [productId, setProductId] = useState(step?.productId ?? "");
+  const [productIds, setProductIds] = useState<string[]>(
+    step?.products.map((link) => link.product.id) ?? [],
+  );
 
   const isPending = createStep.isPending || updateStep.isPending;
+
+  function toggleProduct(id: string) {
+    setProductIds((prev) =>
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id],
+    );
+  }
 
   async function handleSave() {
     if (!title.trim()) return;
@@ -42,7 +50,7 @@ function StepEditForm({
       order: step?.order ?? 0,
       title,
       description: description || undefined,
-      productId: productId ? Number(productId) : undefined,
+      productIds: productIds.map((id) => Number(id)),
     };
     if (step) {
       await updateStep.mutateAsync(input);
@@ -77,16 +85,28 @@ function StepEditForm({
       </div>
       <div className="space-y-1">
         <label className="block text-sm font-medium text-foreground">
-          Producto vinculado <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
+          Productos vinculados{" "}
+          <span className="text-xs font-normal text-muted-foreground">(opcional, puedes elegir varios)</span>
         </label>
-        <select className={inputCls} value={productId} onChange={(e) => setProductId(e.target.value)}>
-          <option value="">Ninguno</option>
+        <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border border-border bg-background p-2">
+          {!products?.length && (
+            <p className="px-1 py-1 text-sm text-muted-foreground">No hay productos en el catálogo.</p>
+          )}
           {products?.map((p) => (
-            <option key={p.id} value={p.id}>
+            <label
+              key={p.id}
+              className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm hover:bg-muted"
+            >
+              <input
+                type="checkbox"
+                className="size-4"
+                checked={productIds.includes(p.id)}
+                onChange={() => toggleProduct(p.id)}
+              />
               {p.productName}
-            </option>
+            </label>
           ))}
-        </select>
+        </div>
       </div>
       {step && <RoutineStepMediaUpload routineId={routineId} stepId={step.id} currentMediaUrl={step.mediaUrl} currentMediaType={step.mediaType} />}
       {!step && (

@@ -15,6 +15,8 @@ import {
 import { PatientProfileShell } from "@/components/patients/patient-profile-shell";
 import { analysisProviderLabel } from "@/lib/analysis-provider-label";
 import { ApiError } from "@/lib/api-error";
+import { bodyRegionLabel } from "@/lib/body-regions";
+import { formatAnalysisDate } from "@/lib/patient-comparison";
 import { usePatient, usePatientAnalyses } from "@/lib/queries/patients";
 
 export default function AdminPacienteDetallePage() {
@@ -91,7 +93,7 @@ export default function AdminPacienteDetallePage() {
                     <TableCell>
                       <Badge variant="outline">{analysisProviderLabel(a)}</Badge>
                     </TableCell>
-                    <TableCell>{a.bodyRegion ?? "—"}</TableCell>
+                    <TableCell>{bodyRegionLabel(a.bodyRegion) ?? "—"}</TableCell>
                     <TableCell>{a.finalDiagnosis ?? a.aiDiagnosis ?? "—"}</TableCell>
                     <TableCell>
                       {!a.isValid ? (
@@ -103,7 +105,7 @@ export default function AdminPacienteDetallePage() {
                       )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {new Date(a.createdAt).toLocaleDateString("es-CO")}
+                      {formatAnalysisDate(a.createdAt)}
                     </TableCell>
                   </TableRow>
                 ))}

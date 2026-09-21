@@ -14,6 +14,7 @@ import { DoctorsService } from '../doctors/doctors.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PatientsService } from '../patients/patients.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ReportPdfService } from '../reports/report-pdf.service';
 import { SkiniverService } from '../skiniver/skiniver.service';
 import { StorageService } from '../storage/storage.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
@@ -59,6 +60,7 @@ export class AnalysesService {
     private readonly specialtyAccess: SpecialtyAccessService,
     private readonly imageUrls: AnalysisImageUrlsService,
     private readonly notifications: NotificationsService,
+    private readonly reportPdf: ReportPdfService,
     @InjectQueue(ANALYSIS_IMAGES_QUEUE)
     private readonly analysisImagesQueue: Queue<AnalysisImagesJobData>,
     @InjectQueue(ENCYCLOPEDIA_QUEUE)
@@ -376,6 +378,24 @@ export class AnalysesService {
     await this.assertCanAccess(analysis, currentUser);
     const withSnapshot = await this.persistSkinAgeSnapshotIfMissing(analysis);
     return this.imageUrls.withImageUrls(withSnapshot);
+  }
+
+  /** URL pública y permanente del PDF "Reporte Salud de la Piel" — genera el
+   * PDF la primera vez (`ReportPdfService.ensureReportUrl`, ya usado por el
+   * correo de "reporte listo") y reutiliza el mismo token en llamadas
+   * posteriores. Solo aplica a análisis YouCam (el PDF asume esas métricas). */
+  async getReportUrl(id: string, currentUser: JwtPayload) {
+    const analysis = await this.findOne(id, currentUser);
+    if (!analysis.youcamTaskId) {
+      throw new BadRequestException(
+        'El reporte en PDF solo está disponible para análisis YouCam.',
+      );
+    }
+    const url = await this.reportPdf.ensureReportUrl(BigInt(analysis.id));
+    if (!url) {
+      throw new BadRequestException('No se pudo generar el reporte en PDF.');
+    }
+    return { url };
   }
 
   async confirm(id: string, dto: ConfirmAnalysisDto, currentUser: JwtPayload) {

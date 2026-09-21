@@ -9,6 +9,18 @@ export type RoutineCondition = {
   textValue?: string | null;
 };
 
+export type RoutineStepProductLink = {
+  id: string;
+  order: number;
+  product: {
+    id: string;
+    productName: string;
+    productType: string;
+    productUrl?: string | null;
+    imageUrl?: string | null;
+  };
+};
+
 export type RoutineStep = {
   id: string;
   routineId: string;
@@ -17,14 +29,7 @@ export type RoutineStep = {
   description: string | null;
   mediaUrl: string | null;
   mediaType: 'image' | 'video' | 'gif' | null;
-  productId: string | null;
-  product?: {
-    id: string;
-    productName: string;
-    productType: string;
-    productUrl?: string | null;
-    imageUrl?: string | null;
-  } | null;
+  products: RoutineStepProductLink[];
 };
 
 export type RecommendedRoutine = {

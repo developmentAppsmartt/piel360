@@ -11,7 +11,12 @@ import {
   MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import type { MembershipType } from '@piel360/shared';
+import {
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_STRENGTH_MESSAGE,
+  PASSWORD_STRENGTH_REGEX,
+  type MembershipType,
+} from '@piel360/shared';
 
 const EMPRESA_MEMBERSHIP_TYPES = [
   'empresa',
@@ -23,7 +28,8 @@ export class RegisterEmpresaDto {
   email!: string;
 
   @IsString()
-  @MinLength(8)
+  @MinLength(PASSWORD_MIN_LENGTH)
+  @Matches(PASSWORD_STRENGTH_REGEX, { message: PASSWORD_STRENGTH_MESSAGE })
   password!: string;
 
   @Matches(/^\d{10,15}$/, {
@@ -43,38 +49,32 @@ export class RegisterEmpresaDto {
   @MaxLength(200)
   organizationName!: string;
 
-  @IsOptional()
   @IsString()
   @MaxLength(32)
-  ciiuCode?: string;
+  ciiuCode!: string;
 
-  @IsOptional()
   @IsEmail()
-  businessEmail?: string;
+  businessEmail!: string;
 
-  @IsOptional()
   @IsString()
   @MaxLength(32)
-  businessPhone?: string;
+  businessPhone!: string;
 
-  @IsOptional()
   @IsString()
   @MaxLength(300)
-  website?: string;
+  website!: string;
 
-  @IsOptional()
   @IsString()
   @MaxLength(32)
-  employeeCountRange?: string;
+  employeeCountRange!: string;
 
   @IsString()
   @MaxLength(200)
   legalRepName!: string;
 
-  @IsOptional()
   @IsString()
   @MaxLength(16)
-  legalRepDocType?: string;
+  legalRepDocType!: string;
 
   @IsString()
   @MaxLength(64)

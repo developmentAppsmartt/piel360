@@ -29,7 +29,7 @@ export type YoucamPdfPayload = {
 };
 
 const HEADER_LOGO = require('../../../../assets/logo-headers.png');
-const FOOTER_LOGO = require('../../../../assets/logo-piel360-brand.jpeg');
+const FOOTER_LOGO = require('../../../../assets/logo-piel360-report.png');
 
 function escapeHtml(value: string): string {
   return value
@@ -291,7 +291,7 @@ function html(
     </main>
     <footer>
       <div class="footer-text">
-        <div class="footer-brand">PIEL 360 — Apoyo diagnóstico dermatológico con inteligencia artificial.</div>
+        <div class="footer-brand">Reporte Salud de la Piel</div>
         <div class="disclaimer">Este reporte no sustituye una consulta médica presencial. Documento generado para el paciente ${escapeHtml(payload.patientName)}.</div>
         <div class="footer-stamp">Fecha y hora de creación: ${escapeHtml(payload.createdAt)}</div>
       </div>
@@ -325,7 +325,7 @@ async function persistShareablePdf(sourceUri: string, base64?: string) {
 export async function exportYoucamReportPdf(payload: YoucamPdfPayload) {
   const [headerLogoUri, footerLogoUri] = await Promise.all([
     assetToDataUri(HEADER_LOGO, 'image/png'),
-    assetToDataUri(FOOTER_LOGO, 'image/jpeg'),
+    assetToDataUri(FOOTER_LOGO, 'image/png'),
   ]);
   const markup = html(payload, headerLogoUri, footerLogoUri);
 

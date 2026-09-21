@@ -23,6 +23,14 @@ export interface RoutineCondition {
   textValue?: string | null;
 }
 
+export interface RoutineStepProductLink {
+  id: string;
+  order: number;
+  /** Producto vinculado al paso (ej. "aplicar Protector solar SPF 50+") —
+   * sin `category`, el backend no la incluye para este relation. */
+  product: Omit<Product, "category">;
+}
+
 export interface RoutineStep {
   id: string;
   routineId: string;
@@ -31,10 +39,8 @@ export interface RoutineStep {
   description: string | null;
   mediaUrl: string | null;
   mediaType: "image" | "video" | "gif" | null;
-  productId: string | null;
-  /** Producto vinculado al paso (ej. "aplicar Protector solar SPF 50+") —
-   * sin `category`, el backend no la incluye para este relation. */
-  product: Omit<Product, "category"> | null;
+  /** Uno o varios productos vinculados al paso. */
+  products: RoutineStepProductLink[];
 }
 
 export interface Routine {
@@ -47,6 +53,10 @@ export interface Routine {
   updatedAt: string;
   conditions: RoutineCondition[];
   steps: RoutineStep[];
+  /** Solo en `/routines/recommended/:analysisId` — metricTypes de las
+   * condiciones que efectivamente matchearon (no todas las de `conditions`,
+   * ya que se combinan con lógica O). */
+  matchedMetricTypes?: string[];
 }
 
 export interface CreateRoutineInput {
@@ -60,7 +70,7 @@ export interface CreateRoutineStepInput {
   order: number;
   title: string;
   description?: string;
-  productId?: number;
+  productIds?: number[];
 }
 
 // ─── Rutinas ────────────────────────────────────────────────────────────────────

@@ -113,6 +113,12 @@ export class AnalysesController {
     return this.treatmentsService.getRecommendedTreatments(user.sub, id);
   }
 
+  /** URL del PDF "Reporte Salud de la Piel" (profesional o paciente con análisis compartido). */
+  @Get(':id/report-pdf')
+  reportPdf(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.analysesService.getReportUrl(id, user);
+  }
+
   /** Recomendaciones por fototipo (profesional o paciente con análisis compartido). */
   @Get(':id/fitzpatrick-recommendations')
   fitzpatrickRecommendations(

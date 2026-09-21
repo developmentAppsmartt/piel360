@@ -31,6 +31,7 @@ export interface Patient {
   exerciseSessionDuration: string | null;
   skinType: string | null;
   fitzpatrickType: string | null;
+  importantNotes: string | null;
   lastSkinAgeYears?: number | null;
   lastChronologicalAgeYears?: number | null;
   lastSkinAgeDifference?: number | null;
@@ -109,6 +110,7 @@ export interface PatientInput {
   exerciseSessionDuration?: string;
   skinType?: string;
   fitzpatrickType?: string;
+  importantNotes?: string;
 }
 
 export function usePatients(

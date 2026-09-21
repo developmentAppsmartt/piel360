@@ -536,9 +536,13 @@ export function SkiniverResultsSection({
                 placeholder="Describe el diagnóstico del médico"
                 placeholderTextColor="#9CA3AF"
                 multiline
+                maxLength={500}
                 textAlignVertical="top"
                 editable={!observationsSaving}
               />
+              <Text style={styles.diagnosisSub}>
+                {observationsValue.length}/500
+              </Text>
               <Pressable
                 style={[
                   styles.confirmPrimaryBtn,

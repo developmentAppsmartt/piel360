@@ -1,11 +1,17 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { Droplet, Sun } from "lucide-react";
 import { ModuleCard } from "@/components/ui/module-card";
 import { RecommendationsPanel } from "@/components/analyses/recommendations-panel";
+import {
+  FitzpatrickResultsSection,
+  resolveFitzpatrickScale,
+} from "@/components/analyses/fitzpatrick-results-section";
 import { youcamMetricCopy } from "@/lib/youcam-metric-copy";
 import { YOUCAM_METRIC_LABELS, youcamRegionLabel, youcamSkinTypeLabel } from "@/lib/youcam-metric-labels";
 import type { AnalysisDetail } from "@/lib/queries/analyses";
+import type { FitzpatrickScale } from "@piel360/shared";
 import {
   parseYoucamMetrics,
   YOUCAM_MAIN_METRIC_TYPES,
@@ -126,6 +132,7 @@ function buildChips(
   metrics: YoucamMetric[],
   masks: AnalysisDetail["masks"],
   preferRaw: boolean,
+  fitzpatrickScale: FitzpatrickScale | null,
 ): MetricChip[] {
   const chips: MetricChip[] = [
     {
@@ -143,13 +150,22 @@ function buildChips(
       skinTypeCandidates[0];
     chips.push({
       type: "hd_skin_type",
-      label: "Tipo piel",
+      label: "Biotipo",
       score: youcamMetricValue(whole, preferRaw),
       maskUrl: findMaskUrl(masks, "hd_skin_type", whole.region),
       regions:
         skinTypeCandidates.length > 1
           ? buildRegionOptions("hd_skin_type", skinTypeCandidates, masks, preferRaw)
           : undefined,
+    });
+  }
+
+  if (fitzpatrickScale) {
+    chips.push({
+      type: "fitzpatrick",
+      label: "Fototipo",
+      score: null,
+      maskUrl: null,
     });
   }
 
@@ -220,11 +236,15 @@ export function YoucamResultsSection({
     analysis.skinAgeDifference ??
     skinAgeDifference(skinAge, chronologicalAge);
   const skinType = youcamSkinType(metrics);
+  const fitzpatrickScale = useMemo(
+    () => resolveFitzpatrickScale(analysis),
+    [analysis],
+  );
   // Puntuación ajustada (uiScore): la elige el doctor; sin toggle en el análisis.
   const preferRaw = false;
   const chips = useMemo(
-    () => buildChips(metrics, analysis.masks, preferRaw),
-    [metrics, analysis.masks],
+    () => buildChips(metrics, analysis.masks, preferRaw, fitzpatrickScale),
+    [metrics, analysis.masks, fitzpatrickScale],
   );
   const overviewMaskUrls = useMemo(
     () => buildOverviewMaskUrls(metrics, analysis.masks),
@@ -375,7 +395,7 @@ export function YoucamResultsSection({
           </>
         ) : null}
         <p className="text-sm">
-          Tipo de piel:{" "}
+          Biotipo:{" "}
           <span className="font-semibold text-muted-foreground">
             {skinType ? youcamSkinTypeLabel(skinType) : "—"}
           </span>
@@ -508,7 +528,15 @@ export function YoucamResultsSection({
                     : "border-border bg-card text-foreground",
                 )}
               >
-                {chip.score != null ? Math.round(chip.score) : "·"}
+                {chip.type === "hd_skin_type" ? (
+                  <Droplet className="size-5" />
+                ) : chip.type === "fitzpatrick" ? (
+                  <Sun className="size-5" />
+                ) : chip.score != null ? (
+                  Math.round(chip.score)
+                ) : (
+                  "·"
+                )}
               </span>
               <span
                 className={cn(
@@ -527,7 +555,9 @@ export function YoucamResultsSection({
        * forma de ver forehead/nose/cheek/etc. de hd_pore, las 7 zonas de
        * hd_wrinkle, o Zona T/Zona U de hd_skin_type: quedaban colapsadas
        * al chip principal ("General"/whole) sin ninguna alternativa. */}
-      {selected?.regions && selected.regions.length > 0 ? (
+      {selected?.type === "fitzpatrick" ? (
+        <FitzpatrickResultsSection analysis={analysis} compact silentIfEmpty />
+      ) : selected?.regions && selected.regions.length > 0 ? (
         <div className="-mx-1 flex flex-wrap gap-2 px-1">
           {selected.regions.map((option) => {
             const active = option.region === selectedRegion;
