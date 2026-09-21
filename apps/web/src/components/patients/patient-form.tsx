@@ -40,40 +40,37 @@ function createPatientSchema(isCreate: boolean) {
     .object({
       firstName: z.string().min(1, "Requerido"),
       lastName: z.string().min(1, "Requerido"),
-      email: z.union([z.literal(""), z.string().email("Email inválido")]),
+      email: z.string().email("Email inválido"),
       password: z.string(),
       createAppAccess: z.boolean(),
-      docType: z.string(),
-      docNumber: z.string(),
-      gender: z.string(),
-      address: z.string(),
+      docType: z.string().min(1, "Requerido"),
+      docNumber: z.string().min(1, "Requerido"),
+      gender: z.string().min(1, "Requerido"),
+      address: z.string().min(1, "Requerido"),
       lat: z.number().nullable(),
       lng: z.number().nullable(),
-      areaCode: z.string(),
-      phone: z.string(),
-      birthDate: z.union([
-        z.literal(""),
-        z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
-      ]),
-      mascotType: z.string(),
-      birthType: z.string(),
-      exerciseHabit: z.string(),
-      exerciseDaysPerWeek: z.string(),
-      exerciseSessionDuration: z.string(),
-      skinType: z.string(),
-      fitzpatrickType: z.string(),
+      areaCode: z.string().min(1, "Requerido"),
+      phone: z.string().min(1, "Requerido"),
+      birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
+      mascotType: z.string().min(1, "Requerido"),
+      birthType: z.string().min(1, "Requerido"),
+      exerciseHabit: z.string().min(1, "Requerido"),
+      exerciseDaysPerWeek: z.string().min(1, "Requerido"),
+      exerciseSessionDuration: z.string().min(1, "Requerido"),
+      skinType: z.string().min(1, "Requerido"),
+      fitzpatrickType: z.string().min(1, "Requerido"),
+      importantNotes: z.string().max(500, "Máximo 500 caracteres"),
     })
     .superRefine((values, ctx) => {
-      if (!isCreate || !values.createAppAccess) return;
-      const email = values.email.trim();
-      const password = values.password.trim();
-      if (!email) {
+      if (values.lat == null || values.lng == null) {
         ctx.addIssue({
           code: "custom",
-          path: ["email"],
-          message: "El correo es obligatorio para crear acceso",
+          path: ["address"],
+          message: "Selecciona una ubicación en el mapa",
         });
       }
+      if (!isCreate || !values.createAppAccess) return;
+      const password = values.password.trim();
       if (!isStrongPassword(password)) {
         ctx.addIssue({
           code: "custom",
@@ -123,6 +120,7 @@ function toInput(values: PatientFormValues, isCreate: boolean): PatientInput {
     exerciseSessionDuration: opt(values.exerciseSessionDuration),
     skinType: opt(values.skinType),
     fitzpatrickType: opt(values.fitzpatrickType),
+    importantNotes: opt(values.importantNotes),
   };
 }
 
@@ -202,6 +200,7 @@ export function PatientForm({
 }) {
   const isCreate = !defaultValues;
   const [showPassword, setShowPassword] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
 
   const {
     register,
@@ -235,6 +234,7 @@ export function PatientForm({
       exerciseSessionDuration: defaultValues?.exerciseSessionDuration ?? "",
       skinType: defaultValues?.skinType ?? "",
       fitzpatrickType: defaultValues?.fitzpatrickType ?? "",
+      importantNotes: defaultValues?.importantNotes ?? "",
     },
   });
 
@@ -245,6 +245,7 @@ export function PatientForm({
   const latValue = watch("lat");
   const lngValue = watch("lng");
   const passwordValue = watch("password");
+  const importantNotesValue = watch("importantNotes");
   const chronologicalAge = chronologicalAgeYears(birthDateValue || null, new Date());
   const fitzHint = PATIENT_FITZ_OPTIONS.find((f) => f.value === fitz)?.hint;
 
@@ -282,7 +283,7 @@ export function PatientForm({
           </FormField>
         </div>
 
-        <FormField label="Tipo de identificación" id="docType">
+        <FormField label="Tipo de identificación" id="docType" required error={errors.docType?.message}>
           <Controller
             name="docType"
             control={control}
@@ -297,11 +298,11 @@ export function PatientForm({
           />
         </FormField>
 
-        <FormField label="Número de identificación" id="docNumber">
+        <FormField label="Número de identificación" id="docNumber" required error={errors.docNumber?.message}>
           <input id="docNumber" className={inputClass} {...register("docNumber")} />
         </FormField>
 
-        <FormField label="Sexo" id="gender">
+        <FormField label="Sexo" id="gender" required error={errors.gender?.message}>
           <Controller
             name="gender"
             control={control}
@@ -318,6 +319,7 @@ export function PatientForm({
         <FormField
           label="Fecha de nacimiento"
           id="birthDate"
+          required
           hint={
             chronologicalAge != null
               ? `Edad cronológica: ${chronologicalAge} años. Se usa en el análisis de salud de la piel y en el CRM.`
@@ -328,7 +330,7 @@ export function PatientForm({
           <input id="birthDate" type="date" className={inputClass} {...register("birthDate")} />
         </FormField>
 
-        <FormField label="Tipo de nacimiento" id="birthType">
+        <FormField label="Tipo de nacimiento" id="birthType" required error={errors.birthType?.message}>
           <Controller
             name="birthType"
             control={control}
@@ -354,6 +356,7 @@ export function PatientForm({
         <FormField
           label="Correo electrónico"
           id="email"
+          required
           hint="Correo de contacto del paciente. Si activas “Crear cuenta” más abajo, se usará este mismo correo para iniciar sesión."
           error={errors.email?.message}
         >
@@ -372,12 +375,15 @@ export function PatientForm({
             setValue("lng", next.lng, { shouldDirty: true });
           }}
         />
+        {errors.address?.message ? (
+          <p className="text-xs text-destructive">{errors.address.message}</p>
+        ) : null}
 
         <div className="grid gap-4 sm:grid-cols-[110px_1fr]">
-          <FormField label="Indicativo" id="areaCode">
+          <FormField label="Indicativo" id="areaCode" required error={errors.areaCode?.message}>
             <input id="areaCode" className={inputClass} {...register("areaCode")} />
           </FormField>
-          <FormField label="Teléfono" id="phone">
+          <FormField label="Teléfono" id="phone" required error={errors.phone?.message}>
             <input id="phone" type="tel" className={inputClass} {...register("phone")} />
           </FormField>
         </div>
@@ -416,25 +422,28 @@ export function PatientForm({
               required
               error={errors.password?.message}
             >
-              <div className="max-w-sm space-y-2">
-                <div className="relative">
-                  <input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    className={cn(inputClass, "pr-10")}
-                    {...register("password")}
-                  />
-                  <button
-                    type="button"
-                    className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                  >
-                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-                {passwordValue ? <PasswordRequirements password={passwordValue} /> : null}
+              <div className="relative max-w-sm">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  className={cn(inputClass, "pr-10")}
+                  {...register("password", {
+                    onBlur: () => setPasswordFocused(false),
+                  })}
+                  onFocus={() => setPasswordFocused(true)}
+                />
+                <button
+                  type="button"
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+                {passwordFocused && passwordValue ? (
+                  <PasswordRequirements password={passwordValue} />
+                ) : null}
               </div>
             </FormField>
           ) : (
@@ -450,11 +459,11 @@ export function PatientForm({
         <div>
           <ModuleCardTitle>Perfil dermatológico</ModuleCardTitle>
           <ModuleCardDescription className="mt-1">
-            Datos opcionales que ayudan a personalizar análisis y recomendaciones.
+            Datos que ayudan a personalizar análisis y recomendaciones.
           </ModuleCardDescription>
         </div>
 
-        <FormField label="Mascota en el hogar" id="mascotType">
+        <FormField label="Mascota en el hogar" id="mascotType" required error={errors.mascotType?.message}>
           <Controller
             name="mascotType"
             control={control}
@@ -472,12 +481,14 @@ export function PatientForm({
           <div>
             <p className="text-sm font-semibold text-foreground">Actividad física</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Datos opcionales sobre ejercicio o deporte regular.
+              Datos sobre ejercicio o deporte regular.
             </p>
           </div>
           <FormField
             label="¿Realiza algún tipo de ejercicio o deporte de forma regular?"
             id="exerciseHabit"
+            required
+            error={errors.exerciseHabit?.message}
           >
             <Controller
               name="exerciseHabit"
@@ -494,6 +505,8 @@ export function PatientForm({
           <FormField
             label="¿Cuántos días a la semana dedica a estas actividades?"
             id="exerciseDaysPerWeek"
+            required
+            error={errors.exerciseDaysPerWeek?.message}
           >
             <Controller
               name="exerciseDaysPerWeek"
@@ -510,6 +523,8 @@ export function PatientForm({
           <FormField
             label="¿Cuánto tiempo dura cada sesión de entrenamiento?"
             id="exerciseSessionDuration"
+            required
+            error={errors.exerciseSessionDuration?.message}
           >
             <Controller
               name="exerciseSessionDuration"
@@ -525,7 +540,7 @@ export function PatientForm({
           </FormField>
         </div>
 
-        <FormField label="Tipo de piel" id="skinType">
+        <FormField label="Tipo de piel" id="skinType" required error={errors.skinType?.message}>
           <Controller
             name="skinType"
             control={control}
@@ -542,6 +557,8 @@ export function PatientForm({
         <FormField
           label="Fototipo Fitzpatrick"
           id="fitzpatrickType"
+          required
+          error={errors.fitzpatrickType?.message}
           hint={fitzHint ?? "Selecciona el tono más cercano al del paciente."}
         >
           <Controller
@@ -576,6 +593,24 @@ export function PatientForm({
               </div>
             )}
           />
+        </FormField>
+
+        <FormField
+          label="Notas importantes"
+          id="importantNotes"
+          hint="Opcional. Máximo 500 caracteres."
+          error={errors.importantNotes?.message}
+        >
+          <textarea
+            id="importantNotes"
+            rows={3}
+            maxLength={500}
+            className={inputClass.replace("h-10", "min-h-24 py-2")}
+            {...register("importantNotes")}
+          />
+          <p className="text-right text-xs text-muted-foreground">
+            {importantNotesValue.length}/500
+          </p>
         </FormField>
       </ModuleCard>
 

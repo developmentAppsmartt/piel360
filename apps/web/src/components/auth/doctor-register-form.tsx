@@ -131,6 +131,7 @@ export function DoctorRegisterForm({
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordFocused, setPasswordFocused] = useState(false);
   const [phonePrefix, setPhonePrefix] = useState("57");
   const [phoneNational, setPhoneNational] = useState("");
   const [docType, setDocType] = useState<string>(DOC_TYPES[0]);
@@ -547,11 +548,12 @@ export function DoctorRegisterForm({
             autoComplete="off"
           />
         </Field>
-        <Field label="Género">
+        <Field label="Género" required>
           <select
             className={inputClass}
             value={gender}
             onChange={(e) => setGender(e.target.value)}
+            required
           >
             <option value="">Seleccionar</option>
             {GENDER_OPTIONS.map((g) => (
@@ -561,13 +563,14 @@ export function DoctorRegisterForm({
             ))}
           </select>
         </Field>
-        <Field label="Fecha de nacimiento">
+        <Field label="Fecha de nacimiento" required>
           <input
             className={inputClass}
             type="date"
             value={birthDate}
             onChange={(e) => setBirthDate(e.target.value)}
             max={new Date().toISOString().slice(0, 10)}
+            required
           />
         </Field>
         <div className="sm:col-span-2 space-y-3">
@@ -651,7 +654,7 @@ export function DoctorRegisterForm({
           ) : null}
         </div>
         <Field label="Contraseña" required>
-          <div className="space-y-2">
+          <div className="relative">
             <input
               className={inputClass}
               type="password"
@@ -660,53 +663,62 @@ export function DoctorRegisterForm({
               autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onFocus={() => setPasswordFocused(true)}
+              onBlur={() => setPasswordFocused(false)}
               placeholder="Crea una contraseña segura"
             />
-            {password ? <PasswordRequirements password={password} /> : null}
+            {passwordFocused && password ? (
+              <PasswordRequirements password={password} />
+            ) : null}
           </div>
         </Field>
-        <Field label="Registro médico">
+        <Field label="Registro médico" required>
           <input
             className={inputClass}
             placeholder="RM-123456"
             value={medicalRegistry}
             onChange={(e) => setMedicalRegistry(e.target.value)}
+            required
           />
         </Field>
-        <Field label="Número de licencia">
+        <Field label="Número de licencia" required>
           <input
             className={inputClass}
             placeholder="LIC-0098"
             value={licenseNumber}
             onChange={(e) => setLicenseNumber(e.target.value)}
+            required
           />
         </Field>
-        <Field label="Entidad educativa">
+        <Field label="Entidad educativa" required>
           <CatalogCombobox
             typeSlug="education_entity"
             className={inputClass}
             placeholder="Busca tu universidad"
             value={educationEntity}
             onChange={setEducationEntity}
+            required
           />
         </Field>
-        <Field label="Institución de egreso">
+        <Field label="Institución de egreso" required>
           <CatalogCombobox
             typeSlug="education_entity"
             className={inputClass}
             placeholder="Busca la institución de egreso"
             value={graduationInstitution}
             onChange={setGraduationInstitution}
+            required
           />
         </Field>
         {professionalKind === "labor" ? (
-          <Field label="Institución de educación técnica">
+          <Field label="Institución de educación técnica" required>
             <CatalogCombobox
               typeSlug="technical_education_institution"
               className={inputClass}
               placeholder="Busca tu institución técnica"
               value={technicalInstitution}
               onChange={setTechnicalInstitution}
+              required
             />
           </Field>
         ) : null}

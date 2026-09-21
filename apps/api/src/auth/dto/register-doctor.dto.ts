@@ -65,36 +65,41 @@ export class RegisterDoctorDto {
   docNumber?: string;
 
   /** ISO date `YYYY-MM-DD`. */
-  @IsOptional()
   @IsDateString()
-  birthDate?: string;
+  birthDate!: string;
 
-  @IsOptional()
   @IsString()
-  gender?: string;
+  @IsNotEmpty()
+  gender!: string;
 
   /** Nombre de la especialidad médica o del perfil de técnico laboral. */
   @IsString()
   @IsNotEmpty()
   specialty!: string;
 
-  @IsOptional()
   @IsString()
-  medicalRegistry?: string;
+  @IsNotEmpty()
+  medicalRegistry!: string;
 
-  @IsOptional()
   @IsString()
-  licenseNumber?: string;
+  @IsNotEmpty()
+  licenseNumber!: string;
 
-  @IsOptional()
   @IsString()
-  educationEntity?: string;
+  @IsNotEmpty()
+  educationEntity!: string;
 
-  @IsOptional()
   @IsString()
-  graduationInstitution?: string;
+  @IsNotEmpty()
+  graduationInstitution!: string;
 
-  /** Solo técnicos laborales — institución de educación para el trabajo. */
+  /**
+   * Solo técnicos laborales — institución de educación para el trabajo.
+   * Se deja opcional a nivel de DTO: el backend no puede distinguir de forma
+   * confiable "especialidad médica" vs "técnico laboral" (ambos casos
+   * comparten el campo `specialty`) — el frontend ya lo exige (`required`)
+   * únicamente cuando corresponde.
+   */
   @IsOptional()
   @IsString()
   technicalInstitution?: string;

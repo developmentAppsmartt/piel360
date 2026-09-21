@@ -49,38 +49,32 @@ export class RegisterEmpresaDto {
   @MaxLength(200)
   organizationName!: string;
 
-  @IsOptional()
   @IsString()
   @MaxLength(32)
-  ciiuCode?: string;
+  ciiuCode!: string;
 
-  @IsOptional()
   @IsEmail()
-  businessEmail?: string;
+  businessEmail!: string;
 
-  @IsOptional()
   @IsString()
   @MaxLength(32)
-  businessPhone?: string;
+  businessPhone!: string;
 
-  @IsOptional()
   @IsString()
   @MaxLength(300)
-  website?: string;
+  website!: string;
 
-  @IsOptional()
   @IsString()
   @MaxLength(32)
-  employeeCountRange?: string;
+  employeeCountRange!: string;
 
   @IsString()
   @MaxLength(200)
   legalRepName!: string;
 
-  @IsOptional()
   @IsString()
   @MaxLength(16)
-  legalRepDocType?: string;
+  legalRepDocType!: string;
 
   @IsString()
   @MaxLength(64)

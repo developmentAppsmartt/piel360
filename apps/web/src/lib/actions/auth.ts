@@ -83,6 +83,8 @@ export async function registerAction(
   const phone = String(formData.get("phone") ?? "");
   const phoneTicket = String(formData.get("phoneTicket") ?? "");
   const membershipType = String(formData.get("membershipType") ?? "solo_doctor");
+  const docType = String(formData.get("docType") ?? "");
+  const docNumber = String(formData.get("docNumber") ?? "");
 
   const body: Record<string, string> = {
     email,
@@ -91,6 +93,8 @@ export async function registerAction(
     lastName,
     phone,
     phoneTicket,
+    docType,
+    docNumber,
   };
   if (role === "doctor") {
     body.membershipType = membershipType;
