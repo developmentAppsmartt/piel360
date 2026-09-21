@@ -160,16 +160,17 @@ function mapRuleRoutines(routines: SkinAgeRecoItem[]): RecommendedRoutine[] {
       description: step.description,
       mediaUrl: step.mediaUrl,
       mediaType: step.mediaType,
-      productId: step.productId ?? step.product?.id ?? null,
-      product: step.product
-        ? {
-            id: step.product.id,
-            productName: step.product.productName,
-            productType: step.product.productType,
-            productUrl: step.product.productUrl ?? null,
-            imageUrl: resolveMediaUrl(step.product.imageUrl),
-          }
-        : null,
+      products: (step.products ?? []).map((product) => ({
+        id: product.id,
+        order: 0,
+        product: {
+          id: product.id,
+          productName: product.productName,
+          productType: product.productType,
+          productUrl: product.productUrl ?? null,
+          imageUrl: resolveMediaUrl(product.imageUrl),
+        },
+      })),
     })),
   }));
 }
@@ -800,24 +801,24 @@ function linkedProductsForRoutine(
   const linked: CatalogCard[] = [];
   const seen = new Set<string>();
   for (const step of [...routine.steps].sort((a, b) => a.order - b.order)) {
-    const productId = step.productId ?? step.product?.id ?? null;
-    if (!productId || seen.has(productId)) continue;
-    seen.add(productId);
-    const fromCatalog = byId.get(productId);
-    if (fromCatalog) {
-      linked.push(fromCatalog);
-      continue;
-    }
-    if (step.product) {
+    for (const link of step.products) {
+      const productId = link.product.id;
+      if (!productId || seen.has(productId)) continue;
+      seen.add(productId);
+      const fromCatalog = byId.get(productId);
+      if (fromCatalog) {
+        linked.push(fromCatalog);
+        continue;
+      }
       linked.push({
-        id: step.product.id,
-        title: step.product.productName,
+        id: link.product.id,
+        title: link.product.productName,
         subtitle: 'Producto vinculado',
         description: null,
-        imageUrl: resolveMediaUrl(step.product.imageUrl),
-        url: step.product.productUrl ?? null,
+        imageUrl: resolveMediaUrl(link.product.imageUrl),
+        url: link.product.productUrl ?? null,
         kind:
-          step.product.productType === 'supplement' ? 'supplement' : 'product',
+          link.product.productType === 'supplement' ? 'supplement' : 'product',
       });
     }
   }

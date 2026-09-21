@@ -60,25 +60,31 @@ export class RoutinesService {
     return this.storage.getSignedUrl(url);
   }
 
-  /** Firma mediaUrl del paso y, si tiene un producto vinculado, también su
-   * imageUrl — mismo criterio que TreatmentsService#resolveItemImage. */
+  /** Firma mediaUrl del paso y la imageUrl de cada producto vinculado —
+   * mismo criterio que TreatmentsService#resolveItemImage. */
   private async resolveStepMedia<
     T extends {
       mediaUrl: string | null;
-      product: { imageUrl: string | null } | null;
+      products: { product: { imageUrl: string | null } }[];
     },
   >(step: T): Promise<T> {
     const mediaUrl = await this.resolveS3Url(step.mediaUrl);
-    const product = step.product
-      ? { ...step.product, imageUrl: await this.resolveS3Url(step.product.imageUrl) }
-      : step.product;
-    return { ...step, mediaUrl, product };
+    const products = await Promise.all(
+      step.products.map(async (link) => ({
+        ...link,
+        product: {
+          ...link.product,
+          imageUrl: await this.resolveS3Url(link.product.imageUrl),
+        },
+      })),
+    );
+    return { ...step, mediaUrl, products };
   }
 
   private async resolveStepsMedia<
     T extends {
       mediaUrl: string | null;
-      product: { imageUrl: string | null } | null;
+      products: { product: { imageUrl: string | null } }[];
     },
   >(steps: T[]): Promise<T[]> {
     return Promise.all(steps.map((s) => this.resolveStepMedia(s)));
@@ -88,7 +94,12 @@ export class RoutinesService {
     conditions: true,
     steps: {
       orderBy: { order: 'asc' as const },
-      include: { product: true },
+      include: {
+        products: {
+          orderBy: { order: 'asc' as const },
+          include: { product: true },
+        },
+      },
     },
   };
 
@@ -96,7 +107,7 @@ export class RoutinesService {
     T extends {
       steps: {
         mediaUrl: string | null;
-        product: { imageUrl: string | null } | null;
+        products: { product: { imageUrl: string | null } }[];
       }[];
     },
   >(routine: T): Promise<T> {
@@ -212,8 +223,10 @@ export class RoutinesService {
   ) {
     const doctorId = await this.catalogDoctorId(userId);
     await this.ensureRoutineOwner(BigInt(routineId), doctorId);
-    if (dto.productId !== undefined) {
-      await this.ensureProductOwner(BigInt(dto.productId), doctorId);
+    if (dto.productIds?.length) {
+      await Promise.all(
+        dto.productIds.map((id) => this.ensureProductOwner(BigInt(id), doctorId)),
+      );
     }
     const step = await this.prisma.routineStep.create({
       data: {
@@ -221,10 +234,16 @@ export class RoutinesService {
         order: dto.order,
         title: dto.title,
         description: dto.description,
-        productId:
-          dto.productId !== undefined ? BigInt(dto.productId) : undefined,
+        products: dto.productIds?.length
+          ? {
+              create: dto.productIds.map((id, index) => ({
+                productId: BigInt(id),
+                order: index,
+              })),
+            }
+          : undefined,
       },
-      include: { product: true },
+      include: { products: { include: { product: true } } },
     });
     return this.resolveStepMedia(step);
   }
@@ -241,8 +260,10 @@ export class RoutinesService {
     if (step.routineId !== BigInt(routineId)) {
       throw new NotFoundException('Paso no encontrado en esta rutina');
     }
-    if (dto.productId !== undefined) {
-      await this.ensureProductOwner(BigInt(dto.productId), doctorId);
+    if (dto.productIds?.length) {
+      await Promise.all(
+        dto.productIds.map((id) => this.ensureProductOwner(BigInt(id), doctorId)),
+      );
     }
     const updated = await this.prisma.routineStep.update({
       where: { id: BigInt(stepId) },
@@ -250,10 +271,18 @@ export class RoutinesService {
         order: dto.order,
         title: dto.title,
         description: dto.description,
-        productId:
-          dto.productId !== undefined ? BigInt(dto.productId) : undefined,
+        products:
+          dto.productIds !== undefined
+            ? {
+                deleteMany: {},
+                create: dto.productIds.map((id, index) => ({
+                  productId: BigInt(id),
+                  order: index,
+                })),
+              }
+            : undefined,
       },
-      include: { product: true },
+      include: { products: { include: { product: true } } },
     });
     return this.resolveStepMedia(updated);
   }
@@ -325,7 +354,7 @@ export class RoutinesService {
     const updated = await this.prisma.routineStep.update({
       where: { id: BigInt(stepId) },
       data: { mediaUrl: key, mediaType },
-      include: { product: true },
+      include: { products: { include: { product: true } } },
     });
     return this.resolveStepMedia(updated);
   }

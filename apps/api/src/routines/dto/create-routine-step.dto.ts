@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -22,6 +23,8 @@ export class CreateRoutineStepDto {
   description?: string;
 
   @IsOptional()
+  @IsArray()
   @Type(() => Number)
-  productId?: number;
+  @IsInt({ each: true })
+  productIds?: number[];
 }

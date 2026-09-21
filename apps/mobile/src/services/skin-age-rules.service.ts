@@ -15,14 +15,13 @@ export type SkinAgeRecoItem = {
     description: string | null;
     mediaUrl: string | null;
     mediaType: 'image' | 'video' | 'gif' | null;
-    productId?: string | null;
-    product?: {
+    products: {
       id: string;
       productName: string;
       productType: string;
       productUrl?: string | null;
       imageUrl?: string | null;
-    } | null;
+    }[];
   }[];
   items?: {
     id: string;

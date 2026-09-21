@@ -70,14 +70,15 @@ export class SkinAgeRulesService {
     description: string | null;
     mediaUrl: string | null;
     mediaType: string | null;
-    productId: bigint | null;
-    product?: {
-      id: bigint;
-      productName: string;
-      productType: string;
-      productUrl: string | null;
-      imageUrl: string | null;
-    } | null;
+    products: {
+      product: {
+        id: bigint;
+        productName: string;
+        productType: string;
+        productUrl: string | null;
+        imageUrl: string | null;
+      };
+    }[];
   }) {
     return {
       id: step.id.toString(),
@@ -86,16 +87,15 @@ export class SkinAgeRulesService {
       description: step.description,
       mediaUrl: await this.resolveMediaUrl(step.mediaUrl),
       mediaType: step.mediaType,
-      productId: step.productId?.toString() ?? null,
-      product: step.product
-        ? {
-            id: step.product.id.toString(),
-            productName: step.product.productName,
-            productType: step.product.productType,
-            productUrl: step.product.productUrl,
-            imageUrl: await this.resolveMediaUrl(step.product.imageUrl),
-          }
-        : null,
+      products: await Promise.all(
+        step.products.map(async (link) => ({
+          id: link.product.id.toString(),
+          productName: link.product.productName,
+          productType: link.product.productType,
+          productUrl: link.product.productUrl,
+          imageUrl: await this.resolveMediaUrl(link.product.imageUrl),
+        })),
+      ),
     };
   }
 
@@ -281,7 +281,12 @@ export class SkinAgeRulesService {
             include: {
               steps: {
                 orderBy: { order: 'asc' },
-                include: { product: true },
+                include: {
+                  products: {
+                    orderBy: { order: 'asc' },
+                    include: { product: true },
+                  },
+                },
               },
             },
           })
@@ -577,7 +582,12 @@ export class SkinAgeRulesService {
         include: {
           steps: {
             orderBy: { order: 'asc' },
-            include: { product: true },
+            include: {
+              products: {
+                orderBy: { order: 'asc' },
+                include: { product: true },
+              },
+            },
           },
         },
         orderBy: { createdAt: 'asc' },
