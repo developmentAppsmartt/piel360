@@ -158,9 +158,12 @@ export function SkiniverClinicoWidget() {
           {tab === "resultados" && (
             <div className="space-y-4">
               <RiskGauge
-                percent={
-                  (prediction?.high_risk_prob ?? selected.data.aiProbability ?? 0) * 100
-                }
+                percent={(() => {
+                  const raw = prediction?.high_risk_prob;
+                  if (raw == null || !Number.isFinite(Number(raw))) return 0;
+                  const n = Number(raw);
+                  return n <= 1 ? n * 100 : n;
+                })()}
                 riskLabel={riskLabel}
               />
 

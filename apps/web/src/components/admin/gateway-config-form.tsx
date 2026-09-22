@@ -17,6 +17,7 @@ const gatewayConfigSchema = z.object({
   integritySecret: z.string(),
   webhookSecret: z.string(),
   feePercent: z.number().min(0).max(100),
+  operationalCostFixed: z.number().min(0),
   payoutApiKey: z.string(),
   payoutUserPrincipalId: z.string(),
   payoutAccountId: z.string(),
@@ -33,6 +34,7 @@ export interface GatewayConfigFormInput {
   integritySecret?: string;
   webhookSecret?: string;
   feePercent?: number;
+  operationalCostFixed?: number;
   payoutApiKey?: string;
   payoutUserPrincipalId?: string;
   payoutAccountId?: string;
@@ -48,6 +50,7 @@ function toInput(values: GatewayConfigFormValues): GatewayConfigFormInput {
     integritySecret: values.integritySecret || undefined,
     webhookSecret: values.webhookSecret || undefined,
     feePercent: values.feePercent,
+    operationalCostFixed: values.operationalCostFixed,
     payoutApiKey: values.payoutApiKey || undefined,
     payoutUserPrincipalId: values.payoutUserPrincipalId || undefined,
     payoutAccountId: values.payoutAccountId.trim() || undefined,
@@ -84,6 +87,7 @@ export function GatewayConfigForm({
       integritySecret: "",
       webhookSecret: "",
       feePercent: defaultValues?.feePercent ?? 2.99,
+      operationalCostFixed: defaultValues?.operationalCostFixed ?? 0,
       payoutApiKey: "",
       payoutUserPrincipalId: "",
       payoutAccountId: defaultValues?.payoutAccountId ?? "",
@@ -178,14 +182,30 @@ export function GatewayConfigForm({
               {...register("feePercent", { valueAsNumber: true })}
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Se descuenta del bruto antes del % del aliado.
+              Se descuenta del bruto del plan (p. ej. Wompi) antes de gastos
+              operativos y del % del referido.
             </p>
           </div>
-          <label className="flex items-end gap-2 pb-2 text-sm">
-            <input type="checkbox" {...register("isActive")} className="size-4" />
-            Pasarela activa
-          </label>
+          <div>
+            <TextField
+              label="Gastos operativos (COP)"
+              id="operationalCostFixed"
+              type="number"
+              step="1"
+              min={0}
+              {...register("operationalCostFixed", { valueAsNumber: true })}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Monto fijo que se resta tras la comisión de pasarela y antes del %
+              del referido.
+            </p>
+          </div>
         </div>
+
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" {...register("isActive")} className="size-4" />
+          Pasarela activa
+        </label>
 
         <div className="grid gap-4 sm:grid-cols-1">
           <TextField

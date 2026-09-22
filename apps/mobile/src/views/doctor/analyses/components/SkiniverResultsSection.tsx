@@ -26,6 +26,7 @@ import type {
 } from '../../../../types/analysis';
 import {
   extractSkiniverSupportDiagnoses,
+  formatClassProbPercent,
   normalizedProb,
   parseSkiniverDescription,
 } from '../../../../types/analysis';
@@ -66,26 +67,39 @@ function formatStamp(iso: string): string {
   return `${dd}${mm}${yyyy} ${hh}:${min}`;
 }
 
-/** Une campos ya parseados + re-parse de `description` por si el item llega crudo. */
+/** Une campos de texto libre del ítem sin pisar el `class`/`prob` propios. */
 function enrichCandidate(
   item: SkiniverDiagnosisCandidate,
 ): SkiniverDiagnosisCandidate {
-  if (
-    item.riskEvaluation &&
-    item.preciseDiagnosis &&
-    item.treatment &&
-    item.advice
-  ) {
-    return item;
-  }
   const parsed = parseSkiniverDescription(item.description);
-  if (!parsed) return item;
+  if (!parsed) {
+    return { ...item, conclusionText: undefined };
+  }
+
+  const precise = parsed.preciseDiagnosis?.trim();
+  const preciseMatchesClass =
+    !!precise &&
+    (precise.toLowerCase() === item.class.toLowerCase() ||
+      item.class.toLowerCase().includes(precise.toLowerCase()) ||
+      precise.toLowerCase().includes(item.class.toLowerCase()));
+
+  // Si el description no es de esta clase, no enriquecer con sus textos.
+  if (precise && !preciseMatchesClass) {
+    return {
+      ...item,
+      conclusionText: undefined,
+      preciseDiagnosis: undefined,
+      riskEvaluation: item.riskEvaluation,
+      treatment: item.treatment,
+      advice: item.advice,
+    };
+  }
+
   return {
     ...item,
     riskEvaluation: item.riskEvaluation || parsed.riskEvaluation || undefined,
-    conclusionText: item.conclusionText || parsed.conclusionText || undefined,
-    preciseDiagnosis:
-      item.preciseDiagnosis || parsed.preciseDiagnosis || undefined,
+    conclusionText: undefined,
+    preciseDiagnosis: preciseMatchesClass ? precise : item.preciseDiagnosis,
     treatment: item.treatment || parsed.treatment || undefined,
     advice: item.advice || parsed.advice || undefined,
   };
@@ -95,19 +109,19 @@ function DonutProb({
   prob,
   color,
 }: {
-  prob: number;
+  prob: number | string | null | undefined;
   color: string;
 }) {
   const size = 56;
   const stroke = 5;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
-  const safeProb = Number.isFinite(prob)
-    ? Math.max(0, Math.min(100, prob))
-    : 0;
-  const offset = c * (1 - safeProb / 100);
+  const safeProb = normalizedProb(prob);
+  const clamped = Math.max(0, Math.min(100, safeProb));
+  const offset = c * (1 - clamped / 100);
   const cx = size / 2;
   const cy = size / 2;
+  const label = formatClassProbPercent(clamped);
 
   return (
     <View
@@ -147,7 +161,7 @@ function DonutProb({
           color: '#374151',
         }}
       >
-        {safeProb.toFixed(1).replace('.', ',')}
+        {label}
       </Text>
     </View>
   );
@@ -164,6 +178,9 @@ function DiagnosisStatCard({
 }) {
   const prob = normalizedProb(item.prob);
   const color = RISK_COLORS[item.risk_level ?? ''] ?? RISK_COLORS.medium;
+  const icdLabel = item.lesion_code?.trim()
+    ? `Codigo ICD: ${item.lesion_code.trim()}`
+    : null;
 
   return (
     <Pressable style={styles.diagnosisCard} onPress={onPress}>
@@ -175,6 +192,11 @@ function DiagnosisStatCard({
         {item.desease ? (
           <Text style={styles.diagnosisSub} numberOfLines={1}>
             {item.desease}
+          </Text>
+        ) : null}
+        {icdLabel ? (
+          <Text style={styles.diagnosisSub} numberOfLines={1}>
+            {icdLabel}
           </Text>
         ) : null}
       </View>
@@ -191,6 +213,11 @@ type SkiniverResultsSectionProps = {
   detailFooter?: ReactNode;
   view?: 'stats' | 'detail';
   onViewChange?: (view: 'stats' | 'detail') => void;
+  /** Candidato de apoyo seleccionado (controlado por el padre para no perderlo). */
+  selectedCandidate?: SkiniverDiagnosisCandidate | null;
+  onSelectedCandidateChange?: (
+    candidate: SkiniverDiagnosisCandidate | null,
+  ) => void;
   observationsEditing?: boolean;
   observationsValue?: string;
   onObservationsChange?: (value: string) => void;
@@ -206,6 +233,8 @@ export function SkiniverResultsSection({
   detailFooter,
   view: viewProp,
   onViewChange,
+  selectedCandidate: selectedCandidateProp,
+  onSelectedCandidateChange,
   observationsEditing = false,
   observationsValue = '',
   onObservationsChange,
@@ -233,10 +262,10 @@ export function SkiniverResultsSection({
     extracted.riskLabel !== '—'
       ? extracted.riskLabel
       : analysis.aiDiagnosis ?? '—';
-  const gaugePercent = (() => {
-    const raw = extracted.highRiskProb || analysis.aiProbability || 0;
-    return raw <= 1 ? raw * 100 : raw;
-  })();
+
+  const gaugePercent = extracted.hasHighRiskProb
+    ? extracted.highRiskProb
+    : 0;
 
   const list = extracted.items;
 
@@ -247,7 +276,17 @@ export function SkiniverResultsSection({
     if (viewProp === undefined) setInternalView(next);
   }
 
-  const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [internalSelected, setInternalSelected] =
+    useState<SkiniverDiagnosisCandidate | null>(null);
+  const selectedCandidate =
+    selectedCandidateProp !== undefined
+      ? selectedCandidateProp
+      : internalSelected;
+
+  function setSelectedCandidate(next: SkiniverDiagnosisCandidate | null) {
+    onSelectedCandidateChange?.(next);
+    if (selectedCandidateProp === undefined) setInternalSelected(next);
+  }
 
   const [bodyOpen, setBodyOpen] = useState(false);
   const [storyOpen, setStoryOpen] = useState(false);
@@ -256,50 +295,70 @@ export function SkiniverResultsSection({
   const [storyText, setStoryText] = useState<string | null>(null);
   const [storyError, setStoryError] = useState<string | null>(null);
 
-  const active = useMemo(() => {
-    const base =
-      (selectedClass
-        ? list.find((item) => item.class === selectedClass)
-        : null) ??
-      list[0] ??
-      null;
-    return base ? enrichCandidate(base) : null;
-  }, [list, selectedClass]);
+  // Snapshot del ítem tocado: class/prob/desease de ESE topn (nunca el top-1).
+  const active = useMemo(
+    () => (selectedCandidate ? enrichCandidate(selectedCandidate) : null),
+    [selectedCandidate],
+  );
 
-  const displayDiagnosis =
-    analysis.finalDiagnosis?.trim() ||
+  // Nombre congelado del candidato seleccionado — jamás aiDiagnosis/finalDiagnosis.
+  const displayDiagnosis = (
+    selectedCandidate?.class ||
     active?.class ||
-    analysis.aiDiagnosis ||
-    'Sin diagnóstico';
+    ''
+  ).trim() || 'Sin diagnóstico';
   const banner = riskBannerColors(String(active?.risk ?? riskLabel));
   const bodyLabel = analysis.bodyRegion
     ? BODY_PARTS_INFO[analysis.bodyRegion]?.label ?? analysis.bodyRegion
     : null;
-  const activeProb =
-    active != null ? Math.round(normalizedProb(active.prob)) : null;
+  const classProb = selectedCandidate?.prob ?? active?.prob;
+  const activeProbLabel =
+    classProb != null ? formatClassProbPercent(classProb) : null;
 
   const conclusionLine =
-    active?.conclusionText ||
-    (active?.desease
-      ? activeProb != null
-        ? `${activeProb}% ${active.desease}`
-        : active.desease
-      : null);
+    (selectedCandidate?.desease || active?.desease) && activeProbLabel
+      ? `${activeProbLabel}% ${selectedCandidate?.desease || active?.desease}`
+      : selectedCandidate?.desease || active?.desease || null;
 
   const rootCode =
     typeof extracted.prediction?.lesion_code === 'string'
       ? extracted.prediction.lesion_code
       : undefined;
+  const rootClass = extracted.prediction?.class?.trim();
   const isPrimaryDiagnosis =
-    !!active &&
-    (!!extracted.prediction?.class
-      ? active.class === extracted.prediction.class
-      : list[0]?.class === active.class);
-  const icdCode = active?.lesion_code || (isPrimaryDiagnosis ? rootCode : undefined);
+    !!displayDiagnosis &&
+    !!rootClass &&
+    displayDiagnosis.toLowerCase() === rootClass.toLowerCase();
+  const icdCode =
+    selectedCandidate?.lesion_code ||
+    active?.lesion_code ||
+    (isPrimaryDiagnosis ? rootCode : undefined);
 
   function openDetail(item: SkiniverDiagnosisCandidate) {
-    setSelectedClass(item.class);
+    // Congelar campos de ESTA clase (evaluación propia, no la del top-1).
+    const snapshot: SkiniverDiagnosisCandidate = {
+      class: String(item.class ?? '').trim(),
+      class_raw: item.class_raw,
+      prob: Number(item.prob) || 0,
+      risk: item.risk,
+      risk_level: item.risk_level,
+      desease: item.desease,
+      lesion_code: item.lesion_code,
+      atlas_page_link: item.atlas_page_link,
+      description: item.description,
+      riskEvaluation: item.riskEvaluation,
+      preciseDiagnosis: item.preciseDiagnosis,
+      conclusionText: undefined,
+      treatment: item.treatment,
+      advice: item.advice,
+    };
+    setSelectedCandidate(snapshot);
     setView('detail');
+  }
+
+  function backToStats() {
+    setView('stats');
+    setSelectedCandidate(null);
   }
 
   function atlasUrlFor(item: SkiniverDiagnosisCandidate): string | null {
@@ -368,7 +427,7 @@ export function SkiniverResultsSection({
       <View style={styles.skiniverBlock}>
         <Pressable
           style={styles.backToStats}
-          onPress={() => setView('stats')}
+          onPress={backToStats}
           accessibilityLabel="Volver a estadísticas"
         >
           <AppIcon
@@ -431,10 +490,9 @@ export function SkiniverResultsSection({
           />
           <View style={styles.infoRowBody}>
             <Text style={styles.infoRowValue}>
-              {displayDiagnosis}
-              {!analysis.finalDiagnosis && activeProb != null
-                ? `: ${activeProb} %`
-                : ''}
+              {activeProbLabel
+                ? `${displayDiagnosis} ${activeProbLabel}%`
+                : displayDiagnosis}
             </Text>
             <Text style={styles.diagnosisSub}>
               {icdCode
@@ -469,7 +527,7 @@ export function SkiniverResultsSection({
         ) : null}
 
         <View style={styles.descBox}>
-          <Text style={styles.descTitle}>Decripcion:</Text>
+          <Text style={styles.descTitle}>Descripción:</Text>
           {riskEvalText ? (
             <Text style={styles.descBody}>
               Evaluacion de Riesgos: {riskEvalText}
@@ -628,6 +686,7 @@ export function SkiniverResultsSection({
     <View style={styles.skiniverBlock}>
       <Text style={styles.resultHeroTitle}>Resultado Piel 360 AI</Text>
 
+      <Text style={styles.gaugeSectionTitle}>Indicador de riesgo general</Text>
       <SkiniverRiskGauge percent={gaugePercent} riskLabel={String(riskLabel)} />
 
       {list.length > 0 ? (
@@ -637,14 +696,22 @@ export function SkiniverResultsSection({
           </Text>
           {list.map((item, index) => (
             <DiagnosisStatCard
-              key={`${item.class}-${index}`}
+              key={`${item.class}-${item.class_raw ?? index}-${index}`}
               item={item}
               styles={styles}
               onPress={() => openDetail(item)}
             />
           ))}
-          <Pressable onPress={() => list[0] && openDetail(list[0])}>
-            <Text style={styles.supportLink}>Seleccionar de la lista</Text>
+          <Pressable
+            style={styles.supportSelectBtn}
+            onPress={() => list[0] && openDetail(list[0])}
+            accessibilityRole="button"
+            accessibilityLabel="Seleccionar de la lista"
+          >
+            <Text style={styles.supportSelectBtnText}>
+              Seleccionar de la lista
+            </Text>
+            <AppIcon icon={Icons.chevronRight} size={18} color="#FFFFFF" />
           </Pressable>
         </>
       ) : (
@@ -652,8 +719,10 @@ export function SkiniverResultsSection({
       )}
 
       <Text style={styles.disclaimer}>
-        La IA solo cubre algunas enfermedades y es una ayuda diagnóstica. Consulta
-        siempre a un dermatólogo.
+        PIEL360 AI es una herramienta de apoyo y prediagnóstico dermatológico.
+        Analiza algunas enfermedades, pero no sustituye la valoración de un
+        dermatólogo ni toma decisiones clínicas automatizadas. Ante cualquier
+        duda, consulte a un especialista
       </Text>
     </View>
   );

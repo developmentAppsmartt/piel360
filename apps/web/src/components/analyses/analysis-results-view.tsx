@@ -110,10 +110,13 @@ export function AnalysisResultsView({
       {isSkiniver && (
         <>
           <RiskGauge
-            percent={
-              (prediction?.high_risk_prob ?? analysis.data.aiProbability ?? 0) *
-              100
-            }
+            percent={(() => {
+              const raw = prediction?.high_risk_prob;
+              if (raw == null || !Number.isFinite(Number(raw))) return 0;
+              const n = Number(raw);
+              // Solo high_risk_prob — no usar aiProbability (prob de clase).
+              return n <= 1 ? n * 100 : n;
+            })()}
             riskLabel={riskLabel}
           />
 

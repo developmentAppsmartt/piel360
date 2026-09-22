@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ChangeEvent } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CloudUpload } from "lucide-react";
@@ -25,6 +25,7 @@ import { sendPhoneOtpAction, verifyPhoneOtpAction } from "@/lib/actions/phone-ot
 import { CatalogCombobox } from "@/components/auth/catalog-combobox";
 import { homeForUser } from "@/lib/auth-redirect";
 import { ApiError } from "@/lib/api-error";
+import { apiClientFetch } from "@/lib/api-client";
 import { AlliedPayoutBankFields } from "@/components/auth/allied-payout-bank-fields";
 import { registerEmpresaWithDocuments } from "@/lib/empresa-register-client";
 
@@ -76,14 +77,71 @@ function DocUploadCard({
   );
 }
 
-export function EmpresaRegisterForm() {
+export function EmpresaRegisterForm({
+  referralCode: initialReferralCode,
+}: {
+  referralCode?: string;
+} = {}) {
   const router = useRouter();
   const locationPicker = useLocationPicker();
   const [state, setState] = useState<AuthActionState>({});
   const [isPending, setIsPending] = useState(false);
+  const [alliedReferral, setAlliedReferral] = useState<{
+    code: string;
+    organizationName: string;
+  } | null>(null);
+  const [referralLoading, setReferralLoading] = useState(
+    Boolean(initialReferralCode?.trim()),
+  );
+  const [referralError, setReferralError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const code = initialReferralCode?.trim();
+    if (!code) {
+      setReferralLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setReferralLoading(true);
+    setReferralError(null);
+
+    void apiClientFetch<{
+      code: string;
+      organizationName: string;
+    }>(`/auth/referral/${encodeURIComponent(code)}`)
+      .then((data) => {
+        if (cancelled) return;
+        setAlliedReferral({
+          code: data.code,
+          organizationName: data.organizationName,
+        });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setReferralError(
+          err instanceof ApiError
+            ? err.message
+            : "Código de empresa aliada no válido.",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setReferralLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialReferralCode]);
 
   const [membershipType, setMembershipType] =
     useState<Extract<MembershipType, "empresa" | "empresa_aliada">>("empresa");
+
+  const professionalRegisterHref = alliedReferral
+    ? `/doctor/register?ref=${encodeURIComponent(alliedReferral.code)}`
+    : initialReferralCode?.trim()
+      ? `/doctor/register?ref=${encodeURIComponent(initialReferralCode.trim())}`
+      : "/doctor/register";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -266,6 +324,7 @@ export function EmpresaRegisterForm() {
                 payoutLegalId: payoutLegalId.trim() || undefined,
               }
             : {}),
+          referralCode: alliedReferral?.code || initialReferralCode?.trim() || undefined,
         },
         { legalRepCedula, rut, existenceCert },
       );
@@ -295,9 +354,46 @@ export function EmpresaRegisterForm() {
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Registro de empresa</h1>
         <p className="text-sm text-zinc-500">
-          Crea la cuenta de tu clínica o centro. Incluye datos comerciales y ubicación.
+          Crea la cuenta de tu clínica o centro. Incluye datos comerciales y
+          ubicación. ¿Eres profesional individual? Usa el{" "}
+          <Link
+            href={professionalRegisterHref}
+            className="text-sky-600 underline"
+          >
+            registro de profesionales
+          </Link>
+          .
         </p>
       </div>
+
+      {referralLoading ? (
+        <p className="text-center text-sm text-zinc-500">
+          Validando código de empresa aliada…
+        </p>
+      ) : null}
+
+      {referralError ? (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
+          {referralError}
+        </p>
+      ) : null}
+
+      {alliedReferral ? (
+        <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-4 text-center">
+          <p className="text-xs font-medium uppercase tracking-wide text-sky-700">
+            Registro con empresa aliada
+          </p>
+          <p className="mt-1 text-sm text-sky-800">
+            {alliedReferral.organizationName}
+          </p>
+          <p className="mt-2 font-mono text-xl font-semibold tracking-wider text-sky-950">
+            {alliedReferral.code}
+          </p>
+          <p className="mt-1 text-xs text-sky-700">
+            Código de referido (no editable)
+          </p>
+        </div>
+      ) : null}
 
       <fieldset className="space-y-3">
         <legend className="text-sm font-semibold text-zinc-900">
@@ -599,7 +695,10 @@ export function EmpresaRegisterForm() {
         </Link>
         {" · "}
         ¿Eres profesional individual?{" "}
-        <Link href="/doctor/register" className="font-medium text-sky-600 underline">
+        <Link
+          href={professionalRegisterHref}
+          className="font-medium text-sky-600 underline"
+        >
           Registro profesional
         </Link>
       </p>

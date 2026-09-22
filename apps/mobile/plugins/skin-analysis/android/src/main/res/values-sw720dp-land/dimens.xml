@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <!-- Horizontal: el alto útil es menor; se recorta el óvalo para no salirse -->
-  <dimen name="skin_oval_width">520dp</dimen>
-  <dimen name="skin_oval_height">640dp</dimen>
-  <dimen name="skin_oval_margin_top">8dp</dimen>
-  <dimen name="skin_badge_height">56dp</dimen>
-  <dimen name="skin_badge_text">15sp</dimen>
-  <dimen name="skin_badge_row_margin_h">80dp</dimen>
-  <dimen name="skin_guide_text">32sp</dimen>
+  <!-- Horizontal 10": óvalo más grande sin salirse del alto útil -->
+  <dimen name="skin_oval_width">600dp</dimen>
+  <dimen name="skin_oval_height">720dp</dimen>
+  <dimen name="skin_oval_margin_top">4dp</dimen>
+  <dimen name="skin_badge_height">72dp</dimen>
+  <dimen name="skin_badge_text">20sp</dimen>
+  <dimen name="skin_badge_padding_h">10dp</dimen>
+  <dimen name="skin_badge_padding_v">10dp</dimen>
+  <dimen name="skin_badge_row_margin_h">40dp</dimen>
+  <dimen name="skin_guide_text">36sp</dimen>
 </resources>

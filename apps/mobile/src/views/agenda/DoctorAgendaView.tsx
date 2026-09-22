@@ -423,7 +423,7 @@ export function DoctorAgendaView({
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Calendario</Text>
               <Text style={styles.sectionSubtitle}>
-                Rojo = no disponible. Toca un día para bloquearlo o asignar cita.
+                Toca un día disponible para asignar una cita.
               </Text>
               <AgendaMonthCalendar
                 anchor={anchor}

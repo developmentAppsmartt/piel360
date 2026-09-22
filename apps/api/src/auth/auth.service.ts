@@ -426,6 +426,10 @@ export class AuthService implements OnModuleDestroy {
 
     await this.consumePhoneTicket(dto.phoneTicket, phone);
 
+    if (dto.referralCode?.trim()) {
+      await this.attachAlliedReferral(created.id, dto.referralCode.trim());
+    }
+
     const session = this.resolveSessionContext(created);
     return this.buildAuthResult(created, session, client);
   }
