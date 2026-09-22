@@ -59,6 +59,7 @@ export default function GatewayConfigsPage() {
       total: rows.length,
       active: active.length,
       feePercent: primary?.feePercent ?? null,
+      operationalCostFixed: primary?.operationalCostFixed ?? null,
       payoutsConfigured: primary?.payoutsConfigured === true,
     };
   }, [rows]);
@@ -99,6 +100,14 @@ export default function GatewayConfigsPage() {
           <p className="text-xs font-medium text-muted-foreground">Comisión pasarela</p>
           <p className="mt-1 text-2xl font-bold tabular-nums">
             {stats.feePercent != null ? `${stats.feePercent}%` : "—"}
+          </p>
+        </ModuleCard>
+        <ModuleCard className="p-4">
+          <p className="text-xs font-medium text-muted-foreground">Gastos operativos</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums">
+            {stats.operationalCostFixed != null
+              ? `$${Math.round(stats.operationalCostFixed).toLocaleString("es-CO")}`
+              : "—"}
           </p>
         </ModuleCard>
         <ModuleCard className="p-4">
@@ -198,6 +207,15 @@ export default function GatewayConfigsPage() {
                     </td>
                     <td className="px-4 py-3 tabular-nums text-muted-foreground">
                       {config.feePercent != null ? `${config.feePercent}%` : "—"}
+                      {config.operationalCostFixed != null &&
+                      config.operationalCostFixed > 0 ? (
+                        <span className="mt-0.5 block text-[11px]">
+                          Gastos $
+                          {Math.round(config.operationalCostFixed).toLocaleString(
+                            "es-CO",
+                          )}
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge active={config.isActive} />

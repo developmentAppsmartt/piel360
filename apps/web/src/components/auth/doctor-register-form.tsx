@@ -87,6 +87,13 @@ export function DoctorRegisterForm({
   );
   const [referralError, setReferralError] = useState<string | null>(null);
 
+  const empresaRegisterHref = (() => {
+    const code = alliedReferral?.code || initialReferralCode?.trim();
+    return code
+      ? `/doctor/register/empresa?ref=${encodeURIComponent(code)}`
+      : "/doctor/register/empresa";
+  })();
+
   useEffect(() => {
     const code = initialReferralCode?.trim();
     if (!code) {
@@ -347,7 +354,7 @@ export function DoctorRegisterForm({
         <p className="text-sm text-zinc-500">
           Para especialistas médicos y técnicos laborales. Si representas una
           empresa, usa el{" "}
-          <Link href="/doctor/register/empresa" className="text-sky-600 underline">
+          <Link href={empresaRegisterHref} className="text-sky-600 underline">
             registro empresarial
           </Link>
           .

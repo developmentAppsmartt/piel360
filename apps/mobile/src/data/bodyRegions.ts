@@ -174,6 +174,16 @@ export function cameraForBodyPoint(point: [number, number, number]): {
   };
 }
 
+/** Límites de órbita del selector 3D (pinch / scroll). */
+export const BODY_SELECTOR_ORBIT = {
+  /** Zoom máximo (acercar). */
+  minDistance: 0.25,
+  /** Zoom mínimo (alejar) — figura completa con margen. */
+  maxDistance: 16,
+  /** Velocidad de pinch/dolly. */
+  zoomSpeed: 1.15,
+} as const;
+
 /** Mapea el género del perfil al modelo 3D (hombre/mujer). */
 export function bodyModelGenderFromPatient(
   gender: string | null | undefined,

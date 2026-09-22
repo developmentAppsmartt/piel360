@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   BackHandler,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   Text,
   View,
@@ -47,9 +50,24 @@ function buildTawkHtml(input: {
 <html>
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <style>
-    html, body, #tawk-embed { margin: 0; padding: 0; height: 100%; width: 100%; background: #fff; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      background: #fff;
+      overflow: hidden;
+    }
+    #tawk-embed {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+    }
   </style>
 </head>
 <body>
@@ -77,6 +95,30 @@ function buildTawkHtml(input: {
       s1.setAttribute('crossorigin', '*');
       s0.parentNode.insertBefore(s1, s0);
     })();
+
+    function scrollFocusedIntoView(target) {
+      if (!target || typeof target.scrollIntoView !== 'function') return;
+      setTimeout(function () {
+        try {
+          target.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+        } catch (e) {
+          target.scrollIntoView(true);
+        }
+      }, 120);
+    }
+
+    document.addEventListener('focusin', function (event) {
+      scrollFocusedIntoView(event.target);
+    }, true);
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', function () {
+        var active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) {
+          scrollFocusedIntoView(active);
+        }
+      });
+    }
   </script>
 </body>
 </html>`;
@@ -91,6 +133,7 @@ export function SupportChatView({ onClose }: SupportChatViewProps) {
   const branding = useBranding();
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const name = user?.name?.trim() || 'Usuario Piel 360';
   const email = user?.email?.trim() || '';
@@ -110,85 +153,133 @@ export function SupportChatView({ onClose }: SupportChatViewProps) {
     return () => sub.remove();
   }, [onClose]);
 
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent =
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const onShow = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
+    });
+    const onHide = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      onShow.remove();
+      onHide.remove();
+    };
+  }, []);
+
+  /**
+   * Con soft input en resize, Android a veces ya reduce la ventana.
+   * Si el teclado igual tapa el WebView (caso Tawk), aplicamos padding
+   * con el alto del teclado menos el inset inferior ya consumido.
+   */
+  const webBottomInset =
+    keyboardHeight > 0
+      ? Math.max(0, keyboardHeight - (Platform.OS === 'android' ? 0 : insets.bottom))
+      : 0;
+
   return (
     <View style={{ flex: 1, backgroundColor: branding.colors.primary }}>
       <StatusBar style="light" />
-      <View
-        style={{
-          paddingTop: Math.max(insets.top, 10),
-          paddingBottom: 10,
-          paddingHorizontal: 12,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 10,
-          backgroundColor: branding.colors.primary,
-        }}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
       >
-        <Pressable
-          onPress={onClose}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel="Cerrar soporte"
-        >
-          <AppIcon icon={Icons.back} size={24} color={branding.colors.textOnDark} />
-        </Pressable>
-        <Text
+        <View
           style={{
-            flex: 1,
-            color: branding.colors.textOnDark,
-            fontSize: 17,
-            fontWeight: '800',
+            paddingTop: Math.max(insets.top, 10),
+            paddingBottom: 10,
+            paddingHorizontal: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+            backgroundColor: branding.colors.primary,
           }}
         >
-          Soporte
-        </Text>
-      </View>
+          <Pressable
+            onPress={onClose}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Cerrar soporte"
+          >
+            <AppIcon
+              icon={Icons.back}
+              size={24}
+              color={branding.colors.textOnDark}
+            />
+          </Pressable>
+          <Text
+            style={{
+              flex: 1,
+              color: branding.colors.textOnDark,
+              fontSize: 17,
+              fontWeight: '800',
+            }}
+          >
+            Soporte
+          </Text>
+        </View>
 
-      <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-        <WebView
-          source={{ html, baseUrl: 'https://embed.tawk.to' }}
-          originWhitelist={['*']}
-          javaScriptEnabled
-          domStorageEnabled
-          thirdPartyCookiesEnabled
-          sharedCookiesEnabled
-          cacheEnabled
-          startInLoadingState
-          allowsInlineMediaPlayback
-          mediaPlaybackRequiresUserAction={false}
-          setSupportMultipleWindows={false}
-          javaScriptCanOpenWindowsAutomatically={false}
-          onLoadEnd={() => setLoading(false)}
-          renderLoading={() => (
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: '#FFFFFF',
+            paddingBottom: webBottomInset,
+          }}
+        >
+          <WebView
+            source={{ html, baseUrl: 'https://embed.tawk.to' }}
+            style={{ flex: 1 }}
+            originWhitelist={['*']}
+            javaScriptEnabled
+            domStorageEnabled
+            thirdPartyCookiesEnabled
+            sharedCookiesEnabled
+            cacheEnabled
+            startInLoadingState
+            allowsInlineMediaPlayback
+            mediaPlaybackRequiresUserAction={false}
+            setSupportMultipleWindows={false}
+            javaScriptCanOpenWindowsAutomatically={false}
+            keyboardDisplayRequiresUserAction={false}
+            hideKeyboardAccessoryView={false}
+            onLoadEnd={() => setLoading(false)}
+            renderLoading={() => (
+              <View
+                style={{
+                  flex: 1,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <ActivityIndicator color={branding.colors.primary} />
+              </View>
+            )}
+          />
+          {loading ? (
             <View
+              pointerEvents="none"
               style={{
-                flex: 1,
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: 0,
+                bottom: 0,
                 alignItems: 'center',
                 justifyContent: 'center',
+                backgroundColor: '#FFFFFF',
               }}
             >
               <ActivityIndicator color={branding.colors.primary} />
             </View>
-          )}
-        />
-        {loading ? (
-          <View
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              top: 0,
-              bottom: 0,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: '#FFFFFF',
-            }}
-          >
-            <ActivityIndicator color={branding.colors.primary} />
-          </View>
-        ) : null}
-      </View>
+          ) : null}
+        </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }

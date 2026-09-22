@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, ChevronRight } from "lucide-react";
+import {
+  Calendar as CalendarIcon,
+  CalendarDays,
+  Check,
+  ChevronRight,
+  Lock,
+  Search,
+  X,
+} from "lucide-react";
 import {
   ModuleCard,
   ModuleCardDescription,
@@ -24,7 +32,7 @@ import {
   useUpdateDoctorAppointment,
   type AgendaAppointment,
 } from "@/lib/queries/agenda";
-import { usePatients } from "@/lib/queries/patients";
+import { usePatients, type Patient } from "@/lib/queries/patients";
 import { cn } from "@/lib/utils";
 
 const DAY_LABELS = [
@@ -56,6 +64,13 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 const SLOT_MINUTES = 30;
+
+const BLOCKED_BG = "bg-[#FEE2E2]";
+const BLOCKED_BORDER = "border-[#FECACA]";
+const BLOCKED_FG = "text-[#DC2626]";
+const APPT_BG = "bg-[#DBEAFE]";
+const APPT_BORDER = "border-[#93C5FD]";
+const APPT_FG = "text-[#1D4ED8]";
 
 function ymd(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -136,7 +151,6 @@ function availableStartTimes(
     const end = timeToMinutes(f.endTime);
     while (cursor + SLOT_MINUTES <= end) {
       const startLabel = minutesToTime(cursor);
-      const endLabel = minutesToTime(cursor + SLOT_MINUTES);
       const startMs = parseYmdLocal(dateStr);
       startMs.setHours(
         Math.floor(cursor / 60),
@@ -153,7 +167,6 @@ function availableStartTimes(
       });
 
       if (!overlaps) times.push(startLabel);
-      void endLabel;
       cursor += SLOT_MINUTES;
     }
   }
@@ -164,6 +177,88 @@ function localDateTimeIso(dateStr: string, timeStr: string) {
   const [y, m, d] = dateStr.split("-").map(Number);
   const [hh, mm] = timeStr.split(":").map(Number);
   return new Date(y, m - 1, d, hh, mm, 0, 0).toISOString();
+}
+
+function normalizeSearch(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function patientDisplayName(p: Pick<Patient, "firstName" | "lastName">) {
+  return `${p.firstName} ${p.lastName}`.trim();
+}
+
+function formatPatientDocument(
+  docType: string | null | undefined,
+  docNumber: string | null | undefined,
+) {
+  const type = docType?.trim();
+  const number = docNumber?.trim();
+  if (!type && !number) return null;
+  if (type && number) return `${type} ${number}`;
+  return type || number || null;
+}
+
+function patientMatchesQuery(patient: Patient, query: string): boolean {
+  const q = normalizeSearch(query);
+  if (!q) return false;
+  const name = normalizeSearch(patientDisplayName(patient));
+  const doc = normalizeSearch(patient.docNumber ?? "");
+  const docType = normalizeSearch(patient.docType ?? "");
+  const email = normalizeSearch(patient.email ?? "");
+  return (
+    name.includes(q) ||
+    doc.includes(q) ||
+    `${docType} ${doc}`.includes(q) ||
+    email.includes(q)
+  );
+}
+
+function CalendarLegend() {
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-3 border-b border-border pb-3">
+      <div className="flex items-center gap-1.5">
+        <span
+          className={cn(
+            "flex size-7 items-center justify-center rounded-lg border",
+            BLOCKED_BG,
+            BLOCKED_BORDER,
+          )}
+        >
+          <Lock className={cn("size-3", BLOCKED_FG)} />
+        </span>
+        <span className="text-[11px] font-semibold text-slate-600">
+          No disponible / Bloqueado
+        </span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span
+          className={cn(
+            "relative flex size-7 items-center justify-center rounded-lg border",
+            APPT_BG,
+            APPT_BORDER,
+          )}
+        >
+          <CalendarIcon className={cn("size-3", APPT_FG)} />
+          <span className="absolute -right-1 -top-1 flex h-3 min-w-3 items-center justify-center rounded-full bg-[#1D4ED8] px-0.5 text-[7px] font-extrabold text-white">
+            1
+          </span>
+        </span>
+        <span className="text-[11px] font-semibold text-slate-600">
+          Con citas
+        </span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="size-7 rounded-lg border border-[#E5E7EB] bg-white" />
+        <span className="text-[11px] font-semibold text-slate-600">
+          Disponible
+        </span>
+      </div>
+    </div>
+  );
 }
 
 export function AgendaWorkspace() {
@@ -233,8 +328,30 @@ export function AgendaWorkspace() {
   }, [overview.data?.appointments]);
 
   const [patientId, setPatientId] = useState("");
+  const [patientQuery, setPatientQuery] = useState("");
   const [appointmentTime, setAppointmentTime] = useState("");
   const [title, setTitle] = useState("Consulta");
+
+  const patientList = patients.data ?? [];
+  const selectedPatient = useMemo(
+    () => patientList.find((p) => p.id === patientId) ?? null,
+    [patientList, patientId],
+  );
+  const patientResults = useMemo(() => {
+    const q = patientQuery.trim();
+    if (q.length < 2) return [];
+    return patientList.filter((p) => patientMatchesQuery(p, q)).slice(0, 8);
+  }, [patientList, patientQuery]);
+
+  function selectPatient(patient: Patient) {
+    setPatientId(patient.id);
+    setPatientQuery(patientDisplayName(patient));
+  }
+
+  function clearPatient() {
+    setPatientId("");
+    setPatientQuery("");
+  }
 
   const hourOptions = useMemo(() => {
     if (!selectedDate) return [];
@@ -323,6 +440,7 @@ export function AgendaWorkspace() {
         title: title.trim() || "Cita",
       });
       setAppointmentTime("");
+      clearPatient();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "No se pudo crear la cita",
@@ -361,8 +479,7 @@ export function AgendaWorkspace() {
             <div>
               <ModuleCardTitle>Calendario</ModuleCardTitle>
               <ModuleCardDescription>
-                Rojo = no disponible (con motivo). Selecciona el día de la cita
-                o para bloquearlo.
+                Toca un día disponible para asignar una cita.
               </ModuleCardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -406,6 +523,8 @@ export function AgendaWorkspace() {
             </div>
           </div>
 
+          <CalendarLegend />
+
           <div className="mb-2 grid grid-cols-7 gap-1 text-center text-xs font-semibold text-muted-foreground">
             {["D", "L", "M", "X", "J", "V", "S"].map((d) => (
               <div key={d}>{d}</div>
@@ -416,7 +535,8 @@ export function AgendaWorkspace() {
               if (!cell.date) {
                 return <div key={`e-${idx}`} className="aspect-square" />;
               }
-              const blocked = blockedByDate.get(cell.date);
+              const blocked = Boolean(blockedByDate.get(cell.date));
+              const blockedReason = blockedByDate.get(cell.date)?.reason;
               const count = apptsByDate.get(cell.date) ?? 0;
               const hasAppts = count > 0 && !blocked;
               const selected = selectedDate === cell.date;
@@ -427,31 +547,40 @@ export function AgendaWorkspace() {
                   onClick={() => {
                     setSelectedDate(cell.date);
                     setAppointmentTime("");
-                    if (blocked?.reason) setBlockReason(blocked.reason);
+                    if (blockedReason) setBlockReason(blockedReason);
                     else setBlockReason("");
                   }}
                   className={cn(
-                    "aspect-square rounded-xl border text-sm font-semibold transition",
+                    "flex aspect-square flex-col items-center justify-center gap-0.5 rounded-xl border text-sm font-extrabold transition",
                     blocked
-                      ? "border-red-300 bg-red-50 text-red-700"
+                      ? cn(BLOCKED_BORDER, BLOCKED_BG, BLOCKED_FG)
                       : hasAppts
-                        ? "border-blue-300 bg-blue-100 text-blue-700"
-                        : "border-border bg-card hover:bg-muted/60",
+                        ? cn(APPT_BORDER, APPT_BG, APPT_FG)
+                        : "border-[#E5E7EB] bg-white text-foreground hover:bg-muted/60",
                     selected && "ring-2 ring-primary",
                   )}
-                  title={blocked?.reason ?? undefined}
+                  title={blockedReason ?? undefined}
+                  aria-label={
+                    blocked
+                      ? `Día ${cell.day}, no disponible`
+                      : hasAppts
+                        ? `Día ${cell.day}, ${count} cita${count === 1 ? "" : "s"}`
+                        : `Día ${cell.day}, disponible`
+                  }
                 >
-                  <div>{cell.day}</div>
-                  {count > 0 ? (
-                    <div
-                      className={cn(
-                        "text-[10px] font-medium",
-                        blocked ? "text-red-700" : "text-blue-700",
-                      )}
-                    >
-                      {count} cita{count === 1 ? "" : "s"}
-                    </div>
-                  ) : null}
+                  <span>{cell.day}</span>
+                  {blocked ? (
+                    <Lock className="size-3 shrink-0" />
+                  ) : hasAppts ? (
+                    <span className="flex items-center gap-0.5">
+                      <CalendarIcon className="size-2.5 shrink-0" />
+                      <span className="flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[#1D4ED8] px-1 text-[8px] font-extrabold text-white">
+                        {count > 9 ? "9+" : count}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="h-3.5" />
+                  )}
                 </button>
               );
             })}
@@ -618,19 +747,123 @@ export function AgendaWorkspace() {
               Elige el día en el calendario y una hora según tus horarios de
               atención.
             </ModuleCardDescription>
-            <div className="mt-3 space-y-2">
-              <select
-                value={patientId}
-                onChange={(e) => setPatientId(e.target.value)}
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Selecciona paciente</option>
-                {(patients.data ?? []).map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.firstName} {p.lastName}
-                  </option>
-                ))}
-              </select>
+            <div className="mt-3 space-y-3">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="flex size-6 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
+                    1
+                  </span>
+                  <p className="text-sm font-semibold">Buscar paciente</p>
+                </div>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    value={patientQuery}
+                    onChange={(e) => {
+                      setPatientQuery(e.target.value);
+                      if (patientId) setPatientId("");
+                    }}
+                    placeholder="Nombre, cédula o correo"
+                    className="w-full rounded-lg border bg-background py-2 pl-9 pr-9 text-sm"
+                  />
+                  {patientQuery.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={clearPatient}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted"
+                      aria-label="Limpiar búsqueda"
+                    >
+                      <X className="size-4" />
+                    </button>
+                  ) : null}
+                </div>
+                {patientQuery.trim().length >= 2 ? (
+                  <div className="max-h-48 overflow-y-auto rounded-xl border bg-background">
+                    {patientResults.length === 0 ? (
+                      <p className="px-3 py-3 text-sm text-muted-foreground">
+                        No se encontraron pacientes
+                      </p>
+                    ) : (
+                      patientResults.map((p) => {
+                        const doc = formatPatientDocument(p.docType, p.docNumber);
+                        const active = patientId === p.id;
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => selectPatient(p)}
+                            className={cn(
+                              "flex w-full items-center gap-3 border-b px-3 py-2.5 text-left last:border-b-0 hover:bg-muted/50",
+                              active && "bg-primary/5",
+                            )}
+                          >
+                            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                              {p.firstName.slice(0, 1)}
+                              {p.lastName.slice(0, 1)}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-semibold">
+                                {patientDisplayName(p)}
+                              </span>
+                              <span className="block text-xs text-muted-foreground">
+                                Cédula: {doc ?? "—"}
+                              </span>
+                            </span>
+                            {active ? (
+                              <Check className="size-4 shrink-0 text-primary" />
+                            ) : null}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                ) : !selectedPatient ? (
+                  <p className="text-xs text-muted-foreground">
+                    Escribe al menos 2 caracteres para buscar.
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="flex size-6 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
+                    2
+                  </span>
+                  <p className="text-sm font-semibold">Paciente seleccionado</p>
+                </div>
+                {selectedPatient ? (
+                  <div className="flex items-center gap-3 rounded-xl border bg-muted/30 px-3 py-2.5">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                      {selectedPatient.firstName.slice(0, 1)}
+                      {selectedPatient.lastName.slice(0, 1)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">
+                        {patientDisplayName(selectedPatient)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatPatientDocument(
+                          selectedPatient.docType,
+                          selectedPatient.docNumber,
+                        ) ?? "Sin documento"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={clearPatient}
+                      className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+                      aria-label="Quitar paciente"
+                    >
+                      <X className="size-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Aún no hay paciente seleccionado
+                  </p>
+                )}
+              </div>
+
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}

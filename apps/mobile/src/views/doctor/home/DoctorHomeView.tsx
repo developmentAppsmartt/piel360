@@ -46,6 +46,7 @@ import { EmailTemplatesView } from '../clinical-rules/EmailTemplatesView';
 import { DiagnosisLanguageView } from '../settings/DiagnosisLanguageView';
 import { createDoctorHomeStyles } from './styles/home.styles';
 import { DoctorStatsView } from './DoctorStatsView';
+import { InviteColleagueModal } from './InviteColleagueModal';
 
 type DoctorHomeViewProps = {
   onOpenPatients: () => void;
@@ -81,6 +82,21 @@ function lastNameFromUserName(name: string | undefined): string {
   const cleaned = raw.replace(/^dr\.?\s+/i, '');
   const parts = cleaned.split(/\s+/).filter(Boolean);
   return parts[parts.length - 1] ?? cleaned;
+}
+
+/** Nombre completo para saludo: Nombre + Apellido. */
+function fullDoctorName(
+  firstName?: string | null,
+  lastName?: string | null,
+  fallbackUserName?: string | null,
+): string {
+  const first = (firstName ?? '').trim();
+  const last = (lastName ?? '').trim();
+  const combined = [first, last].filter(Boolean).join(' ').trim();
+  if (combined) return combined;
+  const fromUser = (fallbackUserName ?? '').trim().replace(/^dr\.?\s+/i, '');
+  if (fromUser) return fromUser;
+  return 'Profesional';
 }
 
 function doctorTitleFallback(name: string | undefined): string {
@@ -127,8 +143,8 @@ export function DoctorHomeView({
   const [appointmentsCount, setAppointmentsCount] = useState(0);
   const [appointmentsConfirmed, setAppointmentsConfirmed] = useState(0);
   const [appointmentsPending, setAppointmentsPending] = useState(0);
-  const [doctorLastName, setDoctorLastName] = useState(
-    lastNameFromUserName(user?.name),
+  const [doctorDisplayName, setDoctorDisplayName] = useState(() =>
+    fullDoctorName(undefined, undefined, user?.name),
   );
   const [doctorAvatarUrl, setDoctorAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -141,6 +157,7 @@ export function DoctorHomeView({
   const [showingPassword, setShowingPassword] = useState(false);
   const [showingStats, setShowingStats] = useState(false);
   const [showingAbout, setShowingAbout] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [showingReports, setShowingReports] = useState(false);
   const [showingFototipo, setShowingFototipo] = useState(false);
   const [showingEdadPiel, setShowingEdadPiel] = useState(false);
@@ -179,9 +196,9 @@ export function DoctorHomeView({
       setAppointmentsConfirmed(confirmed);
       setAppointmentsPending(pending);
       setAppointmentsCount(confirmed + pending);
-      if (doctor?.lastName?.trim()) {
-        setDoctorLastName(doctor.lastName.trim());
-      }
+      setDoctorDisplayName(
+        fullDoctorName(doctor?.firstName, doctor?.lastName, user?.name),
+      );
       setDoctorAvatarUrl(resolveMediaUrl(doctor?.avatarUrl));
     } catch (err) {
       Alert.alert(
@@ -194,15 +211,13 @@ export function DoctorHomeView({
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user?.name]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const welcomeName = doctorLastName
-    ? doctorLastName
-    : doctorTitleFallback(user?.name);
+  const welcomeName = doctorDisplayName || doctorTitleFallback(user?.name);
   const primary = branding.colors.primary;
   const primaryDark = branding.colors.primaryDark;
   const secondary = branding.colors.secondary;
@@ -267,6 +282,8 @@ export function DoctorHomeView({
       setLegalDoc('terms-professional');
     } else if (id === 'acerca') {
       setShowingAbout(true);
+    } else if (id === 'compartir') {
+      setInviteOpen(true);
     } else if (id === 'reportes') {
       setShowingFototipo(false);
       setShowingEdadPiel(false);
@@ -554,7 +571,23 @@ export function DoctorHomeView({
           </Pressable>
           <View style={styles.welcomeTextWrap}>
             <Text style={styles.welcomeLabel}>Bienvenido,</Text>
-            <Text style={styles.welcomeName}>{welcomeName}</Text>
+            <View style={styles.welcomeNameRow}>
+              <Text style={styles.welcomeName} numberOfLines={1}>
+                {welcomeName}
+              </Text>
+              <Pressable
+                style={styles.inviteBtn}
+                onPress={() => setInviteOpen(true)}
+                accessibilityLabel="Invitar a un colega"
+                hitSlop={6}
+              >
+                <AppIcon
+                  icon={Icons.share}
+                  size={18}
+                  color={branding.colors.primary}
+                />
+              </Pressable>
+            </View>
             {!loading && pendingCount > 0 ? (
               <Text style={styles.pendingHint}>
                 {pendingCount} análisis pendiente{pendingCount === 1 ? '' : 's'}{' '}
@@ -749,6 +782,10 @@ export function DoctorHomeView({
       <AboutPiel360Modal
         visible={showingAbout}
         onClose={() => setShowingAbout(false)}
+      />
+      <InviteColleagueModal
+        visible={inviteOpen}
+        onClose={() => setInviteOpen(false)}
       />
     </View>
   );

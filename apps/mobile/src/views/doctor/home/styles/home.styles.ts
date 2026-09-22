@@ -65,11 +65,26 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
       fontSize: 15,
       color: colors.muted,
     },
+    welcomeNameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      flexWrap: 'wrap',
+    },
     welcomeName: {
       fontSize: 24,
       fontWeight: '800',
       color: colors.primary,
       letterSpacing: -0.3,
+      flexShrink: 1,
+    },
+    inviteBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: soft(colors.primary, '22'),
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     pendingHint: {
       marginTop: 4,

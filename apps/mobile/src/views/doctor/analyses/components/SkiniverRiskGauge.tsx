@@ -22,9 +22,18 @@ function arcPath(startAngle: number, endAngle: number) {
 }
 
 type SkiniverRiskGaugeProps = {
+  /** Porcentaje 0–100 de `high_risk_prob`. */
   percent: number;
   riskLabel: string;
 };
+
+function localizeRiskLabel(label: string): string {
+  const key = label.trim().toLowerCase();
+  if (key === 'low' || key === 'bajo') return 'Bajo';
+  if (key === 'medium' || key === 'medio' || key === 'moderate') return 'Medio';
+  if (key === 'high' || key === 'alto') return 'Alto';
+  return label || '—';
+}
 
 export function SkiniverRiskGauge({
   percent,
@@ -36,9 +45,11 @@ export function SkiniverRiskGauge({
     [branding.colors],
   );
 
-  const clamped = Math.max(0, Math.min(100, percent));
+  const clamped = Math.max(0, Math.min(100, Number.isFinite(percent) ? percent : 0));
   const rotation = -90 + (clamped / 100) * 180;
   const tip = polarToCartesian(90 + rotation);
+  const displayRisk = localizeRiskLabel(riskLabel);
+  const percentLabel = `${Math.round(clamped)}%`;
 
   return (
     <View style={styles.gaugeWrap}>
@@ -80,7 +91,10 @@ export function SkiniverRiskGauge({
         <Text style={[styles.gaugeLabel, { color: '#ef4444' }]}>Alto</Text>
       </View>
       <Text style={styles.gaugeRisk}>
-        Riesgo: <Text style={styles.gaugeRiskStrong}>{riskLabel || '—'}</Text>
+        Riesgo:{' '}
+        <Text style={styles.gaugeRiskStrong}>
+          {displayRisk} · {percentLabel}
+        </Text>
       </Text>
     </View>
   );

@@ -20,6 +20,7 @@ import { confirmAction } from '../../../utils/confirm';
 import type {
   AnalysisDetail,
   FitzpatrickRawResponse,
+  SkiniverDiagnosisCandidate,
   YoucamRawResponse,
 } from '../../../types/analysis';
 import { FITZPATRICK_SCALES } from '../../../data/fitzpatrickLabels';
@@ -166,6 +167,8 @@ export function AnalysisDetailView({
   const [error, setError] = useState<string | null>(null);
   const [subView, setSubView] = useState<SubView>('detail');
   const [skiniverView, setSkiniverView] = useState<'stats' | 'detail'>('stats');
+  const [skiniverSelected, setSkiniverSelected] =
+    useState<SkiniverDiagnosisCandidate | null>(null);
   const [nosologyPickerOpen, setNosologyPickerOpen] = useState(false);
   const [correcting, setCorrecting] = useState(false);
   const [skiniverNotesOpen, setSkiniverNotesOpen] = useState(false);
@@ -176,7 +179,13 @@ export function AnalysisDetailView({
 
   useEffect(() => {
     setSkiniverView('stats');
+    setSkiniverSelected(null);
   }, [analysisId]);
+
+  function handleSkiniverViewChange(next: 'stats' | 'detail') {
+    setSkiniverView(next);
+    if (next === 'stats') setSkiniverSelected(null);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -215,7 +224,7 @@ export function AnalysisDetailView({
 
   function handleHeaderBack() {
     if (isSkiniver && skiniverView === 'detail') {
-      setSkiniverView('stats');
+      handleSkiniverViewChange('stats');
       return;
     }
     onBack();
@@ -531,7 +540,9 @@ export function AnalysisDetailView({
                 analysis={analysis}
                 patientGender={patientGender ?? analysis.patient?.gender}
                 view={skiniverView}
-                onViewChange={setSkiniverView}
+                onViewChange={handleSkiniverViewChange}
+                selectedCandidate={skiniverSelected}
+                onSelectedCandidateChange={setSkiniverSelected}
                 observationsEditing={skiniverNotesOpen}
                 observationsValue={skiniverNotes}
                 onObservationsChange={setSkiniverNotes}

@@ -32,6 +32,8 @@ export interface EmpresaRegisterPayload {
   payoutBeneficiaryEmail?: string;
   payoutLegalIdType?: string;
   payoutLegalId?: string;
+  /** Código de empresa aliada (registro vía URL/QR). */
+  referralCode?: string;
 }
 
 export interface AuthTokensResponse {

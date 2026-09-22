@@ -552,6 +552,8 @@ model GatewayConfig {
   webhookSecret   String?  @map("webhook_secret") @db.Text // cifrado en app
   /** % de comisión de la pasarela sobre el bruto (se descuenta antes de % aliado). */
   feePercent      Decimal  @default(2.99) @map("fee_percent") @db.Decimal(5, 2)
+  /** Gasto operativo fijo (COP) restado tras el fee de pasarela y antes del % aliado. */
+  operationalCostFixed Decimal @default(0) @map("operational_cost_fixed") @db.Decimal(12, 2)
   /** API Key de Pagos a Terceros (cifrada). Distinta de las llaves de checkout. */
   payoutApiKey           String? @map("payout_api_key") @db.Text
   /** user-principal-id del dashboard Wompi Payouts (cifrado). */
@@ -567,7 +569,8 @@ model GatewayConfig {
 
 /**
  * Factura interna de una suscripción pagada.
- * Separación referida vs común + comisión aliada (sobre neto tras fee pasarela).
+ * Separación referida vs común + comisión aliado
+ * (sobre neto tras fee pasarela y gastos operativos).
  */
 model SubscriptionInvoice {
   id                       BigInt    @id @default(autoincrement())
@@ -579,6 +582,10 @@ model SubscriptionInvoice {
   gatewayFeePercent        Decimal   @map("gateway_fee_percent") @db.Decimal(5, 2)
   gatewayFeeAmount         Decimal   @map("gateway_fee_amount") @db.Decimal(12, 2)
   netAfterGateway          Decimal   @map("net_after_gateway") @db.Decimal(12, 2)
+  /** Gasto operativo fijo aplicado en esta venta (COP). */
+  operationalCostAmount    Decimal   @default(0) @map("operational_cost_amount") @db.Decimal(12, 2)
+  /** Base para % aliado: neto tras pasarela − gastos operativos. */
+  commissionBaseAmount     Decimal   @map("commission_base_amount") @db.Decimal(12, 2)
   isReferredSale           Boolean   @default(false) @map("is_referred_sale")
   alliedCommissionPercent  Decimal?  @map("allied_commission_percent") @db.Decimal(5, 2)
   alliedCommissionAmount   Decimal   @default(0) @map("allied_commission_amount") @db.Decimal(12, 2)

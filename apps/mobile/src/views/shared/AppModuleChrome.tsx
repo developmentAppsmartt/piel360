@@ -11,6 +11,7 @@ import { SupportChatView } from '../support/SupportChatView';
 import { DiagnosisLanguageView } from '../doctor/settings/DiagnosisLanguageView';
 import { LegalDocumentModal } from '../../components/legal/LegalDocumentModal';
 import { AboutPiel360Modal } from '../../components/about/AboutPiel360';
+import { InviteColleagueModal } from '../doctor/home/InviteColleagueModal';
 import { useAuth } from '../../context/AuthContext';
 import { useBranding } from '../../context/BrandingContext';
 import type { LegalDocId } from '../../data/legal/documents';
@@ -63,6 +64,7 @@ export function AppModuleChrome({
   );
   const [menuOpen, setMenuOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [accountPanel, setAccountPanel] = useState<AccountPanel>(null);
   const [legalDoc, setLegalDoc] = useState<LegalDocId | null>(null);
@@ -127,11 +129,15 @@ export function AppModuleChrome({
       setLegalDoc(variant === 'doctor' ? 'terms-professional' : 'terms');
       return;
     }
-    if (id === 'seguridad' || id === 'compartir' || id === 'premios') {
+    if (id === 'seguridad' || id === 'premios') {
       Alert.alert(
         'Próximamente',
         'Esta opción del menú se conectará en una siguiente iteración.',
       );
+      return;
+    }
+    if (id === 'compartir') {
+      setInviteOpen(true);
       return;
     }
     if (id === 'acerca') {
@@ -292,6 +298,10 @@ export function AppModuleChrome({
       <AboutPiel360Modal
         visible={aboutOpen}
         onClose={() => setAboutOpen(false)}
+      />
+      <InviteColleagueModal
+        visible={inviteOpen}
+        onClose={() => setInviteOpen(false)}
       />
       <LegalDocumentModal
         docId={legalDoc}

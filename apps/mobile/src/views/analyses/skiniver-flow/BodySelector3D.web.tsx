@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { Asset } from 'expo-asset';
 import {
   BODY_PARTS_INFO,
+  BODY_SELECTOR_ORBIT,
   cameraForBodyPoint,
   inferBodyPartFromPoint,
   normalizeMeshName,
@@ -74,13 +75,15 @@ function BodyModel({
 
 function FocusCamera({ point }: { point: [number, number, number] }) {
   const camera = useThree((state) => state.camera);
+  const focusKey = `${point[0].toFixed(4)}|${point[1].toFixed(4)}|${point[2].toFixed(4)}`;
 
   useEffect(() => {
     const view = cameraForBodyPoint(point);
     camera.position.set(...view.position);
     camera.lookAt(point[0], point[1], point[2]);
     camera.updateProjectionMatrix();
-  }, [camera, point]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al cambiar coords
+  }, [camera, focusKey]);
 
   return null;
 }
@@ -134,9 +137,13 @@ export function BodySelector3D({
     });
   }
 
-  const cameraView = focusPoint
-    ? cameraForBodyPoint(focusPoint)
-    : { position: [0, 1.6, 3.2] as [number, number, number], target: [0, 1.2, 0] as [number, number, number] };
+  const cameraView = useMemo(() => {
+    if (focusPoint) return cameraForBodyPoint(focusPoint);
+    return {
+      position: [0, 1.6, 3.2] as [number, number, number],
+      target: [0, 1.2, 0] as [number, number, number],
+    };
+  }, [focusPoint?.[0], focusPoint?.[1], focusPoint?.[2]]);
   const readOnly = Boolean(focusPoint);
 
   return (
@@ -206,9 +213,12 @@ export function BodySelector3D({
             </mesh>
           ) : null}
           <OrbitControls
+            makeDefault
             enablePan={false}
-            minDistance={0.7}
-            maxDistance={5}
+            enableZoom
+            zoomSpeed={BODY_SELECTOR_ORBIT.zoomSpeed}
+            minDistance={BODY_SELECTOR_ORBIT.minDistance}
+            maxDistance={BODY_SELECTOR_ORBIT.maxDistance}
             target={cameraView.target}
           />
         </Canvas>

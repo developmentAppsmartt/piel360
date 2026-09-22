@@ -16,6 +16,8 @@ type BillingInvoice = {
   gatewayFeeAmount: number;
   gatewayFeePercent: number;
   netAfterGateway: number;
+  operationalCostAmount: number;
+  commissionBaseAmount: number;
   alliedCommissionPercent: number | null;
   alliedCommissionAmount: number;
   platformNetAmount: number;
@@ -316,6 +318,7 @@ export function BillingDashboard() {
                 <th className="px-4 py-3 font-semibold">Tipo</th>
                 <th className="px-4 py-3 font-semibold">Bruto</th>
                 <th className="px-4 py-3 font-semibold">Fee</th>
+                <th className="px-4 py-3 font-semibold">Gastos</th>
                 <th className="px-4 py-3 font-semibold">Aliado</th>
                 <th className="px-4 py-3 font-semibold">Neto Piel360</th>
               </tr>
@@ -323,7 +326,7 @@ export function BillingDashboard() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
                     No hay facturas en este filtro.
                   </td>
                 </tr>
@@ -354,6 +357,12 @@ export function BillingDashboard() {
                     <td className="px-4 py-3 tabular-nums text-muted-foreground">
                       {formatCop(inv.gatewayFeeAmount)}
                       <span className="block text-[11px]">{inv.gatewayFeePercent}%</span>
+                    </td>
+                    <td className="px-4 py-3 tabular-nums text-muted-foreground">
+                      {formatCop(inv.operationalCostAmount ?? 0)}
+                      <span className="block text-[11px]">
+                        Base {formatCop(inv.commissionBaseAmount ?? inv.netAfterGateway)}
+                      </span>
                     </td>
                     <td className="px-4 py-3 tabular-nums">
                       {inv.isReferredSale ? (

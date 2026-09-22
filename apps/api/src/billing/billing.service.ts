@@ -45,8 +45,8 @@ export class BillingService {
 
   /**
    * Crea factura interna al activar una suscripción pagada.
-   * Fórmula: bruto − fee pasarela = neto; si hay referido aliado,
-   * comisión = neto × % aliado; resto → plataforma.
+   * Fórmula: bruto − fee pasarela − gastos operativos = base;
+   * si hay referido aliado, comisión = base × % aliado; resto → plataforma.
    */
   async recordSubscriptionSale(input: RecordSubscriptionSaleInput) {
     const existing = await this.prisma.subscriptionInvoice.findUnique({
@@ -55,18 +55,31 @@ export class BillingService {
     if (existing) return existing;
 
     const gross = roundMoney(Number(input.planPrice));
+    const gateway = await this.prisma.gatewayConfig.findFirst({
+      where: { isActive: true },
+      orderBy: { id: 'desc' },
+    });
+
     let feePercent = input.gatewayFeePercent;
     if (feePercent == null) {
-      const gateway = await this.prisma.gatewayConfig.findFirst({
-        where: { isActive: true },
-        orderBy: { id: 'desc' },
-      });
       feePercent = gateway?.feePercent != null ? Number(gateway.feePercent) : 2.99;
     }
     feePercent = roundMoney(Number(feePercent));
 
     const gatewayFeeAmount = roundMoney((gross * feePercent) / 100);
     const netAfterGateway = roundMoney(gross - gatewayFeeAmount);
+
+    const operationalCostConfigured = roundMoney(
+      gateway?.operationalCostFixed != null
+        ? Number(gateway.operationalCostFixed)
+        : 0,
+    );
+    const operationalCostAmount = roundMoney(
+      Math.min(Math.max(0, operationalCostConfigured), Math.max(0, netAfterGateway)),
+    );
+    const commissionBaseAmount = roundMoney(
+      Math.max(0, netAfterGateway - operationalCostAmount),
+    );
 
     const referral = await this.prisma.referral.findFirst({
       where: {
@@ -92,9 +105,11 @@ export class BillingService {
         : null;
     const isReferredSale = Boolean(org && alliedPercent != null && alliedPercent > 0);
     const alliedCommissionAmount = isReferredSale
-      ? roundMoney((netAfterGateway * (alliedPercent as number)) / 100)
+      ? roundMoney((commissionBaseAmount * (alliedPercent as number)) / 100)
       : 0;
-    const platformNetAmount = roundMoney(netAfterGateway - alliedCommissionAmount);
+    const platformNetAmount = roundMoney(
+      commissionBaseAmount - alliedCommissionAmount,
+    );
 
     return this.prisma.subscriptionInvoice.create({
       data: {
@@ -106,6 +121,8 @@ export class BillingService {
         gatewayFeePercent: new Prisma.Decimal(feePercent),
         gatewayFeeAmount: new Prisma.Decimal(gatewayFeeAmount),
         netAfterGateway: new Prisma.Decimal(netAfterGateway),
+        operationalCostAmount: new Prisma.Decimal(operationalCostAmount),
+        commissionBaseAmount: new Prisma.Decimal(commissionBaseAmount),
         isReferredSale,
         alliedCommissionPercent: isReferredSale
           ? new Prisma.Decimal(alliedPercent as number)
@@ -906,6 +923,8 @@ export class BillingService {
       gatewayFeePercent: Number(inv.gatewayFeePercent),
       gatewayFeeAmount: Number(inv.gatewayFeeAmount),
       netAfterGateway: Number(inv.netAfterGateway),
+      operationalCostAmount: Number(inv.operationalCostAmount),
+      commissionBaseAmount: Number(inv.commissionBaseAmount),
       isReferredSale: inv.isReferredSale,
       alliedCommissionPercent:
         inv.alliedCommissionPercent != null

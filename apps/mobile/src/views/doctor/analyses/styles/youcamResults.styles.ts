@@ -1098,17 +1098,25 @@ export function createYoucamResultsStyles(
       marginBottom: 12,
       paddingHorizontal: 8,
     },
+    categoryFilterScroll: {
+      flexGrow: 0,
+      flexShrink: 0,
+      marginBottom: 4,
+    },
     categoryFilterRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      paddingBottom: 12,
+      paddingBottom: 10,
       paddingHorizontal: 2,
+      // Permite que el contenido sea más ancho que la pantalla (scroll).
+      flexGrow: 1,
     },
     categoryChip: {
+      flexShrink: 0,
       borderRadius: 999,
-      paddingHorizontal: 12,
-      paddingVertical: 7,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
       backgroundColor: '#F3F4F6',
       borderWidth: 1,
       borderColor: '#E5E7EB',
@@ -1121,6 +1129,7 @@ export function createYoucamResultsStyles(
       fontSize: 12,
       fontWeight: '700',
       color: colors.muted,
+      flexShrink: 0,
     },
     categoryChipTextOn: {
       color: colors.textOnDark,

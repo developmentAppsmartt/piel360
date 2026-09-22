@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Pressable,
   ScrollView,
   Text,
@@ -10,6 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import { AppIcon } from '../../../components/AppIcon';
 import { Icons } from '../../../components/icons';
 import { useBranding } from '../../../context/BrandingContext';
+import { youcamMetricConvention } from '../../../data/youcamMetricConventions';
 import { YOUCAM_METRIC_LABELS } from '../../../data/youcamMetricLabels';
 import { analysesService } from '../../../services/analyses.service';
 import { patientsService } from '../../../services/patients.service';
@@ -38,6 +41,12 @@ type YoucamProgressViewProps = {
 /** vertical = listado con barras horizontales; horizontal = columnas. */
 type LayoutMode = 'vertical' | 'horizontal';
 
+function softColor(hex: string, active: boolean): string {
+  if (!active) return '#FFFFFF';
+  if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) return '#FFFFFF';
+  return `${hex}22`;
+}
+
 function shortLabel(type: string): string {
   const full = YOUCAM_METRIC_LABELS[type] ?? type;
   if (full.length <= 10) return full;
@@ -64,6 +73,13 @@ export function YoucamProgressView({
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [previous, setPrevious] = useState<PatientAnalysisSummary | null>(null);
+  const metricScrollRef = useRef<ScrollView>(null);
+  const metricScrollX = useRef(0);
+  const [scoreScroll, setScoreScroll] = useState({
+    hasMore: false,
+    progress: 0.28,
+    viewport: 0,
+  });
 
   const currentScores = useMemo(
     () =>
@@ -121,24 +137,6 @@ export function YoucamProgressView({
     (type) => currentScores[type] != null || previousScores[type] != null,
   );
 
-  const categoryFilters = useMemo(
-    () => [
-      { id: 'all', label: 'Todas' },
-      { id: 'skin_age', label: 'Edad de la piel' },
-      ...rows.map((type) => ({
-        id: type,
-        label: YOUCAM_METRIC_LABELS[type] ?? type,
-      })),
-    ],
-    [rows],
-  );
-
-  const visibleRows = useMemo(() => {
-    if (categoryFilter === 'all') return rows;
-    if (categoryFilter === 'skin_age') return [];
-    return rows.filter((type) => type === categoryFilter);
-  }, [rows, categoryFilter]);
-
   const currentSkinAge =
     analysis.skinAgeYears ??
     youcamSkinAge(
@@ -151,6 +149,29 @@ export function YoucamProgressView({
         ),
       )
     : null;
+
+  const categoryFilters = useMemo(
+    () => [
+      { id: 'all', label: 'Todas', score: null as number | null },
+      {
+        id: 'skin_age',
+        label: 'Edad de la piel',
+        score: currentSkinAge ?? null,
+      },
+      ...rows.map((type) => ({
+        id: type,
+        label: YOUCAM_METRIC_LABELS[type] ?? type,
+        score: currentScores[type] ?? null,
+      })),
+    ],
+    [rows, currentScores, currentSkinAge],
+  );
+
+  const visibleRows = useMemo(() => {
+    if (categoryFilter === 'all') return rows;
+    if (categoryFilter === 'skin_age') return [];
+    return rows.filter((type) => type === categoryFilter);
+  }, [rows, categoryFilter]);
 
   return (
     <View style={styles.progressScreen}>
@@ -202,31 +223,146 @@ export function YoucamProgressView({
             : 'Columnas: barras verticales; desliza a la derecha para ver más.'}
         </Text>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryFilterRow}
+        <View
+          style={styles.metricScrollWrap}
+          onLayout={(event) => {
+            const layoutWidth = event.nativeEvent.layout.width;
+            setScoreScroll((current) => ({
+              ...current,
+              viewport: layoutWidth,
+            }));
+          }}
         >
-          {categoryFilters.map((chip) => {
-            const on = categoryFilter === chip.id;
-            return (
-              <Pressable
-                key={chip.id}
-                style={[styles.categoryChip, on && styles.categoryChipOn]}
-                onPress={() => setCategoryFilter(chip.id)}
-              >
-                <Text
-                  style={[
-                    styles.categoryChipText,
-                    on && styles.categoryChipTextOn,
-                  ]}
+          <ScrollView
+            ref={metricScrollRef}
+            horizontal
+            nestedScrollEnabled
+            showsHorizontalScrollIndicator={false}
+            style={styles.metricScroll}
+            contentContainerStyle={{ paddingVertical: 4, paddingRight: 8 }}
+            keyboardShouldPersistTaps="handled"
+            onContentSizeChange={(width) => {
+              setScoreScroll((current) => {
+                const viewport = current.viewport ?? 0;
+                const hasMore = width > viewport + 12;
+                const visible =
+                  viewport > 0 ? Math.min(1, viewport / width) : 0.28;
+                return { hasMore, progress: visible, viewport };
+              });
+            }}
+            onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) => {
+              const { contentOffset, contentSize, layoutMeasurement } =
+                event.nativeEvent;
+              metricScrollX.current = contentOffset.x;
+              const max = Math.max(
+                1,
+                contentSize.width - layoutMeasurement.width,
+              );
+              const ratio = Math.min(1, Math.max(0, contentOffset.x / max));
+              const visible = Math.min(
+                1,
+                layoutMeasurement.width / Math.max(1, contentSize.width),
+              );
+              const remaining =
+                contentSize.width -
+                (contentOffset.x + layoutMeasurement.width);
+              setScoreScroll({
+                hasMore: remaining > 12,
+                progress: visible + (1 - visible) * ratio,
+                viewport: layoutMeasurement.width,
+              });
+            }}
+            scrollEventThrottle={16}
+          >
+            {categoryFilters.map((chip) => {
+              const active = categoryFilter === chip.id;
+              const isScoreChip =
+                chip.id === 'skin_age' || chip.id === 'all';
+              const convention =
+                !isScoreChip ? youcamMetricConvention(chip.id) : null;
+              return (
+                <Pressable
+                  key={chip.id}
+                  style={styles.metricChip}
+                  onPress={() => setCategoryFilter(chip.id)}
                 >
-                  {chip.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+                  <View
+                    style={[
+                      styles.metricRing,
+                      !convention && active ? styles.metricRingActive : null,
+                      convention
+                        ? {
+                            backgroundColor: softColor(
+                              convention.color,
+                              active,
+                            ),
+                            borderColor: active
+                              ? convention.color
+                              : '#D1D5DB',
+                          }
+                        : null,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.metricRingScore,
+                        convention && active
+                          ? { color: convention.color }
+                          : null,
+                      ]}
+                    >
+                      {chip.score != null ? Math.round(chip.score) : '·'}
+                    </Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.metricChipLabel,
+                      active && styles.metricChipLabelActive,
+                      convention && active
+                        ? { color: convention.color }
+                        : null,
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {isScoreChip
+                      ? chip.id === 'skin_age'
+                        ? 'Edad de la piel'
+                        : 'Todas'
+                      : (convention?.badgeLabel ?? chip.label)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          <Pressable
+            style={styles.metricScrollHintRow}
+            onPress={() =>
+              metricScrollRef.current?.scrollTo({
+                x: metricScrollX.current + 168,
+                animated: true,
+              })
+            }
+            accessibilityLabel="Desliza a la derecha para ver más categorías"
+          >
+            <View style={styles.metricScrollTrack}>
+              <View
+                style={[
+                  styles.metricScrollFill,
+                  {
+                    width: `${Math.round(
+                      (scoreScroll.hasMore ? scoreScroll.progress : 1) * 100,
+                    )}%`,
+                  },
+                ]}
+              />
+            </View>
+            <AppIcon
+              icon={Icons.chevronRight}
+              size={16}
+              color={branding.colors.primary}
+            />
+          </Pressable>
+        </View>
 
         <View style={styles.legendRow}>
           <View style={styles.legendItem}>

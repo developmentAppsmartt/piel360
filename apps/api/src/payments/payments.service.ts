@@ -41,6 +41,10 @@ function toSafeGatewayConfig(
     hasIntegritySecret: Boolean(integritySecret),
     hasWebhookSecret: Boolean(webhookSecret),
     feePercent: config.feePercent != null ? Number(config.feePercent) : 2.99,
+    operationalCostFixed:
+      config.operationalCostFixed != null
+        ? Number(config.operationalCostFixed)
+        : 0,
     hasPayoutApiKey: Boolean(payoutApiKey),
     hasPayoutUserPrincipalId: Boolean(payoutUserPrincipalId),
     payoutAccountId: config.payoutAccountId ?? null,
@@ -77,6 +81,7 @@ export class PaymentsService {
           ? this.encryption.encrypt(dto.webhookSecret)
           : undefined,
         feePercent: dto.feePercent ?? 2.99,
+        operationalCostFixed: dto.operationalCostFixed ?? 0,
         payoutApiKey: dto.payoutApiKey
           ? this.encryption.encrypt(dto.payoutApiKey)
           : undefined,
@@ -119,6 +124,7 @@ export class PaymentsService {
           ? this.encryption.encrypt(dto.webhookSecret)
           : undefined,
         feePercent: dto.feePercent,
+        operationalCostFixed: dto.operationalCostFixed,
         payoutApiKey: dto.payoutApiKey
           ? this.encryption.encrypt(dto.payoutApiKey)
           : undefined,

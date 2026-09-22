@@ -25,6 +25,8 @@ export interface GatewayConfigSafe {
   hasWebhookSecret: boolean;
   /** % comisión de la pasarela sobre el bruto. */
   feePercent?: number;
+  /** Gasto operativo fijo (COP) restado tras el fee de pasarela. */
+  operationalCostFixed?: number;
   hasPayoutApiKey?: boolean;
   hasPayoutUserPrincipalId?: boolean;
   payoutAccountId?: string | null;
@@ -43,6 +45,7 @@ export interface CreateGatewayConfigInput {
   integritySecret?: string;
   webhookSecret?: string;
   feePercent?: number;
+  operationalCostFixed?: number;
   payoutApiKey?: string;
   payoutUserPrincipalId?: string;
   payoutAccountId?: string;

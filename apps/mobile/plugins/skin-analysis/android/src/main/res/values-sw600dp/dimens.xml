@@ -1,21 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <!-- Tablet 7": óvalo y botones más grandes, misma proporción 3:4 -->
-  <dimen name="skin_oval_width">520dp</dimen>
-  <dimen name="skin_oval_height">700dp</dimen>
-  <dimen name="skin_oval_margin_top">24dp</dimen>
-  <dimen name="skin_capture_loader">148dp</dimen>
+  <!--
+    Tablet (shortest ≥ 600dp). Muchas tablets de ~10" reportan sw600
+    por densidad; tipografía y óvalo más grandes que teléfono.
+  -->
+  <dimen name="skin_oval_width">600dp</dimen>
+  <dimen name="skin_oval_height">800dp</dimen>
+  <dimen name="skin_oval_margin_top">20dp</dimen>
+  <dimen name="skin_capture_loader">160dp</dimen>
   <dimen name="skin_top_padding">28dp</dimen>
   <dimen name="skin_header_row_height">52dp</dimen>
   <dimen name="skin_header_btn">48dp</dimen>
   <dimen name="skin_header_btn_text">32sp</dimen>
-  <dimen name="skin_badge_height">60dp</dimen>
-  <dimen name="skin_badge_text">15sp</dimen>
+  <dimen name="skin_badge_height">76dp</dimen>
+  <dimen name="skin_badge_text">18sp</dimen>
   <dimen name="skin_badge_padding_h">10dp</dimen>
-  <dimen name="skin_badge_padding_v">8dp</dimen>
+  <dimen name="skin_badge_padding_v">10dp</dimen>
   <dimen name="skin_badge_gap">8dp</dimen>
   <dimen name="skin_badge_row_margin_top">14dp</dimen>
-  <dimen name="skin_badge_row_margin_h">24dp</dimen>
-  <dimen name="skin_guide_text">34sp</dimen>
-  <dimen name="skin_countdown_text">88sp</dimen>
+  <dimen name="skin_badge_row_margin_h">16dp</dimen>
+  <dimen name="skin_guide_text">38sp</dimen>
+  <dimen name="skin_countdown_text">96sp</dimen>
 </resources>

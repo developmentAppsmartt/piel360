@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppIcon } from '../../components/AppIcon';
+import { Icons } from '../../components/icons';
 
 export type CalendarCell = { date: string | null; day: number | null };
 
@@ -128,6 +130,15 @@ export function availableStartTimes(
 
 export { SLOT_MINUTES };
 
+const BLOCKED_BG = '#FEE2E2';
+const BLOCKED_BORDER = '#FECACA';
+const BLOCKED_FG = '#DC2626';
+const APPT_BG = '#DBEAFE';
+const APPT_BORDER = '#93C5FD';
+const APPT_FG = '#1D4ED8';
+const AVAILABLE_BG = '#FFFFFF';
+const AVAILABLE_BORDER = '#E5E7EB';
+
 type AgendaMonthCalendarProps = {
   anchor: Date;
   onPrevMonth: () => void;
@@ -138,7 +149,50 @@ type AgendaMonthCalendarProps = {
   apptCountByDate?: Map<string, number>;
   primaryColor: string;
   textColor: string;
+  /** Muestra la leyenda de convenciones encima del mes. */
+  showLegend?: boolean;
 };
+
+function CalendarLegend() {
+  return (
+    <View style={calStyles.legendRow}>
+      <View style={calStyles.legendItem}>
+        <View
+          style={[
+            calStyles.legendSwatch,
+            { backgroundColor: BLOCKED_BG, borderColor: BLOCKED_BORDER },
+          ]}
+        >
+          <AppIcon icon={Icons.lock} size={12} color={BLOCKED_FG} />
+        </View>
+        <Text style={calStyles.legendLabel}>No disponible / Bloqueado</Text>
+      </View>
+      <View style={calStyles.legendItem}>
+        <View
+          style={[
+            calStyles.legendSwatch,
+            { backgroundColor: APPT_BG, borderColor: APPT_BORDER },
+          ]}
+        >
+          <AppIcon icon={Icons.calendarDay} size={11} color={APPT_FG} />
+          <View style={calStyles.legendBadge}>
+            <Text style={calStyles.legendBadgeText}>1</Text>
+          </View>
+        </View>
+        <Text style={calStyles.legendLabel}>Con citas</Text>
+      </View>
+      <View style={calStyles.legendItem}>
+        <View
+          style={[
+            calStyles.legendSwatch,
+            { backgroundColor: AVAILABLE_BG, borderColor: AVAILABLE_BORDER },
+          ]}
+        />
+        <Text style={calStyles.legendLabel}>Disponible</Text>
+      </View>
+    </View>
+  );
+}
 
 export function AgendaMonthCalendar({
   anchor,
@@ -150,6 +204,7 @@ export function AgendaMonthCalendar({
   apptCountByDate,
   primaryColor,
   textColor,
+  showLegend = true,
 }: AgendaMonthCalendarProps) {
   const cells = useMemo(() => daysInMonthGridLocal(anchor), [anchor]);
   const monthLabel = anchor.toLocaleDateString('es-CO', {
@@ -159,6 +214,8 @@ export function AgendaMonthCalendar({
 
   return (
     <View>
+      {showLegend ? <CalendarLegend /> : null}
+
       <View style={calStyles.navRow}>
         <Pressable onPress={onPrevMonth} hitSlop={10} style={calStyles.navBtn}>
           <Text style={[calStyles.navBtnText, { color: textColor }]}>←</Text>
@@ -184,14 +241,27 @@ export function AgendaMonthCalendar({
           if (!cell.date) {
             return <View key={`e-${idx}`} style={calStyles.dayCell} />;
           }
-          const blocked = blockedByDate.get(cell.date);
+          const blocked = Boolean(blockedByDate.get(cell.date));
           const count = apptCountByDate?.get(cell.date) ?? 0;
           const hasAppts = count > 0 && !blocked;
           const selected = selectedDate === cell.date;
+          const dayColor = blocked
+            ? BLOCKED_FG
+            : hasAppts
+              ? APPT_FG
+              : textColor;
+
           return (
             <View key={cell.date} style={calStyles.dayCell}>
               <Pressable
                 onPress={() => onSelectDate(cell.date!)}
+                accessibilityLabel={
+                  blocked
+                    ? `Día ${cell.day}, no disponible`
+                    : hasAppts
+                      ? `Día ${cell.day}, ${count} cita${count === 1 ? '' : 's'}`
+                      : `Día ${cell.day}, disponible`
+                }
                 style={[
                   calStyles.dayBtn,
                   {
@@ -199,41 +269,39 @@ export function AgendaMonthCalendar({
                     borderColor: selected
                       ? primaryColor
                       : blocked
-                        ? '#FECACA'
+                        ? BLOCKED_BORDER
                         : hasAppts
-                          ? '#93C5FD'
-                          : '#E5E7EB',
+                          ? APPT_BORDER
+                          : AVAILABLE_BORDER,
                     backgroundColor: blocked
-                      ? '#FEF2F2'
+                      ? BLOCKED_BG
                       : hasAppts
-                        ? '#DBEAFE'
-                        : '#FFFFFF',
+                        ? APPT_BG
+                        : AVAILABLE_BG,
                   },
                 ]}
               >
-                <Text
-                  style={{
-                    fontSize: 13,
-                    fontWeight: '800',
-                    color: blocked
-                      ? '#B91C1C'
-                      : hasAppts
-                        ? '#1D4ED8'
-                        : textColor,
-                  }}
-                >
+                <Text style={[calStyles.dayNumber, { color: dayColor }]}>
                   {cell.day}
                 </Text>
-                {count > 0 ? (
-                  <Text
-                    style={[
-                      calStyles.dayCount,
-                      { color: blocked ? '#B91C1C' : '#1D4ED8' },
-                    ]}
-                  >
-                    {count}c
-                  </Text>
-                ) : null}
+                {blocked ? (
+                  <AppIcon icon={Icons.lock} size={12} color={BLOCKED_FG} />
+                ) : hasAppts ? (
+                  <View style={calStyles.apptMeta}>
+                    <AppIcon
+                      icon={Icons.calendarDay}
+                      size={11}
+                      color={APPT_FG}
+                    />
+                    <View style={calStyles.apptBadge}>
+                      <Text style={calStyles.apptBadgeText}>
+                        {count > 9 ? '9+' : String(count)}
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={calStyles.dayMetaSpacer} />
+                )}
               </Pressable>
             </View>
           );
@@ -244,6 +312,52 @@ export function AgendaMonthCalendar({
 }
 
 const calStyles = StyleSheet.create({
+  legendRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+    paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E7EB',
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendSwatch: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  legendLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  legendBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    minWidth: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: APPT_FG,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  legendBadgeText: {
+    fontSize: 7,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -273,6 +387,33 @@ const calStyles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 2,
+    paddingVertical: 4,
   },
-  dayCount: { fontSize: 8, fontWeight: '700' },
+  dayNumber: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  dayMetaSpacer: {
+    height: 14,
+  },
+  apptMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  apptBadge: {
+    minWidth: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: APPT_FG,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  apptBadgeText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
 });

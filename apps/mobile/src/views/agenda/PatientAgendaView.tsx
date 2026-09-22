@@ -207,7 +207,7 @@ export function PatientAgendaView({
               </Text>
               <Text style={styles.sectionSubtitle}>
                 {calendar?.message ??
-                  'Toca un día en el calendario. Rojo = no disponible.'}
+                  'Toca un día disponible para asignar una cita.'}
               </Text>
             </View>
 

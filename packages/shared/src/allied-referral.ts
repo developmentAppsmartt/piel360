@@ -10,7 +10,7 @@ export function slugifyAlliedOrgName(name: string): string {
     .slice(0, 60) || 'empresa-aliada';
 }
 
-/** Ruta relativa al registro profesional con código de empresa aliada. */
+/** Ruta relativa al registro (profesional o empresa) con código de empresa aliada. */
 export function buildAlliedReferralPath(slug: string, referralCode: string): string {
   const safeSlug = encodeURIComponent(slug.trim());
   const safeCode = encodeURIComponent(referralCode.trim());

@@ -149,4 +149,10 @@ export class RegisterEmpresaDto {
   @IsString()
   @MaxLength(64)
   payoutLegalId?: string;
+
+  /** Código de empresa aliada (registro vía URL/QR de referidos). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  referralCode?: string;
 }
