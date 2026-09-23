@@ -5,7 +5,12 @@ import { PrismaService } from '../prisma/prisma.service';
 export type NotificationType =
   | 'message'
   | 'analysis_request'
-  | 'analysis_shared';
+  | 'analysis_shared'
+  | 'appointment_proposed'
+  | 'appointment_requested'
+  | 'appointment_confirmed'
+  | 'appointment_declined'
+  | 'appointment_cancelled';
 
 @Injectable()
 export class NotificationsService {

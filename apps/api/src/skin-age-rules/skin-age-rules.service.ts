@@ -330,6 +330,8 @@ export class SkinAgeRulesService {
             id: treatment.id.toString(),
             name: treatment.name,
             description: treatment.description,
+            categoryName: treatment.category?.categoryName ?? null,
+            stepsCount: treatment.items.length,
             items: await Promise.all(
               treatment.items.map(async (item) => ({
                 id: item.id.toString(),
@@ -640,6 +642,7 @@ export class SkinAgeRulesService {
             name: treatment.name,
             description: treatment.description,
             categoryName: treatment.category?.categoryName ?? null,
+            stepsCount: treatment.items.length,
             items: await Promise.all(
               treatment.items.map(async (item) => ({
                 id: item.id.toString(),

@@ -77,6 +77,16 @@ function formatStamp(iso: string): string {
   return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
 }
 
+/** Fecha/hora local de la cita (misma zona que al elegir día y hora). */
+function formatApptRange(startsAt: string, endsAt: string): string {
+  const start = formatStamp(startsAt);
+  const end = new Date(endsAt);
+  if (Number.isNaN(end.getTime())) return start;
+  const hh = String(end.getHours()).padStart(2, '0');
+  const min = String(end.getMinutes()).padStart(2, '0');
+  return `${start} – ${hh}:${min}`;
+}
+
 /** Acepta dd/mm/yyyy, dd-mm-yyyy o yyyy-mm-dd. */
 function parseFlexibleDate(raw: string): Date | null {
   const t = raw.trim();
@@ -260,7 +270,8 @@ export function DoctorAgendaView({
   const apptCountByDate = useMemo(() => {
     const map = new Map<string, number>();
     for (const a of overview?.appointments ?? []) {
-      const key = a.startsAt.slice(0, 10);
+      const key = dayKey(a.startsAt);
+      if (!key) continue;
       map.set(key, (map.get(key) ?? 0) + 1);
     }
     return map;
@@ -857,7 +868,7 @@ export function DoctorAgendaView({
                           {open ? ' ▲' : ' ▼'}
                         </Text>
                         <Text style={styles.sectionSubtitle}>
-                          {new Date(a.startsAt).toLocaleString()}
+                          {formatApptRange(a.startsAt, a.endsAt)}
                         </Text>
                       </Pressable>
                       {open ? (

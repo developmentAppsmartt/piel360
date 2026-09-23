@@ -10,6 +10,8 @@ import {
   patientsService,
   type AnalysisRequest,
 } from '../services/patients.service';
+import { notificationsService } from '../services/notifications.service';
+import { isAppointmentNotification } from '../types/notifications';
 import { isDoctorVerificationActive, isClinicalPanelUser } from '../types/auth';
 import { DoctorHomeView } from '../views/doctor/home/DoctorHomeView';
 import { DoctorPatientsView } from '../views/doctor/patients/DoctorPatientsView';
@@ -67,7 +69,8 @@ export function MainTabNavigator() {
   const insets = useSafeAreaInsets();
   const branding = useBranding();
   const { user, refreshDoctorVerification } = useAuth();
-  const { inboxOpen, closeInbox, openInbox, refreshUnread } = useNotifications();
+  const { inboxOpen, closeInbox, openInbox, refreshUnread, unreadCount } =
+    useNotifications();
   const isDoctor = isClinicalPanelUser(user);
   const doctorActive =
     !isDoctor || isDoctorVerificationActive(user?.verificationStatus);
@@ -96,6 +99,7 @@ export function MainTabNavigator() {
   const [pendingRequests, setPendingRequests] = useState<AnalysisRequest[]>(
     [],
   );
+  const [agendaBadgeCount, setAgendaBadgeCount] = useState(0);
   const [openConversationId, setOpenConversationId] = useState<string | null>(
     null,
   );
@@ -158,9 +162,44 @@ export function MainTabNavigator() {
     }
   }, [isDoctor]);
 
+  const refreshAgendaBadge = useCallback(async () => {
+    try {
+      const list = await notificationsService.list(30);
+      const count = list.filter(
+        (n) => isAppointmentNotification(n.type) && !n.readAt,
+      ).length;
+      setAgendaBadgeCount(count);
+    } catch {
+      setAgendaBadgeCount(0);
+    }
+  }, []);
+
   useEffect(() => {
     void refreshPendingRequests();
   }, [refreshPendingRequests, activeTab]);
+
+  useEffect(() => {
+    void refreshAgendaBadge();
+  }, [refreshAgendaBadge, activeTab, inboxOpen, unreadCount]);
+
+  useEffect(() => {
+    if (activeTab !== 'agenda' || agendaBadgeCount === 0) return;
+    void (async () => {
+      try {
+        const list = await notificationsService.list(30);
+        const unread = list.filter(
+          (n) => isAppointmentNotification(n.type) && !n.readAt,
+        );
+        await Promise.all(
+          unread.map((n) => notificationsService.markRead(n.id)),
+        );
+        setAgendaBadgeCount(0);
+        void refreshUnread();
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, [activeTab, agendaBadgeCount, refreshUnread]);
 
   async function onPatientTabPress(key: TabKey) {
     if (
@@ -247,6 +286,12 @@ export function MainTabNavigator() {
       setHomeIntent('history');
       setActiveTab('home');
       void refreshUnread();
+      return;
+    }
+    if (action.kind === 'appointment') {
+      setActiveTab('agenda');
+      void refreshAgendaBadge();
+      void refreshUnread();
     }
   }
 
@@ -270,6 +315,10 @@ export function MainTabNavigator() {
             <DoctorHomeView
               onOpenPatients={() => setActiveTab('patients')}
               onOpenMessages={openInbox}
+              onOpenChat={(conversationId) => {
+                if (conversationId) setOpenConversationId(conversationId);
+                setActiveTab('chat');
+              }}
               onOpenProfile={() => setActiveTab('profile')}
               onOpenAgenda={() => setActiveTab('agenda')}
               onShowingStatsChange={setShowingStats}
@@ -279,6 +328,10 @@ export function MainTabNavigator() {
               onOpenProfile={() => setActiveTab('profile')}
               onOpenAgenda={() => setActiveTab('agenda')}
               onOpenMessages={openInbox}
+              onOpenChat={(conversationId) => {
+                if (conversationId) setOpenConversationId(conversationId);
+                setActiveTab('chat');
+              }}
               consentRequestId={consentRequestId}
               pendingAnalysisRequests={pendingRequests}
               onPendingRequestConsumed={() => void refreshPendingRequests()}
@@ -367,7 +420,7 @@ export function MainTabNavigator() {
                               : branding.colors.primary,
                           },
                         ]
-                      : undefined
+                      : styles.tabIconWrap
                   }
                 >
                   <AppIcon
@@ -375,6 +428,15 @@ export function MainTabNavigator() {
                     size={isCenter ? 26 : 22}
                     color={isCenter ? branding.colors.textOnDark : color}
                   />
+                  {!isCenter &&
+                  tab.key === 'agenda' &&
+                  agendaBadgeCount > 0 ? (
+                    <View style={styles.tabBadge}>
+                      <Text style={styles.tabBadgeText}>
+                        {agendaBadgeCount > 9 ? '9+' : String(agendaBadgeCount)}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
                 <Text
                   style={[
@@ -420,6 +482,30 @@ const styles = StyleSheet.create({
   },
   tabItemCenter: {
     marginTop: -18,
+  },
+  tabIconWrap: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -10,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  tabBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
   },
   centerIconWrap: {
     width: 52,

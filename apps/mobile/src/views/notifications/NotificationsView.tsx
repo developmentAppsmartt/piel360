@@ -14,6 +14,7 @@ import { useNotifications } from '../../context/NotificationsContext';
 import { ApiError } from '../../services/api.client';
 import { notificationsService } from '../../services/notifications.service';
 import type { AppNotification } from '../../types/notifications';
+import { isAppointmentNotification } from '../../types/notifications';
 import { DoctorHeader } from '../doctor/patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../doctor/patients/styles/patients.styles';
 import { createNotificationsStyles } from './styles/notifications.styles';
@@ -21,7 +22,8 @@ import { createNotificationsStyles } from './styles/notifications.styles';
 export type NotificationAction =
   | { kind: 'message'; conversationId: string }
   | { kind: 'analysis_request' }
-  | { kind: 'analysis_shared'; analysisId?: string };
+  | { kind: 'analysis_shared'; analysisId?: string }
+  | { kind: 'appointment' };
 
 type NotificationsViewProps = {
   onBack: () => void;
@@ -128,6 +130,10 @@ export function NotificationsView({
           ? item.data.analysisId
           : undefined;
       onSelect({ kind: 'analysis_shared', analysisId });
+      return;
+    }
+    if (isAppointmentNotification(item.type)) {
+      onSelect({ kind: 'appointment' });
     }
   }
 
@@ -162,7 +168,9 @@ export function NotificationsView({
           renderItem={({ item }) => {
             const unread = !item.readAt;
                   const icon =
-              item.type === 'analysis_request'
+              isAppointmentNotification(item.type)
+                ? Icons.calendarCheck
+                : item.type === 'analysis_request'
                 ? Icons.dermAnalysis
                 : item.type === 'analysis_shared'
                   ? Icons.aesthetic

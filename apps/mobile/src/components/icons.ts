@@ -72,6 +72,7 @@ export const Icons = {
   /** Fototipo / pigmentación. */
   fototipo: 'mdi:circle-multiple-outline',
   calendarPlus: 'mdi:calendar-plus',
+  calendarCheck: 'mdi:calendar-check',
   chartBar: 'mdi:chart-bar',
   /** Reutilizan glifos ya embebidos en babel (sin reinicio de Metro). */
   chevronDown: 'mdi:chevron-left',

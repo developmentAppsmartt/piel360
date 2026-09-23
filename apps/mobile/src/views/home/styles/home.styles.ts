@@ -409,6 +409,48 @@ export function createHomeStyles(colors: AppBranding['colors']) {
       color: colors.muted,
       lineHeight: 17,
     },
+    tipsStepsCount: {
+      marginTop: 8,
+      fontSize: 12,
+      fontWeight: '800',
+    },
+    tipsStepsList: {
+      marginTop: 8,
+      gap: 8,
+    },
+    tipsStepRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+    },
+    tipsStepBadge: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 1,
+    },
+    tipsStepBadgeText: {
+      fontSize: 12,
+      fontWeight: '800',
+    },
+    tipsStepBody: {
+      flex: 1,
+      gap: 2,
+      minWidth: 0,
+    },
+    tipsStepTitle: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+      lineHeight: 18,
+    },
+    tipsStepDetail: {
+      fontSize: 12,
+      color: colors.muted,
+      lineHeight: 16,
+    },
     tipsError: {
       color: '#B91C1C',
       fontSize: 13,

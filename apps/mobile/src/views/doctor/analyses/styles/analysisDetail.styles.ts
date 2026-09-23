@@ -548,23 +548,36 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     storyModalBackdrop: {
       flex: 1,
       backgroundColor: 'rgba(15, 23, 42, 0.45)',
-      justifyContent: 'flex-end',
+      justifyContent: 'center',
+      paddingHorizontal: 20,
+    },
+    storyModalDismiss: {
+      ...StyleSheet.absoluteFillObject,
     },
     storyModalCard: {
-      maxHeight: '85%',
       backgroundColor: '#FFFFFF',
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      paddingBottom: 24,
+      borderRadius: 16,
+      paddingBottom: 20,
+      shadowColor: '#0f172a',
+      shadowOpacity: 0.18,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 8,
+      zIndex: 1,
     },
     storyModalHeader: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'space-between',
       gap: 12,
       paddingHorizontal: 16,
       paddingTop: 16,
-      paddingBottom: 8,
+      paddingBottom: 4,
+    },
+    storyLogo: {
+      width: 168,
+      height: 62,
+      flexShrink: 1,
     },
     storyModalTitle: {
       flex: 1,
@@ -572,10 +585,18 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
       fontWeight: '800',
       color: colors.text,
     },
+    storyDiagnosisTitle: {
+      paddingHorizontal: 16,
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+      marginTop: 4,
+    },
     storyMeta: {
       paddingHorizontal: 16,
       fontSize: 13,
       color: colors.muted,
+      marginTop: 6,
       marginBottom: 8,
     },
     storyScroll: {
@@ -583,12 +604,13 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     },
     storyScrollContent: {
       paddingHorizontal: 16,
-      paddingBottom: 20,
+      paddingBottom: 8,
       gap: 10,
     },
     storyBody: {
       fontSize: 14,
       lineHeight: 21,
+      fontWeight: '600',
       color: colors.text,
     },
     fitzBlock: {

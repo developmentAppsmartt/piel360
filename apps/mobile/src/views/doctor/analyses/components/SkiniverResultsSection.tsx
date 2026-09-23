@@ -1,10 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
-  Linking,
+  Image,
   Modal,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
@@ -15,10 +14,7 @@ import { Icons } from '../../../../components/icons';
 import { useBranding } from '../../../../context/BrandingContext';
 import { BODY_PARTS_INFO } from '../../../../data/bodyRegions';
 import { ApiError } from '../../../../services/api.client';
-import {
-  encyclopediaService,
-  stripHtml,
-} from '../../../../services/encyclopedia.service';
+import { encyclopediaService } from '../../../../services/encyclopedia.service';
 import type {
   AnalysisDetail,
   SkiniverDiagnosisCandidate,
@@ -34,6 +30,8 @@ import { createAnalysisDetailStyles } from '../styles/analysisDetail.styles';
 import { AnalysisImageCarousel } from './AnalysisImageCarousel';
 import { BodyRegionViewer } from './BodyRegionViewer';
 import { SkiniverRiskGauge } from './SkiniverRiskGauge';
+
+const ATLAS_LOGO = require('../../../../../assets/logo-piel360-report.png');
 
 const RISK_COLORS: Record<string, string> = {
   low: '#22c55e',
@@ -291,8 +289,9 @@ export function SkiniverResultsSection({
   const [bodyOpen, setBodyOpen] = useState(false);
   const [storyOpen, setStoryOpen] = useState(false);
   const [storyLoading, setStoryLoading] = useState(false);
-  const [storyTitle, setStoryTitle] = useState<string | null>(null);
-  const [storyText, setStoryText] = useState<string | null>(null);
+  const [storyDiagnosis, setStoryDiagnosis] =
+    useState<SkiniverDiagnosisCandidate | null>(null);
+  const [storyAtlasTitle, setStoryAtlasTitle] = useState<string | null>(null);
   const [storyError, setStoryError] = useState<string | null>(null);
 
   // Snapshot del ítem tocado: class/prob/desease de ESE topn (nunca el top-1).
@@ -376,8 +375,8 @@ export function SkiniverResultsSection({
   async function openEncyclopedia(item: SkiniverDiagnosisCandidate) {
     const atlasUrl = atlasUrlFor(item);
     setStoryOpen(true);
-    setStoryTitle(item.class);
-    setStoryText(null);
+    setStoryDiagnosis(item);
+    setStoryAtlasTitle(null);
     setStoryError(null);
     if (!atlasUrl) {
       setStoryError('No hay artículo de atlas asociado a este diagnóstico.');
@@ -386,23 +385,14 @@ export function SkiniverResultsSection({
     setStoryLoading(true);
     try {
       const entry = await encyclopediaService.getByUrl(atlasUrl);
-      if (entry?.content) {
-        setStoryTitle(entry.title ?? item.class);
-        setStoryText(stripHtml(entry.content));
+      const title = entry?.title?.trim();
+      if (title) {
+        setStoryAtlasTitle(title);
         return;
       }
-      const spanishUrl = atlasUrl
-        .replace('skinive.ru/', 'skinive.com/es/')
-        .replace('skinive.com/ru/', 'skinive.com/es/');
-      const opened = await Linking.openURL(spanishUrl).then(
-        () => true,
-        () => false,
+      setStoryError(
+        'Artículo aún no disponible — vuelve a intentarlo en unos minutos.',
       );
-      if (!opened) {
-        setStoryError('El artículo del atlas aún no está disponible.');
-        return;
-      }
-      setStoryOpen(false);
     } catch (err) {
       setStoryError(
         err instanceof ApiError
@@ -412,6 +402,13 @@ export function SkiniverResultsSection({
     } finally {
       setStoryLoading(false);
     }
+  }
+
+  function closeEncyclopedia() {
+    setStoryOpen(false);
+    setStoryDiagnosis(null);
+    setStoryAtlasTitle(null);
+    setStoryError(null);
   }
 
   if (view === 'detail' && active) {
@@ -642,19 +639,28 @@ export function SkiniverResultsSection({
 
         <Modal
           visible={storyOpen}
-          animationType="slide"
+          animationType="fade"
           transparent
-          onRequestClose={() => setStoryOpen(false)}
+          onRequestClose={closeEncyclopedia}
         >
           <View style={styles.storyModalBackdrop}>
+            <Pressable
+              style={styles.storyModalDismiss}
+              onPress={closeEncyclopedia}
+              accessibilityLabel="Cerrar atlas"
+            />
             <View style={styles.storyModalCard}>
               <View style={styles.storyModalHeader}>
-                <Text style={styles.storyModalTitle} numberOfLines={2}>
-                  {storyTitle ?? 'Historia'}
-                </Text>
+                <Image
+                  source={ATLAS_LOGO}
+                  style={styles.storyLogo}
+                  resizeMode="contain"
+                  accessibilityLabel="Piel360"
+                />
                 <Pressable
                   style={styles.roundBtn}
-                  onPress={() => setStoryOpen(false)}
+                  onPress={closeEncyclopedia}
+                  accessibilityLabel="Cerrar atlas"
                 >
                   <AppIcon
                     icon={Icons.close}
@@ -663,18 +669,32 @@ export function SkiniverResultsSection({
                   />
                 </Pressable>
               </View>
-              <ScrollView
-                style={styles.storyScroll}
-                contentContainerStyle={styles.storyScrollContent}
-              >
+
+              {storyDiagnosis ? (
+                <>
+                  <Text style={styles.storyDiagnosisTitle}>
+                    {String(storyDiagnosis.class ?? '').trim() ||
+                      'Sin diagnóstico'}
+                  </Text>
+                  <Text style={styles.storyMeta}>
+                    Probabilidad:{' '}
+                    {Math.round(normalizedProb(storyDiagnosis.prob))}%
+                    {storyDiagnosis.desease
+                      ? ` — ${storyDiagnosis.desease}`
+                      : ''}
+                  </Text>
+                </>
+              ) : null}
+
+              <View style={styles.storyScrollContent}>
                 {storyLoading ? (
                   <ActivityIndicator color={branding.colors.primary} />
                 ) : storyError ? (
                   <Text style={styles.note}>{storyError}</Text>
-                ) : storyText ? (
-                  <Text style={styles.storyBody}>{storyText}</Text>
+                ) : storyAtlasTitle ? (
+                  <Text style={styles.storyBody}>{storyAtlasTitle}</Text>
                 ) : null}
-              </ScrollView>
+              </View>
             </View>
           </View>
         </Modal>

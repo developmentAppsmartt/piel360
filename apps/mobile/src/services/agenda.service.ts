@@ -24,6 +24,7 @@ export type AgendaAppointment = {
   initiatedBy: string;
   title: string | null;
   notes: string | null;
+  updatedAt?: string;
   patient?: {
     id: string;
     firstName: string;

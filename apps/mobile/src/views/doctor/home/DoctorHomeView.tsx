@@ -15,19 +15,30 @@ import { AboutPiel360Modal } from '../../../components/about/AboutPiel360';
 import { AppIcon } from '../../../components/AppIcon';
 import { Icons, type AppIconName } from '../../../components/icons';
 import { LegalDocumentModal } from '../../../components/legal/LegalDocumentModal';
+import { HomeRemindersStack } from '../../../components/notifications/HomeRemindersStack';
 import { useAuth } from '../../../context/AuthContext';
 import { useBranding } from '../../../context/BrandingContext';
+import {
+  useNotificationsOptional,
+} from '../../../context/NotificationsContext';
 import {
   analysisProviderLabel,
   analysisStatus,
 } from '../../../data/analysisProviderLabel';
 import type { LegalDocId } from '../../../data/legal/documents';
 import { ApiError } from '../../../services/api.client';
-import { agendaService } from '../../../services/agenda.service';
+import { agendaService, type AgendaAppointment } from '../../../services/agenda.service';
 import { analysesService } from '../../../services/analyses.service';
 import { doctorsService } from '../../../services/doctors.service';
+import { notificationsService } from '../../../services/notifications.service';
 import { patientsService } from '../../../services/patients.service';
 import type { PatientAnalysisSummary } from '../../../types/analysis';
+import type { AppNotification } from '../../../types/notifications';
+import {
+  conversationIdFromNotification,
+  isAppointmentNotification,
+  selectHomeReminders,
+} from '../../../types/notifications';
 import type { PatientProfile } from '../../../types/patient';
 import { patientDisplayName } from '../../../types/patient';
 import { resolveMediaUrl } from '../../../utils/mediaUrl';
@@ -50,6 +61,7 @@ import { InviteColleagueModal } from './InviteColleagueModal';
 type DoctorHomeViewProps = {
   onOpenPatients: () => void;
   onOpenMessages?: () => void;
+  onOpenChat?: (conversationId?: string) => void;
   onOpenProfile?: () => void;
   onOpenAgenda?: () => void;
   onShowingStatsChange?: (showing: boolean) => void;
@@ -119,15 +131,87 @@ function analysisPatientName(a: PatientAnalysisSummary): string {
   return 'Paciente';
 }
 
+function appointmentPatientName(a: AgendaAppointment): string {
+  if (a.patient) {
+    return patientDisplayName(a.patient);
+  }
+  return 'Paciente';
+}
+
+function formatAppointmentStamp(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const date = d.toLocaleDateString('es-CO', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+  const time = d.toLocaleTimeString('es-CO', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  return `${date} - ${time}`;
+}
+
+function doctorAppointmentActivity(a: AgendaAppointment): {
+  meta: string;
+  label: string;
+  kind: 'request' | 'done' | 'invalid' | 'pending';
+} {
+  const when = formatAppointmentStamp(a.startsAt);
+  if (a.status === 'requested') {
+    return {
+      meta: `Solicitó una cita para el ${when}`,
+      label: 'Nueva solicitud',
+      kind: 'request',
+    };
+  }
+  if (a.status === 'confirmed' && a.initiatedBy === 'doctor') {
+    return {
+      meta: `Aceptó tu cita para el ${when}`,
+      label: 'Cita aceptada',
+      kind: 'done',
+    };
+  }
+  if (a.status === 'confirmed') {
+    return {
+      meta: `Confirmó su cita para el ${when}`,
+      label: 'Cita confirmada',
+      kind: 'done',
+    };
+  }
+  if (a.status === 'declined') {
+    return {
+      meta: `Rechazó la cita del ${when}`,
+      label: 'Cita rechazada',
+      kind: 'invalid',
+    };
+  }
+  if (a.status === 'cancelled') {
+    return {
+      meta: `Canceló la cita del ${when}`,
+      label: 'Cita cancelada',
+      kind: 'invalid',
+    };
+  }
+  return {
+    meta: `Cita para el ${when}`,
+    label: 'Cita',
+    kind: 'pending',
+  };
+}
+
 export function DoctorHomeView({
   onOpenPatients,
   onOpenMessages,
+  onOpenChat,
   onOpenProfile,
   onOpenAgenda,
   onShowingStatsChange,
 }: DoctorHomeViewProps) {
   const branding = useBranding();
   const { user, logout } = useAuth();
+  const notifications = useNotificationsOptional();
   const styles = useMemo(
     () => createDoctorHomeStyles(branding.colors),
     [branding.colors],
@@ -139,9 +223,14 @@ export function DoctorHomeView({
 
   const [patients, setPatients] = useState<PatientProfile[]>([]);
   const [analyses, setAnalyses] = useState<PatientAnalysisSummary[]>([]);
+  const [appointments, setAppointments] = useState<AgendaAppointment[]>([]);
   const [appointmentsCount, setAppointmentsCount] = useState(0);
   const [appointmentsConfirmed, setAppointmentsConfirmed] = useState(0);
   const [appointmentsPending, setAppointmentsPending] = useState(0);
+  const [homeNotices, setHomeNotices] = useState<AppNotification[]>([]);
+  const [dismissedReminderIds, setDismissedReminderIds] = useState<string[]>(
+    [],
+  );
   const [doctorDisplayName, setDoctorDisplayName] = useState(() =>
     fullDoctorName(undefined, undefined, user?.name),
   );
@@ -174,30 +263,35 @@ export function DoctorHomeView({
     try {
       const from = ymdLocal(startOfLocalDay());
       const toDay = ymdLocal(addDays(startOfLocalDay(), 60));
-      const [list, analysisList, doctor, agenda] = await Promise.all([
+      const [list, analysisList, doctor, agenda, notices] = await Promise.all([
         patientsService.list(),
         analysesService.list().catch(() => [] as PatientAnalysisSummary[]),
         doctorsService.getMe().catch(() => null),
         agendaService.getOverview(from, `${toDay}T23:59:59.999`).catch(() => null),
+        notificationsService.list(30).catch(() => [] as AppNotification[]),
       ]);
       setPatients(list);
       setAnalyses(analysisList);
       const dayStart = startOfLocalDay().getTime();
       let confirmed = 0;
       let pending = 0;
-      for (const a of agenda?.appointments ?? []) {
+      const agendaAppointments = agenda?.appointments ?? [];
+      for (const a of agendaAppointments) {
         const start = new Date(a.startsAt).getTime();
         if (Number.isNaN(start) || start < dayStart) continue;
         if (a.status === CONFIRMED_APPOINTMENT_STATUS) confirmed += 1;
         else if (PENDING_APPOINTMENT_STATUSES.has(a.status)) pending += 1;
       }
+      setAppointments(agendaAppointments);
       setAppointmentsConfirmed(confirmed);
       setAppointmentsPending(pending);
       setAppointmentsCount(confirmed + pending);
+      setHomeNotices(notices);
       setDoctorDisplayName(
         fullDoctorName(doctor?.firstName, doctor?.lastName, user?.name),
       );
       setDoctorAvatarUrl(resolveMediaUrl(doctor?.avatarUrl));
+      void notifications?.refreshUnread();
     } catch (err) {
       Alert.alert(
         'Inicio',
@@ -209,7 +303,7 @@ export function DoctorHomeView({
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user?.name]);
+  }, [user?.name, notifications]);
 
   useEffect(() => {
     void load();
@@ -248,6 +342,58 @@ export function DoctorHomeView({
         .slice(0, 8),
     [analyses],
   );
+
+  const recentAppointments = useMemo(
+    () =>
+      [...appointments]
+        .filter((a) =>
+          ['requested', 'confirmed', 'declined', 'cancelled'].includes(
+            a.status,
+          ),
+        )
+        .sort(
+          (a, b) =>
+            new Date(b.updatedAt ?? b.startsAt).getTime() -
+            new Date(a.updatedAt ?? a.startsAt).getTime(),
+        )
+        .slice(0, 6),
+    [appointments],
+  );
+
+  const homeReminders = useMemo(
+    () =>
+      selectHomeReminders(homeNotices, {
+        dismissedIds: new Set(dismissedReminderIds),
+        limit: 3,
+      }),
+    [homeNotices, dismissedReminderIds],
+  );
+
+  async function dismissHomeReminder(item: AppNotification) {
+    setDismissedReminderIds((prev) =>
+      prev.includes(item.id) ? prev : [...prev, item.id],
+    );
+    setHomeNotices((prev) =>
+      prev.map((n) =>
+        n.id === item.id ? { ...n, readAt: n.readAt ?? new Date().toISOString() } : n,
+      ),
+    );
+    await notifications?.consumeNotification(item.id).catch(() => undefined);
+  }
+
+  function openHomeReminder(item: AppNotification) {
+    void dismissHomeReminder(item);
+    if (item.type === 'message') {
+      const conversationId = conversationIdFromNotification(item.data);
+      onOpenChat?.(conversationId ?? undefined);
+      return;
+    }
+    if (isAppointmentNotification(item.type)) {
+      onOpenAgenda?.();
+      return;
+    }
+    onOpenMessages?.();
+  }
 
   const handleMenuSelect = (id: string) => {
     setMenuOpen(false);
@@ -577,6 +723,14 @@ export function DoctorHomeView({
           </View>
         </View>
 
+        <HomeRemindersStack
+          items={homeReminders}
+          role="doctor"
+          embedded
+          onDismiss={(item) => void dismissHomeReminder(item)}
+          onPress={openHomeReminder}
+        />
+
         {loading ? (
           <View style={styles.loading}>
             <ActivityIndicator color={primary} />
@@ -677,70 +831,146 @@ export function DoctorHomeView({
                 </Pressable>
               </View>
               <View style={styles.activityCard}>
-                {recent.length === 0 ? (
+                {recentAppointments.length === 0 && recent.length === 0 ? (
                   <View style={styles.empty}>
                     <Text style={styles.emptyText}>
-                      Aún no hay análisis. Crea un paciente e inicia un análisis
-                      desde Mis Pacientes.
+                      Aún no hay actividad. Las citas y análisis recientes
+                      aparecerán aquí.
                     </Text>
                   </View>
                 ) : (
-                  recent.map((item) => {
-                    const name = analysisPatientName(item);
-                    const status = analysisStatus(item);
-                    const typeLabel = analysisProviderLabel(item);
-                    return (
-                      <Pressable
-                        key={item.id}
-                        style={styles.activityRow}
-                        onPress={() => setSelectedAnalysisId(item.id)}
-                      >
-                        <View style={styles.activityAvatar}>
-                          <Text style={styles.activityAvatarText}>
-                            {initials(name) || 'P'}
-                          </Text>
-                        </View>
-                        <View style={styles.activityBody}>
-                          <Text style={styles.activityName}>{name}</Text>
-                          <Text style={styles.activityMeta}>
-                            {typeLabel} ·{' '}
-                            {new Date(item.createdAt).toLocaleDateString(
-                              'es-CO',
-                            )}
-                          </Text>
-                        </View>
-                        <View
-                          style={[
-                            styles.badge,
-                            status.kind === 'pending' && styles.badgePending,
-                            status.kind === 'confirmed' && styles.badgeDone,
-                            status.kind === 'corrected' && styles.badgeDone,
-                            status.kind === 'invalid' && styles.badgeInvalid,
-                          ]}
+                  <>
+                    {recentAppointments.map((item) => {
+                      const name = appointmentPatientName(item);
+                      const activity = doctorAppointmentActivity(item);
+                      return (
+                        <Pressable
+                          key={`appt-${item.id}`}
+                          style={styles.activityRow}
+                          onPress={() => onOpenAgenda?.()}
                         >
-                          <Text
+                          <View style={styles.activityAvatar}>
+                            <Text style={styles.activityAvatarText}>
+                              {initials(name) || 'P'}
+                            </Text>
+                          </View>
+                          <View style={styles.activityBody}>
+                            <Text style={styles.activityName}>{name}</Text>
+                            <Text style={styles.activityMeta}>
+                              {activity.meta}
+                            </Text>
+                          </View>
+                          <View
                             style={[
-                              styles.badgeText,
-                              status.kind === 'pending' &&
-                                styles.badgeTextPending,
-                              (status.kind === 'confirmed' ||
-                                status.kind === 'corrected') &&
-                                styles.badgeTextDone,
-                              status.kind === 'invalid' &&
-                                styles.badgeTextInvalid,
+                              styles.badge,
+                              activity.kind === 'request' &&
+                                styles.badgeRequest,
+                              activity.kind === 'done' && styles.badgeDone,
+                              activity.kind === 'invalid' &&
+                                styles.badgeInvalid,
+                              activity.kind === 'pending' &&
+                                styles.badgePending,
                             ]}
                           >
-                            {status.label}
-                          </Text>
-                        </View>
-                        <AppIcon
-                          icon={Icons.chevronRight}
-                          size={18}
-                          color={branding.colors.muted}
-                        />
-                      </Pressable>
-                    );
-                  })
+                            <View style={styles.activityBadgeRow}>
+                              <AppIcon
+                                icon={
+                                  activity.kind === 'request'
+                                    ? Icons.calendarPlus
+                                    : activity.kind === 'done'
+                                      ? Icons.check
+                                      : activity.kind === 'invalid'
+                                        ? Icons.close
+                                        : Icons.calendarDay
+                                }
+                                size={12}
+                                color={
+                                  activity.kind === 'request'
+                                    ? '#1D4ED8'
+                                    : activity.kind === 'done'
+                                      ? '#15803D'
+                                      : activity.kind === 'invalid'
+                                        ? '#B91C1C'
+                                        : '#B45309'
+                                }
+                              />
+                              <Text
+                                style={[
+                                  styles.badgeText,
+                                  activity.kind === 'request' &&
+                                    styles.badgeTextRequest,
+                                  activity.kind === 'done' &&
+                                    styles.badgeTextDone,
+                                  activity.kind === 'invalid' &&
+                                    styles.badgeTextInvalid,
+                                  activity.kind === 'pending' &&
+                                    styles.badgeTextPending,
+                                ]}
+                              >
+                                {activity.label}
+                              </Text>
+                            </View>
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                    {recent.map((item) => {
+                      const name = analysisPatientName(item);
+                      const status = analysisStatus(item);
+                      const typeLabel = analysisProviderLabel(item);
+                      return (
+                        <Pressable
+                          key={item.id}
+                          style={styles.activityRow}
+                          onPress={() => setSelectedAnalysisId(item.id)}
+                        >
+                          <View style={styles.activityAvatar}>
+                            <Text style={styles.activityAvatarText}>
+                              {initials(name) || 'P'}
+                            </Text>
+                          </View>
+                          <View style={styles.activityBody}>
+                            <Text style={styles.activityName}>{name}</Text>
+                            <Text style={styles.activityMeta}>
+                              {typeLabel} ·{' '}
+                              {new Date(item.createdAt).toLocaleDateString(
+                                'es-CO',
+                              )}
+                            </Text>
+                          </View>
+                          <View
+                            style={[
+                              styles.badge,
+                              status.kind === 'pending' && styles.badgePending,
+                              status.kind === 'confirmed' && styles.badgeDone,
+                              status.kind === 'corrected' && styles.badgeDone,
+                              status.kind === 'invalid' && styles.badgeInvalid,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.badgeText,
+                                status.kind === 'pending' &&
+                                  styles.badgeTextPending,
+                                (status.kind === 'confirmed' ||
+                                  status.kind === 'corrected') &&
+                                  styles.badgeTextDone,
+                                status.kind === 'invalid' &&
+                                  styles.badgeTextInvalid,
+                              ]}
+                            >
+                              {status.label}
+                            </Text>
+                          </View>
+                          <AppIcon
+                            icon={Icons.chevronRight}
+                            size={18}
+                            color={branding.colors.muted}
+                          />
+                        </Pressable>
+                      );
+                    })}
+                  </>
                 )}
               </View>
             </View>
