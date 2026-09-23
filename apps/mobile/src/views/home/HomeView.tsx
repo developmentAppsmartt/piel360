@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { AnalysisRequestToast } from '../../components/notifications/AnalysisRequestToast';
+import { HomeRemindersStack } from '../../components/notifications/HomeRemindersStack';
 import { AppIcon } from '../../components/AppIcon';
 import { Icons } from '../../components/icons';
 import { LegalDocumentModal } from '../../components/legal/LegalDocumentModal';
@@ -31,6 +31,12 @@ import {
   type UpdatePatientInput,
 } from '../../services/patients.service';
 import type { AppNotification } from '../../types/notifications';
+import {
+  appointmentDataField,
+  conversationIdFromNotification,
+  isAppointmentNotification,
+  selectHomeReminders,
+} from '../../types/notifications';
 import type { PatientAnalysisSummary, YoucamRawResponse } from '../../types/analysis';
 import {
   parseYoucamMetrics,
@@ -93,6 +99,7 @@ type HomeViewProps = {
   onOpenProfile?: () => void;
   onOpenAgenda?: () => void;
   onOpenMessages?: () => void;
+  onOpenChat?: (conversationId?: string) => void;
   /** Incrementa desde el tab Nuevo Análisis para abrir el listado / flujo. */
   consentRequestId?: number;
   pendingAnalysisRequests?: AnalysisRequest[];
@@ -229,6 +236,7 @@ export function HomeView({
   onOpenProfile,
   onOpenAgenda,
   onOpenMessages,
+  onOpenChat,
   consentRequestId = 0,
   pendingAnalysisRequests = [],
   onPendingRequestConsumed,
@@ -263,12 +271,10 @@ export function HomeView({
   const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(
     null,
   );
-  const [requestToast, setRequestToast] = useState<{
-    title: string;
-    body: string;
-    notificationId?: string;
-  } | null>(null);
-  const toastShownRef = useRef(false);
+  const [homeNotices, setHomeNotices] = useState<AppNotification[]>([]);
+  const [dismissedReminderIds, setDismissedReminderIds] = useState<string[]>(
+    [],
+  );
   const scrollRef = useRef<ScrollView>(null);
   const historyOffsetY = useRef(0);
 
@@ -308,48 +314,108 @@ export function HomeView({
   }, [pendingAnalysisRequests]);
 
   useEffect(() => {
-    if (toastShownRef.current || loading) return;
+    if (loading) return;
     let cancelled = false;
-
     void (async () => {
-      let notice: AppNotification | null = null;
       try {
-        const list = await notificationsService.list(20);
-        notice =
-          list.find(
-            (n) => n.type === 'analysis_request' && !n.readAt,
-          ) ?? null;
+        const list = await notificationsService.list(30);
+        if (!cancelled) setHomeNotices(list);
       } catch {
-        notice = null;
-      }
-
-      if (cancelled || toastShownRef.current) return;
-
-      if (notice) {
-        toastShownRef.current = true;
-        setRequestToast({
-          title: notice.title || 'Nueva solicitud de análisis',
-          body:
-            notice.body ||
-            'Tienes una solicitud pendiente de análisis de piel.',
-          notificationId: notice.id,
-        });
-        return;
-      }
-
-      if (pendingAnalysisRequests.length > 0) {
-        toastShownRef.current = true;
-        setRequestToast({
-          title: 'Nueva solicitud de análisis',
-          body: 'Tienes una solicitud pendiente de análisis de piel.',
-        });
+        if (!cancelled) setHomeNotices([]);
       }
     })();
-
     return () => {
       cancelled = true;
     };
   }, [loading, pendingAnalysisRequests]);
+
+  const pendingRequestIds = useMemo(
+    () => new Set(localPending.map((r) => r.id)),
+    [localPending],
+  );
+
+  const homeReminders = useMemo(() => {
+    const fromApi = selectHomeReminders(homeNotices, {
+      pendingAnalysisRequestIds: pendingRequestIds,
+      dismissedIds: new Set(dismissedReminderIds),
+      limit: 3,
+    });
+
+    // Si hay solicitudes de análisis pendientes sin notificación API, crear recordatorio.
+    const coveredRequestIds = new Set(
+      fromApi
+        .filter((n) => n.type === 'analysis_request')
+        .map((n) => appointmentDataField(n.data, 'analysisRequestId'))
+        .filter((id): id is string => !!id),
+    );
+    const synthetic: AppNotification[] = [];
+    for (const req of localPending) {
+      if (fromApi.length + synthetic.length >= 3) break;
+      if (coveredRequestIds.has(req.id)) continue;
+      if (dismissedReminderIds.includes(`pending-analysis-${req.id}`)) continue;
+      synthetic.push({
+        id: `pending-analysis-${req.id}`,
+        userId: '',
+        type: 'analysis_request',
+        title: 'Nueva solicitud de análisis',
+        body: 'Tienes una solicitud pendiente de análisis de piel.',
+        data: { analysisRequestId: req.id },
+        readAt: null,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    return [...fromApi, ...synthetic].slice(0, 3);
+  }, [
+    homeNotices,
+    pendingRequestIds,
+    dismissedReminderIds,
+    localPending,
+  ]);
+
+  async function dismissHomeReminder(item: AppNotification) {
+    setDismissedReminderIds((prev) =>
+      prev.includes(item.id) ? prev : [...prev, item.id],
+    );
+    if (item.id.startsWith('pending-analysis-')) return;
+    setHomeNotices((prev) =>
+      prev.map((n) =>
+        n.id === item.id
+          ? { ...n, readAt: n.readAt ?? new Date().toISOString() }
+          : n,
+      ),
+    );
+    await notifications?.consumeNotification(item.id).catch(() => undefined);
+  }
+
+  function openHomeReminder(item: AppNotification) {
+    void dismissHomeReminder(item);
+    if (item.type === 'message') {
+      const conversationId = conversationIdFromNotification(item.data);
+      onOpenChat?.(conversationId ?? undefined);
+      return;
+    }
+    if (isAppointmentNotification(item.type)) {
+      onOpenAgenda?.();
+      return;
+    }
+    if (item.type === 'analysis_request') {
+      if (localPending.length > 0) {
+        setPickerOpen(true);
+        return;
+      }
+      onOpenMessages?.();
+      return;
+    }
+    if (item.type === 'analysis_shared') {
+      scrollRef.current?.scrollTo({
+        y: Math.max(historyOffsetY.current - 12, 0),
+        animated: true,
+      });
+      return;
+    }
+    onOpenMessages?.();
+  }
 
   useEffect(() => {
     if (consentRequestId <= 0) return;
@@ -667,23 +733,11 @@ export function HomeView({
         onOpenGift={() => setOverlay('premios')}
       />
 
-      <AnalysisRequestToast
-        visible={requestToast != null}
-        title={requestToast?.title}
-        body={requestToast?.body}
-        onClose={() => setRequestToast(null)}
-        onPressDetail={() => {
-          const id = requestToast?.notificationId;
-          setRequestToast(null);
-          if (id) {
-            void notifications?.consumeNotification(id);
-          }
-          if (localPending.length > 0) {
-            setPickerOpen(true);
-            return;
-          }
-          onOpenMessages?.();
-        }}
+      <HomeRemindersStack
+        items={homeReminders}
+        role="patient"
+        onDismiss={(item) => void dismissHomeReminder(item)}
+        onPress={openHomeReminder}
       />
 
       {loading ? (

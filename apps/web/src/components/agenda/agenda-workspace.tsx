@@ -72,29 +72,30 @@ const APPT_BG = "bg-[#DBEAFE]";
 const APPT_BORDER = "border-[#93C5FD]";
 const APPT_FG = "text-[#1D4ED8]";
 
-function ymd(d: Date) {
-  return d.toISOString().slice(0, 10);
+function ymdLocal(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function monthBounds(anchor: Date) {
-  const from = new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth(), 1));
-  const to = new Date(
-    Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() + 1, 0),
-  );
-  return { from: ymd(from), to: ymd(to) };
+  const from = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const to = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+  return { from: ymdLocal(from), to: ymdLocal(to) };
 }
 
 function daysInMonthGrid(anchor: Date) {
-  const year = anchor.getUTCFullYear();
-  const month = anchor.getUTCMonth();
-  const first = new Date(Date.UTC(year, month, 1));
-  const startPad = first.getUTCDay();
-  const lastDate = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const year = anchor.getFullYear();
+  const month = anchor.getMonth();
+  const first = new Date(year, month, 1);
+  const startPad = first.getDay();
+  const lastDate = new Date(year, month + 1, 0).getDate();
   const cells: { date: string | null; day: number | null }[] = [];
   for (let i = 0; i < startPad; i++) cells.push({ date: null, day: null });
   for (let d = 1; d <= lastDate; d++) {
     cells.push({
-      date: ymd(new Date(Date.UTC(year, month, d))),
+      date: ymdLocal(new Date(year, month, d)),
       day: d,
     });
   }
@@ -139,11 +140,13 @@ function availableStartTimes(
   );
   if (franjas.length === 0) return [];
 
-  const busy = appointments.filter(
-    (a) =>
-      a.startsAt.startsWith(dateStr) &&
-      ["proposed", "requested", "confirmed"].includes(a.status),
-  );
+  const busy = appointments.filter((a) => {
+    const onDay =
+      ymdLocal(new Date(a.startsAt)) === dateStr ||
+      ymdLocal(new Date(a.endsAt)) === dateStr;
+    if (!onDay) return false;
+    return ["proposed", "requested", "confirmed"].includes(a.status);
+  });
 
   const times: string[] = [];
   for (const f of franjas) {
@@ -264,7 +267,7 @@ function CalendarLegend() {
 export function AgendaWorkspace() {
   const [anchor, setAnchor] = useState(() => {
     const n = new Date();
-    return new Date(Date.UTC(n.getFullYear(), n.getMonth(), 1));
+    return new Date(n.getFullYear(), n.getMonth(), 1);
   });
   const { from, to } = useMemo(() => monthBounds(anchor), [anchor]);
   const overview = useAgendaOverview(from, to);
@@ -321,7 +324,7 @@ export function AgendaWorkspace() {
   const apptsByDate = useMemo(() => {
     const map = new Map<string, number>();
     for (const a of overview.data?.appointments ?? []) {
-      const key = a.startsAt.slice(0, 10);
+      const key = ymdLocal(new Date(a.startsAt));
       map.set(key, (map.get(key) ?? 0) + 1);
     }
     return map;
@@ -451,7 +454,6 @@ export function AgendaWorkspace() {
   const monthLabel = anchor.toLocaleDateString("es-CO", {
     month: "long",
     year: "numeric",
-    timeZone: "UTC",
   });
 
   return (
@@ -488,13 +490,7 @@ export function AgendaWorkspace() {
                 className="rounded-lg border px-3 py-1.5 text-sm"
                 onClick={() =>
                   setAnchor(
-                    new Date(
-                      Date.UTC(
-                        anchor.getUTCFullYear(),
-                        anchor.getUTCMonth() - 1,
-                        1,
-                      ),
-                    ),
+                    new Date(anchor.getFullYear(), anchor.getMonth() - 1, 1),
                   )
                 }
               >
@@ -508,13 +504,7 @@ export function AgendaWorkspace() {
                 className="rounded-lg border px-3 py-1.5 text-sm"
                 onClick={() =>
                   setAnchor(
-                    new Date(
-                      Date.UTC(
-                        anchor.getUTCFullYear(),
-                        anchor.getUTCMonth() + 1,
-                        1,
-                      ),
-                    ),
+                    new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1),
                   )
                 }
               >

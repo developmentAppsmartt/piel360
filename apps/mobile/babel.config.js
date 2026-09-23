@@ -1,5 +1,5 @@
 module.exports = function (api) {
-  api.cache.using(() => 'iconify-catalog-v2');
+  api.cache.using(() => 'iconify-catalog-v3');
   return {
     presets: ['babel-preset-expo'],
     plugins: [
@@ -74,6 +74,7 @@ module.exports = function (api) {
             'mdi:face-woman-shimmer',
             'mdi:circle-multiple-outline',
             'mdi:calendar-plus',
+            'mdi:calendar-check',
             'mdi:chart-bar',
           ],
         },

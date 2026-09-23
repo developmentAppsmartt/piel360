@@ -368,15 +368,40 @@ export function YoucamCatalogSection({
       uniqueCards(
         treatments
           .filter((t) => Boolean(t.categoryId))
-          .map((t) => ({
-            id: t.id,
-            title: t.name,
-            subtitle: t.category?.categoryName ?? undefined,
-            description: t.description,
-            imageUrl: resolveMediaUrl(t.items[0]?.product.imageUrl ?? null),
-            url: t.items[0]?.product.productUrl ?? null,
-            kind: 'treatment' as const,
-          })),
+          .map((t) => {
+            const protocolExtras = (t.description ?? '')
+              .split(/\r?\n+/)
+              .map((line) => line.replace(/^[\s•\-–—*]+/, '').trim())
+              .filter(Boolean);
+            const itemExtras = [...t.items]
+              .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+              .map((item, i) => {
+                const label = item.note?.trim() || item.product.productName;
+                return `${i + 1}. ${label}`;
+              });
+            const fromProtocol =
+              protocolExtras.length >= 3
+                ? protocolExtras.slice(1).map((line, i) => `${i + 1}. ${line}`)
+                : [];
+            return {
+              id: t.id,
+              title: t.name,
+              subtitle: t.category?.categoryName ?? undefined,
+              description:
+                fromProtocol.length > 0
+                  ? protocolExtras[0] ?? t.description
+                  : t.description,
+              imageUrl: resolveMediaUrl(t.items[0]?.product.imageUrl ?? null),
+              url: t.items[0]?.product.productUrl ?? null,
+              kind: 'treatment' as const,
+              extras:
+                fromProtocol.length > 0
+                  ? fromProtocol
+                  : itemExtras.length > 0
+                    ? itemExtras
+                    : undefined,
+            };
+          }),
       ),
     [treatments],
   );
@@ -1363,6 +1388,7 @@ function CardCarousel({
                 imageUrl: card.imageUrl,
                 url: card.url,
                 kind: card.kind,
+                extras: card.extras,
               })
             }
           >

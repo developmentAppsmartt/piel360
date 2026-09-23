@@ -232,6 +232,9 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
     badgePending: {
       backgroundColor: '#FEF3C7',
     },
+    badgeRequest: {
+      backgroundColor: '#DBEAFE',
+    },
     badgeDone: {
       backgroundColor: '#DCFCE7',
     },
@@ -245,11 +248,19 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
     badgeTextPending: {
       color: '#B45309',
     },
+    badgeTextRequest: {
+      color: '#1D4ED8',
+    },
     badgeTextDone: {
       color: '#15803D',
     },
     badgeTextInvalid: {
       color: '#B91C1C',
+    },
+    activityBadgeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
     },
     empty: {
       padding: 20,

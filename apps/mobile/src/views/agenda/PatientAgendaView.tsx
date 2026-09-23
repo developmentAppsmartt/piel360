@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   Text,
   TextInput,
@@ -25,10 +26,11 @@ import {
   localDateTimeIso,
   minutesToTime,
   monthBoundsLocal,
+  ymdLocal,
 } from './AgendaMonthCalendar';
 
 const STATUS_LABEL: Record<string, string> = {
-  proposed: 'Pendiente — responde',
+  proposed: 'Asignada por tu profesional',
   requested: 'Solicitud enviada',
   confirmed: 'Confirmada',
   declined: 'Rechazada',
@@ -37,6 +39,44 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const DAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+function formatApptRange(startsAt: string, endsAt: string): string {
+  const start = new Date(startsAt);
+  const end = new Date(endsAt);
+  if (Number.isNaN(start.getTime())) return '';
+  const date = start.toLocaleDateString('es-CO', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+  const startTime = start.toLocaleTimeString('es-CO', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const endTime = Number.isNaN(end.getTime())
+    ? ''
+    : end.toLocaleTimeString('es-CO', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+  return endTime ? `${date}, ${startTime} – ${endTime}` : `${date}, ${startTime}`;
+}
+
+function sortPatientAppointments(
+  list: AgendaAppointment[],
+): AgendaAppointment[] {
+  const rank = (a: AgendaAppointment) => {
+    if (a.status === 'proposed') return 0;
+    if (a.status === 'requested') return 1;
+    if (a.status === 'confirmed') return 2;
+    return 3;
+  };
+  return [...list].sort((a, b) => {
+    const byRank = rank(a) - rank(b);
+    if (byRank !== 0) return byRank;
+    return new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime();
+  });
+}
 
 type PatientAgendaViewProps = {
   onOpenMessages?: () => void;
@@ -55,6 +95,7 @@ export function PatientAgendaView({
   const primary = branding.colors.primary;
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [calendar, setCalendar] = useState<PatientDoctorCalendar | null>(null);
   const [appointments, setAppointments] = useState<AgendaAppointment[]>([]);
   const [anchor, setAnchor] = useState(() => {
@@ -69,22 +110,25 @@ export function PatientAgendaView({
 
   const { from, to } = useMemo(() => monthBoundsLocal(anchor), [anchor]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [cal, mine] = await Promise.all([
-        agendaService.getMyDoctorCalendar(from, to),
-        agendaService.listMyAppointments(),
-      ]);
-      setCalendar(cal);
-      setAppointments(mine);
-    } catch {
-      setCalendar(null);
-      setAppointments([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [from, to]);
+  const load = useCallback(
+    async (opts?: { soft?: boolean }) => {
+      if (!opts?.soft) setLoading(true);
+      try {
+        const [cal, mine] = await Promise.all([
+          agendaService.getMyDoctorCalendar(from, to).catch(() => null),
+          agendaService
+            .listMyAppointments()
+            .catch(() => [] as AgendaAppointment[]),
+        ]);
+        setCalendar(cal);
+        setAppointments(mine);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [from, to],
+  );
 
   useEffect(() => {
     void load();
@@ -102,11 +146,16 @@ export function PatientAgendaView({
     const map = new Map<string, number>();
     for (const a of appointments) {
       if (!['proposed', 'requested', 'confirmed'].includes(a.status)) continue;
-      const key = a.startsAt.slice(0, 10);
+      const key = ymdLocal(new Date(a.startsAt));
       map.set(key, (map.get(key) ?? 0) + 1);
     }
     return map;
   }, [appointments]);
+
+  const sortedAppointments = useMemo(
+    () => sortPatientAppointments(appointments),
+    [appointments],
+  );
 
   const hourOptions = useMemo(() => {
     if (!selectedDate || blockedByDate.has(selectedDate)) return [];
@@ -129,7 +178,10 @@ export function PatientAgendaView({
 
   async function submitRequest() {
     if (!selectedDate || !appointmentTime) {
-      Alert.alert('Faltan datos', 'Selecciona un día en el calendario y una hora.');
+      Alert.alert(
+        'Faltan datos',
+        'Selecciona un día en el calendario y una hora.',
+      );
       return;
     }
     if (blockedByDate.has(selectedDate)) {
@@ -152,7 +204,7 @@ export function PatientAgendaView({
       });
       setAppointmentTime('');
       setNotes('');
-      await load();
+      await load({ soft: true });
       Alert.alert('Solicitud enviada', 'Tu profesional la verá en su agenda.');
     } catch (err) {
       Alert.alert(
@@ -170,7 +222,7 @@ export function PatientAgendaView({
   ) {
     try {
       await agendaService.updateMyAppointment(id, status);
-      await load();
+      await load({ soft: true });
     } catch (err) {
       Alert.alert(
         'Error',
@@ -189,7 +241,7 @@ export function PatientAgendaView({
         onOpenMessages={onOpenMessages}
         onOpenProfile={onOpenProfile}
       >
-        {loading && !calendar ? (
+        {loading && !calendar && appointments.length === 0 ? (
           <View style={styles.centered}>
             <ActivityIndicator color={primary} />
           </View>
@@ -198,6 +250,16 @@ export function PatientAgendaView({
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => {
+                  setRefreshing(true);
+                  void load({ soft: true });
+                }}
+                tintColor={primary}
+              />
+            }
           >
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>
@@ -354,29 +416,62 @@ export function PatientAgendaView({
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Mis citas</Text>
               <Text style={styles.sectionSubtitle}>
-                Toca una cita para abrirla y cambiar el estado.
+                Incluye las que te asigna tu profesional y las que solicitas.
+                Toca una para responder o cambiar el estado.
               </Text>
-              {appointments.length === 0 ? (
+              {sortedAppointments.length === 0 ? (
                 <Text style={styles.emptyText}>Aún no tienes citas.</Text>
               ) : (
-                appointments.map((a) => {
+                sortedAppointments.map((a) => {
                   const open = openApptId === a.id;
+                  const doctorName = a.doctor
+                    ? `Dr. ${a.doctor.firstName} ${a.doctor.lastName}`.trim()
+                    : null;
+                  const isProposed = a.status === 'proposed';
                   return (
-                    <View key={a.id} style={styles.appointmentCard}>
+                    <View
+                      key={a.id}
+                      style={[
+                        styles.appointmentCard,
+                        isProposed
+                          ? {
+                              borderColor: `${primary}66`,
+                              backgroundColor: `${primary}0F`,
+                            }
+                          : null,
+                      ]}
+                    >
                       <Pressable
                         onPress={() => setOpenApptId(open ? null : a.id)}
                       >
                         <Text style={styles.appointmentTitle}>
                           {STATUS_LABEL[a.status] ?? a.status}
+                          {isProposed ? ' — responde' : ''}
                           {open ? ' ▲' : ' ▼'}
                         </Text>
+                        {a.title ? (
+                          <Text style={styles.mutedText}>{a.title}</Text>
+                        ) : null}
+                        {doctorName ? (
+                          <Text style={styles.mutedText}>{doctorName}</Text>
+                        ) : null}
                         <Text style={styles.sectionSubtitle}>
-                          {new Date(a.startsAt).toLocaleString()} —{' '}
-                          {new Date(a.endsAt).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
+                          {formatApptRange(a.startsAt, a.endsAt)}
                         </Text>
+                        {isProposed && !open ? (
+                          <Text
+                            style={[
+                              styles.mutedText,
+                              {
+                                color: primary,
+                                fontWeight: '700',
+                                marginTop: 4,
+                              },
+                            ]}
+                          >
+                            Tu profesional te asignó esta cita
+                          </Text>
+                        ) : null}
                       </Pressable>
                       {open ? (
                         <View style={{ gap: 8, marginTop: 4 }}>

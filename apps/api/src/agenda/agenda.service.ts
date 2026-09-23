@@ -4,6 +4,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import {
+  NotificationsService,
+  type NotificationType,
+} from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrgContextService } from '../organizations/org-context.service';
 import { AppointmentEmailService } from './appointment-email.service';
@@ -17,6 +21,10 @@ import type {
 
 const ACTIVE_STATUSES = ['proposed', 'requested', 'confirmed'] as const;
 
+/** Zona de agenda clínica (Colombia, sin DST). */
+const AGENDA_TZ = 'America/Bogota';
+const AGENDA_OFFSET = '-05:00';
+
 function parseYmd(date: string): Date {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(date.trim());
   if (!m) throw new BadRequestException('Fecha inválida (usa YYYY-MM-DD)');
@@ -24,12 +32,53 @@ function parseYmd(date: string): Date {
 }
 
 function toYmd(d: Date): string {
+  // Fechas @db.Date llegan como medianoche UTC del día calendario.
   return d.toISOString().slice(0, 10);
+}
+
+function appointmentLocalYmd(d: Date): string {
+  return d.toLocaleDateString('en-CA', { timeZone: AGENDA_TZ });
+}
+
+/** Inicio inclusive del día YYYY-MM-DD (o ISO completo). */
+function parseRangeStart(raw: string): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw.trim());
+  if (m) return new Date(`${m[0]}T00:00:00.000${AGENDA_OFFSET}`);
+  return new Date(raw);
+}
+
+/** Fin inclusive del día YYYY-MM-DD (o ISO completo). */
+function parseRangeEnd(raw: string): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw.trim());
+  if (m) return new Date(`${m[0]}T23:59:59.999${AGENDA_OFFSET}`);
+  return new Date(raw);
 }
 
 function timeToMinutes(t: string): number {
   const [h, m] = t.split(':').map(Number);
   return h * 60 + m;
+}
+
+function personName(
+  first?: string | null,
+  last?: string | null,
+): string {
+  return [first, last].filter(Boolean).join(' ').trim();
+}
+
+function formatAppointmentWhen(startsAt: Date): { date: string; time: string } {
+  const date = startsAt.toLocaleDateString('es-CO', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: AGENDA_TZ,
+  });
+  const time = startsAt.toLocaleTimeString('es-CO', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: AGENDA_TZ,
+  });
+  return { date, time };
 }
 
 @Injectable()
@@ -38,6 +87,7 @@ export class AgendaService {
     private readonly prisma: PrismaService,
     private readonly orgContext: OrgContextService,
     private readonly appointmentEmail: AppointmentEmailService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private async catalogDoctorId(userId: string) {
@@ -63,6 +113,76 @@ export class AgendaService {
     } catch {
       return patientDoctorId;
     }
+  }
+
+  private async doctorUserId(doctorId: bigint): Promise<string | null> {
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { id: doctorId },
+      select: { userId: true },
+    });
+    return doctor?.userId ? doctor.userId.toString() : null;
+  }
+
+  private async patientUserId(patientId: bigint): Promise<string | null> {
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: patientId },
+      select: { userId: true },
+    });
+    return patient?.userId ? patient.userId.toString() : null;
+  }
+
+  private notifyAppointment(input: {
+    userId: string | null | undefined;
+    type: NotificationType;
+    title: string;
+    body: string;
+    data: Record<string, unknown>;
+  }) {
+    if (!input.userId) return;
+    void this.notifications
+      .create({
+        userId: input.userId,
+        type: input.type,
+        title: input.title,
+        body: input.body,
+        data: input.data,
+      })
+      .catch(() => undefined);
+  }
+
+  private appointmentPayload(row: {
+    id: bigint;
+    startsAt: Date;
+    endsAt: Date;
+    status: string;
+    patient?: {
+      id: bigint;
+      firstName: string;
+      lastName: string;
+    } | null;
+    doctor?: {
+      id: bigint;
+      firstName: string;
+      lastName: string;
+    } | null;
+  }) {
+    const { date, time } = formatAppointmentWhen(row.startsAt);
+    const patientName = row.patient
+      ? personName(row.patient.firstName, row.patient.lastName)
+      : '';
+    const doctorName = row.doctor
+      ? personName(row.doctor.firstName, row.doctor.lastName)
+      : '';
+    return {
+      appointmentId: row.id.toString(),
+      startsAt: row.startsAt.toISOString(),
+      endsAt: row.endsAt.toISOString(),
+      status: row.status,
+      dateLabel: date,
+      timeLabel: time,
+      patientName: patientName || undefined,
+      doctorName: doctorName || undefined,
+    };
   }
 
   private serializeSlot(row: {
@@ -245,8 +365,8 @@ export class AgendaService {
     } = { doctorId };
     if (from || to) {
       where.startsAt = {};
-      if (from) where.startsAt.gte = new Date(from);
-      if (to) where.startsAt.lte = new Date(to);
+      if (from) where.startsAt.gte = parseRangeStart(from);
+      if (to) where.startsAt.lte = parseRangeEnd(to);
     }
     const rows = await this.prisma.appointment.findMany({
       where,
@@ -297,9 +417,21 @@ export class AgendaService {
         patient: {
           select: { id: true, firstName: true, lastName: true, email: true },
         },
+        doctor: { select: { id: true, firstName: true, lastName: true } },
       },
     });
     this.appointmentEmail.sendAppointmentScheduledEmail(row.id).catch(() => undefined);
+    const payload = this.appointmentPayload(row);
+    const doctorLabel = payload.doctorName
+      ? `El Dr. ${payload.doctorName}`
+      : 'Tu profesional';
+    this.notifyAppointment({
+      userId: await this.patientUserId(patient.id),
+      type: 'appointment_proposed',
+      title: '¡Nueva cita asignada!',
+      body: `${doctorLabel} tiene una cita contigo el ${payload.dateLabel} a las ${payload.timeLabel}.`,
+      data: { ...payload, action: 'proposed' },
+    });
     return this.serializeAppointment(row);
   }
 
@@ -333,12 +465,44 @@ export class AgendaService {
         patient: {
           select: { id: true, firstName: true, lastName: true, email: true },
         },
+        doctor: { select: { id: true, firstName: true, lastName: true } },
       },
     });
     if (dto.status === 'confirmed') {
       this.appointmentEmail
         .sendAppointmentScheduledEmail(updated.id)
         .catch(() => undefined);
+    }
+
+    const payload = this.appointmentPayload(updated);
+    const doctorLabel = payload.doctorName
+      ? `El Dr. ${payload.doctorName}`
+      : 'Tu profesional';
+    const patientUserId = await this.patientUserId(updated.patientId);
+    if (dto.status === 'confirmed') {
+      this.notifyAppointment({
+        userId: patientUserId,
+        type: 'appointment_confirmed',
+        title: '¡Cita confirmada!',
+        body: `${doctorLabel} confirmó tu cita para el ${payload.dateLabel} a las ${payload.timeLabel}.`,
+        data: { ...payload, action: 'confirmed' },
+      });
+    } else if (dto.status === 'declined') {
+      this.notifyAppointment({
+        userId: patientUserId,
+        type: 'appointment_declined',
+        title: 'Cita rechazada',
+        body: `${doctorLabel} rechazó la cita del ${payload.dateLabel} a las ${payload.timeLabel}.`,
+        data: { ...payload, action: 'declined' },
+      });
+    } else if (dto.status === 'cancelled') {
+      this.notifyAppointment({
+        userId: patientUserId,
+        type: 'appointment_cancelled',
+        title: 'Cita cancelada',
+        body: `${doctorLabel} canceló la cita del ${payload.dateLabel} a las ${payload.timeLabel}.`,
+        data: { ...payload, action: 'cancelled' },
+      });
     }
     return this.serializeAppointment(updated);
   }
@@ -412,8 +576,8 @@ export class AgendaService {
           ...(from || to
             ? {
                 startsAt: {
-                  ...(from ? { gte: new Date(from) } : {}),
-                  ...(to ? { lte: new Date(to) } : {}),
+                  ...(from ? { gte: parseRangeStart(from) } : {}),
+                  ...(to ? { lte: parseRangeEnd(to) } : {}),
                 },
               }
             : {}),
@@ -481,7 +645,7 @@ export class AgendaService {
       throw new BadRequestException('La hora de fin debe ser posterior al inicio');
     }
 
-    const dayDate = parseYmd(toYmd(startsAt));
+    const dayDate = parseYmd(appointmentLocalYmd(startsAt));
     const day = dayDate.getUTCDay();
     const blocked = await this.prisma.doctorBlockedDay.findFirst({
       where: {
@@ -520,7 +684,26 @@ export class AgendaService {
       },
       include: {
         doctor: { select: { id: true, firstName: true, lastName: true } },
+        patient: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
       },
+    });
+    const payload = this.appointmentPayload({
+      ...row,
+      patient: {
+        id: patient.id,
+        firstName: patient.firstName,
+        lastName: patient.lastName,
+      },
+    });
+    const who = payload.patientName || 'Un paciente';
+    this.notifyAppointment({
+      userId: await this.doctorUserId(doctorId),
+      type: 'appointment_requested',
+      title: 'Nueva solicitud de cita',
+      body: `${who} solicitó una cita para el ${payload.dateLabel} a las ${payload.timeLabel}.`,
+      data: { ...payload, action: 'requested' },
     });
     return this.serializeAppointment(row);
   }
@@ -573,8 +756,47 @@ export class AgendaService {
       },
       include: {
         doctor: { select: { id: true, firstName: true, lastName: true } },
+        patient: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
       },
     });
+
+    const payload = this.appointmentPayload({
+      ...updated,
+      patient: {
+        id: patient.id,
+        firstName: patient.firstName,
+        lastName: patient.lastName,
+      },
+    });
+    const who = payload.patientName || 'Un paciente';
+    const doctorUserId = await this.doctorUserId(updated.doctorId);
+    if (dto.status === 'confirmed') {
+      this.notifyAppointment({
+        userId: doctorUserId,
+        type: 'appointment_confirmed',
+        title: 'Cita aceptada',
+        body: `${who} aceptó tu cita para el ${payload.dateLabel} a las ${payload.timeLabel}.`,
+        data: { ...payload, action: 'confirmed' },
+      });
+    } else if (dto.status === 'declined') {
+      this.notifyAppointment({
+        userId: doctorUserId,
+        type: 'appointment_declined',
+        title: 'Cita rechazada',
+        body: `${who} rechazó tu cita para el ${payload.dateLabel} a las ${payload.timeLabel}.`,
+        data: { ...payload, action: 'declined' },
+      });
+    } else if (dto.status === 'cancelled') {
+      this.notifyAppointment({
+        userId: doctorUserId,
+        type: 'appointment_cancelled',
+        title: 'Cita cancelada',
+        body: `${who} canceló la cita del ${payload.dateLabel} a las ${payload.timeLabel}.`,
+        data: { ...payload, action: 'cancelled' },
+      });
+    }
     return this.serializeAppointment(updated);
   }
 

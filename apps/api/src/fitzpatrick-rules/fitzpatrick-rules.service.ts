@@ -264,6 +264,7 @@ export class FitzpatrickRulesService {
             id: treatment.id.toString(),
             name: treatment.name,
             description: treatment.description,
+            stepsCount: treatment.items.length,
             items: await Promise.all(
               treatment.items.map(async (item) => ({
                 id: item.id.toString(),
