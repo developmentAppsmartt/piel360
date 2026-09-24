@@ -5,17 +5,13 @@ import {
 } from '@nestjs/common';
 import {
   BIRTH_TYPE_LABELS,
-  classifyDiagnosisClass,
-  classifyDiseaseBucket,
   EXERCISE_HABIT_LABELS,
   MASCOT_TYPE_LABELS,
   REPORTABLE_SKIN_CATEGORIES,
   SEGMENT_COLORS,
   SKIN_REPORT_BANDS,
-  SKIN_TONE_BUCKET_DEFS,
   reportableCategoryKey,
   reportableCategorySqlPairs,
-  skinToneBucketForFitzpatrick,
   type ReportDelta,
   type SegmentType,
   type SkinHealthReport,
@@ -25,9 +21,7 @@ import {
   type SkinReportSegmentsResponse,
   type SkinReportSegmentView,
   type SkinReportTrendPoint,
-  type SkiniverMonthlySeriesPoint,
   type SkiniverReport,
-  type SkiniverSkinToneBucket,
 } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrgContextService } from '../organizations/org-context.service';
@@ -52,14 +46,7 @@ import {
   type SummaryRow,
   type TrendRow,
 } from './doctor-reports.queries';
-import {
-  skiniverAgeMonthlyQuery,
-  skiniverMonthlyDiagnosesQuery,
-  skiniverSkinToneQuery,
-  type SkiniverAgeRow,
-  type SkiniverDiagnosisRow,
-  type SkiniverSkinToneRow,
-} from './skiniver-reports.queries';
+import { SkiniverReportService } from './skiniver-report.service';
 
 const DEFAULT_RANGE_DAYS = 30;
 const DEFAULT_TREND_MONTHS = 6;
@@ -108,30 +95,13 @@ function monthKeys(end: Date, months: number): string[] {
   return keys;
 }
 
-/** Lista de "YYYY-MM" entre `from` y `to` (inclusivos), un mes por entrada.
- * A diferencia de monthKeys() (últimos N meses terminando en `end`), este
- * cubre exactamente el rango de fechas filtrado por el usuario — lo que
- * necesita el reporte de Skiniver, sin una ventana de tendencia aparte. */
-function monthKeysInRange(from: Date, to: Date): string[] {
-  const keys: string[] = [];
-  const cursor = new Date(
-    Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1),
-  );
-  const end = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), 1));
-  while (cursor.getTime() <= end.getTime()) {
-    keys.push(
-      `${cursor.getUTCFullYear()}-${String(cursor.getUTCMonth() + 1).padStart(2, '0')}`,
-    );
-    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
-  }
-  return keys;
-}
-
 /**
- * Reportes analíticos del panel del doctor. Solo cubre análisis **YouCam**:
- * `analysis_results` únicamente se llena para ese proveedor (Skiniver deja
- * `ai_diagnosis`, Fitzpatrick escribe `Patient.fitzpatrickType`), y así lo
- * declaran las vistas que consumen las consultas.
+ * Reportes analíticos del panel del doctor. Los reportes de salud de la piel
+ * cubren solo **YouCam**: `analysis_results` únicamente se llena para ese
+ * proveedor (Fitzpatrick escribe `Patient.fitzpatrickType`), y así lo declaran
+ * las vistas que consumen las consultas. Los análisis dermatológicos, que solo
+ * dejan `ai_diagnosis` + `ai_raw_response`, se reportan aparte en
+ * SkiniverReportService.
  *
  * Un solo endpoint devuelve el bundle completo: las tres pantallas comparten
  * filtros, y partirlo obligaría a repetir el scope (1-2 queries de contexto)
@@ -142,6 +112,7 @@ export class DoctorReportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly orgContext: OrgContextService,
+    private readonly skiniverReport: SkiniverReportService,
   ) {}
 
   /** Mismo contrato que PatientsService: solo el owner filtra por profesional. */
@@ -522,5 +493,20 @@ export class DoctorReportsService {
         })),
       },
     };
+  }
+
+  /** Reporte de análisis dermatológicos, acotado a los pacientes visibles del
+   * usuario. El armado vive en SkiniverReportService porque el panel de admin
+   * usa el mismo reporte sin filtro de doctor. */
+  async getSkiniverReport(
+    userId: string,
+    query: SkiniverReportQueryDto,
+  ): Promise<SkiniverReport> {
+    const doctorIds = await this.resolveDoctorIds(
+      userId,
+      query.professionalUserId,
+    );
+    const { from, to, toExclusive } = this.resolveRange(query);
+    return this.skiniverReport.build(doctorIds, { from, to, toExclusive });
   }
 }

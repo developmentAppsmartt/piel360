@@ -1,4 +1,5 @@
-import { IsISO8601, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsInt, IsISO8601, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class SkiniverReportQueryDto {
   /** YYYY-MM-DD inclusivo. Default: hace 30 días. */
@@ -15,4 +16,14 @@ export class SkiniverReportQueryDto {
   @IsOptional()
   @IsString()
   professionalUserId?: string;
+
+  /** Sin efecto acá (las series de este reporte cubren exactamente from..to),
+   * pero la pantalla de Reportes manda los mismos filtros a los tres endpoints
+   * y el ValidationPipe rechaza lo que no esté declarado. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(3)
+  @Max(24)
+  trendMonths?: number;
 }
