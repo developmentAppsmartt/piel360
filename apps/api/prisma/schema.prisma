@@ -546,6 +546,8 @@ model SubscriptionUsage {
   subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
   analysis     Analysis     @relation(fields: [analysisId], references: [id], onDelete: Cascade)
 
+  @@index([subscriptionId])
+  @@index([createdAt])
   @@map("subscription_usages")
 }
 
