@@ -3,36 +3,53 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Image,
-  Modal,
   StyleSheet,
   useWindowDimensions,
   View,
 } from 'react-native';
 
-const SPLASH_IMAGES = [
+const MARKETING = [
   require('../../assets/splash-1.png'),
   require('../../assets/splash-2.png'),
 ] as const;
 
-/** Tiempo visible por imagen (sin contar el crossfade). */
-const IMAGE_HOLD_MS = 4_000;
-/** Duración del fade entre imágenes / salida. */
-const FADE_MS = 700;
+const HOLD_MS = 2_800;
+const FADE_MS = 450;
+const SAFETY_MS = HOLD_MS * 2 + FADE_MS * 6 + 2_000;
 
 type SplashIntroProps = {
   onFinish: () => void;
 };
 
+function wait(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+function animateTo(
+  value: Animated.Value,
+  toValue: number,
+  duration: number,
+): Promise<void> {
+  return new Promise((resolve) => {
+    Animated.timing(value, {
+      toValue,
+      duration,
+      useNativeDriver: true,
+    }).start(() => resolve());
+  });
+}
+
 /**
- * Splash de marca: splash-1 → splash-2 → login, con transición suave.
- * Modal a pantalla completa para no mostrar tabs/navegación debajo.
+ * splash-1 → splash-2 → app.
+ * El logo nativo ya cubre el arranque; aquí no se vuelve a pintar para evitar
+ * el icono de Android 12 pegado arriba de la status bar.
  */
 export function SplashIntro({ onFinish }: SplashIntroProps) {
   const { width, height } = useWindowDimensions();
   const finishedRef = useRef(false);
   const [index, setIndex] = useState(0);
+  const [ready, setReady] = useState(false);
   const opacity = useRef(new Animated.Value(0)).current;
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const finish = () => {
     if (finishedRef.current) return;
@@ -40,76 +57,66 @@ export function SplashIntro({ onFinish }: SplashIntroProps) {
     onFinish();
   };
 
+  const onRootLayout = () => {
+    if (ready) return;
+    setReady(true);
+    // Sin animación de salida: en Android el icono del splash nativo
+    // a veces queda “pegado” arriba si fade > 0.
+    SplashScreen.setOptions({ duration: 0, fade: false });
+    SplashScreen.hide();
+  };
+
   useEffect(() => {
-    void SplashScreen.hideAsync();
+    if (!ready) return;
 
-    Animated.timing(opacity, {
-      toValue: 1,
-      duration: FADE_MS,
-      useNativeDriver: true,
-    }).start();
+    let cancelled = false;
 
-    const clearTimers = () => {
-      for (const t of timers.current) clearTimeout(t);
-      timers.current = [];
+    const run = async () => {
+      for (let i = 0; i < MARKETING.length; i++) {
+        if (cancelled || finishedRef.current) return;
+
+        if (i > 0) {
+          setIndex(i);
+          await wait(32);
+        }
+
+        await animateTo(opacity, 1, FADE_MS);
+        if (cancelled || finishedRef.current) return;
+
+        await wait(HOLD_MS);
+        if (cancelled || finishedRef.current) return;
+
+        await animateTo(opacity, 0, FADE_MS);
+      }
+
+      if (!cancelled) finish();
     };
 
-    const t1 = setTimeout(() => {
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: FADE_MS,
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (!finished || finishedRef.current) return;
-        setIndex(1);
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: FADE_MS,
-          useNativeDriver: true,
-        }).start();
+    void run();
 
-        const t2 = setTimeout(() => {
-          Animated.timing(opacity, {
-            toValue: 0,
-            duration: FADE_MS,
-            useNativeDriver: true,
-          }).start(({ finished: done }) => {
-            if (done) finish();
-          });
-        }, IMAGE_HOLD_MS);
-        timers.current.push(t2);
-      });
-    }, IMAGE_HOLD_MS);
-    timers.current.push(t1);
+    const safety = setTimeout(finish, SAFETY_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(safety);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- listo una vez
+  }, [ready]);
 
-    const safety = setTimeout(finish, IMAGE_HOLD_MS * 2 + FADE_MS * 4 + 1_000);
-    timers.current.push(safety);
-
-    return clearTimers;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- montaje único
-  }, []);
+  const w = Math.max(width, 1);
+  const h = Math.max(height, 1);
 
   return (
-    <Modal
-      visible
-      animationType="none"
-      transparent={false}
-      statusBarTranslucent
-      presentationStyle="fullScreen"
-      onRequestClose={() => undefined}
-    >
-      <View style={styles.container}>
-        <Animated.View style={[styles.imageWrap, { opacity }]}>
-          <Image
-            source={SPLASH_IMAGES[index]}
-            style={{ width, height }}
-            resizeMode="cover"
-            accessibilityLabel={`Piel 360 — presentación ${index + 1}`}
-            accessibilityIgnoresInvertColors
-          />
-        </Animated.View>
-      </View>
-    </Modal>
+    <View style={styles.container} onLayout={onRootLayout}>
+      <Animated.View style={[styles.imageWrap, { opacity }]}>
+        <Image
+          source={MARKETING[index]!}
+          style={{ width: w, height: h }}
+          resizeMode="cover"
+          accessibilityLabel="Piel 360 — presentación"
+          accessibilityIgnoresInvertColors
+        />
+      </Animated.View>
+    </View>
   );
 }
 
@@ -118,7 +125,9 @@ export const SplashVideo = SplashIntro;
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1000,
+    elevation: 1000,
     backgroundColor: '#FFFFFF',
   },
   imageWrap: {

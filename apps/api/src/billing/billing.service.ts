@@ -12,6 +12,7 @@ import {
   type BillingRates,
   BILLING_CONFIG_KEYS,
   DEFAULT_BILLING_RATES,
+  resolveEffectiveFxRate,
 } from '@piel360/shared';
 import { EncryptionService } from '../common/encryption.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -59,16 +60,36 @@ export class BillingService {
     const map = new Map(rows.map((r) => [r.key, r.value]));
     const num = (key: string, fallback: number) => {
       const raw = map.get(key);
-      const n = raw != null ? Number(raw) : NaN;
-      return Number.isFinite(n) && n >= 0 ? n : fallback;
+      const n = raw != null && raw !== '' ? Number(raw) : NaN;
+      return Number.isFinite(n) ? n : fallback;
     };
+    const usdMarket = Math.max(
+      0,
+      num(BILLING_CONFIG_KEYS.usdToCop, DEFAULT_BILLING_RATES.usdMarket),
+    );
+    const eurMarket = Math.max(
+      0,
+      num(BILLING_CONFIG_KEYS.eurToCop, DEFAULT_BILLING_RATES.eurMarket),
+    );
+    const usdBalance = num(BILLING_CONFIG_KEYS.usdToCopBalance, 0);
+    const eurBalance = num(BILLING_CONFIG_KEYS.eurToCopBalance, 0);
+    const fxUpdatedAt = map.get(BILLING_CONFIG_KEYS.fxRatesUpdatedAt) || null;
+
     return {
-      usdToCop: num(BILLING_CONFIG_KEYS.usdToCop, DEFAULT_BILLING_RATES.usdToCop),
-      eurToCop: num(BILLING_CONFIG_KEYS.eurToCop, DEFAULT_BILLING_RATES.eurToCop),
-      ivaPercentDefault: num(
-        BILLING_CONFIG_KEYS.ivaPercentDefault,
-        DEFAULT_BILLING_RATES.ivaPercentDefault,
+      usdMarket,
+      eurMarket,
+      usdBalance,
+      eurBalance,
+      usdToCop: resolveEffectiveFxRate(usdMarket, usdBalance),
+      eurToCop: resolveEffectiveFxRate(eurMarket, eurBalance),
+      ivaPercentDefault: Math.max(
+        0,
+        num(
+          BILLING_CONFIG_KEYS.ivaPercentDefault,
+          DEFAULT_BILLING_RATES.ivaPercentDefault,
+        ),
       ),
+      fxUpdatedAt: fxUpdatedAt && fxUpdatedAt.length > 0 ? fxUpdatedAt : null,
     };
   }
 

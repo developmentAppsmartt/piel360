@@ -5,11 +5,15 @@ import { PermissionsGuard } from '../auth/permissions.guard';
 import { RequirePermission } from '../auth/permissions.decorator';
 import type { JwtPayload } from '../auth/types';
 import { BillingService } from './billing.service';
+import { FxRatesService } from './fx-rates.service';
 
 @Controller()
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class BillingController {
-  constructor(private readonly billing: BillingService) {}
+  constructor(
+    private readonly billing: BillingService,
+    private readonly fxRates: FxRatesService,
+  ) {}
 
   @Get('admin/billing')
   @RequirePermission('admin.billing')
@@ -27,6 +31,19 @@ export class BillingController {
   @RequirePermission('admin.billing')
   alliedBalances() {
     return this.billing.getAlliedBalances();
+  }
+
+  @Get('admin/billing/fx-rates')
+  @RequirePermission('manage_app_config')
+  getFxRates() {
+    return this.billing.getBillingRates();
+  }
+
+  /** Fuerza actualización desde https://co.dolarapi.com (también a las 06:00 Bogotá). */
+  @Post('admin/billing/fx-rates/refresh')
+  @RequirePermission('manage_app_config')
+  refreshFxRates() {
+    return this.fxRates.refreshFromDolarApi();
   }
 
   @Get('admin/billing/wompi-banks')
