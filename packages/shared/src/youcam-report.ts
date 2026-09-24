@@ -55,9 +55,18 @@ export function youcamSkinAge(metrics: YoucamMetric[]): number | null {
   return metrics.find((m) => m.type === "skin_age")?.score ?? null;
 }
 
+/** Biotipo general: prefiere el registro de cara completa con valor — tomar el
+ * primer `hd_skin_type` a secas devolvía el de una zona (T/U) o uno sin
+ * `skinType`, y el resumen mostraba un biotipo que no era el general. */
 export function youcamSkinType(metrics: YoucamMetric[]): string | null {
-  const item = metrics.find((m) => m.type === "hd_skin_type");
-  return item?.skinType ?? null;
+  const preferred =
+    metrics.find(
+      (m) =>
+        m.type === "hd_skin_type" &&
+        m.skinType &&
+        (!m.region || m.region === "whole"),
+    ) ?? metrics.find((m) => m.type === "hd_skin_type" && m.skinType);
+  return preferred?.skinType ?? null;
 }
 
 /** Score preferido para UI: uiScore → score → rawScore (default), o

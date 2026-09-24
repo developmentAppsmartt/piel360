@@ -8,10 +8,10 @@ import {
   FitzpatrickResultsSection,
   resolveFitzpatrickScale,
 } from "@/components/analyses/fitzpatrick-results-section";
+import { FITZPATRICK_TYPES } from "@/lib/fitzpatrick-labels";
 import { youcamMetricCopy } from "@/lib/youcam-metric-copy";
 import { YOUCAM_METRIC_LABELS, youcamRegionLabel, youcamSkinTypeLabel } from "@/lib/youcam-metric-labels";
 import type { AnalysisDetail } from "@/lib/queries/analyses";
-import type { FitzpatrickScale } from "@piel360/shared";
 import {
   parseYoucamMetrics,
   YOUCAM_MAIN_METRIC_TYPES,
@@ -37,6 +37,9 @@ import {
 // por completo, colapsadas a un solo chip por `type`.
 const MULTI_REGION_TYPES = new Set(["hd_wrinkle", "hd_pore", "hd_skin_type"]);
 const DEFAULT_REGION = "whole";
+/** Chips que no son máscaras YouCam: muestran la foto limpia. */
+const SKIN_AGE_TYPE = "skin_age";
+const FITZPATRICK_TYPE = "fitzpatrick";
 const MIN_IMAGE_ZOOM = 1;
 const MAX_IMAGE_ZOOM = 2.5;
 const IMAGE_ZOOM_STEP = 0.25;
@@ -128,16 +131,24 @@ function buildRegionOptions(
   });
 }
 
+/** Mismo orden que la app móvil (YoucamResultsSection.tsx): Edad de la piel,
+ * Puntaje de la piel, Biotipo, Fototipo y luego las métricas principales. */
 function buildChips(
   metrics: YoucamMetric[],
   masks: AnalysisDetail["masks"],
   preferRaw: boolean,
-  fitzpatrickScale: FitzpatrickScale | null,
+  skinAge: number | null,
 ): MetricChip[] {
   const chips: MetricChip[] = [
     {
+      type: SKIN_AGE_TYPE,
+      label: "Edad de la piel",
+      score: skinAge,
+      maskUrl: null,
+    },
+    {
       type: "overview",
-      label: "Salud de la piel",
+      label: "Puntaje de la piel",
       score: youcamOverallScore(metrics),
       maskUrl: null,
     },
@@ -160,14 +171,14 @@ function buildChips(
     });
   }
 
-  if (fitzpatrickScale) {
-    chips.push({
-      type: "fitzpatrick",
-      label: "Fototipo",
-      score: null,
-      maskUrl: null,
-    });
-  }
+  // Siempre presente, aunque el paciente no tenga fototipo: mantiene el mismo
+  // orden de categorías en todos los pacientes (igual que la app).
+  chips.push({
+    type: FITZPATRICK_TYPE,
+    label: "Fototipo",
+    score: null,
+    maskUrl: null,
+  });
 
   for (const type of YOUCAM_MAIN_METRIC_TYPES) {
     const candidates = metrics.filter((m) => m.type === type);
@@ -243,15 +254,15 @@ export function YoucamResultsSection({
   // Puntuación ajustada (uiScore): la elige el doctor; sin toggle en el análisis.
   const preferRaw = false;
   const chips = useMemo(
-    () => buildChips(metrics, analysis.masks, preferRaw, fitzpatrickScale),
-    [metrics, analysis.masks, fitzpatrickScale],
+    () => buildChips(metrics, analysis.masks, preferRaw, skinAge),
+    [metrics, analysis.masks, skinAge],
   );
   const overviewMaskUrls = useMemo(
     () => buildOverviewMaskUrls(metrics, analysis.masks),
     [metrics, analysis.masks],
   );
 
-  const [selectedType, setSelectedType] = useState("overview");
+  const [selectedType, setSelectedType] = useState(SKIN_AGE_TYPE);
   const [selectedRegion, setSelectedRegion] = useState(DEFAULT_REGION);
   const [imageZoom, setImageZoom] = useState(MIN_IMAGE_ZOOM);
   const [imagePan, setImagePan] = useState(ZERO_PAN);
@@ -266,16 +277,23 @@ export function YoucamResultsSection({
   const selected = chips.find((c) => c.type === selectedType) ?? chips[0] ?? null;
   const activeRegion = selected?.regions?.find((r) => r.region === selectedRegion) ?? null;
   const isOverview = selected?.type === "overview";
-  const metricType = selected && !isOverview ? selected.type : null;
+  const isSkinAge = selected?.type === SKIN_AGE_TYPE;
+  const isFitzpatrick = selected?.type === FITZPATRICK_TYPE;
+  // "Edad de la piel" y "Puntaje de la piel" se apoyan en las reglas por edad
+  // de piel (el panel las usa cuando no hay métrica); el fototipo tiene su
+  // propio motor. Mismo criterio que la app móvil.
+  const metricType = isOverview || isSkinAge ? null : (selected?.type ?? null);
 
   const showBase = analysis.hasOriginalPhoto && !!analysis.imageUrl;
-  const maskUrl = isOverview ? null : (activeRegion?.maskUrl ?? selected?.maskUrl ?? null);
-  const badgeLabel =
-    selected && selected.type !== "overview"
-      ? activeRegion && activeRegion.region !== DEFAULT_REGION
-        ? `${selected.label} — ${activeRegion.label}`
-        : selected.label
-      : null;
+  const maskUrl =
+    isOverview || isSkinAge || isFitzpatrick
+      ? null
+      : (activeRegion?.maskUrl ?? selected?.maskUrl ?? null);
+  const badgeLabel = selected
+    ? activeRegion && activeRegion.region !== DEFAULT_REGION
+      ? `${selected.label} — ${activeRegion.label}`
+      : selected.label
+    : null;
 
   function selectChip(type: string) {
     setSelectedType(type);
@@ -329,6 +347,24 @@ export function YoucamResultsSection({
       e.currentTarget.releasePointerCapture(e.pointerId);
     }
   }
+
+  const fitzpatrickDetail = fitzpatrickScale
+    ? `Tipo ${fitzpatrickScale} · ${FITZPATRICK_TYPES[fitzpatrickScale].label}`
+    : null;
+
+  // Los chips de edad y fototipo no tienen texto por métrica: se arman con
+  // los datos del propio análisis (mismo criterio que la app móvil).
+  const copyText = isSkinAge
+    ? `Edad de la piel: ${skinAge != null ? `${Math.round(skinAge)} años` : "—"}${
+        chronologicalAge != null
+          ? ` · Edad cronológica: ${chronologicalAge} años`
+          : ""
+      }.${ageDiff != null ? ` Diferencia ${formatSignedYears(ageDiff)}.` : ""}`
+    : isFitzpatrick
+      ? fitzpatrickDetail
+        ? `Fototipo ${fitzpatrickDetail}. Describe cómo reacciona tu piel al sol (escala de Fitzpatrick).`
+        : "El fototipo describe cómo reacciona tu piel al sol según la escala de Fitzpatrick. Este paciente aún no tiene un fototipo registrado."
+      : youcamMetricCopy(isOverview ? "all" : selected?.type);
 
   const scorePct =
     overall != null ? Math.max(0, Math.min(100, overall)) : 0;
@@ -400,6 +436,14 @@ export function YoucamResultsSection({
             {skinType ? youcamSkinTypeLabel(skinType) : "—"}
           </span>
         </p>
+        {fitzpatrickDetail ? (
+          <p className="text-sm">
+            Fototipo:{" "}
+            <span className="font-semibold text-muted-foreground">
+              {fitzpatrickDetail}
+            </span>
+          </p>
+        ) : null}
       </ModuleCard>
 
       <ModuleCard className="overflow-hidden p-0">
@@ -555,7 +599,7 @@ export function YoucamResultsSection({
        * forma de ver forehead/nose/cheek/etc. de hd_pore, las 7 zonas de
        * hd_wrinkle, o Zona T/Zona U de hd_skin_type: quedaban colapsadas
        * al chip principal ("General"/whole) sin ninguna alternativa. */}
-      {selected?.type === "fitzpatrick" ? (
+      {isFitzpatrick ? (
         <FitzpatrickResultsSection analysis={analysis} compact silentIfEmpty />
       ) : selected?.regions && selected.regions.length > 0 ? (
         <div className="-mx-1 flex flex-wrap gap-2 px-1">
@@ -581,9 +625,7 @@ export function YoucamResultsSection({
       ) : null}
 
       <ModuleCard className="p-4">
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          {youcamMetricCopy(selected?.type)}
-        </p>
+        <p className="text-sm leading-relaxed text-muted-foreground">{copyText}</p>
       </ModuleCard>
 
       <RecommendationsPanel analysisId={analysis.id} metricType={metricType} />

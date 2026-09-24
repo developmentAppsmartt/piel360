@@ -22,6 +22,7 @@ import {
   useAnalysisCareRecommendations,
   type AnalysisCareItem,
 } from "@/lib/queries/skin-age-rules";
+import { useAnalysisFitzpatrickRecommendations } from "@/lib/queries/fitzpatrick-rules";
 import { useRecommendedRoutines, type Routine } from "@/lib/queries/routines";
 import { useRecommendedTreatments, type Treatment } from "@/lib/queries/treatments";
 import { cn } from "@/lib/utils";
@@ -69,6 +70,10 @@ function mapTreatmentToCareItem(treatment: Treatment): AnalysisCareItem {
 
 type CatalogKind = "routine" | "product" | "treatment" | "supplement";
 type RecoKind = "productos" | "rutinas" | "tratamientos" | "suplementos";
+
+/** Chip de fototipo del visor — no es una métrica YouCam, tiene su propio
+ * motor de reglas (ver youcam-results-section.tsx). */
+const FITZPATRICK_METRIC = "fitzpatrick";
 
 type CatalogDetail = {
   title: string;
@@ -155,7 +160,10 @@ function linkedProductsForRoutine(routine: AnalysisCareItem): CatalogDetail[] {
   const seen = new Set<string>();
   const linked: CatalogDetail[] = [];
   for (const step of [...(routine.steps ?? [])].sort((a, b) => a.order - b.order)) {
-    for (const product of step.products) {
+    // `products` viene tipado como obligatorio, pero según el motor que
+    // devuelva la rutina puede llegar ausente — la app móvil también lo
+    // tolera (mapRuleRoutines en YoucamCatalogSection).
+    for (const product of step.products ?? []) {
       if (seen.has(product.id)) continue;
       seen.add(product.id);
       linked.push({
@@ -658,13 +666,23 @@ export function RecommendationsPanel({
   );
   const [catalogDetail, setCatalogDetail] = useState<CatalogDetail | null>(null);
   const [mediaPreview, setMediaPreview] = useState<MediaPreview | null>(null);
+  // El fototipo tiene su propio motor de reglas (igual que la app móvil):
+  // sus recomendaciones no salen del motor de condiciones YouCam, cuyos
+  // `matchedMetricTypes` nunca contienen "fitzpatrick".
+  const isFitzpatrick = metricType === FITZPATRICK_METRIC;
+  const byCondition = !!metricType && !isFitzpatrick;
+
   const { data, isLoading: isLoadingSkinAge } = useAnalysisCareRecommendations(analysisId);
+  const fitzpatrickQuery = useAnalysisFitzpatrickRecommendations(
+    analysisId,
+    isFitzpatrick,
+  );
   // Cuando hay una tarjeta de métrica puntual seleccionada arriba (ej.
   // "Arrugas" → hd_wrinkle), se filtra por el motor de condiciones en vez de
   // por la regla de edad de piel — mismo criterio que ya usaban (sin usar
   // hoy) RecommendedRoutines/RecommendedTreatments.
-  const routinesQuery = useRecommendedRoutines(analysisId, !!metricType);
-  const treatmentsQuery = useRecommendedTreatments(analysisId, !!metricType);
+  const routinesQuery = useRecommendedRoutines(analysisId, byCondition);
+  const treatmentsQuery = useRecommendedTreatments(analysisId, byCondition);
 
   const generalRoutines = useMemo(
     () =>
@@ -699,8 +717,19 @@ export function RecommendationsPanel({
     [data],
   );
 
+  const byFitzpatrick = useMemo(() => {
+    if (!isFitzpatrick) return null;
+    const reco = fitzpatrickQuery.data?.recommendations;
+    return {
+      routines: reco?.routines ?? [],
+      treatments: reco?.treatments ?? [],
+      products: reco?.products ?? [],
+      supplements: reco?.supplements ?? [],
+    };
+  }, [isFitzpatrick, fitzpatrickQuery.data]);
+
   const filteredByMetric = useMemo(() => {
-    if (!metricType) return null;
+    if (!byCondition || !metricType) return null;
     // Ojo: filtrar por `conditions.some(c => c.metricType === metricType)`
     // solo mira si la rutina/tratamiento TIENE una condición de esa métrica,
     // no si fue la que realmente matcheó (las condiciones se combinan con
@@ -734,17 +763,37 @@ export function RecommendationsPanel({
       products: byProductType("product"),
       supplements: byProductType("supplement"),
     };
-  }, [metricType, routinesQuery.data, treatmentsQuery.data]);
+  }, [byCondition, metricType, routinesQuery.data, treatmentsQuery.data]);
 
-  const routines = filteredByMetric ? filteredByMetric.routines : generalRoutines;
-  const products = filteredByMetric ? filteredByMetric.products : generalProducts;
-  const supplements = filteredByMetric
-    ? filteredByMetric.supplements
-    : generalSupplements;
-  const treatments = filteredByMetric ? filteredByMetric.treatments : generalTreatments;
-  const isLoading = metricType
-    ? routinesQuery.isLoading || treatmentsQuery.isLoading
-    : isLoadingSkinAge;
+  const active = byFitzpatrick ?? filteredByMetric;
+  const routines = active ? active.routines : generalRoutines;
+  const products = active ? active.products : generalProducts;
+  const supplements = active ? active.supplements : generalSupplements;
+  const treatments = active ? active.treatments : generalTreatments;
+  const isLoading = isFitzpatrick
+    ? fitzpatrickQuery.isLoading
+    : byCondition
+      ? routinesQuery.isLoading || treatmentsQuery.isLoading
+      : isLoadingSkinAge;
+
+  const sourceNote = useMemo(() => {
+    if (isFitzpatrick) {
+      const snapshot = fitzpatrickQuery.data?.snapshot;
+      const rule = fitzpatrickQuery.data?.matchedRule;
+      if (rule) {
+        return `Según fototipo${snapshot?.fitzpatrickScale ? ` (Tipo ${snapshot.fitzpatrickScale})` : ""}: ${rule.label}`;
+      }
+      return snapshot?.message ?? null;
+    }
+    if (byCondition) return null;
+    if (data?.matchedRule) {
+      const diff = data.snapshot.skinAgeDifference;
+      return `Según edad de piel: ${data.matchedRule.label}${
+        diff != null ? ` (diferencia ${diff > 0 ? "+" : ""}${diff})` : ""
+      }`;
+    }
+    return data?.snapshot.message ?? null;
+  }, [isFitzpatrick, fitzpatrickQuery.data, byCondition, data]);
 
   // Sin useEffect: si la selección actual ya no está en la lista (ej. cambió
   // la métrica), cae a la primera rutina disponible — no hace falta
@@ -779,15 +828,11 @@ export function RecommendationsPanel({
           <p className="text-sm text-muted-foreground">Cargando recomendaciones…</p>
         ) : (
           <div className="space-y-6">
-            {data?.matchedRule ? (
-              <p className="text-sm text-muted-foreground">
-                Según edad de piel: {data.matchedRule.label}
-                {data.snapshot.skinAgeDifference != null
-                  ? ` (diferencia ${data.snapshot.skinAgeDifference > 0 ? "+" : ""}${data.snapshot.skinAgeDifference})`
-                  : ""}
-              </p>
-            ) : data?.snapshot.message ? (
-              <p className="text-sm text-muted-foreground">{data.snapshot.message}</p>
+            {/* El aviso es el de la regla que realmente alimenta estas listas:
+             * antes se mostraba siempre el de edad de piel, incluso con otra
+             * métrica seleccionada. */}
+            {sourceNote ? (
+              <p className="text-sm text-muted-foreground">{sourceNote}</p>
             ) : null}
 
             <RecoSection

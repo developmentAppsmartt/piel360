@@ -126,3 +126,20 @@ export function useSimulateFitzpatrickRule() {
       }),
   });
 }
+
+/** Recomendaciones por fototipo de un análisis — misma respuesta que la
+ * simulación, pero resolviendo la escala desde el análisis/paciente (mismo
+ * endpoint que ya consume la app móvil). */
+export function useAnalysisFitzpatrickRecommendations(
+  analysisId: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ["analyses", analysisId, "fitzpatrick-recommendations"],
+    queryFn: () =>
+      apiClientFetch<FitzpatrickSimulationResult>(
+        `/analyses/${analysisId}/fitzpatrick-recommendations`,
+      ),
+    enabled: enabled && Boolean(analysisId),
+  });
+}

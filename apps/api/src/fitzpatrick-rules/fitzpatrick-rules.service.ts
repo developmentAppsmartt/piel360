@@ -222,7 +222,20 @@ export class FitzpatrickRulesService {
       routineIds.length > 0
         ? await this.prisma.routine.findMany({
             where: { doctorId, id: { in: routineIds }, isActive: true },
-            include: { steps: { orderBy: { order: 'asc' } } },
+            include: {
+              steps: {
+                orderBy: { order: 'asc' },
+                // Mismos productos vinculados que devuelven las reglas por
+                // edad de piel — sin esto las rutinas por fototipo llegaban
+                // al front sin `products`.
+                include: {
+                  products: {
+                    orderBy: { order: 'asc' },
+                    include: { product: true },
+                  },
+                },
+              },
+            },
           })
         : [];
 
@@ -329,6 +342,15 @@ export class FitzpatrickRulesService {
               description: step.description,
               mediaUrl: await this.resolveMediaUrl(step.mediaUrl),
               mediaType: step.mediaType,
+              products: await Promise.all(
+                step.products.map(async (link) => ({
+                  id: link.product.id.toString(),
+                  productName: link.product.productName,
+                  productType: link.product.productType,
+                  productUrl: link.product.productUrl,
+                  imageUrl: await this.resolveMediaUrl(link.product.imageUrl),
+                })),
+              ),
             })),
           ),
         })),
