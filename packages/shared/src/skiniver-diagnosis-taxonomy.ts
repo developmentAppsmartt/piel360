@@ -109,6 +109,11 @@ const DIAGNOSIS_MAP: Record<
   // Micosis — cutáneas van a infecciosas, las de anexos (uña/pelo) a "anexos"
   "micosis cutanea": { class: "infectious", disease: "tinia" },
   "micosis cutaneas": { class: "infectious", disease: "tinia" },
+  // Nombres reales del clasificador (`2G_skin_mycosis`, `2PS_shining_versicolor`),
+  // que no coinciden con el wording del atlas. Sin estos alias caían en
+  // "Otras"/"other" y el reporte no mostraba ninguna infección por hongos.
+  "micosis de la piel": { class: "infectious", disease: "tinia" },
+  "versicolor brillante": { class: "infectious", disease: "tinia" },
   "pitiriasis versicolor": { class: "infectious", disease: "tinia" },
   onicomicosis: { class: "annex", disease: "tinia" },
   tricomicosis: { class: "annex", disease: "tinia" },
@@ -208,11 +213,79 @@ export function skinToneBucketForFitzpatrick(
 
 // ─── Edad ───────────────────────────────────────────────────────────────────
 
+/** Rangos del mockup del cliente. Los usan tres widgets de la misma pantalla
+ * (serie mensual, distribución total y el cruce por sexo), así que la escala
+ * debe ser una sola: dos particiones distintas de edad en la misma página se
+ * leen mal. El `CASE` de skiniver-reports.queries.ts refleja estos cortes. */
 export const SKINIVER_AGE_BUCKETS: { key: string; label: string; color: string }[] = [
-  { key: "0-17", label: "0 - 17 años", color: "#22c55e" },
-  { key: "18-25", label: "18 - 25 años", color: "#3b82f6" },
-  { key: "26-35", label: "26 - 35 años", color: "#a855f7" },
-  { key: "36-45", label: "36 - 45 años", color: "#f97316" },
-  { key: "46-55", label: "46 - 55 años", color: "#ef4444" },
-  { key: "56+", label: "56+ años", color: "#94a3b8" },
+  { key: "0-12", label: "0 - 12 años", color: "#22c55e" },
+  { key: "13-20", label: "13 - 20 años", color: "#14b8a6" },
+  { key: "21-30", label: "21 - 30 años", color: "#3b82f6" },
+  { key: "31-40", label: "31 - 40 años", color: "#a855f7" },
+  { key: "41-50", label: "41 - 50 años", color: "#f97316" },
+  { key: "51-60", label: "51 - 60 años", color: "#ef4444" },
+  { key: "61+", label: "61+ años", color: "#94a3b8" },
 ];
+
+// ─── Categoría de la IA (`aiRawResponse.desease`) ───────────────────────────
+//
+// Skiniver agrupa cada diagnóstico bajo una categoría propia ("Acné",
+// "Dermatitis", "Lesiones benignas"…). A diferencia de DIAGNOSIS_MAP, que es
+// curación nuestra por nombre y se desfasa cuando el modelo agrega un
+// diagnóstico, esta categoría viene en la respuesta: se usa tal cual y solo se
+// le asigna color. Un valor nuevo cae en la paleta de reserva, no se pierde.
+
+const CATEGORY_COLORS: Record<string, string> = {
+  acne: "#f97316",
+  dermatitis: "#3b82f6",
+  eccema: "#14b8a6",
+  "lesiones benignas": "#22c55e",
+  "infecciones por hongos": "#eab308",
+  "trastornos papuloescamosos": "#a855f7",
+  "condiciones precancerosas": "#ec4899",
+  cancer: "#ef4444",
+  "enfermedades virales": "#6366f1",
+  "infecciones herpeticas": "#0ea5e9",
+  urticaria: "#8b5cf6",
+  rosacea: "#db2777",
+};
+
+/** Paleta de reserva para categorías que el modelo agregue después. */
+const FALLBACK_CATEGORY_COLORS = [
+  "#0891b2",
+  "#65a30d",
+  "#c2410c",
+  "#7c3aed",
+  "#be123c",
+  "#94a3b8",
+];
+
+/** Color estable por categoría: la misma categoría conserva su color entre
+ * widgets y entre recargas (el fallback se elige por hash del nombre, no por
+ * posición en la lista, que cambia con los filtros). */
+export function skiniverCategoryColor(category: string): string {
+  const known = CATEGORY_COLORS[normalize(category)];
+  if (known) return known;
+  let hash = 0;
+  const key = normalize(category);
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  }
+  return (
+    FALLBACK_CATEGORY_COLORS[hash % FALLBACK_CATEGORY_COLORS.length] ?? "#94a3b8"
+  );
+}
+
+// ─── Género ─────────────────────────────────────────────────────────────────
+
+export type SkiniverGender = "male" | "female" | "unknown";
+
+/** `Patient.gender` es texto libre. Misma lista que apps/web/src/lib/body-model.ts,
+ * promovida acá porque ahora el reporte la necesita del lado del servidor. */
+export function normalizeGender(value: string | null | undefined): SkiniverGender {
+  if (!value) return "unknown";
+  const v = normalize(value);
+  if (["female", "f", "femenino", "femenina", "mujer"].includes(v)) return "female";
+  if (["male", "m", "masculino", "hombre"].includes(v)) return "male";
+  return "unknown";
+}
