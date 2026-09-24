@@ -19,6 +19,7 @@ import {
   type AgendaAppointment,
   type AgendaOverview,
 } from '../../services/agenda.service';
+import { notificationsService } from '../../services/notifications.service';
 import { patientsService } from '../../services/patients.service';
 import type { PatientProfile } from '../../types/patient';
 import {
@@ -403,6 +404,7 @@ export function DoctorAgendaView({
   ) {
     try {
       await agendaService.updateDoctorAppointment(id, status);
+      await notificationsService.markAppointmentRead(id);
       await load();
     } catch (err) {
       Alert.alert(

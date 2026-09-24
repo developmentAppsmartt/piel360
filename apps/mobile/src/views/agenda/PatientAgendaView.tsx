@@ -16,6 +16,7 @@ import {
   type AgendaAppointment,
   type PatientDoctorCalendar,
 } from '../../services/agenda.service';
+import { notificationsService } from '../../services/notifications.service';
 import { AppModuleChrome } from '../shared/AppModuleChrome';
 import { createAgendaStyles } from './styles/agenda.styles';
 import {
@@ -222,6 +223,7 @@ export function PatientAgendaView({
   ) {
     try {
       await agendaService.updateMyAppointment(id, status);
+      await notificationsService.markAppointmentRead(id);
       await load({ soft: true });
     } catch (err) {
       Alert.alert(

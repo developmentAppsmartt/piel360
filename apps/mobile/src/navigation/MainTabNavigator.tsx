@@ -182,24 +182,8 @@ export function MainTabNavigator() {
     void refreshAgendaBadge();
   }, [refreshAgendaBadge, activeTab, inboxOpen, unreadCount]);
 
-  useEffect(() => {
-    if (activeTab !== 'agenda' || agendaBadgeCount === 0) return;
-    void (async () => {
-      try {
-        const list = await notificationsService.list(30);
-        const unread = list.filter(
-          (n) => isAppointmentNotification(n.type) && !n.readAt,
-        );
-        await Promise.all(
-          unread.map((n) => notificationsService.markRead(n.id)),
-        );
-        setAgendaBadgeCount(0);
-        void refreshUnread();
-      } catch {
-        /* ignore */
-      }
-    })();
-  }, [activeTab, agendaBadgeCount, refreshUnread]);
+  // No marcar como leídas al abrir Agenda: eso borraba los recordatorios del inicio.
+  // Se marcan al abrir/descartar desde inicio o desde el inbox.
 
   async function onPatientTabPress(key: TabKey) {
     if (
