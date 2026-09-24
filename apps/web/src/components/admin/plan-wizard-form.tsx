@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Check, Info, Plus, Trash2, Users, X } from "lucide-react";
 import { TextField } from "@/components/auth/text-field";
 import { Button } from "@/components/ui/button";
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import { ApiError } from "@/lib/api-error";
+import { apiClientFetch } from "@/lib/api-client";
 import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import { useAdminLaborTechnicianProfiles } from "@/lib/queries/labor-technician-profiles";
 import { useAnalysisProviders } from "@/lib/queries/plans";
@@ -36,6 +38,12 @@ import {
 } from "@piel360/shared";
 import { useAllAppConfigs } from "@/lib/queries/app-config";
 import { useGatewayConfigs } from "@/lib/queries/gateway-configs";
+
+type AlliedOrgPreview = {
+  id: string;
+  name: string;
+  referralCommissionPercent: number | null;
+};
 
 export type PlanFeatureDraft = { label: string; included: boolean };
 const BUSINESS_WIZARD_STEPS = [
@@ -457,8 +465,41 @@ export function PlanWizardForm({
   );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [previewAllyId, setPreviewAllyId] = useState<string>("");
   const appConfigs = useAllAppConfigs();
   const gateways = useGatewayConfigs();
+  const alliedOrgs = useQuery({
+    queryKey: ["admin", "organizations", "allied"],
+    queryFn: () =>
+      apiClientFetch<AlliedOrgPreview[]>("/admin/organizations/allied"),
+  });
+
+  const alliedWithCommission = useMemo(() => {
+    return (alliedOrgs.data ?? []).filter(
+      (o) =>
+        o.referralCommissionPercent != null &&
+        Number(o.referralCommissionPercent) > 0,
+    );
+  }, [alliedOrgs.data]);
+
+  useEffect(() => {
+    if (previewAllyId) return;
+    const first = alliedWithCommission[0];
+    if (first) setPreviewAllyId(first.id);
+  }, [alliedWithCommission, previewAllyId]);
+
+  const previewAlly = useMemo(() => {
+    return (
+      alliedWithCommission.find((o) => o.id === previewAllyId) ??
+      alliedWithCommission[0] ??
+      null
+    );
+  }, [alliedWithCommission, previewAllyId]);
+
+  const previewAllyPercent =
+    previewAlly?.referralCommissionPercent != null
+      ? Number(previewAlly.referralCommissionPercent)
+      : null;
 
   const billingRates = useMemo(() => {
     const rows = appConfigs.data ?? [];
@@ -582,9 +623,17 @@ export function PlanWizardForm({
       operationalCostPercent: gateway?.operationalCostPercent ?? 0,
       operationalCostFixed: gateway?.operationalCostFixed ?? 0,
       apiTokenCostCop: tokenCost,
-      alliedCommissionPercent: 10,
+      // En venta real se usa el % de la empresa aliada del referido.
+      alliedCommissionPercent: previewAllyPercent,
     });
-  }, [state, billingRates, gateways.data, selectedSlugs, planType]);
+  }, [
+    state,
+    billingRates,
+    gateways.data,
+    selectedSlugs,
+    planType,
+    previewAllyPercent,
+  ]);
 
   const providerLabels = useMemo(() => {
     return selectedSlugs.map((slug) => {
@@ -1137,12 +1186,38 @@ export function PlanWizardForm({
                     ) : null}
                   </div>
                 )}
-                <div className="rounded-lg border border-dashed border-border p-3 text-xs space-y-1">
-                  <p className="font-semibold">
-                    Preview liquidación (ref. 10% aliada)
-                    {providerLabels.length > 0
-                      ? ` · ${providerLabels.join(", ")}`
-                      : ""}
+                <div className="rounded-lg border border-dashed border-border p-3 text-xs space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-semibold">
+                      Preview liquidación
+                      {providerLabels.length > 0
+                        ? ` · ${providerLabels.join(", ")}`
+                        : ""}
+                    </p>
+                    {alliedWithCommission.length > 0 ? (
+                      <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        Simular aliada
+                        <select
+                          className="h-7 rounded-md border border-border bg-background px-1.5 text-[11px] text-foreground"
+                          value={previewAlly?.id ?? ""}
+                          onChange={(e) => setPreviewAllyId(e.target.value)}
+                        >
+                          {alliedWithCommission.map((o) => (
+                            <option key={o.id} value={o.id}>
+                              {o.name} ({o.referralCommissionPercent}%)
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    En cada venta se usa el % de comisión de la empresa aliada
+                    del referido (no un fijo). Aquí se simula con{" "}
+                    {previewAlly
+                      ? `${previewAlly.name} (${previewAllyPercent}%)`
+                      : "venta sin referido"}
+                    .
                   </p>
                   <p>
                     Cobro cliente:{" "}
@@ -1170,8 +1245,13 @@ export function PlanWizardForm({
                     {economicsPreview.commissionBaseAmount.toLocaleString("es-CO")}
                   </p>
                   <p>
-                    Aliada 10%: $
-                    {economicsPreview.alliedCommissionAmount.toLocaleString("es-CO")}{" "}
+                    {previewAllyPercent != null
+                      ? `Aliada ${previewAllyPercent}%`
+                      : "Sin aliada"}
+                    : $
+                    {economicsPreview.alliedCommissionAmount.toLocaleString(
+                      "es-CO",
+                    )}{" "}
                     · Bolsa: $
                     {economicsPreview.platformNetAmount.toLocaleString("es-CO")}
                   </p>
