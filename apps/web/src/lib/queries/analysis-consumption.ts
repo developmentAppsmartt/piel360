@@ -4,9 +4,14 @@ import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { apiClientFetch } from "@/lib/api-client";
 
 export type ConsumptionPool = {
+  /** Créditos consumidos en toda la vigencia de la suscripción (saldo). */
   done: number;
   limit: number;
   available: number;
+  /** Créditos consumidos dentro del rango de fechas seleccionado. */
+  periodDone: number;
+  /** El límite del plan es una bolsa compartida con la otra categoría. */
+  shared: boolean;
 };
 
 export type DailyConsumptionPoint = {
@@ -27,6 +32,8 @@ export type DailyConsumptionRow = {
 export type AnalysisConsumptionResponse = {
   from: string;
   to: string;
+  /** Vigencia de la suscripción contra la que corre el límite (si es una sola). */
+  subscriptionEndsAt: string | null;
   aesthetic: ConsumptionPool;
   derm: ConsumptionPool;
   daily: DailyConsumptionPoint[];
