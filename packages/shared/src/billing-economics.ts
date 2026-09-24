@@ -13,16 +13,31 @@ export type PlanApiCosts = {
 };
 
 export type BillingRates = {
+  /** TRM efectiva USD→COP (mercado API + balance). */
   usdToCop: number;
+  /** TRM efectiva EUR→COP (mercado API + balance). */
   eurToCop: number;
+  /** Valor de mercado desde dolarapi (máx. compra/venta/cierre). */
+  usdMarket: number;
+  eurMarket: number;
+  /** Ajuste manual sumado al mercado. */
+  usdBalance: number;
+  eurBalance: number;
   /** % IVA por defecto (se aplica solo si el plan tiene ivaEnabled). */
   ivaPercentDefault: number;
+  /** ISO de última actualización desde la API (si existe). */
+  fxUpdatedAt: string | null;
 };
 
 export const DEFAULT_BILLING_RATES: BillingRates = {
   usdToCop: 3500,
   eurToCop: 3800,
+  usdMarket: 3500,
+  eurMarket: 3800,
+  usdBalance: 0,
+  eurBalance: 0,
   ivaPercentDefault: 19,
+  fxUpdatedAt: null,
 };
 
 /** Unidades de bolsa consumidas por cada análisis. */
@@ -33,10 +48,37 @@ export const API_UNITS_PER_ANALYSIS = {
 } as const;
 
 export const BILLING_CONFIG_KEYS = {
+  /** Mercado USD (dolarapi — máx. compra/venta/cierre). */
   usdToCop: 'usd_to_cop',
+  /** Mercado EUR (dolarapi). */
   eurToCop: 'eur_to_cop',
+  usdToCopBalance: 'usd_to_cop_balance',
+  eurToCopBalance: 'eur_to_cop_balance',
   ivaPercentDefault: 'iva_percent_default',
+  fxRatesUpdatedAt: 'fx_rates_updated_at',
 } as const;
+
+/** Máximo entre compra, venta y último cierre de dolarapi. */
+export function pickHighestCotizacion(parts: {
+  compra: number;
+  venta: number;
+  ultimoCierre: number;
+}): number {
+  return Math.max(
+    Number(parts.compra) || 0,
+    Number(parts.venta) || 0,
+    Number(parts.ultimoCierre) || 0,
+  );
+}
+
+export function resolveEffectiveFxRate(
+  market: number,
+  balance: number,
+): number {
+  const m = Number.isFinite(market) && market >= 0 ? market : 0;
+  const b = Number.isFinite(balance) ? balance : 0;
+  return Math.round((m + b) * 100) / 100;
+}
 
 export function resolveApiUnitsForPlan(input: {
   selectedSlugs: string[];

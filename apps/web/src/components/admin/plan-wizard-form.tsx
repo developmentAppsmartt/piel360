@@ -33,6 +33,7 @@ import {
   parsePlanApiCosts,
   planCustomerPrice,
   resolveApiUnitsForPlan,
+  resolveEffectiveFxRate,
   stripIvaFromGross,
   type PlanApiCosts,
 } from "@piel360/shared";
@@ -505,16 +506,34 @@ export function PlanWizardForm({
     const rows = appConfigs.data ?? [];
     const get = (key: string, fallback: number) => {
       const row = rows.find((c) => c.key === key);
-      const n = row ? Number(row.value) : NaN;
-      return Number.isFinite(n) && n >= 0 ? n : fallback;
+      const n = row && row.value !== "" ? Number(row.value) : NaN;
+      return Number.isFinite(n) ? n : fallback;
     };
+    const usdMarket = Math.max(
+      0,
+      get(BILLING_CONFIG_KEYS.usdToCop, DEFAULT_BILLING_RATES.usdMarket),
+    );
+    const eurMarket = Math.max(
+      0,
+      get(BILLING_CONFIG_KEYS.eurToCop, DEFAULT_BILLING_RATES.eurMarket),
+    );
+    const usdBalance = get(BILLING_CONFIG_KEYS.usdToCopBalance, 0);
+    const eurBalance = get(BILLING_CONFIG_KEYS.eurToCopBalance, 0);
     return {
-      usdToCop: get(BILLING_CONFIG_KEYS.usdToCop, DEFAULT_BILLING_RATES.usdToCop),
-      eurToCop: get(BILLING_CONFIG_KEYS.eurToCop, DEFAULT_BILLING_RATES.eurToCop),
-      ivaPercentDefault: get(
-        BILLING_CONFIG_KEYS.ivaPercentDefault,
-        DEFAULT_BILLING_RATES.ivaPercentDefault,
+      usdMarket,
+      eurMarket,
+      usdBalance,
+      eurBalance,
+      usdToCop: resolveEffectiveFxRate(usdMarket, usdBalance),
+      eurToCop: resolveEffectiveFxRate(eurMarket, eurBalance),
+      ivaPercentDefault: Math.max(
+        0,
+        get(
+          BILLING_CONFIG_KEYS.ivaPercentDefault,
+          DEFAULT_BILLING_RATES.ivaPercentDefault,
+        ),
       ),
+      fxUpdatedAt: null as string | null,
     };
   }, [appConfigs.data]);
 

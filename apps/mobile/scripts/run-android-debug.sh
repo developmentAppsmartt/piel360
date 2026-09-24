@@ -16,4 +16,11 @@ if [[ -z "${JAVA_HOME:-}" || "${JAVA_HOME}" == *jdk-26* ]]; then
 fi
 export PATH="$JAVA_HOME/bin:$PATH"
 
+SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}"
+export ANDROID_HOME="$SDK"
+export ANDROID_SDK_ROOT="$SDK"
+if [[ ! -f android/local.properties ]]; then
+  echo "sdk.dir=$SDK" > android/local.properties
+fi
+
 exec npx expo run:android "$@"
