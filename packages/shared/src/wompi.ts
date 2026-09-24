@@ -25,8 +25,10 @@ export interface GatewayConfigSafe {
   hasWebhookSecret: boolean;
   /** % comisión de la pasarela sobre el bruto. */
   feePercent?: number;
-  /** Gasto operativo fijo (COP) restado tras el fee de pasarela. */
+  /** Gasto operativo fijo (COP) — legacy. */
   operationalCostFixed?: number;
+  /** Gasto operativo % sobre neto tras pasarela. */
+  operationalCostPercent?: number;
   hasPayoutApiKey?: boolean;
   hasPayoutUserPrincipalId?: boolean;
   payoutAccountId?: string | null;
@@ -46,6 +48,7 @@ export interface CreateGatewayConfigInput {
   webhookSecret?: string;
   feePercent?: number;
   operationalCostFixed?: number;
+  operationalCostPercent?: number;
   payoutApiKey?: string;
   payoutUserPrincipalId?: string;
   payoutAccountId?: string;
@@ -95,6 +98,21 @@ export interface Plan extends PlanPoolAvailability {
   features?: PlanFeature[];
   /** Color del header de la card (id de paleta o hex). */
   headerColor?: string | null;
+  /** Costos API por proveedor (unidades × precio unitario). */
+  apiCosts?: {
+    skiniver?: { units: number; unitPrice: number };
+    youcam?: { units: number; unitPrice: number };
+    fitzpatrick?: { units: number; unitPrice: number };
+  };
+  /** Si true, el checkout suma IVA (% global). */
+  ivaEnabled?: boolean;
+  /** % IVA usado para calcular `customerPrice` (config global). */
+  ivaPercent?: number;
+  /**
+   * Precio que ve el cliente / se cobra en checkout.
+   * = `price` + IVA si `ivaEnabled`; si no, igual a `price`.
+   */
+  customerPrice?: string;
   isActive: boolean;
   description: string | null;
   provider: {

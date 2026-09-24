@@ -50,6 +50,13 @@ export class UpdateGatewayConfigDto {
   operationalCostFixed?: number;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  operationalCostPercent?: number;
+
+  @IsOptional()
   @IsString()
   payoutApiKey?: string;
 

@@ -90,7 +90,7 @@ function PlanPricingCard({
 
         <div className="w-full space-y-2 py-2">
           <p className="text-4xl font-bold tracking-tight text-foreground sm:text-4xl">
-            {formatCOP(plan.price)}
+            {formatCOP(plan.customerPrice ?? plan.price)}
           </p>
           <p className="text-sm font-semibold text-foreground">
             Vigencia: {plan.durationDays} días

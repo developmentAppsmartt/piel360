@@ -297,6 +297,7 @@ export class SkinAgeRulesService {
         ? await this.prisma.treatment.findMany({
             where: { doctorId, id: { in: treatmentIds }, isActive: true },
             include: {
+              category: { select: { id: true, categoryName: true } },
               items: {
                 orderBy: { order: 'asc' },
                 include: { product: true },

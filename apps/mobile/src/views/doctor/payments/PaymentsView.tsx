@@ -125,7 +125,7 @@ export function PaymentsView({
     }
     Alert.alert(
       plan.name,
-      `${formatPrice(plan.price)} · ${plan.analysisLimit} análisis · ${plan.durationDays} días.\n\nLa contratación se completa en el panel web de profesionales.`,
+      `${formatPrice(plan.customerPrice ?? plan.price)} · ${plan.analysisLimit} análisis · ${plan.durationDays} días.\n\nLa contratación se completa en el panel web de profesionales.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -237,7 +237,7 @@ export function PaymentsView({
                       {item.endsAt ? formatDate(item.endsAt) : '—'}
                     </Text>
                     <Text style={styles.planPrice}>
-                      {formatPrice(item.plan.price)}
+                      {formatPrice(item.plan.customerPrice ?? item.plan.price)}
                     </Text>
                   </View>
                 ))
@@ -264,7 +264,7 @@ export function PaymentsView({
                     <Text style={styles.planMeta}>
                       {plan.analysisLimit} análisis · {plan.durationDays} días
                     </Text>
-                    <Text style={styles.planPrice}>{formatPrice(plan.price)}</Text>
+                    <Text style={styles.planPrice}>{formatPrice(plan.customerPrice ?? plan.price)}</Text>
                     <Pressable
                       style={styles.contractBtn}
                       onPress={() => openContract(plan)}

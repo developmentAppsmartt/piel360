@@ -330,6 +330,20 @@ export function AgendaWorkspace() {
     return map;
   }, [overview.data?.appointments]);
 
+  const filteredMonthAppointments = useMemo(() => {
+    const list = overview.data?.appointments ?? [];
+    if (!selectedDate) return list;
+    return list.filter((a) => ymdLocal(new Date(a.startsAt)) === selectedDate);
+  }, [overview.data?.appointments, selectedDate]);
+
+  const selectedDaySlots = useMemo(() => {
+    if (!selectedDate) return [];
+    const dow = dayOfWeekFromYmd(selectedDate);
+    return (overview.data?.weeklySlots ?? []).filter(
+      (s) => s.isActive && s.dayOfWeek === dow,
+    );
+  }, [selectedDate, overview.data?.weeklySlots]);
+
   const [patientId, setPatientId] = useState("");
   const [patientQuery, setPatientQuery] = useState("");
   const [appointmentTime, setAppointmentTime] = useState("");
@@ -535,7 +549,9 @@ export function AgendaWorkspace() {
                   key={cell.date}
                   type="button"
                   onClick={() => {
-                    setSelectedDate(cell.date);
+                    setSelectedDate((prev) =>
+                      prev === cell.date ? null : cell.date,
+                    );
                     setAppointmentTime("");
                     if (blockedReason) setBlockReason(blockedReason);
                     else setBlockReason("");
@@ -920,11 +936,79 @@ export function AgendaWorkspace() {
       </div>
 
       <ModuleCard>
-        <ModuleCardTitle>Citas del mes</ModuleCardTitle>
-        <ModuleCardDescription>
-          Toca una cita para abrirla y cambiar el estado (pendiente, confirmada,
-          cancelada, completada).
-        </ModuleCardDescription>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <ModuleCardTitle>
+              {selectedDate
+                ? `Citas del ${selectedDate}`
+                : "Citas del mes"}
+            </ModuleCardTitle>
+            <ModuleCardDescription>
+              {selectedDate
+                ? "Filtrado por el día del calendario. Toca otra vez el mismo día para ver todo el mes."
+                : "Toca un día en el calendario para filtrar. Luego toca una cita para cambiar su estado."}
+            </ModuleCardDescription>
+          </div>
+          {selectedDate ? (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedDate(null);
+                setAppointmentTime("");
+              }}
+              className="rounded-lg border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted/60"
+            >
+              Ver todo el mes
+            </button>
+          ) : null}
+        </div>
+
+        {selectedDate ? (
+          <div className="mt-4 rounded-xl border bg-muted/30 px-3 py-2 text-sm">
+            <p className="font-semibold text-foreground">
+              Horarios ese día · {DAY_LABELS[dayOfWeekFromYmd(selectedDate)]}
+            </p>
+            {blockedByDate.has(selectedDate) ? (
+              <p className="mt-1 text-xs text-red-700">
+                Día bloqueado
+                {blockedByDate.get(selectedDate)?.reason
+                  ? `: ${blockedByDate.get(selectedDate)?.reason}`
+                  : ""}
+              </p>
+            ) : selectedDaySlots.length === 0 ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                No hay franjas de atención configuradas para este día de la
+                semana.
+              </p>
+            ) : (
+              <ul className="mt-1 flex flex-wrap gap-2">
+                {selectedDaySlots.map((s) => (
+                  <li
+                    key={s.id}
+                    className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-800"
+                  >
+                    {s.startTime}–{s.endTime}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {hourOptions.length > 0 ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Huecos libres para asignar:{" "}
+                <span className="font-semibold text-foreground">
+                  {hourOptions.join(", ")}
+                </span>
+              </p>
+            ) : selectedDate &&
+              !blockedByDate.has(selectedDate) &&
+              selectedDaySlots.length > 0 ? (
+              <p className="mt-2 text-xs text-amber-700">
+                No quedan huecos libres ese día.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="mt-4 space-y-2">
           {overview.isLoading ? (
             <p className="text-sm text-muted-foreground">Cargando…</p>
@@ -932,8 +1016,12 @@ export function AgendaWorkspace() {
             <p className="text-sm text-muted-foreground">
               No hay citas en este mes.
             </p>
+          ) : filteredMonthAppointments.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No hay citas el {selectedDate}.
+            </p>
           ) : (
-            overview.data!.appointments.map((a) => (
+            filteredMonthAppointments.map((a) => (
               <button
                 key={a.id}
                 type="button"

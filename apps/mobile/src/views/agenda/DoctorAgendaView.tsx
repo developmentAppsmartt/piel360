@@ -19,6 +19,7 @@ import {
   type AgendaAppointment,
   type AgendaOverview,
 } from '../../services/agenda.service';
+import { notificationsService } from '../../services/notifications.service';
 import { patientsService } from '../../services/patients.service';
 import type { PatientProfile } from '../../types/patient';
 import {
@@ -304,6 +305,10 @@ export function DoctorAgendaView({
 
   const filteredAppointments = useMemo(() => {
     const list = overview?.appointments ?? [];
+    // El día del calendario principal tiene prioridad sobre la búsqueda.
+    if (selectedDate) {
+      return list.filter((a) => dayKey(a.startsAt) === selectedDate);
+    }
     if (!searchFrom) return list;
     const query =
       searchTo && searchTo !== searchFrom
@@ -312,7 +317,15 @@ export function DoctorAgendaView({
     return list.filter((a) =>
       matchesAppointmentDateQuery(a.startsAt, query),
     );
-  }, [overview?.appointments, searchFrom, searchTo]);
+  }, [overview?.appointments, selectedDate, searchFrom, searchTo]);
+
+  const selectedDaySlots = useMemo(() => {
+    if (!selectedDate) return [];
+    const dow = dayOfWeekFromYmd(selectedDate);
+    return (overview?.weeklySlots ?? []).filter(
+      (s) => s.isActive && s.dayOfWeek === dow,
+    );
+  }, [selectedDate, overview?.weeklySlots]);
 
   const patientResults = useMemo(() => {
     const q = patientQuery.trim();
@@ -403,6 +416,7 @@ export function DoctorAgendaView({
   ) {
     try {
       await agendaService.updateDoctorAppointment(id, status);
+      await notificationsService.markAppointmentRead(id);
       await load();
     } catch (err) {
       Alert.alert(
@@ -450,10 +464,19 @@ export function DoctorAgendaView({
                 }
                 selectedDate={selectedDate}
                 onSelectDate={(date) => {
-                  setSelectedDate(date);
+                  const next = selectedDate === date ? null : date;
+                  setSelectedDate(next);
                   setAppointmentTime('');
-                  const blocked = blockedByDate.get(date);
-                  setBlockReason(blocked?.reason ?? '');
+                  if (next) {
+                    setSearchFrom(next);
+                    setSearchTo(next);
+                    const blocked = blockedByDate.get(next);
+                    setBlockReason(blocked?.reason ?? '');
+                  } else {
+                    setSearchFrom('');
+                    setSearchTo('');
+                    setBlockReason('');
+                  }
                 }}
                 blockedByDate={blockedByDate}
                 apptCountByDate={apptCountByDate}
@@ -502,16 +525,30 @@ export function DoctorAgendaView({
 
               {(overview?.weeklySlots.length ?? 0) > 0 ? (
                 <View style={{ marginTop: 12, gap: 6 }}>
-                  <Text style={styles.dayPanelTitle}>Horarios de atención</Text>
+                  <Text style={styles.dayPanelTitle}>
+                    {selectedDate
+                      ? `Horarios · ${DAY_LABELS[dayOfWeekFromYmd(selectedDate)]}`
+                      : 'Horarios de atención'}
+                  </Text>
                   <View style={styles.weeklySlotsGrid}>
-                    {overview!.weeklySlots.map((s) => (
+                    {(selectedDate
+                      ? selectedDaySlots
+                      : overview!.weeklySlots
+                    ).map((s) => (
                       <View key={s.id} style={styles.weeklySlotItem}>
                         <Text style={styles.weeklySlotText}>
-                          {DAY_LABELS[s.dayOfWeek]} · {s.startTime}–{s.endTime}
+                          {selectedDate
+                            ? `${s.startTime}–${s.endTime}`
+                            : `${DAY_LABELS[s.dayOfWeek]} · ${s.startTime}–${s.endTime}`}
                         </Text>
                       </View>
                     ))}
                   </View>
+                  {selectedDate && selectedDaySlots.length === 0 ? (
+                    <Text style={styles.sectionSubtitle}>
+                      Sin franjas ese día de la semana.
+                    </Text>
+                  ) : null}
                 </View>
               ) : (
                 <Text style={styles.sectionSubtitle}>
@@ -811,16 +848,35 @@ export function DoctorAgendaView({
             </View>
 
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Citas</Text>
-              <Text style={styles.sectionSubtitle}>
-                Toca una cita para abrirla y cambiar el estado.
+              <Text style={styles.sectionTitle}>
+                {selectedDate ? `Citas · ${selectedDate}` : 'Citas del mes'}
               </Text>
+              <Text style={styles.sectionSubtitle}>
+                {selectedDate
+                  ? 'Filtrado por el día del calendario. Toca otra vez el mismo día para ver todo el mes.'
+                  : 'Toca un día en el calendario o busca por fecha. Luego toca una cita para cambiar el estado.'}
+              </Text>
+              {selectedDate ? (
+                <Pressable
+                  onPress={() => {
+                    setSelectedDate(null);
+                    setSearchFrom('');
+                    setSearchTo('');
+                    setAppointmentTime('');
+                    setBlockReason('');
+                  }}
+                  style={[styles.chip, { alignSelf: 'flex-start', marginBottom: 8 }]}
+                >
+                  <Text style={styles.chipText}>Ver todo el mes</Text>
+                </Pressable>
+              ) : null}
               <CalendarDateField
                 value={searchFrom}
                 rangeEnd={searchTo}
                 onChange={(date) => {
                   setSearchFrom(date);
                   setSearchTo(date);
+                  setSelectedDate(date || null);
                   if (date) {
                     const [y, m] = date.split('-').map(Number);
                     setAnchor(new Date(y, m - 1, 1));
@@ -829,6 +885,10 @@ export function DoctorAgendaView({
                 onChangeRange={(fromDate, toDate) => {
                   setSearchFrom(fromDate);
                   setSearchTo(toDate);
+                  // Rango: limpiar día único del calendario principal
+                  setSelectedDate(
+                    fromDate && toDate && fromDate === toDate ? fromDate : null,
+                  );
                   if (fromDate) {
                     const [y, m] = fromDate.split('-').map(Number);
                     setAnchor(new Date(y, m - 1, 1));
@@ -850,7 +910,9 @@ export function DoctorAgendaView({
                 <Text style={styles.emptyText}>Sin citas este mes.</Text>
               ) : filteredAppointments.length === 0 ? (
                 <Text style={styles.emptyText}>
-                  No hay citas que coincidan con esa fecha o rango.
+                  {selectedDate
+                    ? `No hay citas el ${selectedDate}.`
+                    : 'No hay citas que coincidan con esa fecha o rango.'}
                 </Text>
               ) : (
                 filteredAppointments.map((a: AgendaAppointment) => {

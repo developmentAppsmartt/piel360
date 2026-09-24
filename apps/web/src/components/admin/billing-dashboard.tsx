@@ -17,6 +17,9 @@ type BillingInvoice = {
   gatewayFeePercent: number;
   netAfterGateway: number;
   operationalCostAmount: number;
+  operationalCostPercent?: number;
+  apiTokenCostAmount?: number;
+  ivaAmount?: number;
   commissionBaseAmount: number;
   alliedCommissionPercent: number | null;
   alliedCommissionAmount: number;
@@ -360,6 +363,17 @@ export function BillingDashboard() {
                     </td>
                     <td className="px-4 py-3 tabular-nums text-muted-foreground">
                       {formatCop(inv.operationalCostAmount ?? 0)}
+                      {inv.operationalCostPercent != null &&
+                      inv.operationalCostPercent > 0 ? (
+                        <span className="block text-[11px]">
+                          Op. {inv.operationalCostPercent}%
+                        </span>
+                      ) : null}
+                      {(inv.apiTokenCostAmount ?? 0) > 0 ? (
+                        <span className="block text-[11px]">
+                          API {formatCop(inv.apiTokenCostAmount ?? 0)}
+                        </span>
+                      ) : null}
                       <span className="block text-[11px]">
                         Base {formatCop(inv.commissionBaseAmount ?? inv.netAfterGateway)}
                       </span>

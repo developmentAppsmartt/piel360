@@ -19,6 +19,35 @@ export class PlanFeatureDto {
   included!: boolean;
 }
 
+export class PlanApiCostLineDto {
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  units!: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  unitPrice!: number;
+}
+
+export class PlanApiCostsDto {
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PlanApiCostLineDto)
+  skiniver?: PlanApiCostLineDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PlanApiCostLineDto)
+  youcam?: PlanApiCostLineDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PlanApiCostLineDto)
+  fitzpatrick?: PlanApiCostLineDto;
+}
+
 export class CreatePlanDto {
   @IsString()
   name!: string;
@@ -87,4 +116,13 @@ export class CreatePlanDto {
   @IsOptional()
   @IsString()
   planType?: 'individual' | 'business';
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PlanApiCostsDto)
+  apiCosts?: PlanApiCostsDto;
+
+  @IsOptional()
+  @IsBoolean()
+  ivaEnabled?: boolean;
 }

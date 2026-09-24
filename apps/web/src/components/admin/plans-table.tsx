@@ -23,7 +23,8 @@ function buildColumns(onEdit: (plan: PlanAdmin) => void, onDelete: (plan: PlanAd
     }),
     columnHelper.accessor("analysisLimit", { header: "Límite de análisis" }),
     columnHelper.accessor("maxUsers", { header: "Usuarios máx." }),
-    columnHelper.accessor("price", {
+    columnHelper.accessor((row) => row.customerPrice ?? row.price, {
+      id: "price",
       header: "Precio",
       cell: (info) => formatCOP(info.getValue()),
     }),

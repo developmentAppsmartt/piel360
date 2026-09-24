@@ -5,6 +5,9 @@ export type CatalogPlan = {
   name: string;
   description: string | null;
   price: string;
+  /** Precio al cliente (con IVA si aplica). */
+  customerPrice?: string;
+  ivaEnabled?: boolean;
   analysisLimit: number;
   durationDays: number;
   planType?: string;

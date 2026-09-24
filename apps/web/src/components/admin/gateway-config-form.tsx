@@ -17,6 +17,7 @@ const gatewayConfigSchema = z.object({
   integritySecret: z.string(),
   webhookSecret: z.string(),
   feePercent: z.number().min(0).max(100),
+  operationalCostPercent: z.number().min(0).max(100),
   operationalCostFixed: z.number().min(0),
   payoutApiKey: z.string(),
   payoutUserPrincipalId: z.string(),
@@ -34,6 +35,7 @@ export interface GatewayConfigFormInput {
   integritySecret?: string;
   webhookSecret?: string;
   feePercent?: number;
+  operationalCostPercent?: number;
   operationalCostFixed?: number;
   payoutApiKey?: string;
   payoutUserPrincipalId?: string;
@@ -50,6 +52,7 @@ function toInput(values: GatewayConfigFormValues): GatewayConfigFormInput {
     integritySecret: values.integritySecret || undefined,
     webhookSecret: values.webhookSecret || undefined,
     feePercent: values.feePercent,
+    operationalCostPercent: values.operationalCostPercent,
     operationalCostFixed: values.operationalCostFixed,
     payoutApiKey: values.payoutApiKey || undefined,
     payoutUserPrincipalId: values.payoutUserPrincipalId || undefined,
@@ -87,6 +90,7 @@ export function GatewayConfigForm({
       integritySecret: "",
       webhookSecret: "",
       feePercent: defaultValues?.feePercent ?? 2.99,
+      operationalCostPercent: defaultValues?.operationalCostPercent ?? 0,
       operationalCostFixed: defaultValues?.operationalCostFixed ?? 0,
       payoutApiKey: "",
       payoutUserPrincipalId: "",
@@ -188,7 +192,22 @@ export function GatewayConfigForm({
           </div>
           <div>
             <TextField
-              label="Gastos operativos (COP)"
+              label="Gastos operativos (%)"
+              id="operationalCostPercent"
+              type="number"
+              step="0.01"
+              min={0}
+              max={100}
+              {...register("operationalCostPercent", { valueAsNumber: true })}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              % sobre el neto tras Wompi, antes del costo de tokens API y del %
+              del referido.
+            </p>
+          </div>
+          <div>
+            <TextField
+              label="Gastos operativos fijo (COP, legacy)"
               id="operationalCostFixed"
               type="number"
               step="1"
@@ -196,8 +215,7 @@ export function GatewayConfigForm({
               {...register("operationalCostFixed", { valueAsNumber: true })}
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Monto fijo que se resta tras la comisión de pasarela y antes del %
-              del referido.
+              Solo se usa si el % está en 0. Preferir el porcentaje.
             </p>
           </div>
         </div>
