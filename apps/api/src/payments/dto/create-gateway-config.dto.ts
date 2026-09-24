@@ -42,12 +42,20 @@ export class CreateGatewayConfigDto {
   @Max(100)
   feePercent?: number;
 
-  /** Gasto operativo fijo en COP (default 0). */
+  /** Gasto operativo fijo en COP (legacy; preferir %). */
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(0)
   operationalCostFixed?: number;
+
+  /** Gasto operativo % sobre neto tras pasarela. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  operationalCostPercent?: number;
 
   @IsOptional()
   @IsString()

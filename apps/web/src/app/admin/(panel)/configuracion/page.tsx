@@ -5,8 +5,9 @@ import { Globe2, Save, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAllAppConfigs, useUpdateAppConfig } from "@/lib/queries/app-config";
 import { ParameterCatalogManager } from "@/components/admin/parameter-catalog-manager";
+import { BillingRatesCard } from "@/components/admin/billing-rates-card";
+import { BILLING_CONFIG_KEYS } from "@piel360/shared";
 
-// Monedas ISO 4217 más comunes para selector
 const COMMON_CURRENCIES = [
   { code: "COP", label: "Peso Colombiano (COP)" },
   { code: "USD", label: "Dólar Estadounidense (USD)" },
@@ -17,6 +18,8 @@ const COMMON_CURRENCIES = [
   { code: "CLP", label: "Peso Chileno (CLP)" },
   { code: "ARS", label: "Peso Argentino (ARS)" },
 ];
+
+const BILLING_KEYS: Set<string> = new Set(Object.values(BILLING_CONFIG_KEYS));
 
 export default function ConfiguracionAdminPage() {
   const { data: configs, isLoading } = useAllAppConfigs();
@@ -36,9 +39,10 @@ export default function ConfiguracionAdminPage() {
     setTimeout(() => setSaved(false), 3000);
   };
 
+  const otherConfigs = configs?.filter((cfg) => !BILLING_KEYS.has(cfg.key));
+
   return (
     <div className="space-y-6 max-w-2xl">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold">Configuración Global</h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -46,7 +50,6 @@ export default function ConfiguracionAdminPage() {
         </p>
       </div>
 
-      {/* Card moneda */}
       <div className="rounded-xl border border-border bg-card p-6 space-y-5">
         <div className="flex items-start gap-4">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary/10">
@@ -106,19 +109,23 @@ export default function ConfiguracionAdminPage() {
         )}
       </div>
 
+      <BillingRatesCard />
+
       <ParameterCatalogManager />
 
-      {/* Tabla de configs actuales */}
-      {configs && configs.length > 0 && (
+      {otherConfigs && otherConfigs.length > 0 && (
         <div className="rounded-xl border border-border">
           <div className="px-4 py-3 border-b border-border">
             <h3 className="text-sm font-semibold text-foreground">
-              Configuraciones activas
+              Otras configuraciones
             </h3>
           </div>
           <div className="divide-y divide-border">
-            {configs.map((cfg) => (
-              <div key={cfg.id} className="flex items-center justify-between px-4 py-3">
+            {otherConfigs.map((cfg) => (
+              <div
+                key={cfg.id}
+                className="flex items-center justify-between px-4 py-3"
+              >
                 <span className="font-mono text-sm text-muted-foreground">
                   {cfg.key}
                 </span>

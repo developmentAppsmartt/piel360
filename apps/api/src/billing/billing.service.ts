@@ -5,6 +5,14 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import {
+  computeApiTokenCostCop,
+  computeSaleEconomics,
+  parsePlanApiCosts,
+  type BillingRates,
+  BILLING_CONFIG_KEYS,
+  DEFAULT_BILLING_RATES,
+} from '@piel360/shared';
 import { EncryptionService } from '../common/encryption.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -43,9 +51,30 @@ export class BillingService {
     private readonly encryption: EncryptionService,
   ) {}
 
+  async getBillingRates(): Promise<BillingRates> {
+    const keys = Object.values(BILLING_CONFIG_KEYS);
+    const rows = await this.prisma.appConfig.findMany({
+      where: { key: { in: [...keys] } },
+    });
+    const map = new Map(rows.map((r) => [r.key, r.value]));
+    const num = (key: string, fallback: number) => {
+      const raw = map.get(key);
+      const n = raw != null ? Number(raw) : NaN;
+      return Number.isFinite(n) && n >= 0 ? n : fallback;
+    };
+    return {
+      usdToCop: num(BILLING_CONFIG_KEYS.usdToCop, DEFAULT_BILLING_RATES.usdToCop),
+      eurToCop: num(BILLING_CONFIG_KEYS.eurToCop, DEFAULT_BILLING_RATES.eurToCop),
+      ivaPercentDefault: num(
+        BILLING_CONFIG_KEYS.ivaPercentDefault,
+        DEFAULT_BILLING_RATES.ivaPercentDefault,
+      ),
+    };
+  }
+
   /**
    * Crea factura interna al activar una suscripción pagada.
-   * Fórmula: bruto − fee pasarela − gastos operativos = base;
+   * bruto(+IVA) − fee pasarela − gasto op.% − tokens API = base;
    * si hay referido aliado, comisión = base × % aliado; resto → plataforma.
    */
   async recordSubscriptionSale(input: RecordSubscriptionSaleInput) {
@@ -54,7 +83,14 @@ export class BillingService {
     });
     if (existing) return existing;
 
-    const gross = roundMoney(Number(input.planPrice));
+    const plan = await this.prisma.plan.findUnique({
+      where: { id: input.planId },
+      select: { price: true, ivaEnabled: true, apiCosts: true },
+    });
+    const planPrice = roundMoney(
+      Number(plan?.price ?? input.planPrice),
+    );
+
     const gateway = await this.prisma.gatewayConfig.findFirst({
       where: { isActive: true },
       orderBy: { id: 'desc' },
@@ -64,22 +100,10 @@ export class BillingService {
     if (feePercent == null) {
       feePercent = gateway?.feePercent != null ? Number(gateway.feePercent) : 2.99;
     }
-    feePercent = roundMoney(Number(feePercent));
 
-    const gatewayFeeAmount = roundMoney((gross * feePercent) / 100);
-    const netAfterGateway = roundMoney(gross - gatewayFeeAmount);
-
-    const operationalCostConfigured = roundMoney(
-      gateway?.operationalCostFixed != null
-        ? Number(gateway.operationalCostFixed)
-        : 0,
-    );
-    const operationalCostAmount = roundMoney(
-      Math.min(Math.max(0, operationalCostConfigured), Math.max(0, netAfterGateway)),
-    );
-    const commissionBaseAmount = roundMoney(
-      Math.max(0, netAfterGateway - operationalCostAmount),
-    );
+    const rates = await this.getBillingRates();
+    const apiCosts = parsePlanApiCosts(plan?.apiCosts);
+    const apiTokenCostCop = computeApiTokenCostCop(apiCosts, rates);
 
     const referral = await this.prisma.referral.findFirst({
       where: {
@@ -103,35 +127,58 @@ export class BillingService {
       org?.referralCommissionPercent != null
         ? Number(org.referralCommissionPercent)
         : null;
-    const isReferredSale = Boolean(org && alliedPercent != null && alliedPercent > 0);
-    const alliedCommissionAmount = isReferredSale
-      ? roundMoney((commissionBaseAmount * (alliedPercent as number)) / 100)
-      : 0;
-    const platformNetAmount = roundMoney(
-      commissionBaseAmount - alliedCommissionAmount,
-    );
+
+    const economics = computeSaleEconomics({
+      planPrice,
+      ivaEnabled: Boolean(plan?.ivaEnabled),
+      ivaPercent: rates.ivaPercentDefault,
+      gatewayFeePercent: Number(feePercent),
+      operationalCostPercent:
+        gateway?.operationalCostPercent != null
+          ? Number(gateway.operationalCostPercent)
+          : 0,
+      operationalCostFixed:
+        gateway?.operationalCostFixed != null
+          ? Number(gateway.operationalCostFixed)
+          : 0,
+      apiTokenCostCop,
+      alliedCommissionPercent: alliedPercent,
+    });
 
     return this.prisma.subscriptionInvoice.create({
       data: {
         subscriptionId: input.subscriptionId,
         userId: input.userId,
         planId: input.planId,
-        organizationId: isReferredSale ? org!.id : null,
-        grossAmount: new Prisma.Decimal(gross),
-        gatewayFeePercent: new Prisma.Decimal(feePercent),
-        gatewayFeeAmount: new Prisma.Decimal(gatewayFeeAmount),
-        netAfterGateway: new Prisma.Decimal(netAfterGateway),
-        operationalCostAmount: new Prisma.Decimal(operationalCostAmount),
-        commissionBaseAmount: new Prisma.Decimal(commissionBaseAmount),
-        isReferredSale,
-        alliedCommissionPercent: isReferredSale
-          ? new Prisma.Decimal(alliedPercent as number)
+        organizationId: economics.isReferredSale ? org!.id : null,
+        planBaseAmount: new Prisma.Decimal(economics.planBaseAmount),
+        ivaPercent: new Prisma.Decimal(economics.ivaPercent),
+        ivaAmount: new Prisma.Decimal(economics.ivaAmount),
+        grossAmount: new Prisma.Decimal(economics.grossAmount),
+        gatewayFeePercent: new Prisma.Decimal(economics.gatewayFeePercent),
+        gatewayFeeAmount: new Prisma.Decimal(economics.gatewayFeeAmount),
+        netAfterGateway: new Prisma.Decimal(economics.netAfterGateway),
+        operationalCostPercent: new Prisma.Decimal(
+          economics.operationalCostPercent,
+        ),
+        operationalCostAmount: new Prisma.Decimal(
+          economics.operationalCostAmount,
+        ),
+        apiTokenCostAmount: new Prisma.Decimal(economics.apiTokenCostAmount),
+        usdRateSnapshot: new Prisma.Decimal(rates.usdToCop),
+        eurRateSnapshot: new Prisma.Decimal(rates.eurToCop),
+        commissionBaseAmount: new Prisma.Decimal(economics.commissionBaseAmount),
+        isReferredSale: economics.isReferredSale,
+        alliedCommissionPercent: economics.isReferredSale
+          ? new Prisma.Decimal(economics.alliedCommissionPercent as number)
           : null,
-        alliedCommissionAmount: new Prisma.Decimal(alliedCommissionAmount),
-        platformNetAmount: new Prisma.Decimal(platformNetAmount),
+        alliedCommissionAmount: new Prisma.Decimal(
+          economics.alliedCommissionAmount,
+        ),
+        platformNetAmount: new Prisma.Decimal(economics.platformNetAmount),
         currency: 'COP',
         wompiTransactionId: input.wompiTransactionId,
-        alliedPayoutStatus: isReferredSale ? 'pending' : 'none',
+        alliedPayoutStatus: economics.isReferredSale ? 'pending' : 'none',
       },
     });
   }
@@ -920,10 +967,19 @@ export class BillingService {
           }
         : null,
       grossAmount: Number(inv.grossAmount),
+      planBaseAmount: Number(inv.planBaseAmount ?? inv.grossAmount),
+      ivaPercent: Number(inv.ivaPercent ?? 0),
+      ivaAmount: Number(inv.ivaAmount ?? 0),
       gatewayFeePercent: Number(inv.gatewayFeePercent),
       gatewayFeeAmount: Number(inv.gatewayFeeAmount),
       netAfterGateway: Number(inv.netAfterGateway),
+      operationalCostPercent: Number(inv.operationalCostPercent ?? 0),
       operationalCostAmount: Number(inv.operationalCostAmount),
+      apiTokenCostAmount: Number(inv.apiTokenCostAmount ?? 0),
+      usdRateSnapshot:
+        inv.usdRateSnapshot != null ? Number(inv.usdRateSnapshot) : null,
+      eurRateSnapshot:
+        inv.eurRateSnapshot != null ? Number(inv.eurRateSnapshot) : null,
       commissionBaseAmount: Number(inv.commissionBaseAmount),
       isReferredSale: inv.isReferredSale,
       alliedCommissionPercent:

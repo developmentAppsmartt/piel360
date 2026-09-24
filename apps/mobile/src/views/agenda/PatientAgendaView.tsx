@@ -158,6 +158,13 @@ export function PatientAgendaView({
     [appointments],
   );
 
+  const filteredAppointments = useMemo(() => {
+    if (!selectedDate) return sortedAppointments;
+    return sortedAppointments.filter(
+      (a) => ymdLocal(new Date(a.startsAt)) === selectedDate,
+    );
+  }, [sortedAppointments, selectedDate]);
+
   const hourOptions = useMemo(() => {
     if (!selectedDate || blockedByDate.has(selectedDate)) return [];
     return availableStartTimes(
@@ -291,7 +298,7 @@ export function PatientAgendaView({
                 }
                 selectedDate={selectedDate}
                 onSelectDate={(date) => {
-                  setSelectedDate(date);
+                  setSelectedDate((prev) => (prev === date ? null : date));
                   setAppointmentTime('');
                 }}
                 blockedByDate={blockedByDate}
@@ -416,15 +423,33 @@ export function PatientAgendaView({
             </View>
 
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Mis citas</Text>
-              <Text style={styles.sectionSubtitle}>
-                Incluye las que te asigna tu profesional y las que solicitas.
-                Toca una para responder o cambiar el estado.
+              <Text style={styles.sectionTitle}>
+                {selectedDate ? `Mis citas · ${selectedDate}` : 'Mis citas'}
               </Text>
+              <Text style={styles.sectionSubtitle}>
+                {selectedDate
+                  ? 'Filtrado por el día del calendario. Toca otra vez el mismo día para ver todas.'
+                  : 'Incluye las que te asigna tu profesional y las que solicitas. Toca una para responder o cambiar el estado.'}
+              </Text>
+              {selectedDate ? (
+                <Pressable
+                  onPress={() => {
+                    setSelectedDate(null);
+                    setAppointmentTime('');
+                  }}
+                  style={[styles.chip, { alignSelf: 'flex-start', marginBottom: 8 }]}
+                >
+                  <Text style={styles.chipText}>Ver todas</Text>
+                </Pressable>
+              ) : null}
               {sortedAppointments.length === 0 ? (
                 <Text style={styles.emptyText}>Aún no tienes citas.</Text>
+              ) : filteredAppointments.length === 0 ? (
+                <Text style={styles.emptyText}>
+                  No hay citas el {selectedDate}.
+                </Text>
               ) : (
-                sortedAppointments.map((a) => {
+                filteredAppointments.map((a) => {
                   const open = openApptId === a.id;
                   const doctorName = a.doctor
                     ? `Dr. ${a.doctor.firstName} ${a.doctor.lastName}`.trim()

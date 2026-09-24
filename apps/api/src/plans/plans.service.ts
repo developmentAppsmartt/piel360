@@ -1,6 +1,12 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { Plan, Prisma } from '@prisma/client';
-import { toPublicPlanProviders } from '@piel360/shared';
+import {
+  BILLING_CONFIG_KEYS,
+  DEFAULT_BILLING_RATES,
+  parsePlanApiCosts,
+  planCustomerPrice,
+  toPublicPlanProviders,
+} from '@piel360/shared';
 import type { JwtPayload } from '../auth/types';
 import { isEnterpriseDoctor } from '../doctors/doctor-account.util';
 import { PrismaService } from '../prisma/prisma.service';
@@ -27,6 +33,13 @@ function normalizePlanFeatures(
     .slice(0, 20);
 }
 
+function normalizeApiCosts(
+  apiCosts: CreatePlanDto['apiCosts'] | undefined,
+): Prisma.InputJsonValue | undefined {
+  if (apiCosts === undefined) return undefined;
+  return parsePlanApiCosts(apiCosts) as Prisma.InputJsonValue;
+}
+
 @Injectable()
 export class PlansService {
   constructor(
@@ -34,6 +47,33 @@ export class PlansService {
     private readonly specialtyAccess: SpecialtyAccessService,
     private readonly planPool: PlanPoolAvailabilityService,
   ) {}
+
+  private async getIvaPercentDefault(): Promise<number> {
+    const row = await this.prisma.appConfig.findUnique({
+      where: { key: BILLING_CONFIG_KEYS.ivaPercentDefault },
+    });
+    const n = row != null ? Number(row.value) : NaN;
+    return Number.isFinite(n) && n >= 0
+      ? n
+      : DEFAULT_BILLING_RATES.ivaPercentDefault;
+  }
+
+  private withCustomerPrice<T extends { price: unknown; ivaEnabled?: boolean }>(
+    plan: T,
+    ivaPercent: number,
+  ) {
+    const base = Number(plan.price);
+    const customer = planCustomerPrice(
+      Number.isFinite(base) ? base : 0,
+      Boolean(plan.ivaEnabled),
+      ivaPercent,
+    );
+    return {
+      ...plan,
+      ivaPercent,
+      customerPrice: String(customer),
+    };
+  }
 
   private async enrichPlans<
     T extends Plan & {
@@ -48,16 +88,21 @@ export class PlansService {
 
   /** `GET /plans` — catálogo para el selector de planes (checkout Wompi). */
   async findAll(user?: JwtPayload) {
-    const plans = await this.prisma.plan.findMany({
-      where: { isActive: true },
-      include: { provider: true },
-      orderBy: { price: 'asc' },
-    });
+    const [plans, ivaPercent] = await Promise.all([
+      this.prisma.plan.findMany({
+        where: { isActive: true },
+        include: { provider: true },
+        orderBy: { price: 'asc' },
+      }),
+      this.getIvaPercentDefault(),
+    ]);
     const enriched = await this.enrichPlans(plans);
     const withPool = await this.planPool.enrichPlans(enriched);
 
     const toPublic = <T extends (typeof withPool)[number]>(list: T[]) =>
-      list.map((plan) => toPublicPlanProviders(plan));
+      list.map((plan) =>
+        toPublicPlanProviders(this.withCustomerPrice(plan, ivaPercent)),
+      );
 
     if (!user || user.role !== 'doctor') return toPublic(withPool);
 
@@ -83,12 +128,16 @@ export class PlansService {
 
   /** `GET /admin/plans` */
   async findAllAdmin() {
-    const plans = await this.prisma.plan.findMany({
-      include: { provider: true, _count: { select: { subscriptions: true } } },
-      orderBy: { id: 'asc' },
-    });
+    const [plans, ivaPercent] = await Promise.all([
+      this.prisma.plan.findMany({
+        include: { provider: true, _count: { select: { subscriptions: true } } },
+        orderBy: { id: 'asc' },
+      }),
+      this.getIvaPercentDefault(),
+    ]);
     const enriched = await this.enrichPlans(plans);
-    return this.planPool.enrichPlans(enriched);
+    const withPool = await this.planPool.enrichPlans(enriched);
+    return withPool.map((plan) => this.withCustomerPrice(plan, ivaPercent));
   }
 
   findProviders() {
@@ -124,6 +173,8 @@ export class PlansService {
         description: dto.description,
         features: normalizePlanFeatures(dto.features) ?? [],
         headerColor: dto.headerColor?.trim() || 'brand',
+        apiCosts: normalizeApiCosts(dto.apiCosts) ?? {},
+        ivaEnabled: dto.ivaEnabled ?? false,
       },
       include: { provider: true },
     });
@@ -170,6 +221,10 @@ export class PlansService {
         ...(dto.headerColor !== undefined
           ? { headerColor: dto.headerColor.trim() || 'brand' }
           : {}),
+        ...(dto.apiCosts !== undefined
+          ? { apiCosts: normalizeApiCosts(dto.apiCosts) ?? {} }
+          : {}),
+        ...(dto.ivaEnabled !== undefined ? { ivaEnabled: dto.ivaEnabled } : {}),
       },
       include: { provider: true },
     });

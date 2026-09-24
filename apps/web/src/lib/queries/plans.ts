@@ -41,6 +41,12 @@ export interface PlanInput {
   description?: string;
   features?: { label: string; included: boolean }[];
   headerColor?: string;
+  apiCosts?: {
+    skiniver?: { units: number; unitPrice: number };
+    youcam?: { units: number; unitPrice: number };
+    fitzpatrick?: { units: number; unitPrice: number };
+  };
+  ivaEnabled?: boolean;
 }
 
 export interface AnalysisProvider {

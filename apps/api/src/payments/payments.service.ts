@@ -19,6 +19,11 @@ import {
   buildWompiWebhookChecksum,
   generateWompiReference,
 } from './wompi.util';
+import {
+  BILLING_CONFIG_KEYS,
+  DEFAULT_BILLING_RATES,
+  computeCheckoutGrossCop,
+} from '@piel360/shared';
 
 const WOMPI_CURRENCY = 'COP';
 
@@ -44,6 +49,10 @@ function toSafeGatewayConfig(
     operationalCostFixed:
       config.operationalCostFixed != null
         ? Number(config.operationalCostFixed)
+        : 0,
+    operationalCostPercent:
+      config.operationalCostPercent != null
+        ? Number(config.operationalCostPercent)
         : 0,
     hasPayoutApiKey: Boolean(payoutApiKey),
     hasPayoutUserPrincipalId: Boolean(payoutUserPrincipalId),
@@ -82,6 +91,7 @@ export class PaymentsService {
           : undefined,
         feePercent: dto.feePercent ?? 2.99,
         operationalCostFixed: dto.operationalCostFixed ?? 0,
+        operationalCostPercent: dto.operationalCostPercent ?? 0,
         payoutApiKey: dto.payoutApiKey
           ? this.encryption.encrypt(dto.payoutApiKey)
           : undefined,
@@ -125,6 +135,7 @@ export class PaymentsService {
           : undefined,
         feePercent: dto.feePercent,
         operationalCostFixed: dto.operationalCostFixed,
+        operationalCostPercent: dto.operationalCostPercent,
         payoutApiKey: dto.payoutApiKey
           ? this.encryption.encrypt(dto.payoutApiKey)
           : undefined,
@@ -180,8 +191,21 @@ export class PaymentsService {
     const reference = generateWompiReference(
       currentUser.role === 'patient' ? 'SUB-PAT' : 'SUB',
     );
+    let ivaPercent = DEFAULT_BILLING_RATES.ivaPercentDefault;
+    if (plan.ivaEnabled) {
+      const ivaRow = await this.prisma.appConfig.findUnique({
+        where: { key: BILLING_CONFIG_KEYS.ivaPercentDefault },
+      });
+      const n = ivaRow?.value != null ? Number(ivaRow.value) : NaN;
+      if (Number.isFinite(n) && n >= 0) ivaPercent = n;
+    }
+    const grossCop = computeCheckoutGrossCop(
+      Number(plan.price),
+      Boolean(plan.ivaEnabled),
+      ivaPercent,
+    );
     // Siempre entero — corrige el bug del panel doctor de Laravel (no casteaba).
-    const amountInCents = Math.round(Number(plan.price) * 100);
+    const amountInCents = Math.round(grossCop * 100);
     const integrity = buildWompiIntegritySignature(
       reference,
       amountInCents,

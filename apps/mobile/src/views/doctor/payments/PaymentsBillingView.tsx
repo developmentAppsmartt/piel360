@@ -269,7 +269,7 @@ export function PaymentsBillingView({
                       {item.endsAt ? ` · vence ${formatDate(item.endsAt)}` : ''}
                     </Text>
                     <Text style={styles.planPrice}>
-                      {formatPrice(item.plan.price)}
+                      {formatPrice(item.plan.customerPrice ?? item.plan.price)}
                     </Text>
                     <Text style={styles.planMeta}>
                       Ref.{' '}

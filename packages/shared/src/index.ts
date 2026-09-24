@@ -21,4 +21,5 @@ export * from "./skin-report.js";
 export * from "./skiniver-diagnosis-taxonomy.js";
 export * from "./email-template-variables.js";
 export * from "./allied-referral.js";
+export * from "./billing-economics.js";
 export * from "./plan-card.js";

@@ -23,7 +23,19 @@ import {
   DEFAULT_PLAN_HEADER_COLOR,
   PLAN_HEADER_COLORS,
   resolvePlanHeaderColor,
+  BILLING_CONFIG_KEYS,
+  DEFAULT_BILLING_RATES,
+  API_UNITS_PER_ANALYSIS,
+  computeApiTokenCostCop,
+  computeSaleEconomics,
+  parsePlanApiCosts,
+  planCustomerPrice,
+  resolveApiUnitsForPlan,
+  stripIvaFromGross,
+  type PlanApiCosts,
 } from "@piel360/shared";
+import { useAllAppConfigs } from "@/lib/queries/app-config";
+import { useGatewayConfigs } from "@/lib/queries/gateway-configs";
 
 export type PlanFeatureDraft = { label: string; included: boolean };
 const BUSINESS_WIZARD_STEPS = [
@@ -55,21 +67,104 @@ export { PLAN_ROLE_OPTIONS };
 export type PlanWizardState = {
   name: string;
   analysisProviderIds: string[];
-  /** Límite único (planes individuales). */
-  analysisLimit: number;
-  /** Límite bolsa Skiniver (dermatológico). */
-  skiniverLimit: number;
-  /** Límite bolsa Perfect Corp (estético + fototipo). */
-  aestheticLimit: number;
-  price: number;
-  durationDays: number;
+  /** Texto para poder borrar el valor al editar. */
+  analysisLimit: string;
+  skiniverLimit: string;
+  aestheticLimit: string;
+  price: string;
+  durationDays: string;
   isActive: boolean;
   description: string;
   features: PlanFeatureDraft[];
   headerColor: string;
-  maxUsers: number;
+  maxUsers: string;
   roleLimits: Record<string, number>;
+  ivaEnabled: boolean;
+  /** Campos de costo API como texto para poder borrarlos al editar. */
+  skiniverUnits: string;
+  skiniverUnitPrice: string;
+  youcamUnits: string;
+  youcamUnitPrice: string;
+  fitzpatrickUnits: string;
+  fitzpatrickUnitPrice: string;
 };
+
+function emptyApiCostState() {
+  return {
+    ivaEnabled: false,
+    skiniverUnits: "",
+    skiniverUnitPrice: "",
+    youcamUnits: "",
+    youcamUnitPrice: "",
+    fitzpatrickUnits: "",
+    fitzpatrickUnitPrice: "",
+  };
+}
+
+/** Acepta "0,30" o "0.30"; vacío → 0. */
+function parseCostNumber(raw: string): number {
+  const t = raw.trim().replace(",", ".");
+  if (!t) return 0;
+  const n = Number(t);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
+function formatCostField(n: number | undefined | null): string {
+  if (n == null || !Number.isFinite(n) || n === 0) return "";
+  return String(n);
+}
+
+function formatIntField(n: number | undefined | null): string {
+  if (n == null || !Number.isFinite(n)) return "";
+  return String(Math.trunc(n));
+}
+
+function apiCostsFromPlan(plan: PlanAdmin) {
+  const costs = parsePlanApiCosts(plan.apiCosts);
+  return {
+    ivaEnabled: Boolean(plan.ivaEnabled),
+    skiniverUnits: formatCostField(costs.skiniver?.units),
+    skiniverUnitPrice: formatCostField(costs.skiniver?.unitPrice),
+    youcamUnits: formatCostField(costs.youcam?.units),
+    youcamUnitPrice: formatCostField(costs.youcam?.unitPrice),
+    fitzpatrickUnits: formatCostField(costs.fitzpatrick?.units),
+    fitzpatrickUnitPrice: formatCostField(costs.fitzpatrick?.unitPrice),
+  };
+}
+
+function apiCostsFromState(
+  state: PlanWizardState,
+  selectedSlugs: string[],
+  planType: PlanType,
+): PlanApiCosts {
+  const resolved = resolveApiUnitsForPlan({
+    selectedSlugs,
+    planType,
+    analysisLimit: parseCostNumber(state.analysisLimit),
+    skiniverLimit: parseCostNumber(state.skiniverLimit),
+    aestheticLimit: parseCostNumber(state.aestheticLimit),
+  });
+  const out: PlanApiCosts = {};
+  if (selectedSlugs.includes("skiniver")) {
+    out.skiniver = {
+      units: resolved.skiniverUnits,
+      unitPrice: parseCostNumber(state.skiniverUnitPrice),
+    };
+  }
+  if (selectedSlugs.includes("youcam")) {
+    out.youcam = {
+      units: resolved.youcamUnits,
+      unitPrice: parseCostNumber(state.youcamUnitPrice),
+    };
+  }
+  if (selectedSlugs.includes("fitzpatrick")) {
+    out.fitzpatrick = {
+      units: resolved.fitzpatrickUnits,
+      unitPrice: parseCostNumber(state.fitzpatrickUnitPrice),
+    };
+  }
+  return out;
+}
 
 const inputClass =
   "h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20";
@@ -115,11 +210,16 @@ function stateFromPlan(plan: PlanAdmin, roleOptions: PlanRoleOption[]): PlanWiza
   return {
     name: plan.name,
     analysisProviderIds,
-    analysisLimit: plan.analysisLimit,
-    skiniverLimit,
-    aestheticLimit,
-    price: Number(plan.price),
-    durationDays: plan.durationDays,
+    analysisLimit: formatIntField(plan.analysisLimit),
+    skiniverLimit: formatIntField(skiniverLimit),
+    aestheticLimit: formatIntField(aestheticLimit),
+    // En el wizard el COP es el precio del plan (con IVA si aplica).
+    price: formatIntField(
+      plan.ivaEnabled && plan.customerPrice != null
+        ? Number(plan.customerPrice)
+        : Number(plan.price),
+    ),
+    durationDays: formatIntField(plan.durationDays),
     isActive: plan.isActive,
     description: plan.description ?? "",
     features: Array.isArray(plan.features)
@@ -129,8 +229,9 @@ function stateFromPlan(plan: PlanAdmin, roleOptions: PlanRoleOption[]): PlanWiza
         }))
       : [],
     headerColor: resolvePlanHeaderColor(plan.headerColor).id,
-    maxUsers: plan.maxUsers ?? 1,
+    maxUsers: formatIntField(plan.maxUsers ?? 1),
     roleLimits: { ...emptyRoleLimits(roleOptions), ...(plan.roleLimits ?? {}) },
+    ...apiCostsFromPlan(plan),
   };
 }
 
@@ -138,6 +239,7 @@ function toPlanInput(
   state: PlanWizardState,
   planType: PlanType,
   providerSlugById: Map<string, string>,
+  ivaPercent: number,
 ): PlanInput {
   const selectedSlugs = state.analysisProviderIds
     .map((id) => providerSlugById.get(id))
@@ -147,12 +249,23 @@ function toPlanInput(
     (slug) => slug === "youcam" || slug === "fitzpatrick",
   );
 
-  const skiniverLimit = hasSkiniver ? state.skiniverLimit : 0;
-  const aestheticLimit = hasAesthetic ? state.aestheticLimit : 0;
+  const analysisLimitNum = parseCostNumber(state.analysisLimit);
+  const skiniverLimitNum = hasSkiniver
+    ? parseCostNumber(state.skiniverLimit)
+    : 0;
+  const aestheticLimitNum = hasAesthetic
+    ? parseCostNumber(state.aestheticLimit)
+    : 0;
   const analysisLimit =
     planType === "individual"
-      ? state.analysisLimit
-      : skiniverLimit + aestheticLimit;
+      ? analysisLimitNum
+      : skiniverLimitNum + aestheticLimitNum;
+
+  // El campo COP muestra el precio al cliente; en BD guardamos la base sin IVA.
+  const rawPrice = parseCostNumber(state.price);
+  const basePrice = state.ivaEnabled
+    ? stripIvaFromGross(rawPrice, ivaPercent)
+    : rawPrice;
 
   const base = {
     name: state.name.trim(),
@@ -162,11 +275,11 @@ function toPlanInput(
     analysisLimits:
       planType === "individual"
         ? selectedSlugs[0] === "skiniver"
-          ? { skiniver: state.analysisLimit, aesthetic: 0 }
-          : { skiniver: 0, aesthetic: state.analysisLimit }
-        : { skiniver: skiniverLimit, aesthetic: aestheticLimit },
-    price: state.price,
-    durationDays: state.durationDays,
+          ? { skiniver: analysisLimitNum, aesthetic: 0 }
+          : { skiniver: 0, aesthetic: analysisLimitNum }
+        : { skiniver: skiniverLimitNum, aesthetic: aestheticLimitNum },
+    price: basePrice,
+    durationDays: Math.max(1, parseCostNumber(state.durationDays) || 1),
     isActive: state.isActive,
     description: state.description.trim() || undefined,
     features: state.features
@@ -174,6 +287,8 @@ function toPlanInput(
       .filter((f) => f.label.length > 0),
     headerColor: state.headerColor || DEFAULT_PLAN_HEADER_COLOR,
     planType,
+    ivaEnabled: state.ivaEnabled,
+    apiCosts: apiCostsFromState(state, selectedSlugs, planType),
   };
 
   if (planType === "individual") {
@@ -187,7 +302,7 @@ function toPlanInput(
 
   return {
     ...base,
-    maxUsers: state.maxUsers,
+    maxUsers: Math.max(1, parseCostNumber(state.maxUsers) || 1),
     modules: [],
     roleLimits: state.roleLimits,
   };
@@ -241,9 +356,10 @@ function UsersAllowedCard({
   maxUsers,
   onChange,
 }: {
-  maxUsers: number;
-  onChange: (value: number) => void;
+  maxUsers: string;
+  onChange: (value: string) => void;
 }) {
+  const maxUsersN = parseCostNumber(maxUsers);
   return (
     <ModuleCard className="space-y-4">
       <ModuleCardTitle>Usuarios permitidos del plan</ModuleCardTitle>
@@ -259,11 +375,12 @@ function UsersAllowedCard({
           Número de usuarios permitidos <span className="text-destructive">*</span>
         </span>
         <input
-          type="number"
-          min={1}
+          type="text"
+          inputMode="numeric"
+          placeholder="Ej. 10"
           className={inputClass}
           value={maxUsers}
-          onChange={(e) => onChange(Math.max(1, Number(e.target.value) || 1))}
+          onChange={(e) => onChange(e.target.value)}
         />
         <span className="text-xs text-muted-foreground">
           Límite máximo de usuarios que puede tener la cuenta.
@@ -282,7 +399,7 @@ function UsersAllowedCard({
           </div>
         </div>
         <p className="text-lg font-bold text-primary tabular-nums">
-          {maxUsers} / {maxUsers}
+          {maxUsersN || "—"}
         </p>
       </div>
     </ModuleCard>
@@ -324,21 +441,41 @@ export function PlanWizardForm({
       : {
           name: "",
           analysisProviderIds: [],
-          analysisLimit: 10,
-          skiniverLimit: 500,
-          aestheticLimit: 500,
-          price: 249900,
-          durationDays: 30,
+          analysisLimit: "",
+          skiniverLimit: "",
+          aestheticLimit: "",
+          price: "",
+          durationDays: "30",
           isActive: true,
           description: "",
           features: [],
           headerColor: DEFAULT_PLAN_HEADER_COLOR,
-          maxUsers: isIndividual ? 1 : 10,
+          maxUsers: isIndividual ? "1" : "10",
           roleLimits: emptyRoleLimits(PLAN_ROLE_OPTIONS),
+          ...emptyApiCostState(),
         },
   );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const appConfigs = useAllAppConfigs();
+  const gateways = useGatewayConfigs();
+
+  const billingRates = useMemo(() => {
+    const rows = appConfigs.data ?? [];
+    const get = (key: string, fallback: number) => {
+      const row = rows.find((c) => c.key === key);
+      const n = row ? Number(row.value) : NaN;
+      return Number.isFinite(n) && n >= 0 ? n : fallback;
+    };
+    return {
+      usdToCop: get(BILLING_CONFIG_KEYS.usdToCop, DEFAULT_BILLING_RATES.usdToCop),
+      eurToCop: get(BILLING_CONFIG_KEYS.eurToCop, DEFAULT_BILLING_RATES.eurToCop),
+      ivaPercentDefault: get(
+        BILLING_CONFIG_KEYS.ivaPercentDefault,
+        DEFAULT_BILLING_RATES.ivaPercentDefault,
+      ),
+    };
+  }, [appConfigs.data]);
 
   // Cuando llega el catálogo de roles, rellena claves faltantes sin pisar valores.
   useEffect(() => {
@@ -349,10 +486,14 @@ export function PlanWizardForm({
   }, [roleOptions]);
 
   const assignedRolesTotal = useMemo(
-    () => Object.values(state.roleLimits).reduce((sum, value) => sum + (value || 0), 0),
+    () =>
+      Object.values(state.roleLimits).reduce((sum, value) => sum + (value || 0), 0),
     [state.roleLimits],
   );
-  const seatsRemaining = Math.max(0, state.maxUsers - assignedRolesTotal);
+  const seatsRemaining = Math.max(
+    0,
+    parseCostNumber(state.maxUsers) - assignedRolesTotal,
+  );
   const seatsFull = seatsRemaining === 0;
 
   const providerSlugById = useMemo(() => {
@@ -371,9 +512,79 @@ export function PlanWizardForm({
     [state.analysisProviderIds, providerSlugById],
   );
   const skiniverEnabled = selectedSlugs.includes("skiniver");
-  const aestheticEnabled = selectedSlugs.some(
-    (slug) => slug === "youcam" || slug === "fitzpatrick",
+  const youcamEnabled = selectedSlugs.includes("youcam");
+  const fitzpatrickEnabled = selectedSlugs.includes("fitzpatrick");
+  const aestheticEnabled = youcamEnabled || fitzpatrickEnabled;
+
+  const apiUnitsResolved = useMemo(
+    () =>
+      resolveApiUnitsForPlan({
+        selectedSlugs,
+        planType,
+        analysisLimit: parseCostNumber(state.analysisLimit),
+        skiniverLimit: parseCostNumber(state.skiniverLimit),
+        aestheticLimit: parseCostNumber(state.aestheticLimit),
+      }),
+    [
+      selectedSlugs,
+      planType,
+      state.analysisLimit,
+      state.skiniverLimit,
+      state.aestheticLimit,
+    ],
   );
+
+  // Sincroniza unidades = análisis × ud/análisis según el tipo seleccionado.
+  useEffect(() => {
+    setState((current) => {
+      const next = {
+        ...current,
+        skiniverUnits: skiniverEnabled
+          ? String(apiUnitsResolved.skiniverUnits)
+          : "",
+        youcamUnits: youcamEnabled ? String(apiUnitsResolved.youcamUnits) : "",
+        fitzpatrickUnits: fitzpatrickEnabled
+          ? String(apiUnitsResolved.fitzpatrickUnits)
+          : "",
+      };
+      if (
+        next.skiniverUnits === current.skiniverUnits &&
+        next.youcamUnits === current.youcamUnits &&
+        next.fitzpatrickUnits === current.fitzpatrickUnits
+      ) {
+        return current;
+      }
+      return next;
+    });
+  }, [
+    skiniverEnabled,
+    youcamEnabled,
+    fitzpatrickEnabled,
+    apiUnitsResolved.skiniverUnits,
+    apiUnitsResolved.youcamUnits,
+    apiUnitsResolved.fitzpatrickUnits,
+  ]);
+
+  const economicsPreview = useMemo(() => {
+    const gateway =
+      (gateways.data ?? []).find((g) => g.isActive) ?? gateways.data?.[0];
+    const apiCosts = apiCostsFromState(state, selectedSlugs, planType);
+    const tokenCost = computeApiTokenCostCop(apiCosts, billingRates);
+    const rawPrice = parseCostNumber(state.price);
+    const planBase = state.ivaEnabled
+      ? stripIvaFromGross(rawPrice, billingRates.ivaPercentDefault)
+      : rawPrice;
+    return computeSaleEconomics({
+      planPrice: planBase,
+      ivaEnabled: state.ivaEnabled,
+      ivaPercent: billingRates.ivaPercentDefault,
+      gatewayFeePercent: gateway?.feePercent ?? 2.99,
+      operationalCostPercent: gateway?.operationalCostPercent ?? 0,
+      operationalCostFixed: gateway?.operationalCostFixed ?? 0,
+      apiTokenCostCop: tokenCost,
+      alliedCommissionPercent: 10,
+    });
+  }, [state, billingRates, gateways.data, selectedSlugs, planType]);
 
   const providerLabels = useMemo(() => {
     return selectedSlugs.map((slug) => {
@@ -419,35 +630,43 @@ export function PlanWizardForm({
       if (isIndividual && state.analysisProviderIds.length !== 1) {
         return "El plan individual solo puede incluir un análisis.";
       }
-      if (isIndividual && state.analysisLimit < 0) {
+      if (isIndividual && parseCostNumber(state.analysisLimit) < 0) {
         return "El límite de análisis debe ser mayor o igual a 0.";
       }
       if (!isIndividual) {
-        if (skiniverEnabled && state.skiniverLimit < 0) {
+        const skiniverN = parseCostNumber(state.skiniverLimit);
+        const aestheticN = parseCostNumber(state.aestheticLimit);
+        if (skiniverEnabled && skiniverN < 0) {
           return "El límite dermatológico debe ser mayor o igual a 0.";
         }
-        if (aestheticEnabled && state.aestheticLimit < 0) {
+        if (aestheticEnabled && aestheticN < 0) {
           return "El límite estético/fototipo debe ser mayor o igual a 0.";
         }
         if (skiniverEnabled && aestheticEnabled) {
-          if (state.skiniverLimit + state.aestheticLimit < 1) {
+          if (skiniverN + aestheticN < 1) {
             return "Define al menos un crédito en los límites de análisis.";
           }
-        } else if (skiniverEnabled && state.skiniverLimit < 1) {
+        } else if (skiniverEnabled && skiniverN < 1) {
           return "Define el límite de análisis dermatológico.";
-        } else if (aestheticEnabled && state.aestheticLimit < 1) {
+        } else if (aestheticEnabled && aestheticN < 1) {
           return "Define el límite de análisis estético/fototipo.";
         }
       }
-      if (state.price < 0) return "El precio debe ser mayor o igual a 0.";
-      if (state.durationDays < 1) return "La duración debe ser al menos 1 día.";
-      if (!isIndividual && state.maxUsers < 1) {
+      if (parseCostNumber(state.price) < 0)
+        return "El precio debe ser mayor o igual a 0.";
+      if (parseCostNumber(state.durationDays) < 1)
+        return "La duración debe ser al menos 1 día.";
+      if (!isIndividual && parseCostNumber(state.maxUsers) < 1) {
         return "Debe permitir al menos 1 usuario.";
       }
       if (state.description.length > 300) return "La descripción no puede superar 300 caracteres.";
     }
-    if (!isIndividual && current === 2 && assignedRolesTotal > state.maxUsers) {
-      return `La suma de usuarios por rol (${assignedRolesTotal}) supera el máximo del plan (${state.maxUsers}).`;
+    if (
+      !isIndividual &&
+      current === 2 &&
+      assignedRolesTotal > parseCostNumber(state.maxUsers)
+    ) {
+      return `La suma de usuarios por rol (${assignedRolesTotal}) supera el máximo del plan (${state.maxUsers || 0}).`;
     }
     return null;
   }
@@ -478,7 +697,14 @@ export function PlanWizardForm({
     setSaving(true);
     setError(null);
     try {
-      await onSubmit(toPlanInput(state, planType, providerSlugById));
+      await onSubmit(
+        toPlanInput(
+          state,
+          planType,
+          providerSlugById,
+          billingRates.ivaPercentDefault,
+        ),
+      );
       router.push("/admin/planes");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo guardar el plan.");
@@ -622,12 +848,13 @@ export function PlanWizardForm({
                     Límite de análisis IA <span className="text-destructive">*</span>
                   </span>
                   <input
-                    type="number"
-                    min={0}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Ej. 45"
                     className={inputClass}
                     value={state.analysisLimit}
                     onChange={(e) =>
-                      setState({ ...state, analysisLimit: Number(e.target.value) || 0 })
+                      setState({ ...state, analysisLimit: e.target.value })
                     }
                   />
                 </label>
@@ -639,15 +866,16 @@ export function PlanWizardForm({
                       {skiniverEnabled ? <span className="text-destructive">*</span> : null}
                     </span>
                     <input
-                      type="number"
-                      min={0}
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Ej. 100"
                       disabled={!skiniverEnabled}
                       className={cn(inputClass, !skiniverEnabled && "cursor-not-allowed bg-muted")}
-                      value={skiniverEnabled ? state.skiniverLimit : 0}
+                      value={skiniverEnabled ? state.skiniverLimit : ""}
                       onChange={(e) =>
                         setState({
                           ...state,
-                          skiniverLimit: Number(e.target.value) || 0,
+                          skiniverLimit: e.target.value,
                         })
                       }
                     />
@@ -663,15 +891,16 @@ export function PlanWizardForm({
                       {aestheticEnabled ? <span className="text-destructive">*</span> : null}
                     </span>
                     <input
-                      type="number"
-                      min={0}
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Ej. 45"
                       disabled={!aestheticEnabled}
                       className={cn(inputClass, !aestheticEnabled && "cursor-not-allowed bg-muted")}
-                      value={aestheticEnabled ? state.aestheticLimit : 0}
+                      value={aestheticEnabled ? state.aestheticLimit : ""}
                       onChange={(e) =>
                         setState({
                           ...state,
-                          aestheticLimit: Number(e.target.value) || 0,
+                          aestheticLimit: e.target.value,
                         })
                       }
                     />
@@ -689,26 +918,279 @@ export function PlanWizardForm({
                   Precio (COP) <span className="text-destructive">*</span>
                 </span>
                 <input
-                  type="number"
-                  min={0}
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Ej. 630000"
                   className={inputClass}
                   value={state.price}
-                  onChange={(e) => setState({ ...state, price: Number(e.target.value) || 0 })}
+                  onChange={(e) => setState({ ...state, price: e.target.value })}
                 />
+                <span className="text-xs text-muted-foreground">
+                  {state.ivaEnabled
+                    ? `Precio del plan (incluye IVA ${billingRates.ivaPercentDefault}%). Es el que se muestra en el catálogo.`
+                    : "Precio del plan en el catálogo. Activa IVA para sumarlo aquí."}
+                </span>
               </label>
+              <label className="flex items-center gap-2 text-sm md:col-span-2">
+                <input
+                  type="checkbox"
+                  className="size-4 accent-primary"
+                  checked={state.ivaEnabled}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    const pct = billingRates.ivaPercentDefault;
+                    const current = parseCostNumber(state.price);
+                    let nextPrice = state.price;
+                    if (checked && !state.ivaEnabled && current > 0) {
+                      nextPrice = formatIntField(
+                        planCustomerPrice(current, true, pct),
+                      );
+                    } else if (!checked && state.ivaEnabled && current > 0) {
+                      nextPrice = formatIntField(
+                        stripIvaFromGross(current, pct),
+                      );
+                    }
+                    setState({
+                      ...state,
+                      ivaEnabled: checked,
+                      price: nextPrice,
+                    });
+                  }}
+                />
+                <span>
+                  Incluir IVA ({billingRates.ivaPercentDefault}%) en el precio
+                  del plan
+                </span>
+              </label>
+
+              <div className="md:col-span-2 space-y-3 rounded-xl border border-border p-4">
+                <div>
+                  <p className="text-sm font-semibold">Costo API / tokens</p>
+                  <p className="text-xs text-muted-foreground">
+                    Unidades = análisis del plan × consumo por análisis (Skiniver{" "}
+                    {API_UNITS_PER_ANALYSIS.skiniver}, YouCam{" "}
+                    {API_UNITS_PER_ANALYSIS.youcam}, Fototipo{" "}
+                    {API_UNITS_PER_ANALYSIS.fitzpatrick}). Luego × valor/unidad ×
+                    TRM (dólar {billingRates.usdToCop.toLocaleString("es-CO")} /
+                    euro {billingRates.eurToCop.toLocaleString("es-CO")} COP).
+                  </p>
+                </div>
+                {selectedSlugs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Selecciona un análisis para calcular el costo de tokens.
+                  </p>
+                ) : (
+                  <div
+                    className={cn(
+                      "grid gap-3",
+                      selectedSlugs.length === 1
+                        ? "sm:grid-cols-1 max-w-md"
+                        : "sm:grid-cols-2 lg:grid-cols-3",
+                    )}
+                  >
+                    {skiniverEnabled ? (
+                      <div className="space-y-2 rounded-lg bg-muted/40 p-3">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground">
+                          Skiniver (EUR)
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {apiUnitsResolved.skiniverAnalyses} análisis ×{" "}
+                          {API_UNITS_PER_ANALYSIS.skiniver} ud ={" "}
+                          <strong>{apiUnitsResolved.skiniverUnits}</strong>{" "}
+                          unidades
+                        </p>
+                        <label className="flex flex-col gap-1 text-xs">
+                          Unidades (auto)
+                          <input
+                            type="text"
+                            readOnly
+                            className={cn(inputClass, "cursor-not-allowed bg-muted")}
+                            value={state.skiniverUnits}
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-xs">
+                          Valor / unidad (EUR)
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="Ej. 0.30"
+                            className={inputClass}
+                            value={state.skiniverUnitPrice}
+                            onChange={(e) =>
+                              setState({
+                                ...state,
+                                skiniverUnitPrice: e.target.value,
+                              })
+                            }
+                          />
+                        </label>
+                        <p className="text-xs tabular-nums text-muted-foreground">
+                          ={" "}
+                          {(
+                            apiUnitsResolved.skiniverUnits *
+                            parseCostNumber(state.skiniverUnitPrice) *
+                            billingRates.eurToCop
+                          ).toLocaleString("es-CO", {
+                            maximumFractionDigits: 0,
+                          })}{" "}
+                          COP
+                        </p>
+                      </div>
+                    ) : null}
+                    {youcamEnabled ? (
+                      <div className="space-y-2 rounded-lg bg-muted/40 p-3">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground">
+                          YouCam (USD)
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {apiUnitsResolved.youcamAnalyses} análisis ×{" "}
+                          {API_UNITS_PER_ANALYSIS.youcam} ud ={" "}
+                          <strong>{apiUnitsResolved.youcamUnits}</strong>{" "}
+                          unidades
+                        </p>
+                        <label className="flex flex-col gap-1 text-xs">
+                          Unidades (auto)
+                          <input
+                            type="text"
+                            readOnly
+                            className={cn(inputClass, "cursor-not-allowed bg-muted")}
+                            value={state.youcamUnits}
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-xs">
+                          Valor / unidad (USD)
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="Ej. 0.055"
+                            className={inputClass}
+                            value={state.youcamUnitPrice}
+                            onChange={(e) =>
+                              setState({
+                                ...state,
+                                youcamUnitPrice: e.target.value,
+                              })
+                            }
+                          />
+                        </label>
+                        <p className="text-xs tabular-nums text-muted-foreground">
+                          ={" "}
+                          {(
+                            apiUnitsResolved.youcamUnits *
+                            parseCostNumber(state.youcamUnitPrice) *
+                            billingRates.usdToCop
+                          ).toLocaleString("es-CO", {
+                            maximumFractionDigits: 0,
+                          })}{" "}
+                          COP
+                        </p>
+                      </div>
+                    ) : null}
+                    {fitzpatrickEnabled ? (
+                      <div className="space-y-2 rounded-lg bg-muted/40 p-3">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground">
+                          Fitzpatrick (USD)
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {apiUnitsResolved.fitzpatrickAnalyses} análisis ×{" "}
+                          {API_UNITS_PER_ANALYSIS.fitzpatrick} ud ={" "}
+                          <strong>{apiUnitsResolved.fitzpatrickUnits}</strong>{" "}
+                          unidades
+                        </p>
+                        <label className="flex flex-col gap-1 text-xs">
+                          Unidades (auto)
+                          <input
+                            type="text"
+                            readOnly
+                            className={cn(inputClass, "cursor-not-allowed bg-muted")}
+                            value={state.fitzpatrickUnits}
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-xs">
+                          Valor / unidad (USD)
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="Ej. 0.055"
+                            className={inputClass}
+                            value={state.fitzpatrickUnitPrice}
+                            onChange={(e) =>
+                              setState({
+                                ...state,
+                                fitzpatrickUnitPrice: e.target.value,
+                              })
+                            }
+                          />
+                        </label>
+                        <p className="text-xs tabular-nums text-muted-foreground">
+                          ={" "}
+                          {(
+                            apiUnitsResolved.fitzpatrickUnits *
+                            parseCostNumber(state.fitzpatrickUnitPrice) *
+                            billingRates.usdToCop
+                          ).toLocaleString("es-CO", {
+                            maximumFractionDigits: 0,
+                          })}{" "}
+                          COP
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+                <div className="rounded-lg border border-dashed border-border p-3 text-xs space-y-1">
+                  <p className="font-semibold">
+                    Preview liquidación (ref. 10% aliada)
+                    {providerLabels.length > 0
+                      ? ` · ${providerLabels.join(", ")}`
+                      : ""}
+                  </p>
+                  <p>
+                    Cobro cliente:{" "}
+                    <strong>
+                      ${economicsPreview.grossAmount.toLocaleString("es-CO")}
+                    </strong>
+                    {state.ivaEnabled
+                      ? ` (incluye IVA ${billingRates.ivaPercentDefault}%)`
+                      : ""}
+                  </p>
+                  <p>
+                    − Wompi {economicsPreview.gatewayFeePercent}%: $
+                    {economicsPreview.gatewayFeeAmount.toLocaleString("es-CO")}
+                  </p>
+                  <p>
+                    − Gasto op. {economicsPreview.operationalCostPercent}%: $
+                    {economicsPreview.operationalCostAmount.toLocaleString("es-CO")}
+                  </p>
+                  <p>
+                    − Tokens API: $
+                    {economicsPreview.apiTokenCostAmount.toLocaleString("es-CO")}
+                  </p>
+                  <p>
+                    Base comisión: $
+                    {economicsPreview.commissionBaseAmount.toLocaleString("es-CO")}
+                  </p>
+                  <p>
+                    Aliada 10%: $
+                    {economicsPreview.alliedCommissionAmount.toLocaleString("es-CO")}{" "}
+                    · Bolsa: $
+                    {economicsPreview.platformNetAmount.toLocaleString("es-CO")}
+                  </p>
+                </div>
+              </div>
               <label className="flex flex-col gap-1.5 text-sm">
                 <span className="font-medium">
                   Duración (días) <span className="text-destructive">*</span>
                 </span>
                 <input
-                  type="number"
-                  min={1}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Ej. 30"
                   className={inputClass}
                   value={state.durationDays}
                   onChange={(e) =>
                     setState({
                       ...state,
-                      durationDays: Math.max(1, Number(e.target.value) || 1),
+                      durationDays: e.target.value,
                     })
                   }
                 />
@@ -991,7 +1473,7 @@ export function PlanWizardForm({
                       style: "currency",
                       currency: "COP",
                       maximumFractionDigits: 0,
-                    }).format(state.price)}
+                    }).format(parseCostNumber(state.price))}
                   </dd>
                 </div>
                 <div className="flex justify-between gap-4">

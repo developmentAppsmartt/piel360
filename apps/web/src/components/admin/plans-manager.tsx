@@ -382,7 +382,12 @@ export function PlansManager() {
                           {row.maxUsers ?? "—"}
                         </td>
                         <td className="px-4 py-3 font-semibold text-foreground">
-                          {formatCOP(row.price)}
+                          {formatCOP(row.customerPrice ?? row.price)}
+                          {row.ivaEnabled ? (
+                            <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">
+                              IVA incluido
+                            </span>
+                          ) : null}
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
                           {row.durationDays} días

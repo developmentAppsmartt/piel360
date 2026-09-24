@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { AlliedPayoutsOverviewPanel } from "@/components/admin/allied-payouts-overview-panel";
+import { BillingRatesCard } from "@/components/admin/billing-rates-card";
 import { GatewayConfigForm } from "@/components/admin/gateway-config-form";
 import { useCreateGatewayConfig } from "@/lib/queries/gateway-configs";
 
@@ -29,14 +30,17 @@ export default function NuevaPasarelaPage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
-        <GatewayConfigForm
-          submitLabel="Crear pasarela"
-          onCancel={() => router.push("/admin/gateway-configs")}
-          onSubmit={async (input) => {
-            await create.mutateAsync(input);
-            router.push("/admin/gateway-configs");
-          }}
-        />
+        <div className="space-y-6">
+          <BillingRatesCard />
+          <GatewayConfigForm
+            submitLabel="Crear pasarela"
+            onCancel={() => router.push("/admin/gateway-configs")}
+            onSubmit={async (input) => {
+              await create.mutateAsync(input);
+              router.push("/admin/gateway-configs");
+            }}
+          />
+        </div>
         <AlliedPayoutsOverviewPanel />
       </div>
     </div>

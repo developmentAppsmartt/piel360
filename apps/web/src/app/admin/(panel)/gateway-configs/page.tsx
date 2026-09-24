@@ -59,6 +59,7 @@ export default function GatewayConfigsPage() {
       total: rows.length,
       active: active.length,
       feePercent: primary?.feePercent ?? null,
+      operationalCostPercent: primary?.operationalCostPercent ?? null,
       operationalCostFixed: primary?.operationalCostFixed ?? null,
       payoutsConfigured: primary?.payoutsConfigured === true,
     };
@@ -105,9 +106,13 @@ export default function GatewayConfigsPage() {
         <ModuleCard className="p-4">
           <p className="text-xs font-medium text-muted-foreground">Gastos operativos</p>
           <p className="mt-1 text-2xl font-bold tabular-nums">
-            {stats.operationalCostFixed != null
-              ? `$${Math.round(stats.operationalCostFixed).toLocaleString("es-CO")}`
-              : "—"}
+            {stats.operationalCostPercent != null &&
+            stats.operationalCostPercent > 0
+              ? `${stats.operationalCostPercent}%`
+              : stats.operationalCostFixed != null &&
+                  stats.operationalCostFixed > 0
+                ? `$${Math.round(stats.operationalCostFixed).toLocaleString("es-CO")}`
+                : "—"}
           </p>
         </ModuleCard>
         <ModuleCard className="p-4">
@@ -207,8 +212,13 @@ export default function GatewayConfigsPage() {
                     </td>
                     <td className="px-4 py-3 tabular-nums text-muted-foreground">
                       {config.feePercent != null ? `${config.feePercent}%` : "—"}
-                      {config.operationalCostFixed != null &&
-                      config.operationalCostFixed > 0 ? (
+                      {config.operationalCostPercent != null &&
+                      config.operationalCostPercent > 0 ? (
+                        <span className="mt-0.5 block text-[11px]">
+                          Gastos op. {config.operationalCostPercent}%
+                        </span>
+                      ) : config.operationalCostFixed != null &&
+                        config.operationalCostFixed > 0 ? (
                         <span className="mt-0.5 block text-[11px]">
                           Gastos $
                           {Math.round(config.operationalCostFixed).toLocaleString(
