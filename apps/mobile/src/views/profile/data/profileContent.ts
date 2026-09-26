@@ -444,6 +444,15 @@ function buildPatientSections(patient?: PatientProfileDisplay | null): ProfileSe
           icon: 'skin',
         },
         {
+          id: 'important_notes',
+          label: 'Notas importantes',
+          value: patient?.importantNotes?.trim()
+            ? patient.importantNotes.trim()
+            : EMPTY,
+          kind: 'nav',
+          icon: 'doc',
+        },
+        {
           id: 'skin_age',
           label: 'Salud de la piel (años)',
           value:

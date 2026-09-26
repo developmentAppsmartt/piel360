@@ -96,6 +96,18 @@ export interface Plan extends PlanPoolAvailability {
   };
   /** Virtudes comerciales (✓ / ✗) para la card del catálogo. */
   features?: PlanFeature[];
+  /**
+   * Cobertura comercial: condiciones estéticas y clases/enfermedades
+   * dermatológicas mostradas en el modal de la card.
+   */
+  coverage?: {
+    aesthetic?: { key: string; label: string; description: string }[];
+    dermatologyClasses?: { key: string; label: string; description: string }[];
+    dermatologyDiseases?: { key: string; label: string; description: string }[];
+    aestheticHtml?: string;
+    dermatologyClassesHtml?: string;
+    dermatologyDiseasesHtml?: string;
+  } | null;
   /** Color del header de la card (id de paleta o hex). */
   headerColor?: string | null;
   /** Costos API por proveedor (unidades × precio unitario). */

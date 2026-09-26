@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, X } from "lucide-react";
+import { Check, Microscope, ScanFace } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WompiCheckoutButton } from "@/components/payments/wompi-checkout-button";
+import { PlanCoverageIconButton } from "@/components/payments/plan-coverage-modal";
 import { formatCOP, providerLabel } from "@/components/payments/subscription-utils";
 import type { Plan, PlanFeature } from "@piel360/shared";
 import {
@@ -42,6 +43,32 @@ function sortProviderSlugs(slugs: string[]): string[] {
   });
 }
 
+function planVariant(plan: Plan): "aesthetic" | "dermatology" | "mixed" {
+  const slugs = planProviderSlugs(plan);
+  const hasYoucam = slugs.some((slug) =>
+    providerSlugMatches(slug, ["youcam", "fitzpatrick"]),
+  );
+  const hasSkiniver = slugs.some((slug) =>
+    providerSlugMatches(slug, ["skiniver"]),
+  );
+  if (hasSkiniver && !hasYoucam) return "dermatology";
+  if (hasYoucam && !hasSkiniver) return "aesthetic";
+  return "mixed";
+}
+
+/** Mezcla un hex con blanco (0 = original, 1 = blanco). */
+function mixWithWhite(hex: string, amount: number): string {
+  const raw = hex.replace("#", "");
+  if (raw.length !== 6) return hex;
+  const mix = (channel: string) => {
+    const n = Number.parseInt(channel, 16);
+    return Math.round(n + (255 - n) * amount)
+      .toString(16)
+      .padStart(2, "0");
+  };
+  return `#${mix(raw.slice(0, 2))}${mix(raw.slice(2, 4))}${mix(raw.slice(4, 6))}`;
+}
+
 function PlanPricingCard({
   plan,
   isEmpresa,
@@ -52,52 +79,99 @@ function PlanPricingCard({
   featured?: boolean;
 }) {
   const header = resolvePlanHeaderColor(plan.headerColor);
+  const accent = header.hex;
+  const accentSoft = mixWithWhite(accent, 0.88);
+  const accentMid = mixWithWhite(accent, 0.55);
   const canPurchase = plan.poolPurchasable !== false;
-  const features = planFeatures(plan);
+  const features = planFeatures(plan).filter((f) => f.included);
+  const variant = planVariant(plan);
+  const isDerm = variant === "dermatology";
+  const BadgeIcon = isDerm ? Microscope : ScanFace;
+  const badgeLabel = isDerm
+    ? "Análisis de apoyo diagnóstico"
+    : "Análisis Estético de Piel";
 
   return (
     <article
       className={cn(
         "relative flex h-full flex-col overflow-hidden rounded-[1.75rem] border bg-white text-center shadow-sm transition-shadow",
-        featured
-          ? "border-primary/40 shadow-[0_20px_50px_-28px_rgba(30,90,158,0.55)] ring-2 ring-primary/20"
-          : "border-border/80 hover:shadow-md",
+        featured ? "shadow-[0_20px_50px_-28px_rgba(15,40,80,0.45)]" : "hover:shadow-md",
       )}
+      style={{
+        borderColor: featured ? accent : mixWithWhite(accent, 0.72),
+        borderWidth: featured ? 2 : 1,
+        boxShadow: featured
+          ? `0 20px 50px -28px ${accent}99`
+          : undefined,
+      }}
     >
-      {featured ? (
-        <span className="absolute top-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#1e5a9e] to-[#3b82c4] px-3 py-1 text-[11px] font-semibold tracking-wide text-white uppercase">
-          Más popular
-        </span>
-      ) : null}
-
+      {/* Franja de color sin imagen de fondo */}
       <div
-        className={cn("h-1.5 w-full", featured && "mt-8")}
-        style={{ backgroundColor: header.hex }}
-        aria-hidden
-      />
+        className="relative h-16 w-full"
+        style={{
+          background: `linear-gradient(135deg, ${accent} 0%, ${accentMid} 55%, ${accentSoft} 100%)`,
+        }}
+      >
+        {featured ? (
+          <span
+            className="absolute top-2 left-1/2 z-10 -translate-x-1/2 rounded-full px-3 py-1 text-[11px] font-semibold tracking-wide text-white uppercase shadow-sm"
+            style={{
+              background: `linear-gradient(90deg, ${accent} 0%, ${mixWithWhite(accent, 0.25)} 100%)`,
+            }}
+          >
+            Más popular
+          </span>
+        ) : null}
+        <div className="absolute bottom-0 left-5 translate-y-1/2">
+          <PlanCoverageIconButton plan={plan} accentHex={accent} />
+        </div>
+      </div>
 
-      <div className="flex flex-1 flex-col items-center gap-6 px-6 pt-7 pb-7 sm:px-8">
+      <div className="flex flex-1 flex-col items-center gap-5 px-6 pt-10 pb-7 sm:px-8">
         <div className="space-y-2">
-          <h3 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+          <h3
+            className="text-xl font-bold tracking-tight sm:text-2xl"
+            style={{ color: accent }}
+          >
             {plan.name}
           </h3>
           {plan.description ? (
-            <p className="mx-auto max-w-[18rem] text-sm font-medium leading-relaxed text-muted-foreground">
+            <p
+              className="mx-auto max-w-[18rem] text-sm font-medium leading-relaxed"
+              style={{ color: mixWithWhite(accent, 0.35) }}
+            >
               {plan.description}
             </p>
           ) : null}
         </div>
 
-        <div className="w-full space-y-2 py-2">
-          <p className="text-4xl font-bold tracking-tight text-foreground sm:text-4xl">
+        <div className="w-full space-y-1.5 py-1">
+          <p
+            className="text-4xl font-bold tracking-tight"
+            style={{ color: accent }}
+          >
             {formatCOP(plan.customerPrice ?? plan.price)}
           </p>
-          <p className="text-sm font-semibold text-foreground">
+          <p
+            className="text-sm font-semibold"
+            style={{ color: mixWithWhite(accent, 0.3) }}
+          >
             Vigencia: {plan.durationDays} días
           </p>
-          <p className="text-sm font-semibold text-foreground">
+          <p
+            className="text-sm font-semibold"
+            style={{ color: mixWithWhite(accent, 0.3) }}
+          >
             {plan.analysisLimit} análisis incluidos
           </p>
+        </div>
+
+        <div
+          className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold"
+          style={{ backgroundColor: accentSoft, color: accent }}
+        >
+          <BadgeIcon className="size-3.5" />
+          {badgeLabel}
         </div>
 
         {!canPurchase ? (
@@ -107,34 +181,20 @@ function PlanPricingCard({
         ) : null}
 
         {features.length > 0 ? (
-          <ul className="w-full max-w-xs space-y-3 text-left">
+          <ul className="w-full max-w-xs space-y-2.5 text-left">
             {features.map((feature, index) => (
               <li
                 key={`${feature.label}-${index}`}
-                className="flex items-start gap-2.5 text-sm leading-snug"
+                className="flex items-start gap-2.5 text-sm leading-snug text-foreground"
               >
                 <span
-                  className={cn(
-                    "mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full text-white",
-                    feature.included ? "bg-teal-500" : "bg-rose-500",
-                  )}
+                  className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full text-white"
+                  style={{ backgroundColor: accent }}
                   aria-hidden
                 >
-                  {feature.included ? (
-                    <Check className="size-3 stroke-[3]" />
-                  ) : (
-                    <X className="size-3 stroke-[3]" />
-                  )}
+                  <Check className="size-3 stroke-[3]" />
                 </span>
-                <span
-                  className={cn(
-                    feature.included
-                      ? "font-medium text-foreground"
-                      : "text-muted-foreground line-through",
-                  )}
-                >
-                  {feature.label}
-                </span>
+                <span className="font-medium">{feature.label}</span>
               </li>
             ))}
           </ul>
@@ -151,13 +211,9 @@ function PlanPricingCard({
           {canPurchase ? (
             <WompiCheckoutButton
               planId={plan.id}
-              label={featured ? `Elegir ${plan.name}` : "Suscribirse"}
-              className={cn(
-                "h-11 w-full rounded-full font-semibold shadow-none",
-                featured
-                  ? "bg-gradient-to-r from-[#1e5a9e] to-[#3b82c4] text-white hover:from-[#174a85] hover:to-[#1e5a9e]"
-                  : "bg-primary text-primary-foreground hover:bg-primary/90",
-              )}
+              label={featured ? `Elegir ${plan.name}` : "Seleccionar plan"}
+              className="h-11 w-full rounded-full font-semibold text-white shadow-none hover:opacity-90"
+              style={{ backgroundColor: accent }}
             />
           ) : (
             <Button type="button" disabled className="h-11 w-full rounded-full">
@@ -199,122 +255,112 @@ export function PlansBrowser({
     );
   }, [plans.data, planTypeFilter]);
 
-  const providers = useMemo(() => {
-    const slugs = new Set(catalog.flatMap((p) => planProviderSlugs(p)));
-    let list = Array.from(slugs);
-    const allowed = doctorProfile.data?.allowedProviderSlugs;
-    if (allowed) {
-      list = list.filter((slug) => providerSlugMatches(slug, allowed));
+  const providerOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const plan of catalog) {
+      for (const slug of planProviderSlugs(plan)) set.add(slug);
     }
-    return sortProviderSlugs(list);
-  }, [catalog, doctorProfile.data?.allowedProviderSlugs]);
+    return sortProviderSlugs([...set]);
+  }, [catalog]);
 
-  const activeProvider = providerSlug ?? providers[0] ?? null;
+  const filtered = useMemo(() => {
+    if (!providerSlug) return catalog;
+    return catalog.filter((p) =>
+      planProviderSlugs(p).some((slug) =>
+        providerSlugMatches(slug, [providerSlug]),
+      ),
+    );
+  }, [catalog, providerSlug]);
 
-  const visiblePlans = useMemo(() => {
-    if (!activeProvider) return [];
-    return catalog
-      .filter((p) => planProviderSlugs(p).includes(activeProvider))
-      .slice()
-      .sort(
-        (a, b) =>
-          Number(a.price) - Number(b.price) ||
-          Number(b.poolPurchasable) - Number(a.poolPurchasable),
-      );
-  }, [catalog, activeProvider]);
-
-  const featuredPlanId = useMemo(() => {
-    if (visiblePlans.length < 2) return null;
-    const mid = Math.floor((visiblePlans.length - 1) / 2);
-    return visiblePlans[Math.max(1, mid)]?.id ?? visiblePlans[1]?.id ?? null;
-  }, [visiblePlans]);
-
-  const activeSubscriptions =
-    subscriptions.data?.filter((s) => s.status === "active") ?? [];
+  const active = subscriptions.data?.filter((s) => s.status === "active") ?? [];
 
   return (
     <div className="space-y-8">
-      {!hideActiveSection && activeSubscriptions.length > 0 && (
-        <section className="space-y-2 rounded-2xl border border-border bg-white p-4 shadow-sm">
-          <h2 className="text-lg font-medium">Suscripciones activas</h2>
-          <ul className="space-y-2 text-sm">
-            {activeSubscriptions.map((sub) => (
-              <li
+      {!hideActiveSection && active.length > 0 ? (
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">Tu plan activo</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {active.map((sub) => (
+              <div
                 key={sub.id}
-                className="flex items-center justify-between gap-2"
+                className="rounded-2xl border border-border bg-card p-5"
               >
-                <span>
-                  {providerLabel(sub.plan.provider.slug, sub.plan.provider.name)}{" "}
-                  — {sub.plan.name}
-                </span>
-                <span className="text-muted-foreground">
-                  {sub.remainingCredits} créditos · vence{" "}
-                  {sub.endsAt
-                    ? new Date(sub.endsAt).toLocaleDateString("es-CO")
-                    : "—"}
-                </span>
-              </li>
+                <p className="font-semibold">{sub.plan.name}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {providerLabel(sub.plan.provider.slug)} · vigente hasta{" "}
+                  {new Date(sub.endsAt).toLocaleDateString("es-CO")}
+                </p>
+              </div>
             ))}
-          </ul>
+          </div>
         </section>
-      )}
+      ) : null}
 
-      {plans.isLoading && (
-        <p className="text-muted-foreground">Cargando planes...</p>
-      )}
-
-      {!plans.isLoading && providers.length === 0 && (
-        <p className="rounded-2xl border border-dashed border-border bg-white p-4 text-sm text-muted-foreground">
-          Tu especialidad no tiene tipos de análisis habilitados. Contacta al
-          administrador para activarlos en permisos de planes.
-        </p>
-      )}
-
-      {providers.length > 0 ? (
-        <div className="flex justify-center px-1">
-          <div className="inline-flex max-w-full flex-wrap justify-center gap-1 rounded-full border border-border/70 bg-muted/40 p-1.5 shadow-sm">
-            {providers.map((slug) => {
-              const active = activeProvider === slug;
-              return (
+      <section className="space-y-4">
+        <div className="space-y-3 text-center">
+          <div>
+            <h2 className="text-lg font-semibold">Catálogo de planes</h2>
+            <p className="text-sm text-muted-foreground">
+              Elige el plan que mejor se adapte a tu práctica.
+            </p>
+          </div>
+          {providerOptions.length > 1 ? (
+            <div className="flex flex-wrap items-center justify-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setProviderSlug(null)}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-xs font-semibold",
+                  providerSlug == null
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Todos
+              </button>
+              {providerOptions.map((slug) => (
                 <button
                   key={slug}
                   type="button"
                   onClick={() => setProviderSlug(slug)}
                   className={cn(
-                    "rounded-full px-4 py-2 text-sm font-semibold transition-all sm:px-5",
-                    active
-                      ? "bg-gradient-to-r from-[#1e5a9e] to-[#3b82c4] text-white shadow-sm"
-                      : "text-muted-foreground hover:bg-white hover:text-foreground",
+                    "rounded-full px-3 py-1.5 text-xs font-semibold",
+                    providerSlug === slug
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {providerLabel(slug)}
                 </button>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          ) : null}
         </div>
-      ) : null}
 
-      {!plans.isLoading &&
-        providers.length > 0 &&
-        visiblePlans.length === 0 && (
-          <p className="rounded-2xl border border-dashed border-border bg-white p-4 text-center text-sm text-muted-foreground">
-            No hay planes disponibles para este tipo de análisis.
-          </p>
-        )}
+        {plans.isLoading ? (
+          <p className="text-sm text-muted-foreground">Cargando planes…</p>
+        ) : null}
+        {plans.isError ? (
+          <p className="text-sm text-destructive">No se pudieron cargar los planes.</p>
+        ) : null}
 
-      {visiblePlans.length > 0 ? (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 xl:gap-7">
-          {visiblePlans.map((plan) => (
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((plan, index) => (
             <PlanPricingCard
               key={plan.id}
               plan={plan}
               isEmpresa={isEmpresa}
-              featured={plan.id === featuredPlanId}
+              featured={index === 1 && filtered.length >= 3}
             />
           ))}
         </div>
-      ) : null}
+
+        {!plans.isLoading && filtered.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            No hay planes disponibles para este filtro.
+          </p>
+        ) : null}
+      </section>
     </div>
   );
 }

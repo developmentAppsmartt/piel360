@@ -40,6 +40,14 @@ export interface PlanInput {
   isActive?: boolean;
   description?: string;
   features?: { label: string; included: boolean }[];
+  coverage?: {
+    aesthetic?: { key: string; label: string; description: string }[];
+    dermatologyClasses?: { key: string; label: string; description: string }[];
+    dermatologyDiseases?: { key: string; label: string; description: string }[];
+    aestheticHtml?: string;
+    dermatologyClassesHtml?: string;
+    dermatologyDiseasesHtml?: string;
+  };
   headerColor?: string;
   apiCosts?: {
     skiniver?: { units: number; unitPrice: number };

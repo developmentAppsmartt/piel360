@@ -47,7 +47,7 @@ export function renderBrandedEmail({
             </tr>
             <tr>
               <td style="padding:16px 28px;background:${BRAND_BG};color:${FOOTER_COLOR};font-size:12px;text-align:center;">
-                — Equipo Piel360<br />Plataforma de diagnóstico dermatológico asistido por IA
+                — Equipo Piel360<br />Plataforma de Análisis Estético, Biotipo,Fototipo y Diagnostico de apoyo Dermatológico asistido con Inteligencia Artificial
               </td>
             </tr>
           </table>

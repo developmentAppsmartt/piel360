@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Pressable,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -18,6 +19,7 @@ import {
   bodyModelGenderFromPatient,
   type BodySelection,
 } from '../../../data/bodyRegions';
+import { patientsService } from '../../../services/patients.service';
 import { DoctorHeader } from '../../doctor/patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../../doctor/patients/styles/patients.styles';
 import { YoucamConsentStep } from '../youcam-flow/YoucamConsentStep';
@@ -105,15 +107,45 @@ export function SkiniverAnalysisFlow({
   const [selection, setSelection] = useState<BodySelection | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
+  const [importantNotes, setImportantNotes] = useState('');
+  const [notesLoaded, setNotesLoaded] = useState(false);
   const label = ANALYSIS_PROVIDER_STATIC_LABELS.skiniver;
   const regionLabel = selection
     ? BODY_PARTS_INFO[selection.bodyRegion]?.label ?? selection.bodyRegion
     : null;
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const patient = await patientsService.getById(patientId);
+        if (cancelled) return;
+        setImportantNotes(patient.importantNotes ?? '');
+      } catch {
+        // El análisis puede seguir sin las notas.
+      } finally {
+        if (!cancelled) setNotesLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [patientId]);
+
+  async function persistImportantNotes() {
+    const next = importantNotes.trim();
+    try {
+      await patientsService.update(patientId, { importantNotes: next });
+    } catch {
+      // No bloquear el análisis si falla el guardado de notas.
+    }
+  }
+
   async function handlePick(source: 'camera' | 'library') {
     if (picking || !patientId || !selection) return;
     setPicking(true);
     try {
+      await persistImportantNotes();
       const uri = await pickCloseUp(source);
       if (!uri) return;
       setImageUri(uri);
@@ -194,7 +226,6 @@ export function SkiniverAnalysisFlow({
             />
           </View>
 
-          {/* Acciones debajo del modelo — sin panel/elevation (evita el recuadro) */}
           <View style={{ marginTop: 12, gap: 10, zIndex: 20 }}>
             {regionLabel ? (
               <Text
@@ -220,7 +251,10 @@ export function SkiniverAnalysisFlow({
                 !selection && styles.primaryBtnDisabled,
               ]}
               disabled={!selection}
-              onPress={() => setStep('capture')}
+              onPress={() => {
+                void persistImportantNotes();
+                setStep('capture');
+              }}
             >
               <Text style={styles.primaryBtnText}>Continuar</Text>
             </Pressable>
@@ -256,6 +290,48 @@ export function SkiniverAnalysisFlow({
           <Text style={styles.subtitle}>
             Enfoca de cerca {regionLabel ?? 'la zona marcada'}. Usa buena luz y
             recorta para que la lesión ocupe el marco.
+          </Text>
+
+          <Text
+            style={{
+              marginTop: 12,
+              marginBottom: 6,
+              fontSize: 14,
+              fontWeight: '700',
+              color: branding.colors.text,
+            }}
+          >
+            Notas importantes
+          </Text>
+          <TextInput
+            value={importantNotes}
+            onChangeText={setImportantNotes}
+            multiline
+            maxLength={500}
+            editable={notesLoaded && !picking}
+            textAlignVertical="top"
+            placeholder="Alergias, antecedentes, observaciones clínicas…"
+            placeholderTextColor={branding.colors.muted}
+            style={{
+              minHeight: 88,
+              borderWidth: 1,
+              borderColor: '#E5E7EB',
+              borderRadius: 12,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              fontSize: 14,
+              color: branding.colors.text,
+              marginBottom: 4,
+            }}
+          />
+          <Text
+            style={{
+              fontSize: 12,
+              color: branding.colors.muted,
+              marginBottom: 12,
+            }}
+          >
+            {importantNotes.length}/500
           </Text>
 
           <Text

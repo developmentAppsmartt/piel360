@@ -58,6 +58,7 @@ export type PatientProfileDisplay = Pick<
   | 'exerciseSessionDuration'
   | 'skinType'
   | 'fitzpatrickType'
+  | 'importantNotes'
   | 'surveyCompletedAt'
 >;
 

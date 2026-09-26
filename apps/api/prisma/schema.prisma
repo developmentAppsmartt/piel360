@@ -511,6 +511,12 @@ model Plan {
    * [{ "label": string, "included": boolean }]
    */
   features           Json     @default("[]")
+  /**
+   * Cobertura comercial (condiciones / clases / enfermedades):
+   * { aesthetic[], dermatologyClasses[], dermatologyDiseases[] }
+   * cada ítem: { key, label, description }
+   */
+  coverage           Json     @default("{}")
   /** Color del header de la card comercial (id de paleta o hex). */
   headerColor        String?  @default("brand") @map("header_color")
   /**

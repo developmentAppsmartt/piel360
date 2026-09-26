@@ -100,7 +100,7 @@ export function HomeLanding() {
             Bienvenido
           </h1>
           <p className="mt-3 max-w-xl text-base text-slate-600">
-            Plataforma de diagnóstico dermatológico asistido por{" "}
+            Plataforma de Análisis Estético, Biotipo, Fototipo y Diagnostico de apoyo Dermatológico asistido con Inteligencia Artificial{" "}
             <span className="font-semibold text-[#1e5a9e]">IA</span>.
           </p>
           <p className="mt-8 text-sm font-medium text-slate-400">

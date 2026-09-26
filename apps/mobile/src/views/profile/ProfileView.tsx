@@ -65,6 +65,7 @@ const PATIENT_EDITABLE = new Set([
   'address',
   'skin_type',
   'fitzpatrick_type',
+  'important_notes',
   'mascot_type',
 ]);
 
