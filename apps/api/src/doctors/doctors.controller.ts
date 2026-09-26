@@ -51,8 +51,13 @@ export class DoctorsController {
     FileFieldsInterceptor(
       [
         { name: 'cedula', maxCount: 1 },
+        // Especialidad médica: registro médico. Técnico laboral: diploma o
+        // certificado de acreditación académica (comparten columna).
         { name: 'medicalRegistryDoc', maxCount: 1 },
         { name: 'diploma', maxCount: 1 },
+        { name: 'diplomaPostgrado', maxCount: 1 },
+        { name: 'healthRegistration', maxCount: 1 },
+        { name: 'biosafetyCert', maxCount: 1 },
       ],
       { storage: memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } },
     ),
@@ -64,6 +69,9 @@ export class DoctorsController {
       cedula?: Express.Multer.File[];
       medicalRegistryDoc?: Express.Multer.File[];
       diploma?: Express.Multer.File[];
+      diplomaPostgrado?: Express.Multer.File[];
+      healthRegistration?: Express.Multer.File[];
+      biosafetyCert?: Express.Multer.File[];
     },
   ) {
     return this.doctorsService.uploadRegistrationDocuments(user.sub, files);

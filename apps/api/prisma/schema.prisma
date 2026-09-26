@@ -139,16 +139,39 @@ model Doctor {
   empresa              Boolean   @default(false)
   /** Activa módulo Referidos (no es un rol RBAC). */
   empresaReferida      Boolean   @default(false) @map("empresa_referida")
+  /**
+   * 'specialty' | 'labor' — qué formulario de registro llenó. Antes no se
+   * guardaba (el front colapsaba ambos en `specialty`), y sin este dato no se
+   * puede saber qué campos y qué documentos le corresponden. `null` en los
+   * registros anteriores al cambio.
+   */
+  professionalKind     String?   @map("professional_kind")
   specialty            String?
+  /** Solo especialidad médica. */
   medicalRegistry      String?   @map("medical_registry")
+  /** Ya no se pide en el registro; se conserva por los registros existentes. */
   licenseNumber        String?   @map("license_number")
+  /** Entidad educativa de pregrado (solo especialidad médica). */
   educationEntity      String?   @map("education_entity")
+  /** Entidad educativa de postgrado / especialización médica — opcional. */
   graduationInstitution String?  @map("graduation_institution")
   /** Solo técnicos laborales — institución de educación para el trabajo. */
   technicalInstitution String?   @map("technical_institution")
   cedulaDocKey         String?   @map("cedula_doc_key")
+  /**
+   * Especialidad médica: registro médico. Técnico laboral: diploma o
+   * certificado de acreditación académica — misma columna, distinto documento
+   * según `professionalKind` (así lo pidió el negocio: uno "en vez del otro").
+   */
   medicalRegistryDocKey String?  @map("medical_registry_doc_key")
+  /** Diploma de pregrado (solo especialidad médica). */
   diplomaDocKey        String?   @map("diploma_doc_key")
+  /** Diploma de postgrado (solo especialidad médica). */
+  diplomaPostgradoDocKey String? @map("diploma_postgrado_doc_key")
+  /** Inscripción sanitaria (solo técnico laboral). */
+  healthRegistrationDocKey String? @map("health_registration_doc_key")
+  /** Certificado de bioseguridad (solo técnico laboral). */
+  biosafetyCertDocKey  String?   @map("biosafety_cert_doc_key")
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
@@ -552,6 +575,8 @@ model SubscriptionUsage {
   subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
   analysis     Analysis     @relation(fields: [analysisId], references: [id], onDelete: Cascade)
 
+  @@index([subscriptionId])
+  @@index([createdAt])
   @@map("subscription_usages")
 }
 

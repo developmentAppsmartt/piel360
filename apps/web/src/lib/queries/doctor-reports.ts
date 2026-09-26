@@ -1,10 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { SkinHealthReport } from "@piel360/shared";
+import type { SkinHealthReport, SkiniverReport } from "@piel360/shared";
 import { apiClientFetch } from "@/lib/api-client";
 
-export type { SkinHealthReport };
+export type { SkinHealthReport, SkiniverReport };
 
 export interface DoctorReportsFilters {
   /** YYYY-MM-DD inclusivo. */
@@ -79,14 +79,20 @@ export function useDoctorLifestyleReport(filters: DoctorReportsFilters) {
   });
 }
 
-export function useDoctorSkiniverReport(filters: DoctorReportsFilters) {
+/** Reporte de análisis dermatológicos (Skiniver). `enabled` evita traerlo
+ * mientras el usuario está en otra pestaña de la pantalla de reportes. */
+export function useDoctorSkiniverReport(
+  filters: DoctorReportsFilters,
+  enabled = true,
+) {
   const query = buildQuery(filters);
 
   return useQuery({
     queryKey: ["doctor", "reports", "skiniver", filters],
     queryFn: () =>
-      apiClientFetch<import("@piel360/shared").SkiniverReport>(
+      apiClientFetch<SkiniverReport>(
         `/doctor/reports/skiniver${query ? `?${query}` : ""}`,
       ),
+    enabled,
   });
 }

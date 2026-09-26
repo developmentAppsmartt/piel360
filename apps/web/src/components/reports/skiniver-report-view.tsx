@@ -11,9 +11,13 @@ import {
   ModuleCardDescription,
   ModuleCardTitle,
 } from "@/components/ui/module-card";
+import { AgeDistributionBars } from "@/components/reports/age-distribution-bars";
+import { AgeGenderBars } from "@/components/reports/age-gender-bars";
+import { DiagnosisCategoryDonut } from "@/components/reports/diagnosis-category-donut";
 import { MultiSeriesTrendChart } from "@/components/reports/multi-series-trend-chart";
 import { SkinToneWidget } from "@/components/reports/skin-tone-widget";
 import { SkiniverClinicoWidget } from "@/components/reports/skiniver-clinico-widget";
+import { TopDiagnosesTable } from "@/components/reports/top-diagnoses-table";
 
 const CLASS_SERIES = Object.entries(SKINIVER_DIAGNOSIS_CLASS_DEFS).map(([key, def]) => ({
   key,
@@ -33,21 +37,91 @@ const AGE_SERIES = SKINIVER_AGE_BUCKETS.map((b) => ({
   color: b.color,
 }));
 
-export function SkiniverReportView({ report }: { report: SkiniverReport }) {
+/**
+ * Reporte de análisis dermatológicos. Se usa igual en el panel del doctor
+ * (acotado a sus pacientes) y en el de admin (toda la plataforma): el alcance
+ * lo resuelve el endpoint, no esta vista.
+ *
+ * `showClinicalBrowser` apaga el buscador de análisis, que carga el listado
+ * completo para filtrar en cliente — innecesario en una vista global.
+ */
+export function SkiniverReportView({
+  report,
+  showClinicalBrowser = true,
+}: {
+  report: SkiniverReport;
+  showClinicalBrowser?: boolean;
+}) {
   return (
     <div className="space-y-5">
-      <ModuleCard className="p-5">
-        <ModuleCardTitle className="text-base">
-          Clínico: análisis imágenes dermatológica
-        </ModuleCardTitle>
-        <ModuleCardDescription>
-          Este análisis es asistido por IA y no reemplaza el criterio clínico del
-          profesional.
-        </ModuleCardDescription>
-        <div className="mt-4">
-          <SkiniverClinicoWidget />
-        </div>
-      </ModuleCard>
+      <div className="grid gap-5 xl:grid-cols-2">
+        <ModuleCard className="p-5">
+          <ModuleCardTitle className="text-base">
+            Enfermedades de la piel por categorías
+          </ModuleCardTitle>
+          <ModuleCardDescription>
+            Distribución de diagnósticos por categoría, según la clasificación que
+            devuelve la IA.
+          </ModuleCardDescription>
+          <div className="mt-4">
+            <DiagnosisCategoryDonut
+              slices={report.byCategory}
+              total={report.total}
+            />
+          </div>
+        </ModuleCard>
+
+        <ModuleCard className="p-5">
+          <ModuleCardTitle className="text-base">
+            Top 10 de diagnósticos más recurrentes
+          </ModuleCardTitle>
+          <ModuleCardDescription>
+            Diagnósticos con mayor frecuencia en tus pacientes.
+          </ModuleCardDescription>
+          <div className="mt-4">
+            <TopDiagnosesTable rows={report.topDiagnoses} />
+          </div>
+        </ModuleCard>
+
+        <ModuleCard className="p-5">
+          <ModuleCardTitle className="text-base">
+            Enfermedades por edad y sexo
+          </ModuleCardTitle>
+          <ModuleCardDescription>
+            Diagnósticos según rango de edad y género del paciente.
+          </ModuleCardDescription>
+          <div className="mt-4">
+            <AgeGenderBars rows={report.byAgeGender} />
+          </div>
+        </ModuleCard>
+
+        <ModuleCard className="p-5">
+          <ModuleCardTitle className="text-base">
+            Distribución de diagnósticos por edad
+          </ModuleCardTitle>
+          <ModuleCardDescription>
+            Frecuencia de diagnósticos según rangos de edad.
+          </ModuleCardDescription>
+          <div className="mt-4">
+            <AgeDistributionBars slices={report.ageDistribution} />
+          </div>
+        </ModuleCard>
+      </div>
+
+      {showClinicalBrowser ? (
+        <ModuleCard className="p-5">
+          <ModuleCardTitle className="text-base">
+            Clínico: análisis imágenes dermatológica
+          </ModuleCardTitle>
+          <ModuleCardDescription>
+            Este análisis es asistido por IA y no reemplaza el criterio clínico del
+            profesional.
+          </ModuleCardDescription>
+          <div className="mt-4">
+            <SkiniverClinicoWidget />
+          </div>
+        </ModuleCard>
+      ) : null}
 
       <ModuleCard className="p-5">
         <ModuleCardTitle className="text-base">

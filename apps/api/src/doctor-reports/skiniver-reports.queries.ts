@@ -12,9 +12,12 @@ import { Prisma } from '@prisma/client';
  * que llegue como BigInt (ver el polyfill de bigint-json).
  */
 
-type DoctorIds = string[];
+/** `null` = sin filtro por doctor: el panel de admin ve toda la plataforma.
+ * Se resuelve acá y no duplicando las queries para que el filtro de proveedor
+ * (con su fallback legacy) tenga una sola definición. */
+type DoctorIds = string[] | null;
 
-/** Join + filtro base compartido por las 3 queries: Skiniver válido, del
+/** Join + filtro base compartido por las queries: Skiniver válido, del
  * doctor correcto, en el rango de fechas — con fallback a la heurística de
  * task-ids para filas legacy sin `provider_id` (mismo criterio que
  * analysis-image-urls.service.ts / analysis-results-view.tsx). */
@@ -23,18 +26,43 @@ function baseJoin(
   from: Date,
   toExclusive: Date,
 ): Prisma.Sql {
+  const doctorFilter = doctorIds
+    ? Prisma.sql`AND p.doctor_id = ANY(${doctorIds}::bigint[])`
+    : Prisma.empty;
   return Prisma.sql`
     FROM analyses a
     JOIN patients p ON p.id = a.patient_id
     LEFT JOIN analysis_providers pr ON pr.id = a.provider_id
     WHERE a.is_valid = TRUE
-      AND p.doctor_id = ANY(${doctorIds}::bigint[])
+      ${doctorFilter}
       AND (
         pr.slug = 'skiniver'
         OR (pr.slug IS NULL AND a.youcam_task_id IS NULL AND a.fitzpatrick_task_id IS NULL)
       )
       AND a.created_at >= ${from}
       AND a.created_at <  ${toExclusive}
+  `;
+}
+
+/** Los reportes de "qué se encontró" (categoría, top 10, clase, enfermedad)
+ * excluyen el resultado "sin hallazgos"; los demográficos (edad, sexo, tono)
+ * sí lo cuentan, porque describen a quién se analizó. Ver el comentario de
+ * packages/shared/src/skiniver-diagnosis-taxonomy.ts. */
+const NO_PATHOLOGY = 'Piel Sin Patología';
+
+/** Rangos de SKINIVER_AGE_BUCKETS, calculados a la fecha del análisis:
+ * `Analysis.chronologicalAgeYears` solo se llena para YouCam. */
+function ageBucketCase(): Prisma.Sql {
+  return Prisma.sql`
+    CASE
+      WHEN age_years <= 12 THEN '0-12'
+      WHEN age_years <= 20 THEN '13-20'
+      WHEN age_years <= 30 THEN '21-30'
+      WHEN age_years <= 40 THEN '31-40'
+      WHEN age_years <= 50 THEN '41-50'
+      WHEN age_years <= 60 THEN '51-60'
+      ELSE '61+'
+    END
   `;
 }
 
@@ -94,15 +122,91 @@ export function skiniverAgeMonthlyQuery(
     )
     SELECT
       to_char(month, 'YYYY-MM') AS period,
-      CASE
-        WHEN age_years <= 17 THEN '0-17'
-        WHEN age_years <= 25 THEN '18-25'
-        WHEN age_years <= 35 THEN '26-35'
-        WHEN age_years <= 45 THEN '36-45'
-        WHEN age_years <= 55 THEN '46-55'
-        ELSE '56+'
-      END AS age_bucket,
+      ${ageBucketCase()} AS age_bucket,
       COUNT(*)::int AS count
+    FROM scoped
+    GROUP BY 1, 2
+  `;
+}
+
+export interface SkiniverCategoryRow {
+  category: string | null;
+  count: number;
+}
+
+/** Categoría de la IA (`aiRawResponse.desease`) — la agrupación que Skiniver
+ * ya devuelve, en vez de deducirla del nombre del diagnóstico. */
+export function skiniverCategoryQuery(
+  doctorIds: DoctorIds,
+  from: Date,
+  toExclusive: Date,
+): Prisma.Sql {
+  return Prisma.sql`
+    SELECT
+      a.ai_raw_response->>'desease' AS category,
+      COUNT(*)::int                 AS count
+    ${baseJoin(doctorIds, from, toExclusive)}
+      AND a.ai_raw_response->>'desease' IS NOT NULL
+      AND a.ai_raw_response->>'desease' <> ${NO_PATHOLOGY}
+      AND COALESCE(a.ai_diagnosis, '') <> ${NO_PATHOLOGY}
+    GROUP BY 1
+    ORDER BY 2 DESC
+  `;
+}
+
+export interface SkiniverTopDiagnosisRow {
+  diagnosis: string;
+  icd_code: string | null;
+  count: number;
+}
+
+/** Top 10 de diagnósticos puntuales. El ICD (`lesion_code`) solo existe en la
+ * raíz del JSON, nunca en `topn[]`; `MAX` porque un mismo diagnóstico siempre
+ * trae el mismo código y el GROUP BY necesita un agregado. */
+export function skiniverTopDiagnosesQuery(
+  doctorIds: DoctorIds,
+  from: Date,
+  toExclusive: Date,
+): Prisma.Sql {
+  return Prisma.sql`
+    SELECT
+      a.ai_diagnosis                              AS diagnosis,
+      MAX(a.ai_raw_response->>'lesion_code')      AS icd_code,
+      COUNT(*)::int                               AS count
+    ${baseJoin(doctorIds, from, toExclusive)}
+      AND a.ai_diagnosis IS NOT NULL
+      AND a.ai_diagnosis <> ${NO_PATHOLOGY}
+    GROUP BY 1
+    ORDER BY 3 DESC, 1 ASC
+    LIMIT 10
+  `;
+}
+
+export interface SkiniverAgeGenderRow {
+  age_bucket: string;
+  gender: string | null;
+  count: number;
+}
+
+/** Cruce edad × sexo. `patients.gender` es texto libre: se normaliza en TS con
+ * normalizeGender() para no repetir esa lista de valores en SQL. */
+export function skiniverAgeGenderQuery(
+  doctorIds: DoctorIds,
+  from: Date,
+  toExclusive: Date,
+): Prisma.Sql {
+  return Prisma.sql`
+    WITH scoped AS (
+      SELECT
+        date_part('year', age(a.created_at, p.birth_date))::int AS age_years,
+        p.gender AS gender
+      ${baseJoin(doctorIds, from, toExclusive)}
+        AND p.birth_date IS NOT NULL
+    )
+    SELECT
+      ${ageBucketCase()} AS age_bucket,
+      gender             AS gender,
+      COUNT(*)::int      AS count
     FROM scoped
     GROUP BY 1, 2
   `;

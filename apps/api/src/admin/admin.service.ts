@@ -1,16 +1,39 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { SkiniverReportService } from '../doctor-reports/skiniver-report.service';
 
 const AGE_BUCKET_LABELS = ['Menores', 'Adultos', 'Seniors'] as const;
 type AgeBucket = (typeof AGE_BUCKET_LABELS)[number];
 
 const TOP_DIAGNOSIS_CLASSES = 8;
 
+/** Ventana por defecto del reporte dermatológico de admin cuando no se
+ * mandan fechas — el mismo "últimos 6 meses" que muestra la UI. */
+const DEFAULT_SKINIVER_RANGE_DAYS = 180;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 type Granularity = 'day' | 'month' | 'year';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly skiniverReport: SkiniverReportService,
+  ) {}
+
+  /** Reporte dermatológico global: mismo armado que el del panel del doctor
+   * (SkiniverReportService), con `doctorIds = null` para no filtrar. */
+  async getSkiniverReport(startDate?: string, endDate?: string) {
+    const to = endDate ? new Date(endDate) : new Date();
+    const from = startDate
+      ? new Date(startDate)
+      : new Date(to.getTime() - (DEFAULT_SKINIVER_RANGE_DAYS - 1) * DAY_MS);
+    const toExclusive = new Date(
+      Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate()) + DAY_MS,
+    );
+    return this.skiniverReport.build(null, { from, to, toExclusive });
+  }
 
   /** Port de SubscriptionStats.php + RiskChart.php (Filament, sistema viejo).
    * `SubscriptionStatus` acá no tiene un estado `expired` explícito (a
@@ -92,20 +115,27 @@ export class AdminService {
     return { active, pending, expired };
   }
 
+  /** Agrupa por la categoría que devuelve la IA (`aiRawResponse.desease`) en
+   * vez del nombre puntual del diagnóstico: "Acné común" y "Acné pustuloso"
+   * son la misma clase y antes competían como filas distintas por el top 8.
+   * Cae al `aiDiagnosis` crudo cuando el análisis no trae categoría. */
   private async getDiagnosisByClass(
     createdAt: { gte?: Date; lte?: Date } | undefined,
   ) {
-    const groups = await this.prisma.analysis.groupBy({
-      by: ['aiDiagnosis'],
-      where: {
-        aiDiagnosis: { not: null },
-        ...(createdAt ? { createdAt } : {}),
-      },
-      _count: true,
-    });
+    const rows = await this.prisma.$queryRaw<
+      { label: string; count: number }[]
+    >(Prisma.sql`
+      SELECT
+        COALESCE(a.ai_raw_response->>'desease', a.ai_diagnosis) AS label,
+        COUNT(*)::int                                           AS count
+      FROM analyses a
+      WHERE COALESCE(a.ai_raw_response->>'desease', a.ai_diagnosis) IS NOT NULL
+        ${this.createdAtFilter(createdAt)}
+      GROUP BY 1
+    `);
 
-    const sorted = groups
-      .map((g) => ({ label: g.aiDiagnosis as string, count: g._count }))
+    const sorted = rows
+      .map((r) => ({ label: r.label, count: r.count }))
       .sort((a, b) => b.count - a.count);
 
     const top = sorted.slice(0, TOP_DIAGNOSIS_CLASSES);
@@ -117,31 +147,49 @@ export class AdminService {
       : top;
   }
 
+  /** Agrega en SQL y calcula la edad **a la fecha del análisis**, no a hoy:
+   * antes se descargaba un registro por análisis y un paciente que cumplía
+   * años cambiaba retroactivamente de bucket en reportes ya publicados. */
   private async getDiagnosisByAge(
     createdAt: { gte?: Date; lte?: Date } | undefined,
   ) {
-    const analyses = await this.prisma.analysis.findMany({
-      where: createdAt ? { createdAt } : undefined,
-      select: { patient: { select: { birthDate: true } } },
-    });
+    const rows = await this.prisma.$queryRaw<
+      { bucket: AgeBucket; count: number }[]
+    >(Prisma.sql`
+      WITH scoped AS (
+        SELECT date_part('year', age(a.created_at, p.birth_date))::int AS age_years
+        FROM analyses a
+        JOIN patients p ON p.id = a.patient_id
+        WHERE p.birth_date IS NOT NULL
+          ${this.createdAtFilter(createdAt)}
+      )
+      SELECT
+        CASE
+          WHEN age_years < 18 THEN 'Menores'
+          WHEN age_years <= 60 THEN 'Adultos'
+          ELSE 'Seniors'
+        END           AS bucket,
+        COUNT(*)::int AS count
+      FROM scoped
+      GROUP BY 1
+    `);
 
-    const counts: Record<AgeBucket, number> = {
-      Menores: 0,
-      Adultos: 0,
-      Seniors: 0,
-    };
-    const now = Date.now();
+    const counts = new Map(rows.map((r) => [r.bucket, r.count]));
+    return AGE_BUCKET_LABELS.map((label) => ({
+      label,
+      count: counts.get(label) ?? 0,
+    }));
+  }
 
-    for (const { patient } of analyses) {
-      if (!patient?.birthDate) continue;
-      const ageMs = now - patient.birthDate.getTime();
-      const age = Math.floor(ageMs / (365.25 * 24 * 60 * 60 * 1000));
-      const bucket: AgeBucket =
-        age < 18 ? 'Menores' : age <= 60 ? 'Adultos' : 'Seniors';
-      counts[bucket] += 1;
-    }
-
-    return AGE_BUCKET_LABELS.map((label) => ({ label, count: counts[label] }));
+  /** Filtro de fecha reutilizable para las queries raw de reportes. */
+  private createdAtFilter(
+    createdAt: { gte?: Date; lte?: Date } | undefined,
+  ): Prisma.Sql {
+    if (!createdAt) return Prisma.empty;
+    return Prisma.sql`
+      ${createdAt.gte ? Prisma.sql`AND a.created_at >= ${createdAt.gte}` : Prisma.empty}
+      ${createdAt.lte ? Prisma.sql`AND a.created_at <= ${createdAt.lte}` : Prisma.empty}
+    `;
   }
 
   private async getTimeSeries(

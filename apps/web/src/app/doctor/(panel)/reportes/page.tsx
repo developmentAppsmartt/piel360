@@ -10,6 +10,7 @@ import {
   rangeForDays,
 } from "@/components/reports/report-filters";
 import { SkinHealthSummary } from "@/components/reports/skin-health-summary";
+import { SkiniverReportView } from "@/components/reports/skiniver-report-view";
 import {
   TopProblemsTable,
   sortCategories,
@@ -30,6 +31,7 @@ type ReportTab =
   | "resumen"
   | "necesidades"
   | "top"
+  | "dermatologico"
   | "nacimiento"
   | "mascotas"
   | "actividad"
@@ -60,7 +62,8 @@ export default function ReportesPage() {
 
   const report = useDoctorSkinHealthReport(filters);
   const lifestyle = useDoctorLifestyleReport(filters);
-  const skiniver = useDoctorSkiniverReport(filters);
+  const isSkiniverTab = tab === "dermatologico";
+  const skiniver = useDoctorSkiniverReport(filters, isSkiniverTab);
   const team = useOrganizationTeam();
   const members = team.data?.members ?? [];
   const showProfessionalFilter = members.length > 1;
@@ -73,6 +76,41 @@ export default function ReportesPage() {
   const isDermatologicoTab = tab === "dermatologico";
 
   function handleExport() {
+    if (isSkiniverTab && skiniver.data) {
+      const data = skiniver.data;
+      const rows: (string | number | null)[][] = [
+        ["Categoría", "Diagnósticos", "%"],
+        ...data.byCategory.map((c) => [c.label, c.count, c.pct.toFixed(1)]),
+        [],
+        ["#", "Diagnóstico", "CIE-10", "Cantidad", "%"],
+        ...data.topDiagnoses.map((d, i) => [
+          i + 1,
+          d.diagnosis,
+          d.icdCode ?? "",
+          d.count,
+          d.pct.toFixed(1),
+        ]),
+        [],
+        ["Rango de edad", "Hombres", "Mujeres", "Sin género", "Total", "%"],
+        ...data.byAgeGender.map((r, i) => [
+          r.label,
+          r.male,
+          r.female,
+          r.unknown,
+          data.ageDistribution[i]?.count ?? r.male + r.female + r.unknown,
+          data.ageDistribution[i]?.pct.toFixed(1) ?? "",
+        ]),
+        [],
+        ["Tono de piel", "Análisis", "%"],
+        ...data.bySkinTone.map((t) => [t.label, t.count, t.pct.toFixed(1)]),
+      ];
+      downloadCsv(
+        `reporte-dermatologico-${data.range.from}_${data.range.to}`,
+        rows,
+      );
+      return;
+    }
+
     if (isLifestyleTab && lifestyle.data) {
       const section =
         tab === "nacimiento"
@@ -242,26 +280,30 @@ export default function ReportesPage() {
         </div>
       </div>
 
-      {report.isLoading && !isLifestyleTab && !isDermatologicoTab && (
+      {report.isLoading && !isLifestyleTab && !isSkiniverTab && (
         <p className="text-sm text-muted-foreground">Cargando reportes…</p>
       )}
       {lifestyle.isLoading && isLifestyleTab && (
         <p className="text-sm text-muted-foreground">Cargando reportes…</p>
       )}
-      {skiniver.isLoading && isDermatologicoTab && (
+      {skiniver.isLoading && isSkiniverTab && (
         <p className="text-sm text-muted-foreground">Cargando reportes…</p>
       )}
-      {report.error && !isLifestyleTab && !isDermatologicoTab && (
+      {report.error && !isLifestyleTab && !isSkiniverTab && (
         <p className="text-sm text-destructive">No se pudieron cargar los reportes.</p>
       )}
       {lifestyle.error && isLifestyleTab && (
         <p className="text-sm text-destructive">No se pudieron cargar los reportes.</p>
       )}
-      {skiniver.error && isDermatologicoTab && (
+      {skiniver.error && isSkiniverTab && (
         <p className="text-sm text-destructive">No se pudieron cargar los reportes.</p>
       )}
 
-      {report.data && isEmpty && !isLifestyleTab && !isDermatologicoTab ? (
+      {isSkiniverTab && skiniver.data ? (
+        <SkiniverReportView report={skiniver.data} />
+      ) : null}
+
+      {report.data && isEmpty && !isLifestyleTab && !isSkiniverTab ? (
         <ModuleCard className="flex flex-col items-center gap-3 p-10 text-center">
           <span className="flex size-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
             <BarChart3 className="size-6" />

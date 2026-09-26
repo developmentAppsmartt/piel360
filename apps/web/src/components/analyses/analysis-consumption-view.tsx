@@ -128,10 +128,12 @@ function PoolCard({
   title,
   accent,
   pool,
+  endsAt,
 }: {
   title: string;
   accent: "aesthetic" | "derm";
   pool: ConsumptionPool;
+  endsAt: string | null;
 }) {
   const consumedPct = pool.limit > 0 ? (pool.done / pool.limit) * 100 : 0;
   const availablePct = pool.limit > 0 ? (pool.available / pool.limit) * 100 : 0;
@@ -162,7 +164,7 @@ function PoolCard({
         <h2 className="mt-3 text-[15px] font-semibold leading-snug">{title}</h2>
         <dl className="mt-3 space-y-1.5 text-sm">
           <div className="flex flex-wrap gap-x-2">
-            <dt className="text-muted-foreground">Realizados:</dt>
+            <dt className="text-muted-foreground">Consumidos del plan:</dt>
             <dd className="font-semibold tabular-nums">
               {pool.done}{" "}
               <span className="font-medium text-muted-foreground">
@@ -171,8 +173,12 @@ function PoolCard({
             </dd>
           </div>
           <div className="flex flex-wrap gap-x-2">
+            <dt className="text-muted-foreground">Consumidos en el periodo:</dt>
+            <dd className="font-semibold tabular-nums">{pool.periodDone}</dd>
+          </div>
+          <div className="flex flex-wrap gap-x-2">
             <dt className="text-muted-foreground">Límite del plan:</dt>
-            <dd className="font-semibold tabular-nums">{pool.limit} /mes</dd>
+            <dd className="font-semibold tabular-nums">{pool.limit}</dd>
           </div>
           <div className="flex flex-wrap gap-x-2">
             <dt className="text-muted-foreground">Disponibles:</dt>
@@ -184,6 +190,16 @@ function PoolCard({
             </dd>
           </div>
         </dl>
+        {pool.shared ? (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Límite compartido con la otra bolsa de análisis.
+          </p>
+        ) : null}
+        {endsAt ? (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Vigente hasta {formatIsoDateTime(endsAt)}
+          </p>
+        ) : null}
       </div>
       <UnitRing
         percent={consumedPct}
@@ -193,6 +209,17 @@ function PoolCard({
       />
     </ModuleCard>
   );
+}
+
+/** Fecha con hora (ISO completo) → DD/MM/YYYY. */
+function formatIsoDateTime(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("es-CO", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
 function formatDisplayDate(iso: string) {
@@ -275,6 +302,7 @@ export function AnalysisConsumptionView({
   derm,
   daily,
   rows,
+  subscriptionEndsAt,
   subtitle = "Consulta el consumo detallado de análisis de piel estéticos y análisis de imágenes dermatológicas.",
   headerExtra,
   range,
@@ -292,6 +320,7 @@ export function AnalysisConsumptionView({
   derm: ConsumptionPool;
   daily: DailyConsumptionPoint[];
   rows: DailyConsumptionRow[];
+  subscriptionEndsAt: string | null;
   subtitle?: string;
   headerExtra?: React.ReactNode;
   range: ConsumptionRangePreset;
@@ -405,11 +434,13 @@ export function AnalysisConsumptionView({
           title="Análisis de piel estéticos"
           accent="aesthetic"
           pool={aesthetic}
+          endsAt={subscriptionEndsAt}
         />
         <PoolCard
           title="Análisis de imágenes dermatológicas"
           accent="derm"
           pool={derm}
+          endsAt={subscriptionEndsAt}
         />
       </div>
 
@@ -418,7 +449,7 @@ export function AnalysisConsumptionView({
           <div>
             <ModuleCardTitle>Consumo por día</ModuleCardTitle>
             <ModuleCardDescription>
-              Detalle de análisis realizados por día.
+              Créditos consumidos por día.
             </ModuleCardDescription>
           </div>
         </div>
@@ -439,7 +470,7 @@ export function AnalysisConsumptionView({
         <div className="border-b border-border px-5 py-4">
           <ModuleCardTitle className="text-sm">Detalle de consumo</ModuleCardTitle>
           <ModuleCardDescription>
-            Listado del periodo seleccionado.
+            Créditos consumidos en el periodo seleccionado.
           </ModuleCardDescription>
         </div>
         <div className="overflow-x-auto">
@@ -451,7 +482,7 @@ export function AnalysisConsumptionView({
                 <th className="px-4 py-3 font-medium">
                   Análisis de imágenes dermatológicas
                 </th>
-                <th className="px-4 py-3 font-medium">Total análisis</th>
+                <th className="px-4 py-3 font-medium">Total créditos</th>
                 <th className="px-4 py-3 font-medium">Pacientes</th>
                 <th className="px-4 py-3 font-medium">Profesional</th>
                 <th className="px-4 py-3 font-medium">Acciones</th>

@@ -41,12 +41,21 @@ export interface Doctor {
   membershipType?: string | null;
   empresa?: boolean;
   empresaReferida?: boolean;
+  /** 'specialty' | 'labor' — `null` en registros anteriores al cambio. */
+  professionalKind?: string | null;
   cedulaDocKey: string | null;
+  /** Registro médico, o acreditación académica si es técnico laboral. */
   medicalRegistryDocKey: string | null;
   diplomaDocKey: string | null;
+  diplomaPostgradoDocKey?: string | null;
+  healthRegistrationDocKey?: string | null;
+  biosafetyCertDocKey?: string | null;
   cedulaDocUrl?: string | null;
   medicalRegistryDocUrl?: string | null;
   diplomaDocUrl?: string | null;
+  diplomaPostgradoDocUrl?: string | null;
+  healthRegistrationDocUrl?: string | null;
+  biosafetyCertDocUrl?: string | null;
   avatarUrl?: string | null;
   createdAt: string;
   updatedAt: string;

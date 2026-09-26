@@ -10,6 +10,7 @@ import {
   type Doctor,
   type DoctorOrganization,
 } from "@/lib/queries/doctors";
+import { hasAllDoctorDocuments } from "@/lib/doctor-documents";
 
 export type CriterionStatus = "fulfilled" | "in_review" | "pending";
 
@@ -110,10 +111,10 @@ export function computeVerificationCriteria(d: Doctor) {
       ? "fulfilled"
       : "pending";
 
-  const docsUploaded =
-    Boolean(d.cedulaDocKey || d.cedulaDocUrl) &&
-    Boolean(d.medicalRegistryDocKey || d.medicalRegistryDocUrl) &&
-    Boolean(d.diplomaDocKey || d.diplomaDocUrl);
+  // Los documentos exigidos dependen del tipo de profesional: un técnico
+  // laboral nunca sube diploma de pregrado, y antes eso lo dejaba "pendiente"
+  // de forma permanente.
+  const docsUploaded = hasAllDoctorDocuments(d);
 
   const validDocs: CriterionStatus = docsUploaded ? "fulfilled" : "pending";
 

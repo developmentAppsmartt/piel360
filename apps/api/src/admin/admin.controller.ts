@@ -66,6 +66,17 @@ export class AdminController {
     return this.adminService.getReports(startDate, endDate, granularity);
   }
 
+  /** Mismo reporte dermatológico del panel del doctor, con alcance global
+   * (sin filtro por doctor). */
+  @Get('reports/skiniver')
+  @RequirePermission('admin.reports')
+  getSkiniverReport(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.adminService.getSkiniverReport(startDate, endDate);
+  }
+
   @Get('map-markers')
   @RequirePermission('admin.maps')
   getMapMarkers(@Query('kind') kind?: 'doctor' | 'patient') {

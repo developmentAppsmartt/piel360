@@ -18,6 +18,7 @@ import { ReportPdfService } from '../reports/report-pdf.service';
 import { SkiniverService } from '../skiniver/skiniver.service';
 import { StorageService } from '../storage/storage.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { resolveSubscriptionEndsAt } from '../subscriptions/subscription-ends.util';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
 import {
   getAnalysisProviderIdBySlug,
@@ -440,8 +441,12 @@ export class AnalysesService {
   }
 
   /**
-   * Consumo de análisis (estético vs dermatológico): pools de créditos de
-   * suscripciones activas + serie diaria y detalle del rango de fechas.
+   * Consumo de análisis (estético vs dermatológico). Todo sale de
+   * `subscription_usages`: los pools son el saldo de las suscripciones activas
+   * y la serie diaria/detalle son los créditos consumidos dentro del rango, de
+   * esas mismas suscripciones — así las tarjetas y la tabla siempre cuadran.
+   * Contar filas de `analyses` en su lugar incluiría análisis que nunca
+   * descontaron crédito (YouCam sin completar, o sin suscripción activa).
    */
   async getConsumption(
     currentUser: JwtPayload,
@@ -449,9 +454,6 @@ export class AnalysesService {
   ) {
     const { from, to } = resolveConsumptionRange(query.from, query.to);
 
-    let analysisWhere: Prisma.AnalysisWhereInput = {
-      createdAt: { gte: from, lte: to },
-    };
     let subscriptionUserIds: bigint[] | null = null;
 
     if (currentUser.role === 'superadmin') {
@@ -464,10 +466,6 @@ export class AnalysesService {
       const scope = await this.orgContext.resolvePatientDoctorScope(
         currentUser.sub,
       );
-      analysisWhere = {
-        ...analysisWhere,
-        patient: { doctorId: { in: scope.visibleDoctorIds } },
-      };
       subscriptionUserIds = [scope.ctx.subscriptionUserId];
     } else {
       throw new ForbiddenException(
@@ -475,24 +473,9 @@ export class AnalysesService {
       );
     }
 
-    const providers = await this.prisma.analysisProvider.findMany({
-      select: { id: true, slug: true },
-    });
-    const slugById = new Map(providers.map((p) => [p.id.toString(), p.slug]));
-
-    const [analyses, subscriptions] = await Promise.all([
-      this.prisma.analysis.findMany({
-        where: analysisWhere,
-        select: {
-          id: true,
-          createdAt: true,
-          patientId: true,
-          youcamTaskId: true,
-          fitzpatrickTaskId: true,
-          provider: { select: { slug: true } },
-          user: { select: { name: true } },
-        },
-        orderBy: { createdAt: 'asc' },
+    const [providers, subscriptions] = await Promise.all([
+      this.prisma.analysisProvider.findMany({
+        select: { id: true, slug: true },
       }),
       this.prisma.subscription.findMany({
         where: {
@@ -518,27 +501,72 @@ export class AnalysesService {
         },
       }),
     ]);
+    const slugById = new Map(providers.map((p) => [p.id.toString(), p.slug]));
 
     const aesthetic = emptyPool();
     const derm = emptyPool();
+    let endsAt: Date | null = null;
 
     for (const sub of subscriptions) {
       const buckets = planCreditBuckets(sub.plan, slugById);
-      aesthetic.limit += buckets.aesthetic;
-      derm.limit += buckets.derm;
+      let doneAesthetic = 0;
+      let doneDerm = 0;
 
       for (const usage of sub.usages) {
         const qty = usage.quantity ?? 1;
-        if (isAestheticAnalysis(usage.analysis)) {
-          aesthetic.done += qty;
-        } else {
-          derm.done += qty;
-        }
+        if (isAestheticAnalysis(usage.analysis)) doneAesthetic += qty;
+        else doneDerm += qty;
+      }
+
+      // Un plan mixto sin split en `analysisLimits` es una bolsa compartida:
+      // el consumo de las dos categorías descuenta del mismo límite.
+      const spentAesthetic = buckets.shared
+        ? doneAesthetic + doneDerm
+        : doneAesthetic;
+      const spentDerm = buckets.shared ? doneAesthetic + doneDerm : doneDerm;
+
+      aesthetic.limit += buckets.aesthetic;
+      aesthetic.done += doneAesthetic;
+      aesthetic.available += Math.max(0, buckets.aesthetic - spentAesthetic);
+      aesthetic.shared ||= buckets.shared;
+
+      derm.limit += buckets.derm;
+      derm.done += doneDerm;
+      derm.available += Math.max(0, buckets.derm - spentDerm);
+      derm.shared ||= buckets.shared;
+
+      const subEndsAt = resolveSubscriptionEndsAt(sub, sub.plan);
+      if (subEndsAt && (!endsAt || subEndsAt.getTime() < endsAt.getTime())) {
+        endsAt = subEndsAt;
       }
     }
 
-    aesthetic.available = Math.max(0, aesthetic.limit - aesthetic.done);
-    derm.available = Math.max(0, derm.limit - derm.done);
+    // La vigencia solo se muestra cuando hay una sola suscripción en juego;
+    // para superadmin (plataforma completa) no significa nada.
+    const subscriptionEndsAt = subscriptions.length === 1 ? endsAt : null;
+
+    const usages = await this.prisma.subscriptionUsage.findMany({
+      where: {
+        createdAt: { gte: from, lte: to },
+        ...(subscriptionUserIds
+          ? { subscriptionId: { in: subscriptions.map((s) => s.id) } }
+          : {}),
+      },
+      select: {
+        quantity: true,
+        createdAt: true,
+        analysis: {
+          select: {
+            patientId: true,
+            youcamTaskId: true,
+            fitzpatrickTaskId: true,
+            provider: { select: { slug: true } },
+            user: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
 
     const byDay = new Map<
       string,
@@ -550,8 +578,10 @@ export class AnalysesService {
       }
     >();
 
-    for (const row of analyses) {
-      const key = dayKey(row.createdAt);
+    for (const usage of usages) {
+      // Para YouCam el crédito se consume al completarse el task, no al crear
+      // el análisis: la fecha de la fila es la del cobro, que es lo correcto acá.
+      const key = dayKey(usage.createdAt);
       let bucket = byDay.get(key);
       if (!bucket) {
         bucket = {
@@ -562,11 +592,17 @@ export class AnalysesService {
         };
         byDay.set(key, bucket);
       }
-      if (isAestheticAnalysis(row)) bucket.aesthetic += 1;
-      else bucket.derm += 1;
-      bucket.patients.add(row.patientId.toString());
-      const pro = row.user?.name?.trim() || 'Sin asignar';
-      bucket.pros.set(pro, (bucket.pros.get(pro) ?? 0) + 1);
+      const qty = usage.quantity ?? 1;
+      if (isAestheticAnalysis(usage.analysis)) {
+        bucket.aesthetic += qty;
+        aesthetic.periodDone += qty;
+      } else {
+        bucket.derm += qty;
+        derm.periodDone += qty;
+      }
+      bucket.patients.add(usage.analysis.patientId.toString());
+      const pro = usage.analysis.user?.name?.trim() || 'Sin asignar';
+      bucket.pros.set(pro, (bucket.pros.get(pro) ?? 0) + qty);
     }
 
     const sortedKeys = [...byDay.keys()].sort();
@@ -594,6 +630,7 @@ export class AnalysesService {
     return {
       from: from.toISOString(),
       to: to.toISOString(),
+      subscriptionEndsAt: subscriptionEndsAt?.toISOString() ?? null,
       aesthetic,
       derm,
       daily,
@@ -786,7 +823,16 @@ export class AnalysesService {
 const AESTHETIC_PROVIDER_SLUGS = new Set(['youcam', 'fitzpatrick']);
 
 function emptyPool() {
-  return { done: 0, limit: 0, available: 0 };
+  return {
+    /** Créditos consumidos en toda la vigencia de la suscripción (saldo). */
+    done: 0,
+    limit: 0,
+    available: 0,
+    /** Créditos consumidos dentro del rango de fechas consultado. */
+    periodDone: 0,
+    /** El límite es una bolsa compartida con la otra categoría. */
+    shared: false,
+  };
 }
 
 function isAestheticAnalysis(row: {
@@ -807,7 +853,7 @@ function planCreditBuckets(
     analysisProviderId: bigint;
   },
   slugById: Map<string, string>,
-): { aesthetic: number; derm: number } {
+): { aesthetic: number; derm: number; shared: boolean } {
   const raw = plan.analysisLimits;
   const limits =
     raw && typeof raw === 'object' && !Array.isArray(raw)
@@ -820,6 +866,7 @@ function planCreditBuckets(
     return {
       aesthetic: Math.max(0, limits.aesthetic ?? 0),
       derm: Math.max(0, limits.skiniver ?? 0),
+      shared: false,
     };
   }
 
@@ -831,10 +878,15 @@ function planCreditBuckets(
   const hasAesthetic = slugs.some((s) => AESTHETIC_PROVIDER_SLUGS.has(s));
   const limit = Math.max(0, plan.analysisLimit);
 
-  if (hasSkiniver && !hasAesthetic) return { aesthetic: 0, derm: limit };
-  if (hasAesthetic && !hasSkiniver) return { aesthetic: limit, derm: 0 };
-  if (hasAesthetic) return { aesthetic: limit, derm: 0 };
-  return { aesthetic: 0, derm: limit };
+  if (hasSkiniver && !hasAesthetic)
+    return { aesthetic: 0, derm: limit, shared: false };
+  if (hasAesthetic && !hasSkiniver)
+    return { aesthetic: limit, derm: 0, shared: false };
+  // Plan que incluye ambos tipos sin desglose: `analysisLimit` es una sola
+  // bolsa que alimenta las dos categorías (antes se asignaba todo a estético
+  // y el pool dermatológico quedaba en 0 aunque hubiera consumo).
+  if (hasAesthetic) return { aesthetic: limit, derm: limit, shared: true };
+  return { aesthetic: 0, derm: limit, shared: false };
 }
 
 function resolveConsumptionRange(fromRaw?: string, toRaw?: string) {
@@ -862,8 +914,17 @@ function resolveConsumptionRange(fromRaw?: string, toRaw?: string) {
   return { from, to };
 }
 
+/**
+ * El cliente manda `YYYY-MM-DD` en su zona local, pero `new Date("2026-09-01")`
+ * lo interpreta como medianoche UTC: en un servidor al oeste de UTC, el
+ * `startOfDay` posterior caía en el día anterior y se perdía el día 1 del mes.
+ * Una fecha desnuda se construye por componentes, en hora del servidor.
+ */
 function parseIsoDate(value: string): Date {
-  const d = new Date(value);
+  const bare = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  const d = bare
+    ? new Date(Number(bare[1]), Number(bare[2]) - 1, Number(bare[3]))
+    : new Date(value);
   if (Number.isNaN(d.getTime())) {
     throw new BadRequestException(`Fecha inválida: ${value}`);
   }

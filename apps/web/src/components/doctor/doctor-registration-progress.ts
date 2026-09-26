@@ -2,6 +2,7 @@ import { isDoctorVerificationActive } from "@piel360/shared";
 import type { Doctor } from "@/lib/queries/doctors";
 import { isEnterpriseDoctor } from "@/lib/queries/doctors";
 import type { OrgCompanyProfile } from "@/lib/queries/organizations";
+import { hasAllDoctorDocuments } from "@/lib/doctor-documents";
 
 export type RegistrationChecklistItem = {
   id: string;
@@ -14,9 +15,12 @@ export function isProfessionalInfoComplete(
   profile: Doctor,
   org?: OrgCompanyProfile | null,
 ): boolean {
+  // El registro médico solo aplica a especialidad médica; exigírselo a un
+  // técnico laboral lo dejaba incompleto para siempre.
   const base = Boolean(
     profile.specialty?.trim() &&
-      profile.medicalRegistry?.trim() &&
+      (profile.professionalKind === "labor" ||
+        profile.medicalRegistry?.trim()) &&
       profile.docNumber?.trim() &&
       profile.address?.trim(),
   );
@@ -35,11 +39,7 @@ export function isDocumentsComplete(
   profile: Doctor,
   org?: OrgCompanyProfile | null,
 ): boolean {
-  const doctorDocs = Boolean(
-    profile.cedulaDocKey &&
-      profile.medicalRegistryDocKey &&
-      profile.diplomaDocKey,
-  );
+  const doctorDocs = hasAllDoctorDocuments(profile);
   if (!isEnterpriseDoctor(profile)) return doctorDocs;
   return (
     doctorDocs &&

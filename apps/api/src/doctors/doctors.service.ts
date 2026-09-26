@@ -714,6 +714,9 @@ export class DoctorsService {
       cedulaDocKey: string | null;
       medicalRegistryDocKey: string | null;
       diplomaDocKey: string | null;
+      diplomaPostgradoDocKey?: string | null;
+      healthRegistrationDocKey?: string | null;
+      biosafetyCertDocKey?: string | null;
       addressVerificationEvidenceKey?: string | null;
       user?: { email: string; avatarKey?: string | null } | null;
     },
@@ -731,6 +734,9 @@ export class DoctorsService {
       cedulaDocKey: string | null;
       medicalRegistryDocKey: string | null;
       diplomaDocKey: string | null;
+      diplomaPostgradoDocKey?: string | null;
+      healthRegistrationDocKey?: string | null;
+      biosafetyCertDocKey?: string | null;
       addressVerificationEvidenceKey?: string | null;
       user?: {
         email: string;
@@ -743,12 +749,18 @@ export class DoctorsService {
       cedulaDocUrl,
       medicalRegistryDocUrl,
       diplomaDocUrl,
+      diplomaPostgradoDocUrl,
+      healthRegistrationDocUrl,
+      biosafetyCertDocUrl,
       avatarUrl,
       addressVerificationEvidenceUrl,
     ] = await Promise.all([
       this.signDoc(doctor.cedulaDocKey),
       this.signDoc(doctor.medicalRegistryDocKey),
       this.signDoc(doctor.diplomaDocKey),
+      this.signDoc(doctor.diplomaPostgradoDocKey),
+      this.signDoc(doctor.healthRegistrationDocKey),
+      this.signDoc(doctor.biosafetyCertDocKey),
       this.signDoc(doctor.user?.avatarKey),
       this.signDoc(doctor.addressVerificationEvidenceKey),
     ]);
@@ -763,6 +775,9 @@ export class DoctorsService {
       cedulaDocUrl,
       medicalRegistryDocUrl,
       diplomaDocUrl,
+      diplomaPostgradoDocUrl,
+      healthRegistrationDocUrl,
+      biosafetyCertDocUrl,
       addressVerificationEvidenceUrl,
     };
   }
@@ -773,6 +788,9 @@ export class DoctorsService {
       cedula?: Express.Multer.File[];
       medicalRegistryDoc?: Express.Multer.File[];
       diploma?: Express.Multer.File[];
+      diplomaPostgrado?: Express.Multer.File[];
+      healthRegistration?: Express.Multer.File[];
+      biosafetyCert?: Express.Multer.File[];
     },
   ) {
     const doctor = await this.requireDoctorByUserId(userId);
@@ -780,6 +798,9 @@ export class DoctorsService {
       cedulaDocKey?: string;
       medicalRegistryDocKey?: string;
       diplomaDocKey?: string;
+      diplomaPostgradoDocKey?: string;
+      healthRegistrationDocKey?: string;
+      biosafetyCertDocKey?: string;
     } = {};
 
     const uploadOne = async (
@@ -809,10 +830,27 @@ export class DoctorsService {
       'medical-registry',
     );
     const diplomaKey = await uploadOne(files.diploma?.[0], 'diploma');
+    const diplomaPostgradoKey = await uploadOne(
+      files.diplomaPostgrado?.[0],
+      'diploma-postgrado',
+    );
+    const healthRegistrationKey = await uploadOne(
+      files.healthRegistration?.[0],
+      'health-registration',
+    );
+    const biosafetyCertKey = await uploadOne(
+      files.biosafetyCert?.[0],
+      'biosafety-cert',
+    );
 
     if (cedulaKey) data.cedulaDocKey = cedulaKey;
     if (registryKey) data.medicalRegistryDocKey = registryKey;
     if (diplomaKey) data.diplomaDocKey = diplomaKey;
+    if (diplomaPostgradoKey) data.diplomaPostgradoDocKey = diplomaPostgradoKey;
+    if (healthRegistrationKey) {
+      data.healthRegistrationDocKey = healthRegistrationKey;
+    }
+    if (biosafetyCertKey) data.biosafetyCertDocKey = biosafetyCertKey;
 
     if (Object.keys(data).length === 0) {
       throw new BadRequestException('No se recibieron documentos');

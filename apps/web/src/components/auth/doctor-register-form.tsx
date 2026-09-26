@@ -7,6 +7,7 @@ import { CloudUpload } from "lucide-react";
 import { isStrongPassword, PASSWORD_STRENGTH_MESSAGE } from "@piel360/shared";
 import { PasswordRequirements } from "@/components/ui/password-requirements";
 import { LocationPickerSection, useLocationPicker } from "@/components/auth/location-picker-section";
+import { doctorDocuments } from "@/lib/doctor-documents";
 import {
   combinePhoneParts,
   digitsOnly,
@@ -138,6 +139,7 @@ export function DoctorRegisterForm({
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [phonePrefix, setPhonePrefix] = useState("57");
   const [phoneNational, setPhoneNational] = useState("");
@@ -149,13 +151,11 @@ export function DoctorRegisterForm({
   const [specialty, setSpecialty] = useState("");
   const [laborProfile, setLaborProfile] = useState("");
   const [medicalRegistry, setMedicalRegistry] = useState("");
-  const [licenseNumber, setLicenseNumber] = useState("");
   const [educationEntity, setEducationEntity] = useState("");
   const [graduationInstitution, setGraduationInstitution] = useState("");
   const [technicalInstitution, setTechnicalInstitution] = useState("");
-  const [cedula, setCedula] = useState<File | null>(null);
-  const [medicalRegistryDoc, setMedicalRegistryDoc] = useState<File | null>(null);
-  const [diploma, setDiploma] = useState<File | null>(null);
+  /** Archivos por clave del FormData — las tarjetas salen de doctorDocuments(). */
+  const [documents, setDocuments] = useState<Record<string, File | null>>({});
 
   const phone = combinePhoneParts(phonePrefix, phoneNational);
   const phoneValid =
@@ -280,17 +280,38 @@ export function DoctorRegisterForm({
       setState({ error: PASSWORD_STRENGTH_MESSAGE });
       return;
     }
+    if (password !== confirmPassword) {
+      setState({ error: "Las contraseñas no coinciden." });
+      return;
+    }
     if (!professionalKind) {
       setState({ error: "Elige si eres especialista médico o técnico laboral." });
       return;
     }
-    if (professionalKind === "specialty" && !specialty.trim()) {
-      setState({ error: "Selecciona una especialidad médica." });
-      return;
+    if (professionalKind === "specialty") {
+      if (!specialty.trim()) {
+        setState({ error: "Selecciona una especialidad médica." });
+        return;
+      }
+      if (!medicalRegistry.trim()) {
+        setState({ error: "Ingresa tu registro médico." });
+        return;
+      }
+      if (!educationEntity.trim()) {
+        setState({ error: "Indica la entidad educativa de pregrado." });
+        return;
+      }
+      // El postgrado es opcional: un médico general no tiene especialización.
     }
-    if (professionalKind === "labor" && !laborProfile.trim()) {
-      setState({ error: "Selecciona un perfil de técnico laboral." });
-      return;
+    if (professionalKind === "labor") {
+      if (!laborProfile.trim()) {
+        setState({ error: "Selecciona un perfil de técnico laboral." });
+        return;
+      }
+      if (!technicalInstitution.trim()) {
+        setState({ error: "Indica la institución educativa técnica." });
+        return;
+      }
     }
 
     const resolvedSpecialty =
@@ -319,17 +340,28 @@ export function DoctorRegisterForm({
           docNumber: docNumber.trim() || undefined,
           gender: gender || undefined,
           birthDate: birthDate || undefined,
-          medicalRegistry: medicalRegistry.trim() || undefined,
-          licenseNumber: licenseNumber.trim() || undefined,
-          educationEntity: educationEntity.trim() || undefined,
-          graduationInstitution: graduationInstitution.trim() || undefined,
+          professionalKind,
+          // Solo se manda lo que corresponde al tipo elegido: así cambiar de
+          // tipo a mitad del formulario no deja datos del otro colgando.
+          medicalRegistry:
+            professionalKind === "specialty"
+              ? medicalRegistry.trim() || undefined
+              : undefined,
+          educationEntity:
+            professionalKind === "specialty"
+              ? educationEntity.trim() || undefined
+              : undefined,
+          graduationInstitution:
+            professionalKind === "specialty"
+              ? graduationInstitution.trim() || undefined
+              : undefined,
           technicalInstitution:
             professionalKind === "labor"
               ? technicalInstitution.trim() || undefined
               : undefined,
           referralCode: alliedReferral?.code,
         },
-        { cedula, medicalRegistryDoc, diploma },
+        documents,
       );
 
       await establishSessionAction(result.accessToken, result.refreshToken);
@@ -679,46 +711,55 @@ export function DoctorRegisterForm({
             ) : null}
           </div>
         </Field>
-        <Field label="Registro médico" required>
+        <Field label="Confirmar contraseña" required>
           <input
             className={inputClass}
-            placeholder="RM-123456"
-            value={medicalRegistry}
-            onChange={(e) => setMedicalRegistry(e.target.value)}
+            type="password"
+            minLength={8}
             required
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Repite la contraseña"
           />
         </Field>
-        <Field label="Número de licencia" required>
-          <input
-            className={inputClass}
-            placeholder="LIC-0098"
-            value={licenseNumber}
-            onChange={(e) => setLicenseNumber(e.target.value)}
-            required
-          />
-        </Field>
-        <Field label="Entidad educativa" required>
-          <CatalogCombobox
-            typeSlug="education_entity"
-            className={inputClass}
-            placeholder="Busca tu universidad"
-            value={educationEntity}
-            onChange={setEducationEntity}
-            required
-          />
-        </Field>
-        <Field label="Institución de egreso" required>
-          <CatalogCombobox
-            typeSlug="education_entity"
-            className={inputClass}
-            placeholder="Busca la institución de egreso"
-            value={graduationInstitution}
-            onChange={setGraduationInstitution}
-            required
-          />
-        </Field>
+
+        {/* Lo que sigue depende del tipo de profesional: un técnico laboral no
+            tiene registro médico ni entidades educativas universitarias. */}
+        {professionalKind === "specialty" ? (
+          <>
+            <Field label="Registro médico" required>
+              <input
+                className={inputClass}
+                placeholder="RM-123456"
+                value={medicalRegistry}
+                onChange={(e) => setMedicalRegistry(e.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Entidad educativa pregrado" required>
+              <CatalogCombobox
+                typeSlug="education_entity"
+                className={inputClass}
+                placeholder="Busca tu universidad"
+                value={educationEntity}
+                onChange={setEducationEntity}
+                required
+              />
+            </Field>
+            <Field label="Entidad educativa postgrado (especialización médica)">
+              <CatalogCombobox
+                typeSlug="education_entity"
+                className={inputClass}
+                placeholder="Busca la institución de postgrado"
+                value={graduationInstitution}
+                onChange={setGraduationInstitution}
+              />
+            </Field>
+          </>
+        ) : null}
         {professionalKind === "labor" ? (
-          <Field label="Institución de educación técnica" required>
+          <Field label="Institución educativa técnica" required>
             <CatalogCombobox
               typeSlug="technical_education_institution"
               className={inputClass}
@@ -740,15 +781,27 @@ export function DoctorRegisterForm({
             Opcional. Puedes cargarlos más adelante al completar tu registro.
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <DocUploadCard title="Cédula" file={cedula} onChange={setCedula} />
-          <DocUploadCard
-            title="Registro Médico"
-            file={medicalRegistryDoc}
-            onChange={setMedicalRegistryDoc}
-          />
-          <DocUploadCard title="Diploma" file={diploma} onChange={setDiploma} />
-        </div>
+        {/* Los documentos dependen del tipo de profesional: mostrarlos antes de
+            elegirlo pediría los equivocados. */}
+        {professionalKind ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {doctorDocuments(professionalKind).map((doc) => (
+              <DocUploadCard
+                key={doc.field}
+                title={doc.label}
+                file={documents[doc.field] ?? null}
+                onChange={(file) =>
+                  setDocuments((prev) => ({ ...prev, [doc.field]: file }))
+                }
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-5 text-center text-sm text-zinc-500">
+            Elige el tipo de profesional para ver los documentos que debes
+            adjuntar.
+          </p>
+        )}
       </section>
 
       {state.error && <p className="text-sm text-red-600">{state.error}</p>}

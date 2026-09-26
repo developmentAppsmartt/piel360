@@ -366,9 +366,42 @@ export interface SkiniverSkinToneBucket {
   pct: number;
 }
 
+/** Porción de una distribución (donut de categorías, barras por edad). */
+export interface SkiniverCategorySlice {
+  key: string;
+  label: string;
+  color: string;
+  count: number;
+  /** 0-100. */
+  pct: number;
+}
+
+export interface SkiniverTopDiagnosis {
+  diagnosis: string;
+  /** `lesion_code` de la raíz de aiRawResponse; `topn[]` nunca lo trae. */
+  icdCode: string | null;
+  count: number;
+  /** 0-100. */
+  pct: number;
+}
+
+export interface SkiniverAgeGenderRow {
+  key: string;
+  label: string;
+  male: number;
+  female: number;
+  /** Pacientes con fecha de nacimiento pero sin género registrado. */
+  unknown: number;
+}
+
 export interface SkiniverReport {
   range: { from: string; to: string };
   /** Diagnósticos "sin patología" excluidos — ver isNoPathologyDiagnosis(). */
+  total: number;
+  byCategory: SkiniverCategorySlice[];
+  topDiagnoses: SkiniverTopDiagnosis[];
+  byAgeGender: SkiniverAgeGenderRow[];
+  ageDistribution: SkiniverCategorySlice[];
   byClass: SkiniverMonthlySeriesPoint[];
   byDisease: SkiniverMonthlySeriesPoint[];
   byAge: SkiniverMonthlySeriesPoint[];

@@ -15,6 +15,7 @@ import { isClinicalPanelUser } from '../../../types/auth';
 import { useBranding } from '../../../context/BrandingContext';
 import { ApiError } from '../../../services/api.client';
 import { analysesService } from '../../../services/analyses.service';
+import type { ConfirmAnalysisInput } from '../../../services/analyses.service';
 import { patientsService } from '../../../services/patients.service';
 import { confirmAction } from '../../../utils/confirm';
 import type {
@@ -182,6 +183,12 @@ export function AnalysisDetailView({
     setSkiniverSelected(null);
   }, [analysisId]);
 
+  // Las observaciones ahora se editan siempre (al confirmar y al corregir):
+  // se precargan con lo ya guardado para no borrarlas sin querer al guardar.
+  useEffect(() => {
+    setSkiniverNotes(analysis?.doctorNotes?.trim() ?? '');
+  }, [analysis?.id, analysis?.doctorNotes]);
+
   function handleSkiniverViewChange(next: 'stats' | 'detail') {
     setSkiniverView(next);
     if (next === 'stats') setSkiniverSelected(null);
@@ -310,6 +317,20 @@ export function AnalysisDetailView({
     setNosologyPickerOpen(true);
   }
 
+  /** Confirmar sin corregir: se conserva el diagnostico de la IA, pero las
+   * observaciones del medico son obligatorias igual que al corregir. */
+  async function handleSkiniverConfirm(input: ConfirmAnalysisInput) {
+    const notes = skiniverNotes.trim();
+    if (!notes) {
+      Alert.alert(
+        'Faltan las observaciones',
+        'Describe el diagnóstico en observaciones antes de confirmar.',
+      );
+      return;
+    }
+    await handleConfirm({ ...input, doctorNotes: notes });
+  }
+
   async function handleSaveSkiniverNotes() {
     if (!analysis) return;
     const notes = skiniverNotes.trim();
@@ -355,6 +376,15 @@ export function AnalysisDetailView({
     setSkiniverNotesOpen(true);
     setSkiniverView('detail');
   }
+
+  /** `correct` mientras se corrige; `confirm` mientras falte confirmar (el
+   * medico escribe sus notas ahi mismo); `readonly` sin permiso o ya cerrado. */
+  const skiniverObservationsMode: 'readonly' | 'confirm' | 'correct' =
+    skiniverNotesOpen
+      ? 'correct'
+      : !canManage || analysis?.isConfirmed
+        ? 'readonly'
+        : 'confirm';
 
   const canConfirm =
     canManage && analysis && (!isYoucam || analysis.isValid);
@@ -543,7 +573,7 @@ export function AnalysisDetailView({
                 onViewChange={handleSkiniverViewChange}
                 selectedCandidate={skiniverSelected}
                 onSelectedCandidateChange={setSkiniverSelected}
-                observationsEditing={skiniverNotesOpen}
+                observationsMode={skiniverObservationsMode}
                 observationsValue={skiniverNotes}
                 onObservationsChange={setSkiniverNotes}
                 onSaveObservations={() => void handleSaveSkiniverNotes()}
@@ -577,7 +607,7 @@ export function AnalysisDetailView({
                     ) : (
                       <ConfirmAnalysisForm
                         aiDiagnosis={analysis.aiDiagnosis}
-                        onSubmit={handleConfirm}
+                        onSubmit={handleSkiniverConfirm}
                         correctMode="nosology"
                         onCorrectPress={openSkiniverCorrection}
                       />

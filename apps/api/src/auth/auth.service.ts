@@ -190,6 +190,7 @@ export class AuthService implements OnModuleDestroy {
                 ? { birthDate: new Date(dto.birthDate) }
                 : {}),
               specialty: dto.specialty?.trim() || null,
+              professionalKind: dto.professionalKind ?? null,
               medicalRegistry: dto.medicalRegistry?.trim() || null,
               licenseNumber: dto.licenseNumber?.trim() || null,
               educationEntity: dto.educationEntity?.trim() || null,
