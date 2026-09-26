@@ -287,8 +287,11 @@ export function PlansBrowser({
               >
                 <p className="font-semibold">{sub.plan.name}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {providerLabel(sub.plan.provider.slug)} · vigente hasta{" "}
-                  {new Date(sub.endsAt).toLocaleDateString("es-CO")}
+                  {providerLabel(sub.plan.provider.slug)}
+                  {/* `endsAt` es nullable: sin fecha no se anuncia vigencia. */}
+                  {sub.endsAt
+                    ? ` · vigente hasta ${new Date(sub.endsAt).toLocaleDateString("es-CO")}`
+                    : null}
                 </p>
               </div>
             ))}
