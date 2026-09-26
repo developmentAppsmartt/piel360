@@ -18,9 +18,13 @@ export interface DoctorRegisterPayload {
   birthDate?: string;
   gender?: string;
   specialty: string;
+  /** Qué formulario llenó: define qué campos y documentos le corresponden. */
+  professionalKind?: "specialty" | "labor";
+  /** Solo especialidad médica. */
   medicalRegistry?: string;
-  licenseNumber?: string;
+  /** Entidad educativa de pregrado (solo especialidad médica). */
   educationEntity?: string;
+  /** Entidad educativa de postgrado / especialización médica — opcional. */
   graduationInstitution?: string;
   /** Solo técnicos laborales — institución de educación para el trabajo. */
   technicalInstitution?: string;
@@ -39,11 +43,8 @@ export interface AuthTokensResponse {
   user: AuthUser;
 }
 
-export interface DoctorRegisterDocuments {
-  cedula?: File | null;
-  medicalRegistryDoc?: File | null;
-  diploma?: File | null;
-}
+/** Claves del FormData de `POST /doctors/me/documents` — ver doctor-documents.ts. */
+export type DoctorRegisterDocuments = Partial<Record<string, File | null>>;
 
 /**
  * Registro doctor desde el navegador → API directa (multipart).
@@ -58,22 +59,15 @@ export async function registerDoctorWithDocuments(
     body: JSON.stringify(payload),
   });
 
-  const { cedula, medicalRegistryDoc, diploma } = documents;
-  const hasDocs =
-    (cedula && cedula.size > 0) ||
-    (medicalRegistryDoc && medicalRegistryDoc.size > 0) ||
-    (diploma && diploma.size > 0);
-
+  const hasDocs = Object.values(documents).some((f) => f && f.size > 0);
   if (!hasDocs) {
     return { result };
   }
 
   const docs = new FormData();
-  if (cedula && cedula.size > 0) docs.set("cedula", cedula);
-  if (medicalRegistryDoc && medicalRegistryDoc.size > 0) {
-    docs.set("medicalRegistryDoc", medicalRegistryDoc);
+  for (const [field, file] of Object.entries(documents)) {
+    if (file && file.size > 0) docs.set(field, file);
   }
-  if (diploma && diploma.size > 0) docs.set("diploma", diploma);
 
   try {
     await apiClientFetch("/doctors/me/documents", {

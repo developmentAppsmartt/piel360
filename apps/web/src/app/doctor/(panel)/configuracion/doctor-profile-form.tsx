@@ -27,6 +27,7 @@ import {
   CompanyProfileSection,
   type CompanyProfileHandle,
 } from "./company-profile-section";
+import { doctorDocuments } from "@/lib/doctor-documents";
 
 function isCompanyMembership(profile: MyDoctorProfile) {
   return isEnterpriseDoctor(profile);
@@ -183,11 +184,8 @@ export function DoctorProfileForm() {
   const [form, setForm] = useState<ReturnType<typeof profileToForm> | null>(
     null,
   );
-  const [cedula, setCedula] = useState<File | null>(null);
-  const [medicalRegistryDoc, setMedicalRegistryDoc] = useState<File | null>(
-    null,
-  );
-  const [diploma, setDiploma] = useState<File | null>(null);
+  /** Archivos por clave del FormData — la lista sale de doctorDocuments(). */
+  const [documents, setDocuments] = useState<Record<string, File | null>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savingAll, setSavingAll] = useState(false);
@@ -278,16 +276,14 @@ export function DoctorProfileForm() {
         setPhoneTicket(null);
       }
 
-      if (cedula || medicalRegistryDoc || diploma) {
+      const pendingDocs = Object.entries(documents).filter(
+        (entry): entry is [string, File] => Boolean(entry[1]),
+      );
+      if (pendingDocs.length > 0) {
         const docs = new FormData();
-        if (cedula) docs.set("cedula", cedula);
-        if (medicalRegistryDoc)
-          docs.set("medicalRegistryDoc", medicalRegistryDoc);
-        if (diploma) docs.set("diploma", diploma);
+        for (const [field, file] of pendingDocs) docs.set(field, file);
         await uploadDocs.mutateAsync(docs);
-        setCedula(null);
-        setMedicalRegistryDoc(null);
-        setDiploma(null);
+        setDocuments({});
       }
 
       if (showCompany && companyRef.current?.isReady()) {
@@ -574,30 +570,21 @@ export function DoctorProfileForm() {
       <div className="space-y-2">
         <h2 className="text-sm font-semibold">Documentos</h2>
         <p className="text-xs text-muted-foreground">
-          Cédula, registro profesional y diploma o certificado (PDF, JPG o PNG).
+          PDF, JPG o PNG. Los documentos dependen de tu tipo de profesional.
         </p>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <DocPreview
-            title="Cédula"
-            url={profile.cedulaDocUrl}
-            fileKey={profile.cedulaDocKey}
-            file={cedula}
-            onChange={setCedula}
-          />
-          <DocPreview
-            title="Registro profesional"
-            url={profile.medicalRegistryDocUrl}
-            fileKey={profile.medicalRegistryDocKey}
-            file={medicalRegistryDoc}
-            onChange={setMedicalRegistryDoc}
-          />
-          <DocPreview
-            title="Diploma"
-            url={profile.diplomaDocUrl}
-            fileKey={profile.diplomaDocKey}
-            file={diploma}
-            onChange={setDiploma}
-          />
+        <div className="grid gap-4 sm:grid-cols-2">
+          {doctorDocuments(profile.professionalKind).map((doc) => (
+            <DocPreview
+              key={doc.field}
+              title={doc.label}
+              url={profile[doc.docUrl]}
+              fileKey={profile[doc.docKey]}
+              file={documents[doc.field] ?? null}
+              onChange={(file) =>
+                setDocuments((prev) => ({ ...prev, [doc.field]: file }))
+              }
+            />
+          ))}
         </div>
       </div>
         </>

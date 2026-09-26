@@ -48,6 +48,7 @@ import {
 } from "@/lib/verification-criteria";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { doctorDocuments } from "@/lib/doctor-documents";
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "Pendiente",
@@ -800,21 +801,14 @@ function DetailPanel({
             <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               Documentos del profesional
             </h3>
-            <DocRow
-              title="Documento de identidad"
-              url={d.cedulaDocUrl}
-              fileKey={d.cedulaDocKey}
-            />
-            <DocRow
-              title="Tarjeta profesional / registro"
-              url={d.medicalRegistryDocUrl}
-              fileKey={d.medicalRegistryDocKey}
-            />
-            <DocRow
-              title="Diploma"
-              url={d.diplomaDocUrl}
-              fileKey={d.diplomaDocKey}
-            />
+            {doctorDocuments(d.professionalKind).map((doc) => (
+              <DocRow
+                key={doc.field}
+                title={doc.label}
+                url={d[doc.docUrl]}
+                fileKey={d[doc.docKey]}
+              />
+            ))}
           </section>
         ) : null}
 

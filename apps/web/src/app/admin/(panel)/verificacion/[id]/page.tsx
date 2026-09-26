@@ -8,6 +8,7 @@ import {
   isEnterpriseDoctor,
   useDoctor,
 } from "@/lib/queries/doctors";
+import { doctorDocuments } from "@/lib/doctor-documents";
 
 function DocBlock({
   title,
@@ -139,22 +140,15 @@ export default function VerificacionDoctorPage() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold">Documentos del profesional</h2>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <DocBlock
-            title="Cédula"
-            url={d.cedulaDocUrl}
-            fileKey={d.cedulaDocKey}
-          />
-          <DocBlock
-            title="Registro médico"
-            url={d.medicalRegistryDocUrl}
-            fileKey={d.medicalRegistryDocKey}
-          />
-          <DocBlock
-            title="Diploma"
-            url={d.diplomaDocUrl}
-            fileKey={d.diplomaDocKey}
-          />
+        <div className="grid gap-4 sm:grid-cols-2">
+          {doctorDocuments(d.professionalKind).map((doc) => (
+            <DocBlock
+              key={doc.field}
+              title={doc.label}
+              url={d[doc.docUrl]}
+              fileKey={d[doc.docKey]}
+            />
+          ))}
         </div>
       </section>
 
