@@ -318,8 +318,16 @@ export class ReportPdfService {
     }
   }
 
-  /** Genera (una sola vez) y devuelve la URL pública permanente del PDF del
-   * reporte para un análisis — `${FRONTEND_URL}/api/public/reports/{token}`. */
+  /**
+   * Genera (una sola vez) y devuelve la URL pública permanente del PDF del
+   * reporte — `${PUBLIC_API_URL}/api/public/reports/{token}`.
+   *
+   * Se arma con la URL pública de la **API**, que es quien sirve esa ruta
+   * (PublicReportController). Antes se usaba FRONTEND_URL y funcionaba solo
+   * por el rewrite de `/api/*` de next.config.ts, que a su vez dependía de
+   * BACKEND_ORIGIN: al dejar de usarse ese proxy (la cookie ahora se comparte
+   * entre subdominios vía COOKIE_DOMAIN), el enlace empezó a dar 404.
+   */
   async ensureReportUrl(analysisId: bigint): Promise<string | null> {
     const analysis = await this.prisma.analysis.findUnique({
       where: { id: analysisId },
@@ -336,10 +344,15 @@ export class ReportPdfService {
     });
     if (!analysis) return null;
 
-    const frontendUrl = this.config.getOrThrow<string>('FRONTEND_URL').replace(/\/$/, '');
+    // FRONTEND_URL como respaldo por compatibilidad: en despliegues donde el
+    // front sí proxye /api/* el enlace sigue siendo válido.
+    const baseUrl = (
+      this.config.get<string>('PUBLIC_API_URL') ??
+      this.config.getOrThrow<string>('FRONTEND_URL')
+    ).replace(/\/$/, '');
 
     if (analysis.reportToken && analysis.reportPdfKey) {
-      return `${frontendUrl}/api/public/reports/${analysis.reportToken}`;
+      return `${baseUrl}/api/public/reports/${analysis.reportToken}`;
     }
 
     try {
@@ -352,7 +365,7 @@ export class ReportPdfService {
         where: { id: analysisId },
         data: { reportToken: token, reportPdfKey: key },
       });
-      return `${frontendUrl}/api/public/reports/${token}`;
+      return `${baseUrl}/api/public/reports/${token}`;
     } catch (error) {
       // `error` y no `warn`, y con stack: este catch se tragaba la causa real
       // (p. ej. "Could not find Chrome") y el cliente solo veia un error
