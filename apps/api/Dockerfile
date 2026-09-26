@@ -47,9 +47,11 @@ RUN pnpm install --frozen-lockfile
 # install of this build probably did not finish"). Ese era justo el estado de la
 # imagen en produccion: el PDF fallaba con "Could not find Chrome".
 RUN rm -rf "$PUPPETEER_CACHE_DIR" && pnpm --filter @piel360/api exec puppeteer browsers install chrome
-# Red de seguridad: si el binario no quedo instalado, el build falla aqui en
-# vez de arrancar un contenedor que devuelve error al generar el PDF.
-RUN node -e "const p=require('/app/node_modules/puppeteer'); const fs=require('node:fs'); const x=p.executablePath(); if(!fs.existsSync(x)) throw new Error('Chromium no quedo instalado en '+x); console.log('Chromium OK:', x);"
+# Red de seguridad: comprueba que el binario existe Y que arranca (eso ultimo
+# valida tambien las librerias del sistema de mas arriba). Si algo falla, el
+# build se rompe aqui en vez de publicar una imagen que da error al generar el
+# PDF. Ver apps/api/scripts/verify-chromium.js.
+RUN node apps/api/scripts/verify-chromium.js
 
 RUN pnpm --filter @piel360/shared run build
 RUN pnpm --filter @piel360/api run build
