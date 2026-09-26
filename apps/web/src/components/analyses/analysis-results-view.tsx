@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { SkiniverDiagnosisCandidate, SkiniverPrediction } from "@piel360/shared";
 import { ConfirmAnalysisForm } from "@/components/analyses/confirm-analysis-form";
+import { Button } from "@/components/ui/button";
 import { DiagnosisDetailDialog } from "@/components/analyses/diagnosis-detail-dialog";
 import { DiagnosisList } from "@/components/analyses/diagnosis-list";
 import { FitzpatrickResultsSection } from "@/components/analyses/fitzpatrick-results-section";
@@ -36,6 +37,7 @@ export function AnalysisResultsView({
   const [selectedDiagnosis, setSelectedDiagnosis] =
     useState<SkiniverDiagnosisCandidate | null>(null);
   const [youcamView, setYoucamView] = useState<YoucamSubView>("detail");
+  const [editingNotes, setEditingNotes] = useState(false);
 
   const isYoucam = !!analysis.data?.youcamTaskId;
   const isFitzpatrick = !!analysis.data?.fitzpatrickTaskId;
@@ -236,19 +238,47 @@ export function AnalysisResultsView({
 
       {!hideConfirm &&
         (!isYoucam || analysis.data.isValid) &&
-        (analysis.data.isConfirmed ? (
-          <p className="text-sm text-muted-foreground">
-            {isYoucam || isFitzpatrick ? "Análisis" : "Diagnóstico"}{" "}
-            {analysis.data.isCorrected ? "corregido" : "confirmado"}
-            {analysis.data.finalDiagnosis
-              ? `: ${analysis.data.finalDiagnosis}`
-              : "."}
-          </p>
+        (analysis.data.isConfirmed && !editingNotes ? (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {isYoucam || isFitzpatrick ? "Análisis" : "Diagnóstico"}{" "}
+              {analysis.data.isCorrected ? "corregido" : "confirmado"}
+              {analysis.data.finalDiagnosis
+                ? `: ${analysis.data.finalDiagnosis}`
+                : "."}
+            </p>
+            {/* Las observaciones guardadas no se mostraban en ningún lado:
+                solo viajaban al backend al corregir. */}
+            {isSkiniver ? (
+              <ModuleCard className="space-y-2 p-4">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Observaciones
+                </p>
+                <p className="text-sm whitespace-pre-line">
+                  {analysis.data.doctorNotes?.trim()
+                    ? analysis.data.doctorNotes
+                    : "Sin observaciones del médico todavía."}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditingNotes(true)}
+                >
+                  Editar observaciones
+                </Button>
+              </ModuleCard>
+            ) : null}
+          </div>
         ) : (
           <ConfirmAnalysisForm
             aiDiagnosis={analysis.data.aiDiagnosis}
+            requireNotes={isSkiniver}
+            initialNotes={analysis.data.doctorNotes ?? ""}
+            onCancel={editingNotes ? () => setEditingNotes(false) : undefined}
             onSubmit={async (input) => {
               await confirmAnalysis.mutateAsync(input);
+              setEditingNotes(false);
               onConfirmed?.();
             }}
           />

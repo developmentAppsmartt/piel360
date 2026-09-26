@@ -216,7 +216,13 @@ type SkiniverResultsSectionProps = {
   onSelectedCandidateChange?: (
     candidate: SkiniverDiagnosisCandidate | null,
   ) => void;
-  observationsEditing?: boolean;
+  /**
+   * `readonly` — muestra las notas guardadas (sin permiso de edicion, o ya
+   * confirmado). `confirm` — solo el campo de notas: quien guarda es el boton
+   * "Confirmar resultado" del footer. `correct` — nosologia + notas + su
+   * propio boton de guardado, porque ahi se cambia el diagnostico.
+   */
+  observationsMode?: 'readonly' | 'confirm' | 'correct';
   observationsValue?: string;
   onObservationsChange?: (value: string) => void;
   onSaveObservations?: () => void;
@@ -233,7 +239,7 @@ export function SkiniverResultsSection({
   onViewChange,
   selectedCandidate: selectedCandidateProp,
   onSelectedCandidateChange,
-  observationsEditing = false,
+  observationsMode = 'readonly',
   observationsValue = '',
   onObservationsChange,
   onSaveObservations,
@@ -570,20 +576,30 @@ export function SkiniverResultsSection({
 
         <View style={styles.observationsBox}>
           <Text style={styles.observationsLabel}>Observaciones</Text>
-          {observationsEditing ? (
+          {observationsMode === 'readonly' ? (
+            <Text style={styles.observationsText}>
+              {analysis.doctorNotes?.trim()
+                ? analysis.doctorNotes
+                : 'Sin observaciones del médico todavía.'}
+            </Text>
+          ) : (
             <>
-              <Pressable
-                style={styles.nosologyPickBtn}
-                onPress={onPickNosology}
-                disabled={observationsSaving}
-              >
-                <Text style={styles.nosologyPickLabel}>Nosología</Text>
-                <Text style={styles.nosologyPickValue} numberOfLines={2}>
-                  {selectedNosology?.trim()
-                    ? selectedNosology
-                    : 'Seleccionar nosología'}
-                </Text>
-              </Pressable>
+              {/* La nosología es el diagnóstico corregido: al confirmar se
+                  conserva el de la IA, así que solo aparece al corregir. */}
+              {observationsMode === 'correct' ? (
+                <Pressable
+                  style={styles.nosologyPickBtn}
+                  onPress={onPickNosology}
+                  disabled={observationsSaving}
+                >
+                  <Text style={styles.nosologyPickLabel}>Nosología</Text>
+                  <Text style={styles.nosologyPickValue} numberOfLines={2}>
+                    {selectedNosology?.trim()
+                      ? selectedNosology
+                      : 'Seleccionar nosología'}
+                  </Text>
+                </Pressable>
+              ) : null}
               <TextInput
                 style={styles.observationsInput}
                 value={observationsValue}
@@ -598,29 +614,27 @@ export function SkiniverResultsSection({
               <Text style={styles.diagnosisSub}>
                 {observationsValue.length}/500
               </Text>
-              <Pressable
-                style={[
-                  styles.confirmPrimaryBtn,
-                  observationsSaving && styles.confirmBtnDisabled,
-                ]}
-                onPress={onSaveObservations}
-                disabled={observationsSaving}
-              >
-                {observationsSaving ? (
-                  <ActivityIndicator color={branding.colors.textOnDark} />
-                ) : (
-                  <Text style={styles.confirmPrimaryText}>
-                    Guardar diagnóstico
-                  </Text>
-                )}
-              </Pressable>
+              {/* En `confirm` guarda el botón "Confirmar resultado" del
+                  footer, para no dejar dos botones de guardado en pantalla. */}
+              {observationsMode === 'correct' ? (
+                <Pressable
+                  style={[
+                    styles.confirmPrimaryBtn,
+                    observationsSaving && styles.confirmBtnDisabled,
+                  ]}
+                  onPress={onSaveObservations}
+                  disabled={observationsSaving}
+                >
+                  {observationsSaving ? (
+                    <ActivityIndicator color={branding.colors.textOnDark} />
+                  ) : (
+                    <Text style={styles.confirmPrimaryText}>
+                      Guardar diagnóstico
+                    </Text>
+                  )}
+                </Pressable>
+              ) : null}
             </>
-          ) : (
-            <Text style={styles.observationsText}>
-              {analysis.doctorNotes?.trim()
-                ? analysis.doctorNotes
-                : 'Sin observaciones del médico todavía.'}
-            </Text>
           )}
         </View>
 
