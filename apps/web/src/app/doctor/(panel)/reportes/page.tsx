@@ -363,6 +363,7 @@ export default function ReportesPage() {
           )}
         </>
       ) : null}
+
     </div>
   );
 }

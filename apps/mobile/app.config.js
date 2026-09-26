@@ -57,10 +57,9 @@ export default {
     [
       'expo-splash-screen',
       {
+        // Solo fondo blanco: el icono nativo (Android 12 / iOS) quedaba
+        // recortado arriba de la status bar. El branding va en SplashIntro.
         backgroundColor: '#FFFFFF',
-        image: './assets/icon.png',
-        imageWidth: 220,
-        resizeMode: 'contain',
       },
     ],
     [

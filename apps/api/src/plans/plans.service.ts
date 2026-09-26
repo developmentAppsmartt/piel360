@@ -4,6 +4,7 @@ import {
   BILLING_CONFIG_KEYS,
   DEFAULT_BILLING_RATES,
   parsePlanApiCosts,
+  parsePlanCoverage,
   planCustomerPrice,
   toPublicPlanProviders,
 } from '@piel360/shared';
@@ -11,7 +12,11 @@ import type { JwtPayload } from '../auth/types';
 import { isEnterpriseDoctor } from '../doctors/doctor-account.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
-import type { CreatePlanDto, PlanFeatureDto } from './dto/create-plan.dto';
+import type {
+  CreatePlanDto,
+  PlanCoverageDto,
+  PlanFeatureDto,
+} from './dto/create-plan.dto';
 import type { UpdatePlanDto } from './dto/update-plan.dto';
 import {
   attachProvidersToPlan,
@@ -31,6 +36,13 @@ function normalizePlanFeatures(
     }))
     .filter((f) => f.label.length > 0)
     .slice(0, 20);
+}
+
+function normalizePlanCoverage(
+  coverage: PlanCoverageDto | undefined,
+): Prisma.InputJsonValue | undefined {
+  if (coverage === undefined) return undefined;
+  return parsePlanCoverage(coverage) as Prisma.InputJsonValue;
 }
 
 function normalizeApiCosts(
@@ -172,6 +184,7 @@ export class PlansService {
         isActive: dto.isActive ?? true,
         description: dto.description,
         features: normalizePlanFeatures(dto.features) ?? [],
+        coverage: normalizePlanCoverage(dto.coverage) ?? {},
         headerColor: dto.headerColor?.trim() || 'brand',
         apiCosts: normalizeApiCosts(dto.apiCosts) ?? {},
         ivaEnabled: dto.ivaEnabled ?? false,
@@ -217,6 +230,9 @@ export class PlansService {
         description: dto.description,
         ...(dto.features !== undefined
           ? { features: normalizePlanFeatures(dto.features) ?? [] }
+          : {}),
+        ...(dto.coverage !== undefined
+          ? { coverage: normalizePlanCoverage(dto.coverage) ?? {} }
           : {}),
         ...(dto.headerColor !== undefined
           ? { headerColor: dto.headerColor.trim() || 'brand' }

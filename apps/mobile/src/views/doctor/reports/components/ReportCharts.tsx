@@ -1,4 +1,5 @@
 import { Pressable, Text, View, StyleSheet, useWindowDimensions } from 'react-native';
+import { useState } from 'react';
 import Svg, { Circle, Line, Polyline, Text as SvgText } from 'react-native-svg';
 import type {
   SkinReportCategory,
@@ -325,6 +326,163 @@ export function SegmentBars({
     </View>
   );
 }
+
+export type MultiSeriesDef = {
+  key: string;
+  label: string;
+  color: string;
+};
+
+/** Varias series mensuales (reporte dermatológico Skiniver). */
+export function MultiSeriesTrendChart({
+  points,
+  series,
+  emptyMessage = 'No hay diagnósticos en el periodo seleccionado.',
+}: {
+  points: { period: string; counts: Record<string, number> }[];
+  series: MultiSeriesDef[];
+  emptyMessage?: string;
+}) {
+  const { width: screenW } = useWindowDimensions();
+  const [hidden, setHidden] = useState<Set<string>>(() => new Set());
+  const w = Math.max(320, screenW - 64);
+  const h = 180;
+  const padX = 28;
+  const padY = 16;
+
+  const visible = series.filter((s) => !hidden.has(s.key));
+  const hasAny = points.some((p) =>
+    series.some((s) => (p.counts[s.key] ?? 0) > 0),
+  );
+
+  if (!hasAny) {
+    return <Text style={trendStyles.empty}>{emptyMessage}</Text>;
+  }
+
+  const maxValue = Math.max(
+    1,
+    ...points.flatMap((p) => visible.map((s) => p.counts[s.key] ?? 0)),
+  );
+  const magnitude = Math.pow(10, Math.floor(Math.log10(maxValue)));
+  const yMax = Math.ceil(maxValue / (magnitude / 2)) * (magnitude / 2) || 1;
+  const toX = (i: number) =>
+    padX +
+    (points.length <= 1 ? 0 : (i / (points.length - 1)) * (w - padX * 2));
+  const toY = (v: number) => padY + (1 - v / yMax) * (h - padY * 2);
+  const ticks = [0, yMax / 2, yMax];
+  const labelStep = Math.max(1, Math.ceil(points.length / 6));
+
+  return (
+    <View style={{ gap: 10 }}>
+      <Svg width={w} height={h + 24} viewBox={`0 0 ${w} ${h + 24}`}>
+        {ticks.map((t) => (
+          <Line
+            key={t}
+            x1={padX}
+            x2={w - padX}
+            y1={toY(t)}
+            y2={toY(t)}
+            stroke="#E5E7EB"
+            strokeDasharray="4 4"
+          />
+        ))}
+        {ticks.map((t) => (
+          <SvgText
+            key={`lbl-${t}`}
+            x={padX - 6}
+            y={toY(t) + 3}
+            fontSize={9}
+            fill="#9CA3AF"
+            textAnchor="end"
+          >
+            {Math.round(t)}
+          </SvgText>
+        ))}
+        {visible.map((s) => {
+          const pts = points
+            .map((p, i) => `${toX(i)},${toY(p.counts[s.key] ?? 0)}`)
+            .join(' ');
+          return (
+            <Polyline
+              key={s.key}
+              fill="none"
+              stroke={s.color}
+              strokeWidth={2.2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              points={pts}
+            />
+          );
+        })}
+        {points.map((p, i) =>
+          i % labelStep === 0 || i === points.length - 1 ? (
+            <SvgText
+              key={`x-${p.period}`}
+              x={toX(i)}
+              y={h + 16}
+              fontSize={9}
+              fill="#9CA3AF"
+              textAnchor="middle"
+            >
+              {p.period.slice(5)}
+            </SvgText>
+          ) : null,
+        )}
+      </Svg>
+      <View style={multiStyles.legend}>
+        {series.map((s) => {
+          const off = hidden.has(s.key);
+          return (
+            <Pressable
+              key={s.key}
+              onPress={() => {
+                setHidden((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(s.key)) next.delete(s.key);
+                  else next.add(s.key);
+                  return next;
+                });
+              }}
+              style={[multiStyles.legendItem, off && { opacity: 0.35 }]}
+            >
+              <View
+                style={[multiStyles.swatch, { backgroundColor: s.color }]}
+              />
+              <Text style={multiStyles.legendText} numberOfLines={1}>
+                {s.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const multiStyles = StyleSheet.create({
+  legend: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    maxWidth: '48%',
+  },
+  swatch: {
+    width: 10,
+    height: 10,
+    borderRadius: 2,
+  },
+  legendText: {
+    flexShrink: 1,
+    fontSize: 11,
+    color: '#4B5563',
+    fontWeight: '500',
+  },
+});
 
 const donutStyles = StyleSheet.create({
   wrap: { gap: 14, alignItems: 'center' },

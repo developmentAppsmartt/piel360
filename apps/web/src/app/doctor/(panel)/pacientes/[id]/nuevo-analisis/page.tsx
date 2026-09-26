@@ -10,6 +10,7 @@ import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import { ApiError } from "@/lib/api-error";
 import { cn } from "@/lib/utils";
 import { useCreateAnalysis } from "@/lib/queries/analyses";
+import { usePatient, useUpdatePatient } from "@/lib/queries/patients";
 
 type Step = "region" | "captura" | "enviar" | "resultados";
 
@@ -20,7 +21,6 @@ interface BodySelection {
   zCoord: number;
 }
 
-// Mismos cortes/mensajes que docs/create-analysis.blade.php (sistema viejo).
 const PROGRESS_STAGES: [threshold: number, label: string][] = [
   [93, "Diagnósticos completos"],
   [69, "Determinando patología"],
@@ -42,18 +42,36 @@ export default function NuevoAnalisisPage() {
   const [bodySelection, setBodySelection] = useState<BodySelection | null>(null);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [importantNotes, setImportantNotes] = useState("");
+  const [notesHydrated, setNotesHydrated] = useState(false);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const { data: patient } = usePatient(patientId);
+  const updatePatient = useUpdatePatient(patientId);
   const createAnalysis = useCreateAnalysis();
 
-  // Progreso simulado — igual que startAnalysis/stopAnalysis en
-  // docs/create-analysis.blade.php: incrementos aleatorios con tope en 95%
-  // hasta que la respuesta real llegue, salto a 100% al terminar.
+  useEffect(() => {
+    if (!patient || notesHydrated) return;
+    setImportantNotes(patient.importantNotes ?? "");
+    setNotesHydrated(true);
+  }, [patient, notesHydrated]);
+
   useEffect(() => {
     return () => {
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
     };
   }, []);
+
+  async function persistNotes() {
+    const next = importantNotes.trim();
+    const current = (patient?.importantNotes ?? "").trim();
+    if (next === current) return;
+    try {
+      await updatePatient.mutateAsync({ importantNotes: next });
+    } catch {
+      // No bloquear el análisis si falla el guardado de notas.
+    }
+  }
 
   async function handleSubmit() {
     if (!photo) return;
@@ -62,6 +80,7 @@ export default function NuevoAnalisisPage() {
       setProgress((current) => (current < 95 ? current + Math.floor(Math.random() * 5) + 1 : current));
     }, 200);
     try {
+      await persistNotes();
       const created = await createAnalysis.mutateAsync({
         patientId,
         image: photo.file,
@@ -84,9 +103,30 @@ export default function NuevoAnalisisPage() {
 
       {step === "region" && (
         <div className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="importantNotes" className="text-sm font-medium">
+              Notas importantes
+            </label>
+            <textarea
+              id="importantNotes"
+              value={importantNotes}
+              onChange={(e) => setImportantNotes(e.target.value)}
+              maxLength={500}
+              rows={4}
+              placeholder="Alergias, antecedentes, observaciones clínicas…"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            />
+            <p className="text-xs text-muted-foreground">{importantNotes.length}/500</p>
+          </div>
           <BodySelector onSelect={setBodySelection} />
           <div className="flex gap-2">
-            <Button type="button" onClick={() => setStep("captura")}>
+            <Button
+              type="button"
+              onClick={() => {
+                void persistNotes();
+                setStep("captura");
+              }}
+            >
               {bodySelection ? "Continuar" : "Omitir"}
             </Button>
           </div>
@@ -113,6 +153,12 @@ export default function NuevoAnalisisPage() {
             Se enviará la foto para el análisis de {ANALYSIS_PROVIDER_STATIC_LABELS.skiniver}. Esto
             puede tardar unos segundos.
           </p>
+          {importantNotes.trim() ? (
+            <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
+              <p className="mb-1 font-medium">Notas importantes</p>
+              <p className="whitespace-pre-wrap text-muted-foreground">{importantNotes.trim()}</p>
+            </div>
+          ) : null}
           <div className="relative overflow-hidden rounded-lg border border-border">
             {/* eslint-disable-next-line @next/next/no-img-element -- preview de un blob local, no apta para next/image */}
             <img

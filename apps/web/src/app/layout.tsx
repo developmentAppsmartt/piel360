@@ -21,7 +21,8 @@ const fontMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Piel360",
-  description: "Plataforma de diagnóstico dermatológico asistido por IA",
+  description:
+    "Plataforma de Análisis Estético, Biotipo, Fototipo y Diagnostico de apoyo Dermatológico asistido con Inteligencia Artificial",
   // El icono de la pestaña sale de `app/favicon.ico` (convención de Next).
   // Antes se forzaba aquí el logo horizontal, que a 16px era ilegible.
 };
