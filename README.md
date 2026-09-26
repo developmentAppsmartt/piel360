@@ -148,7 +148,7 @@ Cada app tiene su propio archivo de entorno (no hay un `.env` compartido en la r
 | Archivo | Notas |
 |---|---|
 | `apps/api/.env` | Ya existe con valores de desarrollo. Incluye `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`/`JWT_REFRESH_SECRET`, `ENCRYPTION_KEY`, credenciales de Google/YouCam/Skiniver/S3 (vacías, llenar según se necesiten) |
-| `apps/web/.env.local.example` | Copiar a `.env.local`. **`JWT_SECRET` debe ser idéntico al de `apps/api/.env`** — el proxy de Next.js (`src/proxy.ts`) verifica ahí la firma de los tokens que emite la API |
+| `apps/web/.env.local.example` | Copiar a `.env.local`. **`JWT_SECRET` debe ser idéntico al de `apps/api/.env`** — el proxy de Next.js (`src/proxy.ts`) verifica ahí la firma de los tokens que emite la API. Define también **`BACKEND_ORIGIN="http://localhost:3000"`**: la API construye contra `FRONTEND_URL` (`:3001`) enlaces a rutas que sirve ella misma —el PDF del reporte y el correo de «reporte listo», `/api/public/reports/{token}`—, y sin el rewrite de `next.config.ts` esas URLs dan 404 en local |
 
 En producción (Railway/Vercel) estas se configuran como variables de entorno del servicio, no como archivos.
 
