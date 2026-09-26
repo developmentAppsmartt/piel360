@@ -112,6 +112,9 @@ export function EditProfileForm({
   const [fitzpatrickType, setFitzpatrickType] = useState(() =>
     resolveLatestFitzpatrickType(patient, analyses ?? []),
   );
+  const [importantNotes, setImportantNotes] = useState(
+    patient.importantNotes ?? '',
+  );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -184,6 +187,7 @@ export function EditProfileForm({
       exerciseSessionDuration: optional(exerciseSessionDuration),
       skinType: optional(skinType),
       fitzpatrickType: optional(fitzpatrickType),
+      importantNotes: importantNotes.trim(),
     };
     if (emailEditable) {
       input.email = optional(email);
@@ -479,6 +483,22 @@ export function EditProfileForm({
             })}
           </View>
           {fitzHint ? <Text style={styles.hint}>{fitzHint}</Text> : null}
+        </View>
+
+        <View style={styles.field}>
+          <Text style={styles.label}>Notas importantes</Text>
+          <TextInput
+            style={[styles.input, { minHeight: 80 }]}
+            value={importantNotes}
+            onChangeText={setImportantNotes}
+            multiline
+            maxLength={500}
+            textAlignVertical="top"
+            editable={!submitting}
+            placeholder="Alergias, antecedentes, observaciones…"
+            placeholderTextColor={branding.colors.muted}
+          />
+          <Text style={styles.hint}>{importantNotes.length}/500</Text>
         </View>
       </View>
 

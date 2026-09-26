@@ -131,6 +131,16 @@ export function PatientProfileShell({
                   <p className="text-xs text-muted-foreground">Tipo de piel</p>
                   <p className="font-medium">{patient.skinType ?? "—"}</p>
                 </div>
+                {patient.importantNotes?.trim() ? (
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <p className="text-xs text-muted-foreground">
+                      Notas importantes
+                    </p>
+                    <p className="whitespace-pre-wrap font-medium">
+                      {patient.importantNotes.trim()}
+                    </p>
+                  </div>
+                ) : null}
                 <div>
                   <p className="text-xs text-muted-foreground">Profesional</p>
                   <p className="font-medium">

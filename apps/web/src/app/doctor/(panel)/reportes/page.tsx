@@ -19,10 +19,12 @@ import { downloadCsv } from "@/lib/csv-export";
 import {
   useDoctorLifestyleReport,
   useDoctorSkinHealthReport,
+  useDoctorSkiniverReport,
   type DoctorReportsFilters,
 } from "@/lib/queries/doctor-reports";
 import { useOrganizationTeam } from "@/lib/queries/organizations";
 import { cn } from "@/lib/utils";
+import { SkiniverReportView } from "@/components/reports/skiniver-report-view";
 
 type ReportTab =
   | "resumen"
@@ -31,12 +33,14 @@ type ReportTab =
   | "nacimiento"
   | "mascotas"
   | "actividad"
-  | "clinico";
+  | "clinico"
+  | "dermatologico";
 
 const SKIN_TABS: { key: ReportTab; label: string }[] = [
   { key: "resumen", label: "Resumen de salud de la piel" },
   { key: "necesidades", label: "Mapa de necesidades" },
   { key: "top", label: "Top problemas" },
+  { key: "dermatologico", label: "Análisis dermatológico" },
 ];
 
 const LIFESTYLE_TABS: { key: ReportTab; label: string }[] = [
@@ -56,6 +60,7 @@ export default function ReportesPage() {
 
   const report = useDoctorSkinHealthReport(filters);
   const lifestyle = useDoctorLifestyleReport(filters);
+  const skiniver = useDoctorSkiniverReport(filters);
   const team = useOrganizationTeam();
   const members = team.data?.members ?? [];
   const showProfessionalFilter = members.length > 1;
@@ -65,6 +70,7 @@ export default function ReportesPage() {
     tab === "mascotas" ||
     tab === "actividad" ||
     tab === "clinico";
+  const isDermatologicoTab = tab === "dermatologico";
 
   function handleExport() {
     if (isLifestyleTab && lifestyle.data) {
@@ -178,9 +184,11 @@ export default function ReportesPage() {
         showProfessionalFilter={showProfessionalFilter}
         onExport={handleExport}
         exportDisabled={
-          isLifestyleTab
-            ? !lifestyle.data
-            : !report.data || Boolean(isEmpty)
+          isDermatologicoTab
+            ? !skiniver.data
+            : isLifestyleTab
+              ? !lifestyle.data
+              : !report.data || Boolean(isEmpty)
         }
       />
 
@@ -234,20 +242,26 @@ export default function ReportesPage() {
         </div>
       </div>
 
-      {report.isLoading && !isLifestyleTab && (
+      {report.isLoading && !isLifestyleTab && !isDermatologicoTab && (
         <p className="text-sm text-muted-foreground">Cargando reportes…</p>
       )}
       {lifestyle.isLoading && isLifestyleTab && (
         <p className="text-sm text-muted-foreground">Cargando reportes…</p>
       )}
-      {report.error && !isLifestyleTab && (
+      {skiniver.isLoading && isDermatologicoTab && (
+        <p className="text-sm text-muted-foreground">Cargando reportes…</p>
+      )}
+      {report.error && !isLifestyleTab && !isDermatologicoTab && (
         <p className="text-sm text-destructive">No se pudieron cargar los reportes.</p>
       )}
       {lifestyle.error && isLifestyleTab && (
         <p className="text-sm text-destructive">No se pudieron cargar los reportes.</p>
       )}
+      {skiniver.error && isDermatologicoTab && (
+        <p className="text-sm text-destructive">No se pudieron cargar los reportes.</p>
+      )}
 
-      {report.data && isEmpty && !isLifestyleTab ? (
+      {report.data && isEmpty && !isLifestyleTab && !isDermatologicoTab ? (
         <ModuleCard className="flex flex-col items-center gap-3 p-10 text-center">
           <span className="flex size-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
             <BarChart3 className="size-6" />
@@ -309,6 +323,10 @@ export default function ReportesPage() {
             />
           )}
         </>
+      ) : null}
+
+      {isDermatologicoTab && skiniver.data ? (
+        <SkiniverReportView report={skiniver.data} />
       ) : null}
     </div>
   );

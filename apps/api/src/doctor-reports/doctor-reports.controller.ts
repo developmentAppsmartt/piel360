@@ -32,4 +32,13 @@ export class DoctorReportsController {
   ) {
     return this.doctorReports.getLifestyleReport(user.sub, query);
   }
+
+  /** Reportes dermatológicos (Skiniver): diagnósticos por clase/enfermedad/edad/tono. */
+  @Get('skiniver')
+  skiniver(
+    @CurrentUser() user: JwtPayload,
+    @Query() query: SkiniverReportQueryDto,
+  ) {
+    return this.doctorReports.getSkiniverReport(user.sub, query);
+  }
 }

@@ -13,6 +13,9 @@ import {
   SEGMENT_COLORS,
   SKIN_REPORT_BANDS,
   SKIN_TONE_BUCKET_DEFS,
+  SKINIVER_AGE_BUCKETS,
+  SKINIVER_DIAGNOSIS_CLASS_DEFS,
+  SKINIVER_DISEASE_BUCKET_DEFS,
   reportableCategoryKey,
   reportableCategorySqlPairs,
   skinToneBucketForFitzpatrick,
@@ -521,6 +524,110 @@ export class DoctorReportsService {
           avgScore: null as number | null,
         })),
       },
+    };
+  }
+
+  /**
+   * Reporte dermatológico (Skiniver): diagnósticos por clase/enfermedad/edad
+   * y distribución por tono de piel. No usa las vistas de YouCam.
+   */
+  async getSkiniverReport(
+    userId: string,
+    query: SkiniverReportQueryDto,
+  ): Promise<SkiniverReport> {
+    const doctorIds = await this.resolveDoctorIds(
+      userId,
+      query.professionalUserId,
+    );
+    const { from, to, toExclusive } = this.resolveRange(query);
+    const periods = monthKeysInRange(from, to);
+
+    const empty = doctorIds.length === 0;
+    const [diagRows, ageRows, toneRows] = empty
+      ? [[], [], []]
+      : await Promise.all([
+          this.prisma.$queryRaw<SkiniverDiagnosisRow[]>(
+            skiniverMonthlyDiagnosesQuery(doctorIds, from, toExclusive),
+          ),
+          this.prisma.$queryRaw<SkiniverAgeRow[]>(
+            skiniverAgeMonthlyQuery(doctorIds, from, toExclusive),
+          ),
+          this.prisma.$queryRaw<SkiniverSkinToneRow[]>(
+            skiniverSkinToneQuery(doctorIds, from, toExclusive),
+          ),
+        ]);
+
+    const classKeys = Object.keys(SKINIVER_DIAGNOSIS_CLASS_DEFS);
+    const diseaseKeys = Object.keys(SKINIVER_DISEASE_BUCKET_DEFS);
+    const ageKeys = SKINIVER_AGE_BUCKETS.map((b) => b.key);
+
+    const emptyCounts = (keys: string[]): Record<string, number> =>
+      Object.fromEntries(keys.map((k) => [k, 0]));
+
+    const byClass: SkiniverMonthlySeriesPoint[] = periods.map((period) => {
+      const counts = emptyCounts(classKeys);
+      for (const row of diagRows) {
+        if (row.period !== period) continue;
+        const cls = classifyDiagnosisClass(row.ai_diagnosis);
+        if (!cls) continue;
+        counts[cls] = (counts[cls] ?? 0) + row.count;
+      }
+      return { period, counts };
+    });
+
+    const byDisease: SkiniverMonthlySeriesPoint[] = periods.map((period) => {
+      const counts = emptyCounts(diseaseKeys);
+      for (const row of diagRows) {
+        if (row.period !== period) continue;
+        const bucket = classifyDiseaseBucket(row.ai_diagnosis);
+        if (!bucket) continue;
+        counts[bucket] = (counts[bucket] ?? 0) + row.count;
+      }
+      return { period, counts };
+    });
+
+    const byAge: SkiniverMonthlySeriesPoint[] = periods.map((period) => {
+      const counts = emptyCounts(ageKeys);
+      for (const row of ageRows) {
+        if (row.period !== period) continue;
+        if (!(row.age_bucket in counts)) continue;
+        counts[row.age_bucket] = (counts[row.age_bucket] ?? 0) + row.count;
+      }
+      return { period, counts };
+    });
+
+    const toneTotals: Record<string, number> = Object.fromEntries(
+      SKIN_TONE_BUCKET_DEFS.map((b) => [b.key, 0]),
+    );
+    for (const row of toneRows) {
+      const key = skinToneBucketForFitzpatrick(row.fitzpatrick_type);
+      if (!key) continue;
+      toneTotals[key] = (toneTotals[key] ?? 0) + row.count;
+    }
+    const skinToneTotal = Object.values(toneTotals).reduce((s, n) => s + n, 0);
+    const bySkinTone: SkiniverSkinToneBucket[] = SKIN_TONE_BUCKET_DEFS.map(
+      (def) => {
+        const count = toneTotals[def.key] ?? 0;
+        return {
+          key: def.key,
+          label: def.label,
+          color: def.color,
+          count,
+          pct: skinToneTotal > 0 ? (count / skinToneTotal) * 100 : 0,
+        };
+      },
+    );
+
+    return {
+      range: {
+        from: toIsoDate(from),
+        to: toIsoDate(to),
+      },
+      byClass,
+      byDisease,
+      byAge,
+      bySkinTone,
+      skinToneTotal,
     };
   }
 }

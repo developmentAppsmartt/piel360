@@ -10,7 +10,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { PlanApiCostsDto, PlanFeatureDto } from './create-plan.dto';
+import { PlanApiCostsDto, PlanCoverageDto, PlanFeatureDto } from './create-plan.dto';
 
 export class UpdatePlanDto {
   @IsOptional()
@@ -77,6 +77,11 @@ export class UpdatePlanDto {
   @ValidateNested({ each: true })
   @Type(() => PlanFeatureDto)
   features?: PlanFeatureDto[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PlanCoverageDto)
+  coverage?: PlanCoverageDto;
 
   @IsOptional()
   @IsString()

@@ -23,6 +23,7 @@ export type PatientProfile = {
   exerciseSessionDuration: string | null;
   skinType: string | null;
   fitzpatrickType: string | null;
+  importantNotes: string | null;
   lastSkinAgeYears?: number | null;
   lastChronologicalAgeYears?: number | null;
   lastSkinAgeDifference?: number | null;
@@ -56,6 +57,7 @@ export type PatientProfileDisplay = Pick<
   | 'exerciseSessionDuration'
   | 'skinType'
   | 'fitzpatrickType'
+  | 'importantNotes'
   | 'lastSkinAgeYears'
   | 'lastChronologicalAgeYears'
   | 'lastSkinAgeDifference'

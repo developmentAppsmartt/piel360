@@ -102,6 +102,59 @@ export type LifestyleReport = {
   clinicalAi: LifestyleReportSection;
 };
 
+/** Reporte dermatológico (Skiniver) — espejo de packages/shared SkiniverReport. */
+export type SkiniverMonthlySeriesPoint = {
+  period: string;
+  counts: Record<string, number>;
+};
+
+export type SkiniverSkinToneBucket = {
+  key: string;
+  label: string;
+  color: string;
+  count: number;
+  pct: number;
+};
+
+export type SkiniverReport = {
+  range: { from: string; to: string };
+  byClass: SkiniverMonthlySeriesPoint[];
+  byDisease: SkiniverMonthlySeriesPoint[];
+  byAge: SkiniverMonthlySeriesPoint[];
+  bySkinTone: SkiniverSkinToneBucket[];
+  skinToneTotal: number;
+};
+
+export const SKINIVER_CLASS_SERIES = [
+  { key: 'inflammatory', label: 'Enfermedades inflamatorias', color: '#f97316' },
+  { key: 'infectious', label: 'Enfermedades infecciosas', color: '#3b82f6' },
+  { key: 'tumors', label: 'Tumores de la piel', color: '#22c55e' },
+  { key: 'annex', label: 'Trastornos de anexos', color: '#a855f7' },
+  { key: 'other', label: 'Otras clases', color: '#94a3b8' },
+] as const;
+
+export const SKINIVER_DISEASE_SERIES = [
+  { key: 'acne', label: 'Acné', color: '#f97316' },
+  { key: 'dermatitis', label: 'Dermatitis', color: '#3b82f6' },
+  { key: 'melasma', label: 'Melasma', color: '#a855f7' },
+  { key: 'rosacea', label: 'Rosácea', color: '#ec4899' },
+  { key: 'psoriasis', label: 'Psoriasis', color: '#ef4444' },
+  { key: 'eccema', label: 'Eccema', color: '#14b8a6' },
+  { key: 'tinia', label: 'Tiña', color: '#eab308' },
+  { key: 'verrugas', label: 'Verrugas', color: '#6366f1' },
+  { key: 'urticaria', label: 'Urticaria', color: '#0ea5e9' },
+  { key: 'otras', label: 'Otras', color: '#94a3b8' },
+] as const;
+
+export const SKINIVER_AGE_SERIES = [
+  { key: '0-17', label: '0 - 17 años', color: '#22c55e' },
+  { key: '18-25', label: '18 - 25 años', color: '#3b82f6' },
+  { key: '26-35', label: '26 - 35 años', color: '#a855f7' },
+  { key: '36-45', label: '36 - 45 años', color: '#f97316' },
+  { key: '46-55', label: '46 - 55 años', color: '#ef4444' },
+  { key: '56+', label: '56+ años', color: '#94a3b8' },
+] as const;
+
 export function rangeForDays(days: number): { from: string; to: string } {
   const to = new Date();
   const from = new Date(to.getTime() - (days - 1) * 24 * 60 * 60 * 1000);

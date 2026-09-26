@@ -706,6 +706,16 @@ export function PatientDetailView({
                           : ''}
                       </Text>
                     ) : null}
+                    {patient.importantNotes?.trim() ? (
+                      <View style={{ marginTop: 4 }}>
+                        <Text style={[styles.meta, { fontWeight: '700' }]}>
+                          Notas importantes
+                        </Text>
+                        <Text style={styles.meta}>
+                          {patient.importantNotes.trim()}
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
                 </View>
 

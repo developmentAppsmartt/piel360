@@ -39,10 +39,12 @@ export function WompiCheckoutButton({
   planId,
   label = "Suscribirse",
   className,
+  style,
 }: {
   planId: string;
   label?: string;
   className?: string;
+  style?: React.CSSProperties;
 }) {
   const [sdkReady, setSdkReady] = useState(false);
   const [activeSubscriptionId, setActiveSubscriptionId] = useState<string | null>(null);
@@ -113,6 +115,7 @@ export function WompiCheckoutButton({
         disabled={!sdkReady || checkout.isPending || waiting}
         onClick={handleClick}
         className={className}
+        style={style}
       >
         {checkout.isPending ? "Iniciando pago..." : label}
       </Button>

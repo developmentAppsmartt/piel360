@@ -19,6 +19,49 @@ export class PlanFeatureDto {
   included!: boolean;
 }
 
+export class PlanCoverageItemDto {
+  @IsString()
+  key!: string;
+
+  @IsString()
+  label!: string;
+
+  @IsString()
+  description!: string;
+}
+
+export class PlanCoverageDto {
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PlanCoverageItemDto)
+  aesthetic?: PlanCoverageItemDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PlanCoverageItemDto)
+  dermatologyClasses?: PlanCoverageItemDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PlanCoverageItemDto)
+  dermatologyDiseases?: PlanCoverageItemDto[];
+
+  @IsOptional()
+  @IsString()
+  aestheticHtml?: string;
+
+  @IsOptional()
+  @IsString()
+  dermatologyClassesHtml?: string;
+
+  @IsOptional()
+  @IsString()
+  dermatologyDiseasesHtml?: string;
+}
+
 export class PlanApiCostLineDto {
   @Type(() => Number)
   @IsNumber()
@@ -108,6 +151,11 @@ export class CreatePlanDto {
   @ValidateNested({ each: true })
   @Type(() => PlanFeatureDto)
   features?: PlanFeatureDto[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PlanCoverageDto)
+  coverage?: PlanCoverageDto;
 
   @IsOptional()
   @IsString()

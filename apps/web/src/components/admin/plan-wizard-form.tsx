@@ -31,14 +31,22 @@ import {
   computeApiTokenCostCop,
   computeSaleEconomics,
   parsePlanApiCosts,
+  parsePlanCoverage,
   planCustomerPrice,
   resolveApiUnitsForPlan,
   resolveEffectiveFxRate,
   stripIvaFromGross,
+  EMPTY_PLAN_COVERAGE,
+  formatCoverageHtml,
+  PLAN_AESTHETIC_COVERAGE_CATALOG,
+  PLAN_DERM_CLASS_COVERAGE_CATALOG,
+  PLAN_DERM_DISEASE_COVERAGE_CATALOG,
   type PlanApiCosts,
+  type PlanCoverage,
 } from "@piel360/shared";
 import { useAllAppConfigs } from "@/lib/queries/app-config";
 import { useGatewayConfigs } from "@/lib/queries/gateway-configs";
+import { PlanCoveragePicker } from "@/components/admin/plan-coverage-picker";
 
 type AlliedOrgPreview = {
   id: string;
@@ -85,6 +93,7 @@ export type PlanWizardState = {
   isActive: boolean;
   description: string;
   features: PlanFeatureDraft[];
+  coverage: PlanCoverage;
   headerColor: string;
   maxUsers: string;
   roleLimits: Record<string, number>;
@@ -237,6 +246,7 @@ function stateFromPlan(plan: PlanAdmin, roleOptions: PlanRoleOption[]): PlanWiza
           included: f.included !== false,
         }))
       : [],
+    coverage: parsePlanCoverage(plan.coverage),
     headerColor: resolvePlanHeaderColor(plan.headerColor).id,
     maxUsers: formatIntField(plan.maxUsers ?? 1),
     roleLimits: { ...emptyRoleLimits(roleOptions), ...(plan.roleLimits ?? {}) },
@@ -294,6 +304,18 @@ function toPlanInput(
     features: state.features
       .map((f) => ({ label: f.label.trim(), included: f.included }))
       .filter((f) => f.label.length > 0),
+    coverage: {
+      ...state.coverage,
+      aestheticHtml:
+        state.coverage.aestheticHtml?.trim() ||
+        formatCoverageHtml(state.coverage.aesthetic),
+      dermatologyClassesHtml:
+        state.coverage.dermatologyClassesHtml?.trim() ||
+        formatCoverageHtml(state.coverage.dermatologyClasses),
+      dermatologyDiseasesHtml:
+        state.coverage.dermatologyDiseasesHtml?.trim() ||
+        formatCoverageHtml(state.coverage.dermatologyDiseases),
+    },
     headerColor: state.headerColor || DEFAULT_PLAN_HEADER_COLOR,
     planType,
     ivaEnabled: state.ivaEnabled,
@@ -458,6 +480,7 @@ export function PlanWizardForm({
           isActive: true,
           description: "",
           features: [],
+          coverage: { ...EMPTY_PLAN_COVERAGE },
           headerColor: DEFAULT_PLAN_HEADER_COLOR,
           maxUsers: isIndividual ? "1" : "10",
           roleLimits: emptyRoleLimits(PLAN_ROLE_OPTIONS),
@@ -1473,6 +1496,65 @@ export function PlanWizardForm({
                 </ul>
               )}
             </div>
+
+            {youcamEnabled ? (
+              <PlanCoveragePicker
+                title="Condiciones de la piel que cubre el plan"
+                subtitle="Seleccione las condiciones de la piel que incluye este plan de análisis estético"
+                catalog={PLAN_AESTHETIC_COVERAGE_CATALOG}
+                selected={state.coverage.aesthetic}
+                html={state.coverage.aestheticHtml ?? ""}
+                onChange={({ items, html }) =>
+                  setState((prev) => ({
+                    ...prev,
+                    coverage: {
+                      ...prev.coverage,
+                      aesthetic: items,
+                      aestheticHtml: html,
+                    },
+                  }))
+                }
+              />
+            ) : null}
+
+            {skiniverEnabled ? (
+              <>
+                <PlanCoveragePicker
+                  title="Clases dermatológicas que cubre el plan"
+                  subtitle="Seleccione las clases diagnósticas incluidas en este plan dermatológico"
+                  catalog={PLAN_DERM_CLASS_COVERAGE_CATALOG}
+                  selected={state.coverage.dermatologyClasses}
+                  html={state.coverage.dermatologyClassesHtml ?? ""}
+                  onChange={({ items, html }) =>
+                    setState((prev) => ({
+                      ...prev,
+                      coverage: {
+                        ...prev.coverage,
+                        dermatologyClasses: items,
+                        dermatologyClassesHtml: html,
+                      },
+                    }))
+                  }
+                />
+                <PlanCoveragePicker
+                  title="Enfermedades dermatológicas que cubre el plan"
+                  subtitle="Seleccione las enfermedades incluidas en este plan dermatológico"
+                  catalog={PLAN_DERM_DISEASE_COVERAGE_CATALOG}
+                  selected={state.coverage.dermatologyDiseases}
+                  html={state.coverage.dermatologyDiseasesHtml ?? ""}
+                  onChange={({ items, html }) =>
+                    setState((prev) => ({
+                      ...prev,
+                      coverage: {
+                        ...prev.coverage,
+                        dermatologyDiseases: items,
+                        dermatologyDiseasesHtml: html,
+                      },
+                    }))
+                  }
+                />
+              </>
+            ) : null}
 
             <Button type="button" onClick={goNext}>
               Guardar y continuar

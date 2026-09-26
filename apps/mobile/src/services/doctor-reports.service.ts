@@ -3,6 +3,7 @@ import type {
   DoctorReportsFilters,
   LifestyleReport,
   SkinHealthReport,
+  SkiniverReport,
 } from '../types/skin-report';
 
 function toQuery(filters: DoctorReportsFilters): string {
@@ -34,6 +35,15 @@ export const doctorReportsService = {
   ): Promise<LifestyleReport> {
     const qs = toQuery(filters);
     return apiRequest<LifestyleReport>(`/doctor/reports/lifestyle?${qs}`, {
+      auth: true,
+    });
+  },
+
+  async getSkiniver(
+    filters: DoctorReportsFilters,
+  ): Promise<SkiniverReport> {
+    const qs = toQuery(filters);
+    return apiRequest<SkiniverReport>(`/doctor/reports/skiniver?${qs}`, {
       auth: true,
     });
   },

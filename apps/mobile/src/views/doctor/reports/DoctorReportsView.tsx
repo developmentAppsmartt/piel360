@@ -16,11 +16,15 @@ import {
   formatDeltaValue,
   rangeForDays,
   sortCategories,
+  SKINIVER_AGE_SERIES,
+  SKINIVER_CLASS_SERIES,
+  SKINIVER_DISEASE_SERIES,
   type DoctorReportsFilters,
   type LifestyleReport,
   type LifestyleReportSection,
   type ReportDelta,
   type SkinHealthReport,
+  type SkiniverReport,
   type SkinReportCategory,
   type TopProblemsSort,
 } from '../../../types/skin-report';
@@ -28,6 +32,7 @@ import { DoctorHeader } from '../patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
 import {
   CategoryRankingBars,
+  MultiSeriesTrendChart,
   ScoreDistributionDonut,
   ScoreTrendChart,
   SegmentBars,
@@ -44,7 +49,8 @@ type ReportTab =
   | 'nacimiento'
   | 'mascotas'
   | 'actividad'
-  | 'clinico';
+  | 'clinico'
+  | 'dermatologico';
 
 const PRESETS = [
   { key: '30d', label: '30 días', days: 30, trendMonths: 3 },
@@ -57,6 +63,7 @@ const SKIN_TABS: { key: ReportTab; label: string }[] = [
   { key: 'resumen', label: 'Resumen de salud de la piel' },
   { key: 'necesidades', label: 'Mapa de necesidades' },
   { key: 'top', label: 'Top problemas' },
+  { key: 'dermatologico', label: 'Análisis dermatológico' },
 ];
 
 const LIFESTYLE_TABS: { key: ReportTab; label: string }[] = [
@@ -102,6 +109,7 @@ export function DoctorReportsView({
   const [sort, setSort] = useState<TopProblemsSort>('score');
   const [report, setReport] = useState<SkinHealthReport | null>(null);
   const [lifestyle, setLifestyle] = useState<LifestyleReport | null>(null);
+  const [skiniver, setSkiniver] = useState<SkiniverReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -109,15 +117,18 @@ export function DoctorReportsView({
     setLoading(true);
     setError(null);
     try {
-      const [skin, life] = await Promise.all([
+      const [skin, life, derm] = await Promise.all([
         doctorReportsService.getSkinHealth(filters),
         doctorReportsService.getLifestyle(filters).catch(() => null),
+        doctorReportsService.getSkiniver(filters).catch(() => null),
       ]);
       setReport(skin);
       setLifestyle(life);
+      setSkiniver(derm);
     } catch (err) {
       setReport(null);
       setLifestyle(null);
+      setSkiniver(null);
       setError(
         err instanceof ApiError
           ? err.message
@@ -147,6 +158,7 @@ export function DoctorReportsView({
     tab === 'mascotas' ||
     tab === 'actividad' ||
     tab === 'clinico';
+  const isDermatologicoTab = tab === 'dermatologico';
 
   return (
     <View style={styles.screen}>
@@ -241,14 +253,16 @@ export function DoctorReportsView({
           </View>
         </View>
 
-        {loading && !report && !isLifestyleTab ? (
+        {loading && !report && !isLifestyleTab && !isDermatologicoTab ? (
           <ActivityIndicator color={primary} style={{ marginTop: 24 }} />
         ) : null}
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        {loading && report ? <ActivityIndicator color={primary} /> : null}
+        {loading && (report || skiniver) ? (
+          <ActivityIndicator color={primary} />
+        ) : null}
 
-        {report && isEmpty && !isLifestyleTab ? (
+        {report && isEmpty && !isLifestyleTab && !isDermatologicoTab ? (
           <View style={styles.card}>
             <View style={styles.emptyWrap}>
               <AppIcon
@@ -308,6 +322,15 @@ export function DoctorReportsView({
                     ? 'Puntaje promedio de piel según hábito de actividad física.'
                     : 'Volumen de análisis por proveedor clínico (Dermatológico, Estético, Fototipo).'
             }
+          />
+        ) : null}
+
+        {isDermatologicoTab ? (
+          <DermatologicoTab
+            report={skiniver}
+            styles={styles}
+            primary={primary}
+            loading={loading && !skiniver}
           />
         ) : null}
       </ScrollView>
@@ -701,6 +724,98 @@ function LifestyleTab({
           mascotas, actividad) o realiza análisis para ver resultados.
         </Text>
       )}
+    </View>
+  );
+}
+
+function DermatologicoTab({
+  report,
+  styles,
+  primary,
+  loading,
+}: {
+  report: SkiniverReport | null;
+  styles: DoctorReportsStyles;
+  primary: string;
+  loading: boolean;
+}) {
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator color={primary} />
+      </View>
+    );
+  }
+  if (!report) {
+    return (
+      <View style={styles.card}>
+        <Text style={styles.emptyBody}>
+          No se pudo cargar el reporte dermatológico. Verifica que la API tenga
+          el endpoint `/doctor/reports/skiniver` desplegado.
+        </Text>
+      </View>
+    );
+  }
+
+  const toneSlices = report.bySkinTone.map((b) => ({
+    band: b.key as 'excelente' | 'bueno' | 'regular' | 'malo',
+    label: b.label,
+    color: b.color,
+    count: b.count,
+    pct: b.pct,
+  }));
+
+  return (
+    <View style={{ gap: 14 }}>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Diagnósticos por clase</Text>
+        <Text style={styles.cardHint}>
+          Agrupación propia sobre el catálogo de diagnósticos de la IA.
+        </Text>
+        <MultiSeriesTrendChart
+          points={report.byClass}
+          series={[...SKINIVER_CLASS_SERIES]}
+        />
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Diagnósticos por enfermedad</Text>
+        <Text style={styles.cardHint}>
+          Enfermedades agrupadas a partir del diagnóstico de la IA.
+        </Text>
+        <MultiSeriesTrendChart
+          points={report.byDisease}
+          series={[...SKINIVER_DISEASE_SERIES]}
+        />
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Diagnósticos por edades</Text>
+        <Text style={styles.cardHint}>
+          Según la fecha de nacimiento del paciente al momento del análisis.
+        </Text>
+        <MultiSeriesTrendChart
+          points={report.byAge}
+          series={[...SKINIVER_AGE_SERIES]}
+        />
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Diagnósticos por tono de piel</Text>
+        <Text style={styles.cardHint}>
+          Clasificación según la escala Fitzpatrick del paciente.
+        </Text>
+        {report.skinToneTotal > 0 ? (
+          <ScoreDistributionDonut
+            slices={toneSlices}
+            total={report.skinToneTotal}
+          />
+        ) : (
+          <Text style={styles.emptyBody}>
+            Sin fototipos registrados en el periodo.
+          </Text>
+        )}
+      </View>
     </View>
   );
 }

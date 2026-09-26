@@ -78,3 +78,15 @@ export function useDoctorLifestyleReport(filters: DoctorReportsFilters) {
       ),
   });
 }
+
+export function useDoctorSkiniverReport(filters: DoctorReportsFilters) {
+  const query = buildQuery(filters);
+
+  return useQuery({
+    queryKey: ["doctor", "reports", "skiniver", filters],
+    queryFn: () =>
+      apiClientFetch<import("@piel360/shared").SkiniverReport>(
+        `/doctor/reports/skiniver${query ? `?${query}` : ""}`,
+      ),
+  });
+}
