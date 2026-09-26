@@ -77,29 +77,42 @@ export class RegisterDoctorDto {
   @IsNotEmpty()
   specialty!: string;
 
-  @IsString()
-  @IsNotEmpty()
-  medicalRegistry!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  licenseNumber!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  educationEntity!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  graduationInstitution!: string;
-
   /**
-   * Solo técnicos laborales — institución de educación para el trabajo.
-   * Se deja opcional a nivel de DTO: el backend no puede distinguir de forma
-   * confiable "especialidad médica" vs "técnico laboral" (ambos casos
-   * comparten el campo `specialty`) — el frontend ya lo exige (`required`)
-   * únicamente cuando corresponde.
+   * Qué formulario llenó. Opcional por compatibilidad con clientes que se
+   * registraron antes de que el registro se partiera en dos caminos.
    */
+  @IsOptional()
+  @IsIn(['specialty', 'labor'])
+  professionalKind?: 'specialty' | 'labor';
+
+  /*
+   * Los campos profesionales son opcionales a nivel de DTO porque cuáles son
+   * obligatorios depende de `professionalKind`, y validarlo acá duplicaría esa
+   * bifurcación: el frontend ya los exige (`required`) según el tipo elegido.
+   * Mismo criterio que `technicalInstitution`, que ya venía así.
+   */
+
+  /** Solo especialidad médica. */
+  @IsOptional()
+  @IsString()
+  medicalRegistry?: string;
+
+  /** Ya no se pide en el registro; se acepta por compatibilidad. */
+  @IsOptional()
+  @IsString()
+  licenseNumber?: string;
+
+  /** Entidad educativa de pregrado — solo especialidad médica. */
+  @IsOptional()
+  @IsString()
+  educationEntity?: string;
+
+  /** Entidad educativa de postgrado / especialización médica — opcional. */
+  @IsOptional()
+  @IsString()
+  graduationInstitution?: string;
+
+  /** Solo técnicos laborales — institución de educación para el trabajo. */
   @IsOptional()
   @IsString()
   technicalInstitution?: string;
