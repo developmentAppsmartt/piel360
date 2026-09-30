@@ -14,15 +14,25 @@ function DocBlock({
   title,
   url,
   fileKey,
+  optional = false,
 }: {
   title: string;
   url?: string | null;
   fileKey?: string | null;
+  /** No bloquea la verificación; se dice para que no se persiga. */
+  optional?: boolean;
 }) {
   const isPdf = `${url ?? ""} ${fileKey ?? ""}`.toLowerCase().includes(".pdf");
   return (
     <div className="space-y-2 rounded-xl border border-border p-3">
-      <p className="text-sm font-medium">{title}</p>
+      <p className="text-sm font-medium">
+        {title}
+        {optional ? (
+          <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+            Opcional
+          </span>
+        ) : null}
+      </p>
       {!url ? (
         <p className="text-xs text-muted-foreground">Sin documento</p>
       ) : isPdf ? (
@@ -128,9 +138,27 @@ export default function VerificacionDoctorPage() {
                 : null
             }
           />
-          <Row label="Especialidad" value={d.specialty} />
-          <Row label="Registro médico" value={d.medicalRegistry} />
-          <Row label="Licencia" value={d.licenseNumber} />
+          {/* Un técnico laboral no tiene registro médico ni universidades; el
+              número de licencia ya solo se pide en el registro de empresa. */}
+          {d.professionalKind === "labor" ? (
+            <>
+              <Row label="Perfil técnico" value={d.specialty} />
+              <Row
+                label="Institución educativa técnica"
+                value={d.technicalInstitution}
+              />
+            </>
+          ) : (
+            <>
+              <Row label="Especialidad" value={d.specialty} />
+              <Row label="Registro médico" value={d.medicalRegistry} />
+              <Row label="Entidad educativa pregrado" value={d.educationEntity} />
+              <Row
+                label="Entidad educativa postgrado"
+                value={d.graduationInstitution}
+              />
+            </>
+          )}
           <Row label="Ciudad" value={d.city} />
           <Row label="Departamento" value={d.department} />
           <Row label="País" value={d.country} />
@@ -147,6 +175,7 @@ export default function VerificacionDoctorPage() {
               title={doc.label}
               url={d[doc.docUrl]}
               fileKey={d[doc.docKey]}
+              optional={doc.optional}
             />
           ))}
         </div>

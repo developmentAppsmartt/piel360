@@ -22,6 +22,8 @@ export interface Doctor {
   licenseNumber: string | null;
   educationEntity: string | null;
   graduationInstitution: string | null;
+  /** Solo técnicos laborales; el registro médico pide las dos universitarias. */
+  technicalInstitution?: string | null;
   address: string | null;
   city: string | null;
   department: string | null;

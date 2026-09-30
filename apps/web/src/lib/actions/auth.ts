@@ -53,6 +53,19 @@ export async function loginAction(
 
   await setSessionCookies(result.accessToken, result.refreshToken);
 
+  // Los pacientes solo entran por la app. Se corta aquí, antes de los cruces
+  // empresa/profesional, para que cubra los dos logins web; el proxy tambien
+  // los bloquea, pero sin esto quedarian con sesion iniciada y sin nada que
+  // ver. El API no lo valida a proposito: `/auth/login` es el mismo endpoint
+  // que usa el movil.
+  if (result.user.role === "patient") {
+    await clearSessionCookies();
+    return {
+      error:
+        "Las cuentas de paciente se usan desde la app PIEL360. Descárgala para acceder.",
+    };
+  }
+
   if (_role === "empresa" && result.user.role !== "empresa") {
     await clearSessionCookies();
     return {
@@ -173,7 +186,7 @@ export async function exchangeGoogleCodeAction(
     await clearSessionCookies();
     return {
       error:
-        "Esta cuenta de Google ya está registrada como paciente. Usa el acceso de paciente o contacta soporte.",
+        "Esta cuenta de Google ya está registrada como paciente. Las cuentas de paciente se usan desde la app PIEL360.",
     };
   }
 

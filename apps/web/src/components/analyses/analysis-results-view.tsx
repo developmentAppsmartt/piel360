@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import type { SkiniverDiagnosisCandidate, SkiniverPrediction } from "@piel360/shared";
+import {
+  skiniverCategoryLabel,
+  skiniverDiagnosisLabel,
+  skiniverRiskLabel,
+  type SkiniverDiagnosisCandidate,
+  type SkiniverPrediction,
+} from "@piel360/shared";
 import { ConfirmAnalysisForm } from "@/components/analyses/confirm-analysis-form";
 import { Button } from "@/components/ui/button";
 import { DiagnosisDetailDialog } from "@/components/analyses/diagnosis-detail-dialog";
@@ -79,7 +85,9 @@ export function AnalysisResultsView({
   }
 
   const topDiagnosis = prediction?.topn?.[0];
-  const riskLabel = prediction?.risk ?? "—";
+  // Skiniver no traduce `risk`/`class`/`desease`: se resuelven contra
+  // `risk_level` y `class_raw`, que no dependen del idioma.
+  const riskLabel = skiniverRiskLabel(prediction?.risk, topDiagnosis?.risk_level);
 
   return (
     <div className="space-y-6">
@@ -133,14 +141,22 @@ export function AnalysisResultsView({
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-medium text-muted-foreground">
-                  {topDiagnosis.desease ?? "Diagnóstico principal"}
+                  {skiniverCategoryLabel(topDiagnosis.desease) ||
+                    "Diagnóstico principal"}
                 </p>
                 <p className="truncate text-base font-semibold">
-                  {topDiagnosis.class}
+                  {skiniverDiagnosisLabel(
+                    topDiagnosis.class,
+                    topDiagnosis.class_raw,
+                  )}
                 </p>
                 {topDiagnosis.risk ? (
                   <p className="text-sm text-muted-foreground">
-                    Riesgo: {topDiagnosis.risk}
+                    Riesgo:{" "}
+                    {skiniverRiskLabel(
+                      topDiagnosis.risk,
+                      topDiagnosis.risk_level,
+                    )}
                   </p>
                 ) : null}
               </div>

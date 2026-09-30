@@ -3,16 +3,19 @@ import {
   SKINIVER_AGE_BUCKETS,
   SKIN_TONE_BUCKET_DEFS,
   classifyDiagnosisClass,
-  classifyDiseaseBucket,
+  isNoPathologyDiagnosis,
   normalizeGender,
   skinToneBucketForFitzpatrick,
   skiniverCategoryColor,
+  skiniverCategoryLabel,
+  skiniverDiagnosisLabel,
   type SkiniverAgeGenderRow,
   type SkiniverCategorySlice,
   type SkiniverMonthlySeriesPoint,
   type SkiniverReport,
   type SkiniverSkinToneBucket,
   type SkiniverTopDiagnosis,
+  type SkiniverTrendSeriesDef,
 } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -80,6 +83,71 @@ function buildSeries(
   }));
 }
 
+/** Cuántas condiciones se grafican antes de agrupar el resto en "Otras". */
+const DISEASE_SERIES_LIMIT = 8;
+
+const OTHER_DISEASE_KEY = 'otras';
+
+/**
+ * Las condiciones concretas del periodo, no grupos: cada serie es un
+ * diagnóstico real de la IA ("Acné vulgar", "Nevus displásico"). Antes este
+ * gráfico usaba 10 buckets curados a mano (Acné, Dermatitis, Tiña…) que
+ * también eran grupos, así que repetía el nivel del gráfico de clases y las
+ * condiciones nunca se veían — además todos los tumores caían en "Otras".
+ *
+ * Se limita al Top 8 porque el catálogo tiene 52 diagnósticos y una leyenda de
+ * 52 series es ilegible.
+ */
+function buildDiseaseSeries(rows: SkiniverDiagnosisRow[]): {
+  entries: { period: string; key: string | null; count: number }[];
+  series: SkiniverTrendSeriesDef[];
+} {
+  // La etiqueta traducida es la identidad de la serie: dos filas con el mismo
+  // diagnóstico en distinto idioma tienen que sumar en la misma serie.
+  const totals = new Map<string, number>();
+  for (const row of rows) {
+    if (!row.ai_diagnosis || isNoPathologyDiagnosis(row.ai_diagnosis)) continue;
+    const label = skiniverDiagnosisLabel(row.ai_diagnosis);
+    totals.set(label, (totals.get(label) ?? 0) + row.count);
+  }
+
+  const top = [...totals.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'))
+    .slice(0, DISEASE_SERIES_LIMIT)
+    .map(([label]) => label);
+  const topSet = new Set(top);
+
+  const entries = rows.map((row) => {
+    if (!row.ai_diagnosis || isNoPathologyDiagnosis(row.ai_diagnosis)) {
+      return { period: row.period, key: null, count: row.count };
+    }
+    const label = skiniverDiagnosisLabel(row.ai_diagnosis);
+    return {
+      period: row.period,
+      key: topSet.has(label) ? label : OTHER_DISEASE_KEY,
+      count: row.count,
+    };
+  });
+
+  const series: SkiniverTrendSeriesDef[] = top.map((label) => ({
+    // La clave es la propia etiqueta: el color se deriva de ella por hash, así
+    // que una condición conserva su color al cambiar el filtro de fechas
+    // (un color por posición en la lista sí cambiaría).
+    key: label,
+    label,
+    color: skiniverCategoryColor(label),
+  }));
+  if (totals.size > top.length) {
+    series.push({
+      key: OTHER_DISEASE_KEY,
+      label: 'Otras',
+      color: '#94a3b8',
+    });
+  }
+
+  return { entries, series };
+}
+
 /**
  * Reporte de análisis dermatológicos (Skiniver). Vive en su propio service
  * porque lo consumen dos paneles con alcances distintos: el del doctor,
@@ -132,14 +200,8 @@ export class SkiniverReportService {
         count: row.count,
       })),
     );
-    const byDisease = buildSeries(
-      months,
-      diagnosisRows.map((row) => ({
-        period: row.period,
-        key: classifyDiseaseBucket(row.ai_diagnosis),
-        count: row.count,
-      })),
-    );
+    const disease = buildDiseaseSeries(diagnosisRows);
+    const byDisease = buildSeries(months, disease.entries);
     const byAge = buildSeries(
       months,
       ageRows.map((row) => ({
@@ -159,15 +221,17 @@ export class SkiniverReportService {
         Boolean(row.category),
       )
       .map((row) => ({
+        // El color se deriva del valor crudo para que no cambie si mañana se
+        // reconoce una categoría más y su etiqueta pasa a estar traducida.
         key: row.category,
-        label: row.category,
+        label: skiniverCategoryLabel(row.category),
         color: skiniverCategoryColor(row.category),
         count: row.count,
         pct: pct(row.count, total),
       }));
 
     const topDiagnoses: SkiniverTopDiagnosis[] = topRows.map((row) => ({
-      diagnosis: row.diagnosis,
+      diagnosis: skiniverDiagnosisLabel(row.diagnosis),
       icdCode: row.icd_code?.trim() || null,
       count: row.count,
       pct: pct(row.count, total),
@@ -245,6 +309,7 @@ export class SkiniverReportService {
       ageDistribution,
       byClass,
       byDisease,
+      diseaseSeries: disease.series,
       byAge,
       bySkinTone,
       skinToneTotal,

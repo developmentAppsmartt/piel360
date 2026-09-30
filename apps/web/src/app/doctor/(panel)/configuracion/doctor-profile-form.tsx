@@ -90,12 +90,15 @@ function DocPreview({
   fileKey,
   file,
   onChange,
+  optional = false,
 }: {
   title: string;
   url: string | null | undefined;
   fileKey: string | null | undefined;
   file: File | null;
   onChange: (file: File | null) => void;
+  /** No hace falta para completar el registro. */
+  optional?: boolean;
 }) {
   const previewUrl = file ? URL.createObjectURL(file) : url;
   const pdf = file
@@ -104,7 +107,14 @@ function DocPreview({
 
   return (
     <div className="space-y-2 rounded-xl border border-border bg-card p-3">
-      <p className="text-sm font-medium">{title}</p>
+      <p className="text-sm font-medium">
+        {title}
+        {optional ? (
+          <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+            Opcional
+          </span>
+        ) : null}
+      </p>
       {previewUrl ? (
         pdf ? (
           <a
@@ -580,6 +590,7 @@ export function DoctorProfileForm() {
               url={profile[doc.docUrl]}
               fileKey={profile[doc.docKey]}
               file={documents[doc.field] ?? null}
+              optional={doc.optional}
               onChange={(file) =>
                 setDocuments((prev) => ({ ...prev, [doc.field]: file }))
               }
