@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { AppIcon } from '../../../../components/AppIcon';
 import { Icons } from '../../../../components/icons';
-import { ComplianceBadges } from '../../../../components/legal/ComplianceBadges';
+// import { ComplianceBadges } from '../../../../components/legal/ComplianceBadges';
 import { LegalDocumentModal } from '../../../../components/legal/LegalDocumentModal';
 import { useAuth } from '../../../../context/AuthContext';
 import { useBranding } from '../../../../context/BrandingContext';
@@ -237,6 +237,7 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
         </Text>
       </Text>
 
+      {/* Oculto por temas legales: aún no se cuenta con estas certificaciones.
       <View style={styles.complianceBlock}>
         <View style={styles.complianceRow}>
           <AppIcon icon={Icons.lock} size={12} color="rgba(255,255,255,0.55)" />
@@ -246,6 +247,7 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
         </View>
         <ComplianceBadges variant="dark" />
       </View>
+      */}
 
       <LegalDocumentModal
         docId={legalDoc}

@@ -346,7 +346,7 @@ export function createRegisterStyles(colors: AppBranding['colors']) {
       marginTop: 8,
     },
     skinIntroDecor: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
     },
     skinIntroBlob: {
       position: 'absolute',

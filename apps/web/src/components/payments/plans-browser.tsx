@@ -5,6 +5,7 @@ import { Check, Microscope, ScanFace } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WompiCheckoutButton } from "@/components/payments/wompi-checkout-button";
 import { PlanCoverageIconButton } from "@/components/payments/plan-coverage-modal";
+// import { DermatologyConditionsInfo } from "@/components/payments/dermatology-conditions-info";
 import { formatCOP, providerLabel } from "@/components/payments/subscription-utils";
 import type { Plan, PlanFeature } from "@piel360/shared";
 import {
@@ -94,8 +95,8 @@ function PlanPricingCard({
   return (
     <article
       className={cn(
-        "relative flex h-full flex-col overflow-hidden rounded-[1.75rem] border bg-white text-center shadow-sm transition-shadow",
-        featured ? "shadow-[0_20px_50px_-28px_rgba(15,40,80,0.45)]" : "hover:shadow-md",
+        "relative flex h-full flex-col overflow-hidden rounded-[1.75rem] border bg-white text-center shadow-sm",
+        "transition-[transform,box-shadow] duration-300 ease-out will-change-transform hover:z-10 hover:scale-[1.03] hover:shadow-xl motion-reduce:transition-none motion-reduce:hover:scale-100",
       )}
       style={{
         borderColor: featured ? accent : mixWithWhite(accent, 0.72),
@@ -272,6 +273,9 @@ export function PlansBrowser({
     );
   }, [catalog, providerSlug]);
 
+  // const isDermFilter =
+  //   providerSlug != null && providerSlugMatches(providerSlug, ["skiniver"]);
+
   const active = subscriptions.data?.filter((s) => s.status === "active") ?? [];
 
   return (
@@ -287,8 +291,10 @@ export function PlansBrowser({
               >
                 <p className="font-semibold">{sub.plan.name}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {providerLabel(sub.plan.provider.slug)} · vigente hasta{" "}
-                  {new Date(sub.endsAt).toLocaleDateString("es-CO")}
+                  {providerLabel(sub.plan.provider.slug)}
+                  {sub.endsAt
+                    ? ` · vigente hasta ${new Date(sub.endsAt).toLocaleDateString("es-CO")}`
+                    : null}
                 </p>
               </div>
             ))}
@@ -360,6 +366,8 @@ export function PlansBrowser({
             No hay planes disponibles para este filtro.
           </p>
         ) : null}
+
+        {/* {isDermFilter ? <DermatologyConditionsInfo /> : null} */}
       </section>
     </div>
   );

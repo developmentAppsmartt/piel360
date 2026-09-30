@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   backLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   heroImage: {
     position: 'absolute',
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   heroFill: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
   },

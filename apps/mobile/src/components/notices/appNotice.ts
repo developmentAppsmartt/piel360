@@ -44,6 +44,13 @@ export function dismissAppNotice() {
   return active;
 }
 
+/** Descarta el aviso actual y los encolados. */
+export function clearAppNotices() {
+  queue.length = 0;
+  current = null;
+  emit();
+}
+
 export function presentAppAlert(
   title?: string,
   message?: string,

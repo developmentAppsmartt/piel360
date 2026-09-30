@@ -552,7 +552,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
       paddingHorizontal: 20,
     },
     storyModalDismiss: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
     },
     storyModalCard: {
       backgroundColor: '#FFFFFF',
