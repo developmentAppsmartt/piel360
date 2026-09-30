@@ -352,7 +352,7 @@ export function EmpresaRegisterForm({
       className="w-full max-w-3xl space-y-6 rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-900 shadow-sm sm:p-8"
     >
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Registro de empresa</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Registro de Empresa</h1>
         <p className="text-sm text-zinc-500">
           Crea la cuenta de tu clínica o centro. Incluye datos comerciales y
           ubicación. ¿Eres profesional individual? Usa el{" "}
@@ -360,7 +360,7 @@ export function EmpresaRegisterForm({
             href={professionalRegisterHref}
             className="text-sky-600 underline"
           >
-            registro de profesionales
+            registro de Profesionales
           </Link>
           .
         </p>

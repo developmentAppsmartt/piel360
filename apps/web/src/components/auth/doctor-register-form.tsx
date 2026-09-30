@@ -388,7 +388,7 @@ export function DoctorRegisterForm({
     >
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">
-          Registro de profesionales
+          Registro de Profesionales
         </h1>
         <p className="text-sm text-zinc-500">
           Para especialistas médicos y técnicos laborales. Si representas una
