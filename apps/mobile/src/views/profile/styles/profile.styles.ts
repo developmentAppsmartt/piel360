@@ -75,7 +75,7 @@ export function createProfileStyles(colors: AppBranding['colors']) {
       height: '100%',
     },
     avatarOverlay: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: 'rgba(0,0,0,0.35)',
       alignItems: 'center',
       justifyContent: 'center',

@@ -1,3 +1,4 @@
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -62,7 +63,9 @@ export function SplashIntro({ onFinish }: SplashIntroProps) {
     setReady(true);
     // Sin animación de salida: en Android el icono del splash nativo
     // a veces queda “pegado” arriba si fade > 0.
-    SplashScreen.setOptions({ duration: 0, fade: false });
+    if (Constants.executionEnvironment !== ExecutionEnvironment.StoreClient) {
+      SplashScreen.setOptions({ duration: 0, fade: false });
+    }
     SplashScreen.hide();
   };
 
@@ -125,12 +128,12 @@ export const SplashVideo = SplashIntro;
 
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 1000,
     elevation: 1000,
     backgroundColor: '#FFFFFF',
   },
   imageWrap: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
 });

@@ -7,7 +7,7 @@ import {
   getLegalDocument,
   type LegalDocId,
 } from '../../data/legal/documents';
-import { ComplianceBadges } from './ComplianceBadges';
+// import { ComplianceBadges } from './ComplianceBadges';
 
 type LegalDocumentModalProps = {
   docId: LegalDocId | null;
@@ -86,12 +86,14 @@ export function LegalDocumentModal({
               </View>
             ))}
 
+            {/* Oculto por temas legales: aún no se cuenta con estas certificaciones.
             <View style={styles.badgesBlock}>
               <Text style={[styles.heading, { color: primaryDark }]}>
                 Cumplimiento normativo
               </Text>
               <ComplianceBadges variant="light" />
             </View>
+            */}
           </ScrollView>
 
           <Pressable
