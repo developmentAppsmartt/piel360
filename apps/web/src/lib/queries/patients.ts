@@ -197,7 +197,10 @@ export function useAssignPatientDoctor(patientId: string) {
 export function useUpdatePatient(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: PatientInput) =>
+    // `Partial`: es un PATCH y UpdatePatientDto tiene todos los campos
+    // opcionales, asi que se puede actualizar un solo campo sin reenviar
+    // el paciente entero.
+    mutationFn: (input: Partial<PatientInput>) =>
       apiClientFetch<Patient>(`/patients/${id}`, {
         method: "PATCH",
         body: JSON.stringify(input),

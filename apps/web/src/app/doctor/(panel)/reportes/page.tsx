@@ -25,7 +25,6 @@ import {
 } from "@/lib/queries/doctor-reports";
 import { useOrganizationTeam } from "@/lib/queries/organizations";
 import { cn } from "@/lib/utils";
-import { SkiniverReportView } from "@/components/reports/skiniver-report-view";
 
 type ReportTab =
   | "resumen"
@@ -35,8 +34,7 @@ type ReportTab =
   | "nacimiento"
   | "mascotas"
   | "actividad"
-  | "clinico"
-  | "dermatologico";
+  | "clinico";
 
 const SKIN_TABS: { key: ReportTab; label: string }[] = [
   { key: "resumen", label: "Resumen de salud de la piel" },
@@ -73,7 +71,6 @@ export default function ReportesPage() {
     tab === "mascotas" ||
     tab === "actividad" ||
     tab === "clinico";
-  const isDermatologicoTab = tab === "dermatologico";
 
   function handleExport() {
     if (isSkiniverTab && skiniver.data) {
@@ -222,7 +219,7 @@ export default function ReportesPage() {
         showProfessionalFilter={showProfessionalFilter}
         onExport={handleExport}
         exportDisabled={
-          isDermatologicoTab
+          isSkiniverTab
             ? !skiniver.data
             : isLifestyleTab
               ? !lifestyle.data
@@ -367,9 +364,6 @@ export default function ReportesPage() {
         </>
       ) : null}
 
-      {isDermatologicoTab && skiniver.data ? (
-        <SkiniverReportView report={skiniver.data} />
-      ) : null}
     </div>
   );
 }

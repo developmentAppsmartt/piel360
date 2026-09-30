@@ -2,21 +2,10 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Badge } from "@/components/ui/badge";
 import { ModuleCard } from "@/components/ui/module-card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { PatientAnalysesTable } from "@/components/patients/patient-analyses-table";
 import { PatientProfileShell } from "@/components/patients/patient-profile-shell";
-import { analysisProviderLabel } from "@/lib/analysis-provider-label";
 import { ApiError } from "@/lib/api-error";
-import { bodyRegionLabel } from "@/lib/body-regions";
-import { formatAnalysisDate } from "@/lib/patient-comparison";
 import { usePatient, usePatientAnalyses } from "@/lib/queries/patients";
 
 export default function AdminPacienteDetallePage() {
@@ -45,75 +34,24 @@ export default function AdminPacienteDetallePage() {
 
   return (
     <PatientProfileShell patient={p} panel="admin" showNewAnalysis={false}>
-      <ModuleCard className="overflow-hidden p-0">
-        <div className="border-b border-border px-4 py-4">
+      {analyses.isLoading || (!authError && analyses.error) ? (
+        <ModuleCard className="p-4">
           <h2 className="text-base font-semibold">Historial de análisis</h2>
-        </div>
-
-        {analyses.isLoading && (
-          <p className="p-4 text-sm text-muted-foreground">Cargando historial…</p>
-        )}
-        {!authError && analyses.error && (
-          <p className="p-4 text-sm text-destructive">
-            No se pudo cargar el historial.
+          <p
+            className={
+              analyses.isLoading
+                ? "mt-2 text-sm text-muted-foreground"
+                : "mt-2 text-sm text-destructive"
+            }
+          >
+            {analyses.isLoading
+              ? "Cargando historial…"
+              : "No se pudo cargar el historial."}
           </p>
-        )}
+        </ModuleCard>
+      ) : null}
 
-        {analyses.data && analyses.data.length === 0 && (
-          <p className="p-4 text-sm text-muted-foreground">
-            Este paciente aún no tiene análisis.
-          </p>
-        )}
-
-        {analyses.data && analyses.data.length > 0 && (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/40 hover:bg-muted/40">
-                  <TableHead className="text-xs font-semibold tracking-wide uppercase">
-                    Tipo de análisis
-                  </TableHead>
-                  <TableHead className="text-xs font-semibold tracking-wide uppercase">
-                    Región
-                  </TableHead>
-                  <TableHead className="text-xs font-semibold tracking-wide uppercase">
-                    Diagnóstico
-                  </TableHead>
-                  <TableHead className="text-xs font-semibold tracking-wide uppercase">
-                    Estado
-                  </TableHead>
-                  <TableHead className="text-xs font-semibold tracking-wide uppercase">
-                    Fecha
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {analyses.data.map((a) => (
-                  <TableRow key={a.id} className="hover:bg-muted/30">
-                    <TableCell>
-                      <Badge variant="outline">{analysisProviderLabel(a)}</Badge>
-                    </TableCell>
-                    <TableCell>{bodyRegionLabel(a.bodyRegion) ?? "—"}</TableCell>
-                    <TableCell>{a.finalDiagnosis ?? a.aiDiagnosis ?? "—"}</TableCell>
-                    <TableCell>
-                      {!a.isValid ? (
-                        <Badge variant="destructive">Inválido</Badge>
-                      ) : a.isConfirmed ? (
-                        <Badge>{a.isCorrected ? "Corregido" : "Confirmado"}</Badge>
-                      ) : (
-                        <Badge variant="secondary">Pendiente</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatAnalysisDate(a.createdAt)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </ModuleCard>
+      {analyses.data ? <PatientAnalysesTable analyses={analyses.data} /> : null}
     </PatientProfileShell>
   );
 }

@@ -5,6 +5,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import type { Prisma } from '@prisma/client';
@@ -394,7 +395,11 @@ export class AnalysesService {
     }
     const url = await this.reportPdf.ensureReportUrl(BigInt(analysis.id));
     if (!url) {
-      throw new BadRequestException('No se pudo generar el reporte en PDF.');
+      // 503 y no 400: la peticion era valida, lo que fallo fue generar el PDF
+      // en el servidor. La causa concreta queda en el log de ReportPdfService.
+      throw new ServiceUnavailableException(
+        'No se pudo generar el PDF del reporte. Inténtalo de nuevo en unos minutos; si el problema sigue, avisa a soporte.',
+      );
     }
     return { url };
   }
