@@ -8,8 +8,9 @@ export const SESSION_REPLACED_REASON = "session_replaced";
  */
 export function loginPathForCurrentPanel(pathname: string): string {
   if (pathname.startsWith("/doctor")) return "/doctor/login";
-  if (pathname.startsWith("/patient")) return "/patient/login";
   if (pathname.startsWith("/moderador")) return "/moderador/login";
   if (pathname.startsWith("/admin")) return "/admin/login";
-  return "/patient/login";
+  // Los pacientes ya no tienen acceso web (entran por la app), así que el
+  // único login que queda como destino es el profesional.
+  return "/doctor/login";
 }
