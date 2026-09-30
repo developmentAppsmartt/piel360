@@ -1,3 +1,5 @@
+import { TawkToWidget } from "@/components/shared/tawk-to-widget";
+
 export default function SoportePage() {
   return (
     <div className="space-y-3">
@@ -12,6 +14,8 @@ export default function SoportePage() {
         </a>
         .
       </p>
+
+      <TawkToWidget />
     </div>
   );
 }
