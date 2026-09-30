@@ -3,7 +3,12 @@
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import { useEffect, useState } from "react";
-import type { RiskLevel, SkiniverPrediction } from "@piel360/shared";
+import {
+  skiniverDiagnosisLabel,
+  skiniverRiskLabel,
+  type RiskLevel,
+  type SkiniverPrediction,
+} from "@piel360/shared";
 import { ImageCarousel } from "@/components/analyses/image-carousel";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -101,7 +106,14 @@ export function PatientBodyHistory({
       <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{selected?.finalDiagnosis ?? selected?.aiDiagnosis ?? "Análisis"}</DialogTitle>
+            <DialogTitle>
+              {/* `finalDiagnosis` lo escribe el médico (ya en español); solo el
+                  de la IA necesita traducción. */}
+              {selected?.finalDiagnosis ??
+                (selected?.aiDiagnosis
+                  ? skiniverDiagnosisLabel(selected.aiDiagnosis)
+                  : "Análisis")}
+            </DialogTitle>
           </DialogHeader>
           {selected && (
             <div className="space-y-3">
@@ -114,7 +126,13 @@ export function PatientBodyHistory({
                 ]}
               />
               <p className="text-sm">
-                Riesgo: <span className="font-medium">{selectedPrediction?.risk ?? "—"}</span>
+                Riesgo:{" "}
+                <span className="font-medium">
+                  {skiniverRiskLabel(
+                    selectedPrediction?.risk,
+                    selectedPrediction?.topn?.[0]?.risk_level,
+                  )}
+                </span>
               </p>
               <p className="text-sm text-muted-foreground">
                 {new Date(selected.createdAt).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}

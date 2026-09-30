@@ -73,11 +73,11 @@ export interface SkiniverDiagnosisRow {
 }
 
 /**
- * Diagnóstico crudo (`ai_diagnosis`, top-1 de Skiniver) por mes. La
- * clasificación en clase/enfermedad (5 y 10 buckets del mockup) se hace en
- * TS con classifyDiagnosisClass/classifyDiseaseBucket
- * (packages/shared/src/skiniver-diagnosis-taxonomy.ts) — no en SQL, para no
- * duplicar esa tabla de mapeo en dos lenguajes.
+ * Diagnóstico crudo (`ai_diagnosis`, top-1 de Skiniver) por mes. Alimenta dos
+ * gráficos: el de clases (agrupado con classifyDiagnosisClass, en
+ * packages/shared/src/skiniver-diagnosis-taxonomy.ts) y el de condiciones
+ * concretas (Top 8, armado en skiniver-report.service.ts). Ambos se resuelven
+ * en TS y no en SQL, para no duplicar esas tablas de mapeo en dos lenguajes.
  */
 export function skiniverMonthlyDiagnosesQuery(
   doctorIds: DoctorIds,

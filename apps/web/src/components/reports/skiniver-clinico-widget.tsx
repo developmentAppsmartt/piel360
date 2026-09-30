@@ -2,7 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
-import type { SkiniverDiagnosisCandidate, SkiniverPrediction } from "@piel360/shared";
+import {
+  skiniverCategoryLabel,
+  skiniverDiagnosisLabel,
+  skiniverRiskLabel,
+  type SkiniverDiagnosisCandidate,
+  type SkiniverPrediction,
+} from "@piel360/shared";
 import { DiagnosisDetailDialog } from "@/components/analyses/diagnosis-detail-dialog";
 import { DiagnosisList } from "@/components/analyses/diagnosis-list";
 import { ImageCarousel } from "@/components/analyses/image-carousel";
@@ -55,7 +61,7 @@ export function SkiniverClinicoWidget() {
 
   const prediction = selected.data?.aiRawResponse as SkiniverPrediction | undefined;
   const topDiagnosis = prediction?.topn?.[0];
-  const riskLabel = prediction?.risk ?? "—";
+  const riskLabel = skiniverRiskLabel(prediction?.risk, topDiagnosis?.risk_level);
 
   return (
     <div className="space-y-4">
@@ -96,7 +102,9 @@ export function SkiniverClinicoWidget() {
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {new Date(a.createdAt).toLocaleDateString("es-CO")}
-                    {a.aiDiagnosis ? ` · ${a.aiDiagnosis}` : ""}
+                    {a.aiDiagnosis
+                      ? ` · ${skiniverDiagnosisLabel(a.aiDiagnosis)}`
+                      : ""}
                   </span>
                 </button>
               </li>
@@ -176,12 +184,22 @@ export function SkiniverClinicoWidget() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-muted-foreground">
-                      {topDiagnosis.desease ?? "Diagnóstico principal"}
+                      {skiniverCategoryLabel(topDiagnosis.desease) ||
+                        "Diagnóstico principal"}
                     </p>
-                    <p className="truncate text-base font-semibold">{topDiagnosis.class}</p>
+                    <p className="truncate text-base font-semibold">
+                      {skiniverDiagnosisLabel(
+                        topDiagnosis.class,
+                        topDiagnosis.class_raw,
+                      )}
+                    </p>
                     {topDiagnosis.risk ? (
                       <p className="text-sm text-muted-foreground">
-                        Riesgo: {topDiagnosis.risk}
+                        Riesgo:{" "}
+                        {skiniverRiskLabel(
+                          topDiagnosis.risk,
+                          topDiagnosis.risk_level,
+                        )}
                       </p>
                     ) : null}
                   </div>

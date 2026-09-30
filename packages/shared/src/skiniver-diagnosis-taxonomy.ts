@@ -2,8 +2,9 @@
  * Taxonomía de diagnósticos de Skiniver para el reporte "Análisis clínico IA"
  * del panel del doctor (apps/api/src/doctor-reports + apps/web/src/components/reports).
  *
- * Skiniver NO expone ninguna categorización clase/enfermedad — solo devuelve
- * el nombre puntual del diagnóstico (`Analysis.aiDiagnosis`, ej. "Rosácea").
+ * Skiniver NO expone ninguna agrupación por clase — solo devuelve el nombre
+ * puntual del diagnóstico (`Analysis.aiDiagnosis`, ej. "Rosácea") y su
+ * categoría (`desease`).
  * Esta tabla es una curación propia, armada cruzando el catálogo oficial de
  * `get_atlas_pages` (52 diagnósticos en 12 categorías, en ruso) con los
  * títulos reales en español ya scrapeados en `encyclopedia_entries` (mismo
@@ -16,18 +17,26 @@
  * `ai_diagnosis` en producción después de desplegar.
  *
  * "Piel Sin Patología" (resultado de "sin hallazgos") no es una enfermedad:
- * se excluye de los reportes por clase/enfermedad (no cae en "Otras"), pero
+ * se excluye de los reportes de clase y de condición (no cae en "Otras"), pero
  * sí cuenta en los reportes de edad/tono de piel (esos describen a quién se
  * le hizo el análisis, no qué se le encontró).
  */
 
-function normalize(value: string): string {
+/**
+ * Clave estable para comparar etiquetas: sin tildes, sin espacios sobrantes y
+ * en minúsculas. Exportada porque skiniver-labels.ts indexa su diccionario con
+ * exactamente el mismo criterio — si las dos normalizaciones se separan, las
+ * búsquedas dejan de calzar en silencio.
+ */
+export function normalizeLabelKey(value: string): string {
   return value
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "") // quita tildes (marcas diacríticas combinantes tras NFD)
+    .replace(/[̀-ͯ]/g, "") // marcas diacríticas combinantes tras NFD
     .trim()
     .toLowerCase();
 }
+
+const normalize = normalizeLabelKey;
 
 export const SKINIVER_NO_PATHOLOGY_DIAGNOSIS = "Piel Sin Patología";
 
@@ -49,116 +58,89 @@ export const SKINIVER_DIAGNOSIS_CLASS_DEFS: Record<
   other: { label: "Otras clases", color: "#94a3b8" },
 };
 
-export type SkiniverDiseaseBucket =
-  | "acne"
-  | "dermatitis"
-  | "melasma"
-  | "rosacea"
-  | "psoriasis"
-  | "eccema"
-  | "tinia"
-  | "verrugas"
-  | "urticaria"
-  | "otras";
-
-export const SKINIVER_DISEASE_BUCKET_DEFS: Record<
-  SkiniverDiseaseBucket,
-  { label: string; color: string }
-> = {
-  acne: { label: "Acné", color: "#f97316" },
-  dermatitis: { label: "Dermatitis", color: "#3b82f6" },
-  // Skiniver no diagnostica melasma hoy — este bucket siempre da 0 con los
-  // datos actuales. Se deja definido para calzar con el mockup del cliente.
-  melasma: { label: "Melasma", color: "#a855f7" },
-  rosacea: { label: "Rosácea", color: "#ec4899" },
-  psoriasis: { label: "Psoriasis", color: "#ef4444" },
-  eccema: { label: "Eccema", color: "#14b8a6" },
-  tinia: { label: "Tiña", color: "#eab308" },
-  verrugas: { label: "Verrugas", color: "#6366f1" },
-  urticaria: { label: "Urticaria", color: "#0ea5e9" },
-  otras: { label: "Otras", color: "#94a3b8" },
-};
-
-/** Diagnóstico puntual (nombre real en español) → clase + enfermedad. */
-const DIAGNOSIS_MAP: Record<
-  string,
-  { class: SkiniverDiagnosisClass; disease: SkiniverDiseaseBucket }
-> = {
+/**
+ * Diagnóstico puntual (nombre real en español) → clase (grupo de patología).
+ *
+ * Solo agrupa en clases. El nivel de "enfermedad" del reporte ya no es una
+ * curación propia: son las condiciones concretas que devolvió la IA, contadas
+ * directamente en skiniver-report.service.ts.
+ */
+const DIAGNOSIS_MAP: Record<string, { class: SkiniverDiagnosisClass }> = {
   // Neoplasias benignas
-  "nevus benigno": { class: "tumors", disease: "otras" },
-  "nevus acral": { class: "tumors", disease: "otras" },
-  "nevus papilomatoso": { class: "tumors", disease: "otras" },
-  "halo nevus": { class: "tumors", disease: "otras" },
-  "nevus de spitz": { class: "tumors", disease: "otras" },
-  hemangioma: { class: "tumors", disease: "otras" },
-  dermatofibroma: { class: "tumors", disease: "otras" },
-  "granuloma piogeno": { class: "tumors", disease: "otras" },
+  "nevus benigno": { class: "tumors" },
+  "nevus acral": { class: "tumors" },
+  "nevus papilomatoso": { class: "tumors" },
+  "halo nevus": { class: "tumors" },
+  "nevus de spitz": { class: "tumors" },
+  hemangioma: { class: "tumors" },
+  dermatofibroma: { class: "tumors" },
+  "granuloma piogeno": { class: "tumors" },
   // Precáncer
-  "nevus displasico": { class: "tumors", disease: "otras" },
-  "nevus azul": { class: "tumors", disease: "otras" },
-  lentigo: { class: "tumors", disease: "otras" },
-  "queratosis actinica": { class: "tumors", disease: "otras" },
-  "queratosis seborreica": { class: "tumors", disease: "otras" },
-  queratoacantoma: { class: "tumors", disease: "otras" },
-  "enfermedad de bowen": { class: "tumors", disease: "otras" },
+  "nevus displasico": { class: "tumors" },
+  "nevus azul": { class: "tumors" },
+  lentigo: { class: "tumors" },
+  "queratosis actinica": { class: "tumors" },
+  "queratosis seborreica": { class: "tumors" },
+  queratoacantoma: { class: "tumors" },
+  "enfermedad de bowen": { class: "tumors" },
   // Cáncer de piel
-  "carcinoma basocelular": { class: "tumors", disease: "otras" },
-  "carcinoma de celulas escamosas": { class: "tumors", disease: "otras" },
-  melanoma: { class: "tumors", disease: "otras" },
-  "lentigo melanoma": { class: "tumors", disease: "otras" },
+  "carcinoma basocelular": { class: "tumors" },
+  "carcinoma de celulas escamosas": { class: "tumors" },
+  melanoma: { class: "tumors" },
+  "lentigo melanoma": { class: "tumors" },
   // Micosis — cutáneas van a infecciosas, las de anexos (uña/pelo) a "anexos"
-  "micosis cutanea": { class: "infectious", disease: "tinia" },
-  "micosis cutaneas": { class: "infectious", disease: "tinia" },
+  "micosis cutanea": { class: "infectious" },
+  "micosis cutaneas": { class: "infectious" },
   // Nombres reales del clasificador (`2G_skin_mycosis`, `2PS_shining_versicolor`),
   // que no coinciden con el wording del atlas. Sin estos alias caían en
   // "Otras"/"other" y el reporte no mostraba ninguna infección por hongos.
-  "micosis de la piel": { class: "infectious", disease: "tinia" },
-  "versicolor brillante": { class: "infectious", disease: "tinia" },
-  "pitiriasis versicolor": { class: "infectious", disease: "tinia" },
-  onicomicosis: { class: "annex", disease: "tinia" },
-  tricomicosis: { class: "annex", disease: "tinia" },
+  "micosis de la piel": { class: "infectious" },
+  "versicolor brillante": { class: "infectious" },
+  "pitiriasis versicolor": { class: "infectious" },
+  onicomicosis: { class: "annex" },
+  tricomicosis: { class: "annex" },
   // Papuloescamosas
-  "psoriasis vulgar": { class: "inflammatory", disease: "psoriasis" },
-  "psoriasis pustulosa": { class: "inflammatory", disease: "psoriasis" },
-  "dermatitis seborreica": { class: "inflammatory", disease: "dermatitis" },
-  "liquen plano": { class: "inflammatory", disease: "otras" },
-  "liquen de devergie": { class: "inflammatory", disease: "otras" },
-  "pitiriasis rosada": { class: "inflammatory", disease: "otras" },
-  "liquen nitidus": { class: "inflammatory", disease: "otras" },
-  "liquen lineal": { class: "inflammatory", disease: "otras" },
+  "psoriasis vulgar": { class: "inflammatory" },
+  "psoriasis pustulosa": { class: "inflammatory" },
+  "dermatitis seborreica": { class: "inflammatory" },
+  "liquen plano": { class: "inflammatory" },
+  "liquen de devergie": { class: "inflammatory" },
+  "pitiriasis rosada": { class: "inflammatory" },
+  "liquen nitidus": { class: "inflammatory" },
+  "liquen lineal": { class: "inflammatory" },
   // Enfermedades virales
-  "papiloma cutaneo": { class: "infectious", disease: "verrugas" },
-  "verruga comun": { class: "infectious", disease: "verrugas" },
-  "verruga plana": { class: "infectious", disease: "verrugas" },
-  "verruga plantar": { class: "infectious", disease: "verrugas" },
-  "molusco contagioso": { class: "infectious", disease: "otras" },
+  "papiloma cutaneo": { class: "infectious" },
+  "verruga comun": { class: "infectious" },
+  "verruga plana": { class: "infectious" },
+  "verruga plantar": { class: "infectious" },
+  "molusco contagioso": { class: "infectious" },
   // Infecciones herpéticas
-  "herpes simple": { class: "infectious", disease: "otras" },
-  "herpes genital": { class: "infectious", disease: "otras" },
-  "herpes zoster": { class: "infectious", disease: "otras" },
-  varicela: { class: "infectious", disease: "otras" },
+  "herpes simple": { class: "infectious" },
+  "herpes genital": { class: "infectious" },
+  "herpes zoster": { class: "infectious" },
+  varicela: { class: "infectious" },
   // Acné
-  "acne vulgar": { class: "inflammatory", disease: "acne" },
-  "acne pustuloso": { class: "inflammatory", disease: "acne" },
-  "acne quistico": { class: "inflammatory", disease: "acne" },
-  "comedon cerrado": { class: "inflammatory", disease: "acne" },
-  "comedon abierto": { class: "inflammatory", disease: "acne" },
-  milium: { class: "inflammatory", disease: "acne" },
+  "acne vulgar": { class: "inflammatory" },
+  "acne pustuloso": { class: "inflammatory" },
+  "acne quistico": { class: "inflammatory" },
+  "comedon cerrado": { class: "inflammatory" },
+  "comedon abierto": { class: "inflammatory" },
+  milium: { class: "inflammatory" },
   // "Acné común" es el nombre real que devuelve el modelo de Skiniver en
   // producción — no coincide textual con "Acné vulgar" del atlas (52
   // diagnósticos oficiales). Confirmado contra datos reales; se deja como
   // alias explícito en vez de asumir que el atlas y el clasificador usan
   // siempre el mismo wording.
-  "acne comun": { class: "inflammatory", disease: "acne" },
-  rosacea: { class: "inflammatory", disease: "rosacea" },
+  "acne comun": { class: "inflammatory" },
+  rosacea: { class: "inflammatory" },
   // Dermatitis
-  "dermatitis atopica": { class: "inflammatory", disease: "dermatitis" },
-  dermatitis: { class: "inflammatory", disease: "dermatitis" },
+  "dermatitis atopica": { class: "inflammatory" },
+  dermatitis: { class: "inflammatory" },
   // Eccema / Urticaria / Eritema
-  eccema: { class: "inflammatory", disease: "eccema" },
-  "urticaria alergica": { class: "inflammatory", disease: "urticaria" },
-  urticaria: { class: "inflammatory", disease: "urticaria" },
-  "eritema centrifugo anular": { class: "inflammatory", disease: "otras" },
+  eccema: { class: "inflammatory" },
+  "urticaria alergica": { class: "inflammatory" },
+  urticaria: { class: "inflammatory" },
+  "eritema centrifugo anular": { class: "inflammatory" },
 };
 
 /** `null` para "sin diagnóstico" o "Piel Sin Patología" — el caller decide
@@ -173,13 +155,6 @@ export function classifyDiagnosisClass(
 ): SkiniverDiagnosisClass | null {
   if (!aiDiagnosis || isNoPathologyDiagnosis(aiDiagnosis)) return null;
   return DIAGNOSIS_MAP[normalize(aiDiagnosis)]?.class ?? "other";
-}
-
-export function classifyDiseaseBucket(
-  aiDiagnosis: string | null | undefined,
-): SkiniverDiseaseBucket | null {
-  if (!aiDiagnosis || isNoPathologyDiagnosis(aiDiagnosis)) return null;
-  return DIAGNOSIS_MAP[normalize(aiDiagnosis)]?.disease ?? "otras";
 }
 
 // ─── Tono de piel (Fitzpatrick) ─────────────────────────────────────────────

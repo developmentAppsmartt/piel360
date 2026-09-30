@@ -103,6 +103,7 @@ export class OrganizationsService {
                       select: {
                         id: true,
                         specialty: true,
+                        professionalKind: true,
                         city: true,
                         lat: true,
                         lng: true,
@@ -206,6 +207,7 @@ export class OrganizationsService {
         email: m.user.email,
         name: m.user.name,
         specialty: m.user.doctor?.specialty ?? null,
+        professionalKind: m.user.doctor?.professionalKind ?? null,
         city: m.user.doctor?.city ?? null,
         verificationStatus: m.user.doctor?.verificationStatus ?? null,
         lastAccessAt: m.user.updatedAt.toISOString(),
@@ -449,6 +451,7 @@ export class OrganizationsService {
               firstName: dto.firstName.trim(),
               lastName: dto.lastName.trim(),
               specialty,
+              professionalKind: dto.professionalKind ?? null,
               membershipType: 'solo_doctor',
               empresa: false,
               empresaReferida: false,
@@ -464,7 +467,9 @@ export class OrganizationsService {
           },
         },
         include: {
-          doctor: { select: { id: true, specialty: true } },
+          doctor: {
+            select: { id: true, specialty: true, professionalKind: true },
+          },
           organizationMembers: {
             where: { organizationId: org.id },
           },
@@ -490,6 +495,7 @@ export class OrganizationsService {
       email: user.email,
       name: user.name,
       specialty: user.doctor?.specialty ?? null,
+      professionalKind: user.doctor?.professionalKind ?? null,
       permissions: parsePermissions(member.permissions),
     };
   }

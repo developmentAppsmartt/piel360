@@ -357,6 +357,17 @@ export interface SkiniverMonthlySeriesPoint {
   counts: Record<string, number>;
 }
 
+/**
+ * Definición de una serie de un gráfico de tendencia. Las clases y los rangos
+ * de edad son fijos y viven en el front; las enfermedades no, porque dependen
+ * de qué se diagnosticó en el periodo, así que el reporte las trae consigo.
+ */
+export interface SkiniverTrendSeriesDef {
+  key: string;
+  label: string;
+  color: string;
+}
+
 export interface SkiniverSkinToneBucket {
   key: string;
   label: string;
@@ -403,7 +414,10 @@ export interface SkiniverReport {
   byAgeGender: SkiniverAgeGenderRow[];
   ageDistribution: SkiniverCategorySlice[];
   byClass: SkiniverMonthlySeriesPoint[];
+  /** Condiciones concretas: Top 8 del periodo + "Otras" — no grupos. */
   byDisease: SkiniverMonthlySeriesPoint[];
+  /** Series de `byDisease`, en el orden en que deben leerse. */
+  diseaseSeries: SkiniverTrendSeriesDef[];
   byAge: SkiniverMonthlySeriesPoint[];
   bySkinTone: SkiniverSkinToneBucket[];
   skinToneTotal: number;

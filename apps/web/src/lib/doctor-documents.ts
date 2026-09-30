@@ -13,6 +13,10 @@ export type ProfessionalKind = "specialty" | "labor";
 export interface DoctorDocumentDef {
   field: string;
   label: string;
+  /** Se muestra y se puede subir, pero no cuenta como requisito. Un médico
+   * general no tiene especialización, así que exigirle el diploma de postgrado
+   * lo dejaba incompleto para siempre. */
+  optional?: boolean;
   docKey:
     | "cedulaDocKey"
     | "medicalRegistryDocKey"
@@ -51,6 +55,7 @@ const SPECIALTY_DOCS: DoctorDocumentDef[] = [
   {
     field: "diplomaPostgrado",
     label: "Diploma postgrado",
+    optional: true,
     docKey: "diplomaPostgradoDocKey",
     docUrl: "diplomaPostgradoDocUrl",
   },
@@ -97,9 +102,10 @@ type DoctorDocumentFields = Partial<
   Record<DoctorDocumentDef["docKey"] | DoctorDocumentDef["docUrl"], string | null>
 > & { professionalKind?: string | null };
 
-/** Todos los documentos de su tipo están cargados (key o url firmada). */
+/** Todos los documentos **obligatorios** de su tipo están cargados (key o url
+ * firmada). Los marcados como `optional` no bloquean. */
 export function hasAllDoctorDocuments(doctor: DoctorDocumentFields): boolean {
-  return doctorDocuments(doctor.professionalKind).every((doc) =>
-    Boolean(doctor[doc.docKey] || doctor[doc.docUrl]),
-  );
+  return doctorDocuments(doctor.professionalKind)
+    .filter((doc) => !doc.optional)
+    .every((doc) => Boolean(doctor[doc.docKey] || doctor[doc.docUrl]));
 }
