@@ -39,33 +39,37 @@ export function formatAdminDate(iso: string | null) {
   });
 }
 
-/** Vigencia: endsAt guardado o fecha de compra + duración del plan. */
-export function subscriptionEndsAtDisplay(
-  sub: Pick<Subscription, "endsAt" | "createdAt" | "status"> & {
-    plan: Pick<Subscription["plan"], "durationDays">;
-  },
-): string {
+type SubscriptionEndsAtInput = Pick<Subscription, "endsAt" | "createdAt" | "status"> & {
+  plan: Pick<Subscription["plan"], "durationDays">;
+};
+
+/**
+ * Fecha de vigencia: `endsAt` guardado o fecha de compra + duración del plan.
+ * `null` cuando el plan no tiene duración o la suscripción ya no corre.
+ */
+export function subscriptionEndsAtDate(sub: SubscriptionEndsAtInput): Date | null {
   const durationDays = Number(sub.plan?.durationDays ?? 0);
-  if (durationDays <= 0) return "—";
+  if (durationDays <= 0) return null;
 
   if (sub.endsAt) {
     const parsed = new Date(sub.endsAt);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toLocaleDateString("es-CO", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      });
-    }
+    if (!Number.isNaN(parsed.getTime())) return parsed;
   }
 
-  if (sub.status !== "active" && sub.status !== "pending") return "—";
+  if (sub.status !== "active" && sub.status !== "pending") return null;
 
   const purchaseDate = new Date(sub.createdAt);
-  if (Number.isNaN(purchaseDate.getTime())) return "—";
+  if (Number.isNaN(purchaseDate.getTime())) return null;
 
   const ends = new Date(purchaseDate);
   ends.setDate(ends.getDate() + durationDays);
+  return ends;
+}
+
+/** Vigencia en texto, para mostrar. */
+export function subscriptionEndsAtDisplay(sub: SubscriptionEndsAtInput): string {
+  const ends = subscriptionEndsAtDate(sub);
+  if (!ends) return "—";
   return ends.toLocaleDateString("es-CO", {
     day: "numeric",
     month: "short",
@@ -86,4 +90,59 @@ export function subscriptionUsage(sub: Subscription) {
   const percent =
     sub.plan.analysisLimit > 0 ? Math.min(100, (used / sub.plan.analysisLimit) * 100) : 0;
   return { used, percent };
+}
+
+/**
+ * Grupo con el que se presenta una suscripción. No es el `status` de la base:
+ * "consumido" no existe allí y se deriva de los créditos y la vigencia.
+ */
+export type SubscriptionBucket = "active" | "consumed" | "pending" | "cancelled";
+
+/** Orden en que se muestran los grupos (pendientes antes que cancelados: ahí sí puede actuar). */
+export const SUBSCRIPTION_BUCKETS: SubscriptionBucket[] = [
+  "active",
+  "consumed",
+  "pending",
+  "cancelled",
+];
+
+export const SUBSCRIPTION_BUCKET_LABELS: Record<SubscriptionBucket, string> = {
+  active: "Activos",
+  consumed: "Consumidos",
+  pending: "Pendientes",
+  cancelled: "Cancelados",
+};
+
+/** Título de la sección de cada grupo. */
+export const SUBSCRIPTION_BUCKET_HEADINGS: Record<SubscriptionBucket, string> = {
+  active: "Planes activos (con créditos disponibles)",
+  consumed: "Planes consumidos (sin créditos o vencidos)",
+  pending: "Planes pendientes de pago",
+  cancelled: "Planes cancelados",
+};
+
+/** Etiqueta del distintivo dentro de la ficha. */
+export const SUBSCRIPTION_BUCKET_PILL_LABELS: Record<SubscriptionBucket, string> = {
+  active: "Activo",
+  consumed: "Consumido",
+  pending: "Pendiente",
+  cancelled: "Cancelado",
+};
+
+/**
+ * El orden de las reglas importa: una cancelada sin créditos es cancelada, no
+ * consumida.
+ */
+export function subscriptionBucket(
+  sub: Pick<Subscription, "status" | "remainingCredits" | "endsAt" | "createdAt"> & {
+    plan: Pick<Subscription["plan"], "durationDays">;
+  },
+  now: Date = new Date(),
+): SubscriptionBucket {
+  if (sub.status === "cancelled") return "cancelled";
+  if (sub.status === "pending") return "pending";
+  if (sub.remainingCredits <= 0) return "consumed";
+  const ends = subscriptionEndsAtDate(sub);
+  if (ends && ends.getTime() < now.getTime()) return "consumed";
+  return "active";
 }
