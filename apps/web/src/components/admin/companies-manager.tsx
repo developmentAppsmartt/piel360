@@ -1,9 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Building2, Handshake, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {
+  AccountRowActions,
+  AccountStateBadge,
+  AccountStatusDialog,
+  type AccountStatusTarget,
+} from "@/components/admin/account-status-dialog";
 import { ModuleCard } from "@/components/ui/module-card";
 import {
   useAdminCompanies,
@@ -98,6 +102,7 @@ export function CompaniesManager() {
   const companies = useAdminCompanies();
   const [tab, setTab] = useState<FilterTab>("all");
   const [search, setSearch] = useState("");
+  const [statusTarget, setStatusTarget] = useState<AccountStatusTarget | null>(null);
 
   const filtered = useMemo(() => {
     const rows = companies.data ?? [];
@@ -212,6 +217,7 @@ export function CompaniesManager() {
                   <th className="px-4 py-3 font-semibold">Organización</th>
                   <th className="px-4 py-3 font-semibold">Ubicación</th>
                   <th className="px-4 py-3 font-semibold">Verificación</th>
+                  <th className="px-4 py-3 font-semibold">Estado</th>
                   <th className="px-4 py-3 font-semibold">Equipo</th>
                   <th className="px-4 py-3 font-semibold">Registro</th>
                   <th className="px-4 py-3 text-right font-semibold">Acciones</th>
@@ -220,7 +226,7 @@ export function CompaniesManager() {
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
+                    <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
                       No hay registros de empresa en esta categoría.
                     </td>
                   </tr>
@@ -274,6 +280,12 @@ export function CompaniesManager() {
                       <td className="px-4 py-3">
                         <VerificationBadge status={row.verificationStatus} />
                       </td>
+                      <td className="px-4 py-3">
+                        <AccountStateBadge
+                          active={!row.disabledAt}
+                          reason={row.disabledReason}
+                        />
+                      </td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {row.organization
                           ? `${row.organization.seatUsed}/${row.organization.seatLimit}`
@@ -282,15 +294,19 @@ export function CompaniesManager() {
                       <td className="px-4 py-3 text-muted-foreground">
                         {formatDate(row.registeredAt)}
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <Button
-                          nativeButton={false}
-                          render={<Link href={`/admin/verificacion/${row.doctorId}`} />}
-                          variant="outline"
-                          size="sm"
-                        >
-                          Ver detalle
-                        </Button>
+                      <td className="px-4 py-3">
+                        <AccountRowActions
+                          active={!row.disabledAt}
+                          editHref={`/admin/verificacion/${row.doctorId}`}
+                          onToggle={() =>
+                            setStatusTarget({
+                              doctorId: row.doctorId,
+                              name: row.organization?.name ?? row.name,
+                              disabledAt: row.disabledAt,
+                              disabledReason: row.disabledReason,
+                            })
+                          }
+                        />
                       </td>
                     </tr>
                   ))
@@ -305,6 +321,14 @@ export function CompaniesManager() {
           ) : null}
         </div>
       )}
+
+      <AccountStatusDialog
+        scope="empresa"
+        target={statusTarget}
+        onOpenChange={(open) => {
+          if (!open) setStatusTarget(null);
+        }}
+      />
     </div>
   );
 }

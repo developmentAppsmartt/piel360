@@ -584,6 +584,8 @@ export class OrganizationsService {
             name: true,
             phone: true,
             createdAt: true,
+            disabledAt: true,
+            disabledReason: true,
             ownedOrganizations: {
               include: {
                 members: { select: { id: true } },
@@ -613,6 +615,8 @@ export class OrganizationsService {
         city: doctor.city ?? org?.city ?? null,
         department: doctor.department ?? org?.department ?? null,
         registeredAt: doctor.user.createdAt.toISOString(),
+        disabledAt: doctor.user.disabledAt?.toISOString() ?? null,
+        disabledReason: doctor.user.disabledReason,
         organization: org
           ? {
               id: org.id.toString(),

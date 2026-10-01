@@ -54,9 +54,53 @@ export class DoctorsService {
           ],
         },
       },
-      include: { user: { select: { email: true, avatarKey: true } } },
+      include: {
+        user: {
+          select: {
+            email: true,
+            avatarKey: true,
+            disabledAt: true,
+            disabledReason: true,
+          },
+        },
+      },
       orderBy: { id: 'asc' },
     });
+  }
+
+  /**
+   * Deshabilita / rehabilita la cuenta (profesional o dueño de empresa). No
+   * cierra la sesión: al entrar solo verá la pantalla con el motivo.
+   */
+  async setAccountDisabled(id: string, disabled: boolean, reason?: string) {
+    if (!/^\d+$/.test(id)) {
+      throw new NotFoundException('Doctor no encontrado');
+    }
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { id: BigInt(id) },
+      select: { userId: true },
+    });
+    if (!doctor) throw new NotFoundException('Doctor no encontrado');
+
+    const trimmed = reason?.trim() ?? '';
+    if (disabled && !trimmed) {
+      throw new BadRequestException(
+        'Indica el motivo por el que se deshabilita la cuenta.',
+      );
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id: doctor.userId },
+      data: disabled
+        ? { disabledAt: new Date(), disabledReason: trimmed }
+        : { disabledAt: null, disabledReason: null },
+      select: { id: true, disabledAt: true, disabledReason: true },
+    });
+    return {
+      userId: user.id.toString(),
+      disabledAt: user.disabledAt?.toISOString() ?? null,
+      disabledReason: user.disabledReason,
+    };
   }
 
   /** Doctores pendientes de validación (cola del moderador). */

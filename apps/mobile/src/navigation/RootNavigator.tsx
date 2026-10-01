@@ -11,6 +11,7 @@ import { RegisterView } from '../views/auth/register/RegisterView';
 import { ForgotPasswordView } from '../views/auth/forgot-password/ForgotPasswordView';
 import { MainTabNavigator } from './MainTabNavigator';
 import { PhoneVerificationView } from '../views/auth/phone-verification/PhoneVerificationView';
+import { AccountDisabledView } from '../views/account/AccountDisabledView';
 
 export type AuthStackParamList = {
   Login: undefined;
@@ -58,7 +59,7 @@ let persistedNavState: NavigationState | undefined;
 let persistedNavScope: string | null = null;
 
 export function RootNavigator() {
-  const { user, isLoading, needsPhoneVerification } = useAuth();
+  const { user, isLoading, needsPhoneVerification, accountStatus } = useAuth();
   const branding = useBranding();
   const navScope = user
     ? `${user.id}:${needsPhoneVerification ? 'phone' : 'app'}`
@@ -79,6 +80,10 @@ export function RootNavigator() {
         <ActivityIndicator size="large" color={branding.colors.primary} />
       </View>
     );
+  }
+
+  if (user && accountStatus?.disabled) {
+    return <AccountDisabledView />;
   }
 
   return (

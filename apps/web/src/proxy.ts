@@ -4,10 +4,12 @@ import {
   canAccessAdminPanel,
   canAccessClinicalPanel,
   canAccessPatientPanel,
+  clinicalPathAllowedWithoutPlan,
   isClinicalPanelRole,
   isDoctorVerificationActive,
   SESSION_REPLACED,
   teamPermissionAllowsNavHref,
+  type AccountStatus,
   type PrimaryPanel,
   type Role,
   type TeamMemberPermission,
@@ -106,7 +108,11 @@ function clinicalPathAllowedWhilePending(pathname: string): boolean {
  * forma de detectarlo en el proxy. */
 async function getFreshPermissions(
   token: string | undefined,
-): Promise<{ permissions?: string[]; sessionEnded?: boolean }> {
+): Promise<{
+  permissions?: string[];
+  sessionEnded?: boolean;
+  account?: AccountStatus;
+}> {
   if (!token) return {};
   try {
     const apiUrl =
@@ -122,8 +128,11 @@ async function getFreshPermissions(
       return { sessionEnded: body?.code === SESSION_REPLACED };
     }
     if (!res.ok) return {};
-    const data = (await res.json()) as { permissions?: string[] };
-    return { permissions: data.permissions };
+    const data = (await res.json()) as {
+      permissions?: string[];
+      account?: AccountStatus;
+    };
+    return { permissions: data.permissions, account: data.account };
   } catch {
     return {};
   }

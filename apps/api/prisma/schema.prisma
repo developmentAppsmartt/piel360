@@ -36,6 +36,13 @@ model User {
   longitude          Decimal?  @db.Decimal(10, 7)
   /** Key S3 de la foto de perfil (URL firmada al leer). */
   avatarKey          String?   @map("avatar_key")
+  /**
+   * Cuenta deshabilitada por un administrador (profesional o empresa). Puede
+   * iniciar sesión, pero solo ve la pantalla con `disabledReason`. Si es el
+   * dueño de una organización, también bloquea a los miembros del equipo.
+   */
+  disabledAt         DateTime? @map("disabled_at")
+  disabledReason     String?   @map("disabled_reason") @db.Text
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 

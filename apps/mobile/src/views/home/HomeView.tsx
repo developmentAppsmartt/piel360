@@ -18,7 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useBranding } from '../../context/BrandingContext';
 import { useNotificationsOptional } from '../../context/NotificationsContext';
 import {
-  isAnalysisProviderSlug,
+  toAnalysisProviderSlug,
   type AnalysisProviderSlug,
 } from '../../data/analysisProviderLabel';
 import type { LegalDocId } from '../../data/legal/documents';
@@ -87,9 +87,8 @@ function resolveAnalysisSlug(row: {
   fitzpatrickTaskId?: string | null;
   providerSlug?: string | null;
 }): AnalysisProviderSlug {
-  if (row.providerSlug && isAnalysisProviderSlug(row.providerSlug)) {
-    return row.providerSlug;
-  }
+  const fromSlug = toAnalysisProviderSlug(row.providerSlug);
+  if (fromSlug) return fromSlug;
   if (row.youcamTaskId) return 'youcam';
   if (row.fitzpatrickTaskId) return 'fitzpatrick';
   return 'skiniver';

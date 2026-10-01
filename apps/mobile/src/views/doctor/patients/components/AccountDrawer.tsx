@@ -3,6 +3,7 @@ import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppIcon } from '../../../../components/AppIcon';
 import { Icons, type AppIconName } from '../../../../components/icons';
+import { useAuth } from '../../../../context/AuthContext';
 import { useBranding } from '../../../../context/BrandingContext';
 import {
   clinicalModulesService,
@@ -71,6 +72,14 @@ const PATIENT_MENU: MenuItem[] = [
   { id: 'salir', label: 'Salir', icon: Icons.logout },
 ];
 
+/** Sin plan activo solo quedan cuenta, reportes y soporte. */
+const NO_PLAN_HIDDEN_ITEMS: AccountMenuId[] = [
+  'fototipo',
+  'edad_piel',
+  'compartir',
+  'premios',
+];
+
 type AccountDrawerProps = {
   visible: boolean;
   onClose: () => void;
@@ -92,6 +101,8 @@ export function AccountDrawer({
   );
   const [securityOpen, setSecurityOpen] = useState(true);
   const [crmModules, setCrmModules] = useState<ClinicalSideModule[]>([]);
+  const { accountStatus } = useAuth();
+  const planRestricted = variant === 'doctor' && Boolean(accountStatus?.planRestricted);
 
   useEffect(() => {
     if (!visible || variant !== 'doctor') return;
@@ -121,6 +132,7 @@ export function AccountDrawer({
 
   const visibleItems = menu.filter((item) => {
     if (item.id === 'password') return securityOpen;
+    if (planRestricted && NO_PLAN_HIDDEN_ITEMS.includes(item.id)) return false;
     return true;
   });
 

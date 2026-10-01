@@ -23,3 +23,17 @@ export function onSessionEnded(handler: Listener | null) {
 export function emitSessionEnded(reason: SessionEndedReason) {
   listener?.(reason);
 }
+
+/** Espejo de `ACCOUNT_DISABLED` en @piel360/shared: 403 del API cuando un
+ * admin deshabilitó la cuenta (o la empresa) con la sesión ya abierta. */
+export const ACCOUNT_DISABLED = 'ACCOUNT_DISABLED';
+
+let accountDisabledListener: (() => void) | null = null;
+
+export function onAccountDisabled(handler: (() => void) | null) {
+  accountDisabledListener = handler;
+}
+
+export function emitAccountDisabled() {
+  accountDisabledListener?.();
+}

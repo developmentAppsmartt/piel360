@@ -20,10 +20,26 @@ export function isAnalysisProviderSlug(
   return value in ANALYSIS_PROVIDER_STATIC_LABELS;
 }
 
+/** Espejo de PROVIDER_PUBLIC_ALIASES en @piel360/shared: el API enmascara
+ * los slugs internos en sus respuestas (suscripciones, solicitudes, etc.). */
+const PUBLIC_PROVIDER_ALIASES: Record<string, AnalysisProviderSlug> = {
+  analisispiel360: 'youcam',
+  analisisdermapiel360: 'skiniver',
+};
+
+/** Slug interno a partir del interno o de su alias público; `null` si no aplica. */
+export function toAnalysisProviderSlug(
+  value: string | null | undefined,
+): AnalysisProviderSlug | null {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase();
+  if (isAnalysisProviderSlug(normalized)) return normalized;
+  return PUBLIC_PROVIDER_ALIASES[normalized] ?? null;
+}
+
 export function providerStaticLabel(slug: string): string {
-  return isAnalysisProviderSlug(slug)
-    ? ANALYSIS_PROVIDER_STATIC_LABELS[slug]
-    : 'Piel 360';
+  const internal = toAnalysisProviderSlug(slug);
+  return internal ? ANALYSIS_PROVIDER_STATIC_LABELS[internal] : 'Piel 360';
 }
 
 /** Label para un análisis existente: prioriza `provider.displayLabel` si no es un nombre de API. */
@@ -90,6 +106,7 @@ export function availableProvidersFromSubscriptions(
   subscriptions: Array<{
     status: string;
     remainingCredits: number;
+    endsAt?: string | null;
     plan: {
       provider: {
         slug: string;
@@ -101,10 +118,12 @@ export function availableProvidersFromSubscriptions(
 ): AvailableAnalysisProvider[] {
   const bySlug = new Map<AnalysisProviderSlug, AvailableAnalysisProvider>();
 
+  const now = Date.now();
   for (const sub of subscriptions) {
     if (sub.status !== 'active' || sub.remainingCredits <= 0) continue;
-    const slug = sub.plan.provider.slug;
-    if (!isAnalysisProviderSlug(slug)) continue;
+    if (sub.endsAt && new Date(sub.endsAt).getTime() <= now) continue;
+    const slug = toAnalysisProviderSlug(sub.plan.provider.slug);
+    if (!slug) continue;
 
     const existing = bySlug.get(slug);
     if (existing) {

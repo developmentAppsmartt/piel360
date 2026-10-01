@@ -7,11 +7,12 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Alert } from 'react-native';
+import { Alert, AppState } from 'react-native';
 import { isPhoneVerificationSkipped } from '../config/env';
 import { authService } from '../services/auth.service';
 import { doctorsService } from '../services/doctors.service';
 import {
+  onAccountDisabled,
   onSessionEnded,
   SESSION_REPLACED_MESSAGE,
 } from '../services/session-events';
@@ -21,6 +22,7 @@ import {
 } from '../services/google-auth.service';
 import { storageService } from '../services/storage.service';
 import type {
+  AccountStatus,
   AuthUser,
   LoginPayload,
   RegisterPatientPayload,
@@ -38,6 +40,9 @@ type AuthContextValue = {
   completePhoneVerification: () => void;
   patchUser: (partial: Partial<AuthUser>) => Promise<void>;
   refreshDoctorVerification: () => Promise<string | null>;
+  /** `null` mientras no se ha consultado (o sin conexión en el primer intento). */
+  accountStatus: AccountStatus | null;
+  refreshAccountStatus: () => Promise<AccountStatus | null>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -66,6 +71,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [needsPhoneVerification, setNeedsPhoneVerification] = useState(false);
+  const [accountStatus, setAccountStatus] = useState<AccountStatus | null>(null);
+
+  /** Si falla (p. ej. sin conexión) se conserva el último estado conocido. */
+  const refreshAccountStatus = useCallback(async () => {
+    try {
+      const status = await authService.accountStatus();
+      setAccountStatus(status);
+      return status;
+    } catch {
+      return null;
+    }
+  }, []);
 
   const syncPhoneVerification = useCallback(async () => {
     const needs = await resolveNeedsPhoneVerification();
@@ -106,14 +123,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const fromGoogle = await completeGoogleLoginFromUrl();
         if (fromGoogle && !cancelled) {
           setUser(fromGoogle.user);
-          await syncPhoneVerification();
+          await Promise.all([syncPhoneVerification(), refreshAccountStatus()]);
           await reconcilePatientSession();
           return;
         }
         const sessionUser = await authService.hydrateSession();
         if (!cancelled && sessionUser) {
           setUser(sessionUser);
-          await syncPhoneVerification();
+          await Promise.all([syncPhoneVerification(), refreshAccountStatus()]);
           await reconcilePatientSession();
         }
       } finally {
@@ -123,24 +140,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [syncPhoneVerification, reconcilePatientSession]);
+  }, [syncPhoneVerification, reconcilePatientSession, refreshAccountStatus]);
 
   const login = useCallback(
     async (payload: LoginPayload) => {
       const result = await authService.login(payload);
+      await refreshAccountStatus();
       setUser(result.user);
       await syncPhoneVerification();
       await reconcilePatientSession();
     },
-    [syncPhoneVerification, reconcilePatientSession],
+    [syncPhoneVerification, reconcilePatientSession, refreshAccountStatus],
   );
 
   const loginWithGoogle = useCallback(async () => {
     const result = await googleLogin();
+    await refreshAccountStatus();
     setUser(result.user);
     await syncPhoneVerification();
     await reconcilePatientSession();
-  }, [syncPhoneVerification, reconcilePatientSession]);
+  }, [syncPhoneVerification, reconcilePatientSession, refreshAccountStatus]);
 
   const registerPatient = useCallback(
     async (payload: RegisterPatientPayload) => {
@@ -155,7 +174,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authService.logout();
     setUser(null);
     setNeedsPhoneVerification(false);
+    setAccountStatus(null);
   }, []);
+
+  useEffect(() => {
+    onAccountDisabled(() => void refreshAccountStatus());
+    return () => onAccountDisabled(null);
+  }, [refreshAccountStatus]);
+
+  // Un admin puede deshabilitar la cuenta o el plan puede vencer con la app abierta.
+  useEffect(() => {
+    if (!user) return;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void refreshAccountStatus();
+    });
+    return () => sub.remove();
+  }, [user, refreshAccountStatus]);
 
   /**
    * La sesión dejó de valer del lado del servidor (otro login la cerró, o
@@ -168,6 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await storageService.clearSession();
         setUser(null);
         setNeedsPhoneVerification(false);
+        setAccountStatus(null);
         Alert.alert(
           'Sesión finalizada',
           reason === 'replaced'
@@ -228,6 +263,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       completePhoneVerification,
       patchUser,
       refreshDoctorVerification,
+      accountStatus,
+      refreshAccountStatus,
     }),
     [
       user,
@@ -240,6 +277,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       completePhoneVerification,
       patchUser,
       refreshDoctorVerification,
+      accountStatus,
+      refreshAccountStatus,
     ],
   );
 

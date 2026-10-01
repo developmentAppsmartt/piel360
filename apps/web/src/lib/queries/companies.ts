@@ -14,6 +14,8 @@ export type CompanyRegistrationAdmin = {
   city: string | null;
   department: string | null;
   registeredAt: string;
+  disabledAt: string | null;
+  disabledReason: string | null;
   organization: {
     id: string;
     name: string;

@@ -6,7 +6,7 @@ import { Icons } from '../../components/icons';
 import { useBranding } from '../../context/BrandingContext';
 import {
   ANALYSIS_PROVIDER_STATIC_LABELS,
-  isAnalysisProviderSlug,
+  toAnalysisProviderSlug,
 } from '../../data/analysisProviderLabel';
 import type { AnalysisRequest } from '../../services/patients.service';
 import { DoctorHeader } from '../doctor/patients/components/DoctorHeader';
@@ -22,10 +22,10 @@ type PendingAnalysesPickerProps = {
 };
 
 function labelFor(slug: string): string {
-  if (isAnalysisProviderSlug(slug)) {
-    return ANALYSIS_PROVIDER_STATIC_LABELS[slug];
-  }
-  return 'Análisis solicitado';
+  const internal = toAnalysisProviderSlug(slug);
+  return internal
+    ? ANALYSIS_PROVIDER_STATIC_LABELS[internal]
+    : 'Análisis solicitado';
 }
 
 export function PendingAnalysesPicker({
