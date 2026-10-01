@@ -45,6 +45,7 @@ export function ConditionRow({
   watched,
   error,
   subjectPhrase,
+  excludedMetrics,
   onRemove,
 }: {
   index: number;
@@ -53,18 +54,26 @@ export function ConditionRow({
   watched?: ConditionRowValues;
   error?: string;
   subjectPhrase: string;
+  /** Métricas que este flujo no ofrece (ver `SUGGESTED_PRODUCT_EXCLUDED_METRICS`). */
+  excludedMetrics?: string[];
   onRemove: () => void;
 }) {
   const metricType = watched?.metricType ?? CONDITION_METRICS[0];
   const regions = CONDITION_METRIC_REGIONS[metricType];
   const skinType = isSkinTypeMetric(metricType);
   const isBetween = watched?.operator === "between";
+  // La métrica ya guardada se conserva aunque esté excluida: si se quitara de la
+  // lista, el navegador mostraría la primera opción y al guardar cambiaría la
+  // condición sin que nadie lo pidiera.
+  const metricOptions = CONDITION_METRICS.filter(
+    (type) => !excludedMetrics?.includes(type) || type === metricType,
+  );
 
   return (
     <div className="space-y-2 rounded-lg border border-border bg-card p-3">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_1fr_auto]">
         <select className={inputCls} {...register(`conditions.${index}.metricType`)}>
-          {CONDITION_METRICS.map((type) => (
+          {metricOptions.map((type) => (
             <option key={type} value={type}>
               {conditionMetricLabel(type)}
             </option>

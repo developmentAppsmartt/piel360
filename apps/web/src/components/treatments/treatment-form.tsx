@@ -7,7 +7,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-error";
 import { ConditionRow, defaultConditionRow } from "@/components/conditions/condition-row";
-import { isSkinTypeMetric } from "@/lib/condition-labels";
+import { CONDITION_METRICS, isSkinTypeMetric } from "@/lib/condition-labels";
 import { useTreatmentCategories } from "@/lib/queries/treatments";
 import type { CreateTreatmentInput, Treatment } from "@/lib/queries/treatments";
 
@@ -53,6 +53,7 @@ export function TreatmentForm({
   onSubmit,
   submitLabel,
   forceCategoryPicker,
+  excludedMetrics,
 }: {
   defaultValues?: Treatment;
   onSubmit: (input: CreateTreatmentInput) => Promise<unknown>;
@@ -60,6 +61,8 @@ export function TreatmentForm({
   /** true = flujo "Tratamientos" (categoría requerida). false = flujo
    * "Productos sugeridos" (sin categoría, categoryId siempre null). */
   forceCategoryPicker: boolean;
+  /** Métricas que no se ofrecen al crear condiciones en este flujo. */
+  excludedMetrics?: string[];
 }) {
   const { data: categories } = useTreatmentCategories();
 
@@ -93,6 +96,9 @@ export function TreatmentForm({
   const watchedConditions = watch("conditions");
 
   const subjectPhrase = forceCategoryPicker ? "este tratamiento" : "este producto sugerido";
+  const firstAllowedMetric = CONDITION_METRICS.find(
+    (type) => !excludedMetrics?.includes(type),
+  );
 
   const submit = handleSubmit(async (values) => {
     try {
@@ -184,7 +190,7 @@ export function TreatmentForm({
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => append(defaultConditionRow())}
+            onClick={() => append(defaultConditionRow(firstAllowedMetric))}
           >
             <Plus className="mr-1 size-4" />
             Agregar condición
@@ -216,6 +222,7 @@ export function TreatmentForm({
               errors.conditions?.[index]?.metricType?.message
             }
             subjectPhrase={subjectPhrase}
+            excludedMetrics={excludedMetrics}
             onRemove={() => remove(index)}
           />
         ))}

@@ -25,6 +25,10 @@ export interface ConditionLike {
  * ("Reglas por edad de piel"). */
 export const CONDITION_METRICS = CONDITIONABLE_METRIC_TYPES;
 
+/** Métricas que el flujo de "Productos sugeridos" no ofrece: un producto se
+ * sugiere por lo que ve el análisis de piel, no por la edad del paciente. */
+export const SUGGESTED_PRODUCT_EXCLUDED_METRICS: string[] = ["patient_age"];
+
 /** Métricas con sub-regiones seleccionables en el formulario — sin entrada
  * acá, la condición aplica al puntaje/valor general ("whole") sin selector.
  * Refleja las regiones reales que YouCam devuelve para cada tipo (ver

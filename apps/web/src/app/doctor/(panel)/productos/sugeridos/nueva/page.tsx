@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { TreatmentForm } from "@/components/treatments/treatment-form";
+import { SUGGESTED_PRODUCT_EXCLUDED_METRICS } from "@/lib/condition-labels";
 import { useCreateTreatment } from "@/lib/queries/treatments";
 
 export default function NuevoGrupoSugeridoPage() {
@@ -19,6 +20,7 @@ export default function NuevoGrupoSugeridoPage() {
       </div>
       <TreatmentForm
         forceCategoryPicker={false}
+        excludedMetrics={SUGGESTED_PRODUCT_EXCLUDED_METRICS}
         submitLabel="Crear"
         onSubmit={async (input) => {
           const treatment = await createMutation.mutateAsync(input);
