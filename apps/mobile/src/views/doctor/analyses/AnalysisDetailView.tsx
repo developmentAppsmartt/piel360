@@ -3,12 +3,12 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  ScrollView,
   Text,
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { AppIcon } from '../../../components/AppIcon';
+import { KeyboardAwareScrollView } from '../../../components/KeyboardAwareScrollView';
 import { Icons } from '../../../components/icons';
 import { useAuth } from '../../../context/AuthContext';
 import { isClinicalPanelUser } from '../../../types/auth';
@@ -480,7 +480,7 @@ export function AnalysisDetailView({
             <Text style={styles.errorText}>{error}</Text>
           </View>
         ) : analysis ? (
-          <ScrollView
+          <KeyboardAwareScrollView
             style={styles.scroll}
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
@@ -634,7 +634,7 @@ export function AnalysisDetailView({
                 />
               )
             ) : null}
-          </ScrollView>
+          </KeyboardAwareScrollView>
         ) : null}
       </View>
     </View>

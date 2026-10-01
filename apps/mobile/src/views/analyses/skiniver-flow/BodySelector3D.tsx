@@ -18,6 +18,7 @@ import {
   normalizeMeshName,
   type BodySelection,
 } from '../../../data/bodyRegions';
+import { normalizeModel, placeSavedPoint } from './bodyModelPlacement';
 
 const femaleModule = require('../../../../assets/models/female/realistic_female_character_new.glb');
 const maleModule = require('../../../../assets/models/male/realistic_male_character_new.glb');
@@ -35,82 +36,6 @@ type BodySelector3DProps = {
   focusRegion?: string | null;
 };
 
-function normalizeModel(scene: THREE.Object3D) {
-  // useGLTF cachea la escena: normalizar dos veces desplaza el modelo
-  // y el punto guardado queda flotando.
-  if (scene.userData.piel360Normalized) return;
-  scene.traverse((child) => {
-    if (child instanceof THREE.Mesh) {
-      child.name = normalizeMeshName(child.name);
-      // Evita problemas de culling en expo-gl
-      child.frustumCulled = false;
-    }
-  });
-
-  const box = new THREE.Box3().setFromObject(scene);
-  const size = box.getSize(new THREE.Vector3());
-  scene.scale.setScalar(1.8 / Math.max(size.y, 0.001));
-
-  const scaledBox = new THREE.Box3().setFromObject(scene);
-  const center = scaledBox.getCenter(new THREE.Vector3());
-  scene.position.sub(center);
-  scene.position.y += 1.05;
-  scene.userData.piel360Normalized = true;
-}
-
-/** Acerca el punto guardado a la piel para que el marcador no flote. */
-function snapPointToBody(
-  root: THREE.Object3D,
-  point: THREE.Vector3,
-): THREE.Vector3 {
-  root.updateMatrixWorld(true);
-  const meshes: THREE.Object3D[] = [];
-  root.traverse((child) => {
-    if (child instanceof THREE.Mesh) meshes.push(child);
-  });
-  if (meshes.length === 0) return point.clone();
-
-  const axis = new THREE.Vector3(0, point.y, 0);
-  const outward = point.clone().sub(axis);
-  if (outward.lengthSq() < 1e-6) outward.set(0, 0, 1);
-  outward.normalize();
-
-  const rays = [
-    { origin: point.clone().add(outward.clone().multiplyScalar(0.9)), dir: outward.clone().negate() },
-    { origin: point.clone().add(outward.clone().multiplyScalar(-0.15)), dir: outward.clone() },
-    { origin: point.clone(), dir: outward.clone().negate() },
-    { origin: point.clone(), dir: outward.clone() },
-  ];
-
-  const raycaster = new THREE.Raycaster();
-  let best: THREE.Intersection | null = null;
-  let bestDist = Infinity;
-  for (const ray of rays) {
-    raycaster.set(ray.origin, ray.dir);
-    raycaster.far = 1.4;
-    const hits = raycaster.intersectObjects(meshes, false);
-    const hit = hits[0];
-    if (!hit) continue;
-    const dist = hit.point.distanceTo(point);
-    if (dist < bestDist) {
-      best = hit;
-      bestDist = dist;
-    }
-  }
-  if (!best || bestDist > 0.45) return point.clone();
-
-  const placed = best.point.clone();
-  const normal = best.face?.normal;
-  if (normal) {
-    const worldNormal = normal
-      .clone()
-      .transformDirection(best.object.matrixWorld)
-      .normalize();
-    placed.add(worldNormal.multiplyScalar(0.012));
-  }
-  return placed;
-}
-
 function BodyModel({
   uri,
   onSelect,
@@ -127,7 +52,7 @@ function BodyModel({
   useEffect(() => {
     normalizeModel(scene);
     if (!anchorPoint || !onAnchored) return;
-    const snapped = snapPointToBody(scene, new THREE.Vector3(...anchorPoint));
+    const snapped = placeSavedPoint(scene, new THREE.Vector3(...anchorPoint));
     onAnchored([snapped.x, snapped.y, snapped.z]);
   }, [scene, anchorPoint, onAnchored]);
 

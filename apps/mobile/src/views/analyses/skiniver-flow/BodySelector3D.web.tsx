@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
@@ -11,6 +11,7 @@ import {
   normalizeMeshName,
   type BodySelection,
 } from '../../../data/bodyRegions';
+import { normalizeModel, placeSavedPoint } from './bodyModelPlacement';
 
 const femaleModule = require('../../../../assets/models/female/realistic_female_character_new.glb');
 const maleModule = require('../../../../assets/models/male/realistic_male_character_new.glb');
@@ -30,35 +31,25 @@ function modelUrl(moduleId: number): string {
   return Asset.fromModule(moduleId).uri;
 }
 
-function normalizeModel(scene: THREE.Object3D) {
-  scene.traverse((child) => {
-    if (child instanceof THREE.Mesh) {
-      child.name = normalizeMeshName(child.name);
-    }
-  });
-
-  const box = new THREE.Box3().setFromObject(scene);
-  const size = box.getSize(new THREE.Vector3());
-  scene.scale.setScalar(1.8 / size.y);
-
-  const scaledBox = new THREE.Box3().setFromObject(scene);
-  const center = scaledBox.getCenter(new THREE.Vector3());
-  scene.position.sub(center);
-  scene.position.y += 1.05;
-}
-
 function BodyModel({
   url,
   onSelect,
+  anchorPoint,
+  onAnchored,
 }: {
   url: string;
   onSelect?: (region: string, point: THREE.Vector3) => void;
+  anchorPoint?: [number, number, number] | null;
+  onAnchored?: (point: [number, number, number]) => void;
 }) {
   const { scene } = useGLTF(url);
 
   useEffect(() => {
     normalizeModel(scene);
-  }, [scene]);
+    if (!anchorPoint || !onAnchored) return;
+    const placed = placeSavedPoint(scene, new THREE.Vector3(...anchorPoint));
+    onAnchored([placed.x, placed.y, placed.z]);
+  }, [scene, anchorPoint, onAnchored]);
 
   function handleClick(event: ThreeEvent<MouseEvent>) {
     if (!onSelect) return;
@@ -120,11 +111,21 @@ export function BodySelector3D({
     [regionId],
   );
 
+  const [anchoredPoint, setAnchoredPoint] = useState<
+    [number, number, number] | null
+  >(null);
+
   useEffect(() => {
+    setAnchoredPoint(null);
     if (!focusPoint) return;
     setMarker(new THREE.Vector3(...focusPoint));
     setRegionId(focusRegion);
-  }, [focusPoint, focusRegion]);
+  }, [focusPoint, focusRegion, url]);
+
+  const handleAnchored = useCallback((point: [number, number, number]) => {
+    setAnchoredPoint(point);
+    setMarker(new THREE.Vector3(...point));
+  }, []);
 
   function handleSelect(region: string, point: THREE.Vector3) {
     setMarker(point.clone());
@@ -137,13 +138,14 @@ export function BodySelector3D({
     });
   }
 
+  const cameraFocus = anchoredPoint ?? focusPoint;
   const cameraView = useMemo(() => {
-    if (focusPoint) return cameraForBodyPoint(focusPoint);
+    if (cameraFocus) return cameraForBodyPoint(cameraFocus);
     return {
       position: [0, 1.6, 3.2] as [number, number, number],
       target: [0, 1.2, 0] as [number, number, number],
     };
-  }, [focusPoint?.[0], focusPoint?.[1], focusPoint?.[2]]);
+  }, [cameraFocus?.[0], cameraFocus?.[1], cameraFocus?.[2]]);
   const readOnly = Boolean(focusPoint);
 
   return (
@@ -204,8 +206,14 @@ export function BodySelector3D({
           <color attach="background" args={['#0f1419']} />
           <ambientLight intensity={0.7} />
           <directionalLight position={[2, 3, 4]} intensity={1} />
-          <BodyModel key={url} url={url} onSelect={readOnly ? undefined : handleSelect} />
-          {focusPoint ? <FocusCamera point={focusPoint} /> : null}
+          <BodyModel
+            key={url}
+            url={url}
+            onSelect={readOnly ? undefined : handleSelect}
+            anchorPoint={readOnly ? focusPoint : null}
+            onAnchored={readOnly ? handleAnchored : undefined}
+          />
+          {cameraFocus ? <FocusCamera point={cameraFocus} /> : null}
           {marker ? (
             <mesh position={marker}>
               <sphereGeometry args={[0.028, 16, 16]} />
