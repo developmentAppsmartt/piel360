@@ -44,19 +44,54 @@ export interface SkiniverPrediction {
   desease?: string;
 }
 
-/** Estructurado a partir del texto libre de `description` — ver
- * `apps/api/src/skiniver/skiniver-description.util.ts`. Expuesto por
- * `AnalysisImageUrlsService#withImageUrls` como `skiniverDiagnosis`. */
-export interface SkiniverDiagnosisDetails {
+/** El descriptivo de UN diagnóstico, ya separado del texto libre. */
+export interface SkiniverDescriptiveText {
+  /** El párrafo de "Evaluación de riesgos". */
   description: string | null;
+  precise_diagnosis: string | null;
+  treatment: string | null;
+  advice: string | null;
+}
+
+/** Descriptivo de un candidato de `topn[]`, con lo que lo identifica. Cada
+ * candidato trae su propio `description` en el JSON de Skiniver, así que se
+ * parsea uno por uno y nunca se hereda el del principal. */
+export interface SkiniverCandidateDetails extends SkiniverDescriptiveText {
+  /** `class` crudo — sin traducir, para poder cruzarlo con `topn[]`. */
+  class: string;
+  class_raw: string | null;
+  /** Nombre ya traducido para mostrar. */
+  label: string;
+  /** 0–100. */
+  prob: number;
+  /** Categoría ya traducida (`desease`). */
+  category: string | null;
+  risk_level: string | null;
+  icd_code: string | null;
+  atlas_page_link: string | null;
+}
+
+/** Textos de riesgo que Skiniver manda aparte de `description`. */
+export interface SkiniverRiskGuidance {
+  title: string | null;
+  level_title: string | null;
+  description: string | null;
+  suggestion: string | null;
+  short_recommendation: string | null;
+}
+
+/** Estructurado a partir del texto libre de `description` — ver
+ * `parseSkiniverDescription` en `skiniver-description.ts`. Expuesto por
+ * `AnalysisImageUrlsService#withImageUrls` como `skiniverDiagnosis`. */
+export interface SkiniverDiagnosisDetails extends SkiniverDescriptiveText {
   conclusion: {
     category: string | null;
     category_prob: number;
   };
-  precise_diagnosis: string | null;
-  treatment: string | null;
-  advice: string | null;
   icd_code: string | null;
+  /** Un elemento por `topn[]`, con SU propio descriptivo. */
+  candidates: SkiniverCandidateDetails[];
+  risk: SkiniverRiskGuidance;
 }
 
 /** Artículo dentro de `GET /get_atlas_pages` (INTEGRACIONES-IA.md §1.4). */

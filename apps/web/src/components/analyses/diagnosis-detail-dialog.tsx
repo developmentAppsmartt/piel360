@@ -4,8 +4,10 @@ import Image from "next/image";
 import {
   skiniverCategoryLabel,
   skiniverDiagnosisLabel,
+  type SkiniverCandidateDetails,
   type SkiniverDiagnosisCandidate,
 } from "@piel360/shared";
+import { SkiniverDescriptive } from "@/components/analyses/skiniver-descriptive";
 import {
   Dialog,
   DialogContent,
@@ -20,9 +22,13 @@ function normalizedProb(prob: number) {
 
 export function DiagnosisDetailDialog({
   item,
+  details,
   onClose,
 }: {
   item: SkiniverDiagnosisCandidate | null;
+  /** Descriptivo de ESTE candidato (`skiniverDiagnosis.candidates`). Cada
+   * `topn[]` trae el suyo; no es el del diagnóstico principal. */
+  details?: SkiniverCandidateDetails | null;
   onClose: () => void;
 }) {
   const entry = useEncyclopediaByUrl(item?.atlas_page_link);
@@ -48,6 +54,15 @@ export function DiagnosisDetailDialog({
               Probabilidad: {Math.round(normalizedProb(item.prob))}%
               {item.desease && ` — ${skiniverCategoryLabel(item.desease)}`}
             </p>
+
+            {details ? (
+              <div className="space-y-3 rounded-xl border border-border p-4">
+                <SkiniverDescriptive
+                  details={details}
+                  icdCode={details.icd_code}
+                />
+              </div>
+            ) : null}
 
             {!item.atlas_page_link && (
               <p className="text-sm text-muted-foreground">
