@@ -165,6 +165,7 @@ export type DoctorProfileInput = {
   licenseNumber?: string;
   educationEntity?: string;
   graduationInstitution?: string;
+  technicalInstitution?: string;
   address?: string;
   city?: string;
   department?: string;
