@@ -1,4 +1,5 @@
 import type {
+  AccountStatus,
   AuthResult,
   AuthUser,
   LoginPayload,
@@ -76,6 +77,11 @@ export const authService = {
       auth: true,
       body: { phone, phoneTicket },
     });
+  },
+
+  /** Cuenta deshabilitada por admin + si el profesional quedó sin plan. */
+  async accountStatus(): Promise<AccountStatus> {
+    return apiRequest<AccountStatus>('/auth/me/account-status', { auth: true });
   },
 
   async meDetails(): Promise<MeUserDetails> {

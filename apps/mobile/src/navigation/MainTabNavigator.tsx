@@ -3,6 +3,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppIcon } from '../components/AppIcon';
 import { Icons, type AppIconName } from '../components/icons';
+import { NoActivePlanModal } from '../components/NoActivePlanModal';
 import { useAuth } from '../context/AuthContext';
 import { useBranding } from '../context/BrandingContext';
 import { useNotifications } from '../context/NotificationsContext';
@@ -46,6 +47,12 @@ const DOCTOR_TABS: { key: TabKey; label: string; icon: AppIconName }[] = [
 const DOCTOR_PENDING_TABS: { key: TabKey; label: string; icon: AppIconName }[] =
   [{ key: 'profile', label: 'Perfil', icon: Icons.account }];
 
+/** Sin plan activo: Inicio y Perfil (reportes y soporte viven en el menú Mi Cuenta). */
+const DOCTOR_NO_PLAN_TAB_KEYS: TabKey[] = ['home', 'profile'];
+const DOCTOR_NO_PLAN_TABS = DOCTOR_TABS.filter((t) =>
+  DOCTOR_NO_PLAN_TAB_KEYS.includes(t.key),
+);
+
 /** Tabs paciente: Inicio | Agenda | Nuevo Análisis | Chat | Perfil */
 const PATIENT_TABS: {
   key: TabKey;
@@ -68,12 +75,16 @@ const PATIENT_TABS: {
 export function MainTabNavigator() {
   const insets = useSafeAreaInsets();
   const branding = useBranding();
-  const { user, refreshDoctorVerification } = useAuth();
+  const { user, refreshDoctorVerification, accountStatus } = useAuth();
   const { inboxOpen, closeInbox, openInbox, refreshUnread, unreadCount } =
     useNotifications();
   const isDoctor = isClinicalPanelUser(user);
   const doctorActive =
     !isDoctor || isDoctorVerificationActive(user?.verificationStatus);
+  const planRestricted =
+    isDoctor && doctorActive && Boolean(accountStatus?.planRestricted);
+  /** Pacientes, agenda y chat: requieren cuenta verificada y plan vigente. */
+  const clinicalUnlocked = doctorActive && !planRestricted;
   const [hasAssignedDoctor, setHasAssignedDoctor] = useState(() =>
     isClinicalPanelUser(user),
   );
@@ -84,8 +95,9 @@ export function MainTabNavigator() {
         (t) => t.key !== 'agenda' && t.key !== 'chat',
       );
     }
-    return doctorActive ? DOCTOR_TABS : DOCTOR_PENDING_TABS;
-  }, [isDoctor, doctorActive, hasAssignedDoctor]);
+    if (!doctorActive) return DOCTOR_PENDING_TABS;
+    return planRestricted ? DOCTOR_NO_PLAN_TABS : DOCTOR_TABS;
+  }, [isDoctor, doctorActive, planRestricted, hasAssignedDoctor]);
   const [activeTab, setActiveTab] = useState<TabKey>(
     isDoctor && !doctorActive ? 'profile' : 'home',
   );
@@ -141,6 +153,12 @@ export function MainTabNavigator() {
       setActiveTab('profile');
     }
   }, [isDoctor, doctorActive, activeTab]);
+
+  useEffect(() => {
+    if (planRestricted && !DOCTOR_NO_PLAN_TAB_KEYS.includes(activeTab)) {
+      setActiveTab('home');
+    }
+  }, [planRestricted, activeTab]);
 
   useEffect(() => {
     if (isDoctor || hasAssignedDoctor) return;
@@ -227,6 +245,13 @@ export function MainTabNavigator() {
       setActiveTab('profile');
       return;
     }
+    if (planRestricted && !DOCTOR_NO_PLAN_TAB_KEYS.includes(key)) {
+      Alert.alert(
+        'Sin plan activo',
+        'Necesitas un plan vigente para usar este módulo. Puedes adquirirlo o renovarlo desde Planes y suscripciones en piel360.com.',
+      );
+      return;
+    }
     setActiveTab(key);
   }
 
@@ -297,14 +322,16 @@ export function MainTabNavigator() {
         (activeTab === 'home' || (!isDoctor && activeTab === 'analysis')) ? (
           isDoctor ? (
             <DoctorHomeView
-              onOpenPatients={() => setActiveTab('patients')}
+              onOpenPatients={() => onDoctorTabPress('patients')}
               onOpenMessages={openInbox}
               onOpenChat={(conversationId) => {
-                if (conversationId) setOpenConversationId(conversationId);
-                setActiveTab('chat');
+                if (conversationId && !planRestricted) {
+                  setOpenConversationId(conversationId);
+                }
+                onDoctorTabPress('chat');
               }}
               onOpenProfile={() => setActiveTab('profile')}
-              onOpenAgenda={() => setActiveTab('agenda')}
+              onOpenAgenda={() => onDoctorTabPress('agenda')}
               onShowingStatsChange={setShowingStats}
             />
           ) : (
@@ -324,7 +351,7 @@ export function MainTabNavigator() {
             />
           )
         ) : null}
-        {doctorActive && activeTab === 'patients' ? (
+        {clinicalUnlocked && activeTab === 'patients' ? (
           <DoctorPatientsView
             onOpenMessages={openInbox}
             onOpenProfile={() => setActiveTab('profile')}
@@ -332,7 +359,7 @@ export function MainTabNavigator() {
             onCreatingChange={setCreatingPatient}
           />
         ) : null}
-        {doctorActive && activeTab === 'agenda' && hasAssignedDoctor ? (
+        {clinicalUnlocked && activeTab === 'agenda' && hasAssignedDoctor ? (
           isDoctor ? (
             <DoctorAgendaView
               onOpenMessages={openInbox}
@@ -345,7 +372,7 @@ export function MainTabNavigator() {
             />
           )
         ) : null}
-        {doctorActive && activeTab === 'chat' && (isDoctor || hasAssignedDoctor) ? (
+        {clinicalUnlocked && activeTab === 'chat' && (isDoctor || hasAssignedDoctor) ? (
           <MessagesView
             onThreadOpenChange={setChatThreadOpen}
             onOpenProfile={() => setActiveTab('profile')}
@@ -356,6 +383,12 @@ export function MainTabNavigator() {
         ) : null}
         {activeTab === 'profile' || (isDoctor && !doctorActive) ? (
           <ProfileView onOpenMessages={openInbox} />
+        ) : null}
+        {planRestricted && user ? (
+          <NoActivePlanModal
+            userId={user.id}
+            expiredPlans={accountStatus?.expiredPlans ?? []}
+          />
         ) : null}
       </View>
 

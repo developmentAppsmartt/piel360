@@ -4,10 +4,12 @@ import {
   canAccessAdminPanel,
   canAccessClinicalPanel,
   canAccessPatientPanel,
+  clinicalPathAllowedWithoutPlan,
   isClinicalPanelRole,
   isDoctorVerificationActive,
   SESSION_REPLACED,
   teamPermissionAllowsNavHref,
+  type AccountStatus,
   type PrimaryPanel,
   type Role,
   type TeamMemberPermission,
@@ -41,6 +43,8 @@ const PUBLIC_PATHS: Record<Panel, string[]> = {
 };
 
 const SURVEY_EXEMPT_PATHS = ["/patient/encuesta"];
+
+const ACCOUNT_DISABLED_PATH = "/doctor/cuenta-deshabilitada";
 
 const CLINICAL_PENDING_ALLOWED_PREFIXES = [
   "/doctor/home",
@@ -103,7 +107,11 @@ function clinicalPathAllowedWhilePending(pathname: string): boolean {
  * forma de detectarlo en el proxy. */
 async function getFreshPermissions(
   token: string | undefined,
-): Promise<{ permissions?: string[]; sessionEnded?: boolean }> {
+): Promise<{
+  permissions?: string[];
+  sessionEnded?: boolean;
+  account?: AccountStatus;
+}> {
   if (!token) return {};
   try {
     const apiUrl =
@@ -119,8 +127,11 @@ async function getFreshPermissions(
       return { sessionEnded: body?.code === SESSION_REPLACED };
     }
     if (!res.ok) return {};
-    const data = (await res.json()) as { permissions?: string[] };
-    return { permissions: data.permissions };
+    const data = (await res.json()) as {
+      permissions?: string[];
+      account?: AccountStatus;
+    };
+    return { permissions: data.permissions, account: data.account };
   } catch {
     return {};
   }
@@ -173,6 +184,25 @@ export async function proxy(request: NextRequest) {
     panel === "doctor" || panel === "admin"
       ? (fresh.permissions ?? session.permissions)
       : session.permissions;
+
+  if (panel === "doctor") {
+    const onDisabledPage = pathname === ACCOUNT_DISABLED_PATH;
+    if (fresh.account?.disabled && !onDisabledPage) {
+      return NextResponse.redirect(new URL(ACCOUNT_DISABLED_PATH, request.url));
+    }
+    if (onDisabledPage) {
+      return fresh.account && !fresh.account.disabled
+        ? NextResponse.redirect(new URL("/doctor/home", request.url))
+        : NextResponse.next();
+    }
+    if (
+      fresh.account?.planRestricted &&
+      isClinicalSession(session) &&
+      !clinicalPathAllowedWithoutPlan(pathname)
+    ) {
+      return NextResponse.redirect(new URL("/doctor/home", request.url));
+    }
+  }
 
   if (
     panel === "patient" &&

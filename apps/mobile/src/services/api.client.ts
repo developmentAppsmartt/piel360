@@ -4,7 +4,12 @@ import {
   reportNetworkFailure,
   reportNetworkSuccess,
 } from './network-status';
-import { emitSessionEnded, SESSION_REPLACED } from './session-events';
+import {
+  ACCOUNT_DISABLED,
+  emitAccountDisabled,
+  emitSessionEnded,
+  SESSION_REPLACED,
+} from './session-events';
 import { storageService } from './storage.service';
 
 export class ApiError extends Error {
@@ -163,6 +168,12 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     if (response.status === 401 && auth && !path.startsWith('/auth/')) {
       const code = (parsed as { code?: string } | null)?.code;
       emitSessionEnded(code === SESSION_REPLACED ? 'replaced' : 'expired');
+    }
+    if (
+      response.status === 403 &&
+      (parsed as { code?: string } | null)?.code === ACCOUNT_DISABLED
+    ) {
+      emitAccountDisabled();
     }
     throw new ApiError(
       messageFromBody(parsed, `Error ${response.status}`),

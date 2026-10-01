@@ -37,6 +37,25 @@ export function isDoctorVerificationActive(
   return status === 'active' || status === 'approved';
 }
 
+/** Espejo de `AccountStatus` en @piel360/shared (GET /auth/me/account-status). */
+export type ExpiredPlanInfo = {
+  planName: string;
+  endedAt: string;
+  dataDeletionAt: string;
+};
+
+export type AccountStatus = {
+  disabled: boolean;
+  disabledReason: string | null;
+  disabledAt: string | null;
+  disabledScope: 'user' | 'organization' | null;
+  /** Profesional verificado sin plan vigente: menú limitado. */
+  planRestricted: boolean;
+  expiredPlans: ExpiredPlanInfo[];
+};
+
+export const EXPIRED_PLAN_DATA_RETENTION_DAYS = 60;
+
 export type AuthResult = {
   accessToken: string;
   refreshToken: string;

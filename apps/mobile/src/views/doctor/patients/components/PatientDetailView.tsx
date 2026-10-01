@@ -20,7 +20,7 @@ import { useBranding } from '../../../../context/BrandingContext';
 import {
   analysisStatus,
   availableProvidersFromSubscriptions,
-  isAnalysisProviderSlug,
+  toAnalysisProviderSlug,
   type AnalysisProviderSlug,
 } from '../../../../data/analysisProviderLabel';
 import { ApiError } from '../../../../services/api.client';
@@ -194,9 +194,8 @@ function resolveAnalysisSlug(row: {
   fitzpatrickTaskId?: string | null;
   providerSlug?: string | null;
 }): AnalysisProviderSlug {
-  if (row.providerSlug && isAnalysisProviderSlug(row.providerSlug)) {
-    return row.providerSlug;
-  }
+  const fromSlug = toAnalysisProviderSlug(row.providerSlug);
+  if (fromSlug) return fromSlug;
   if (row.youcamTaskId) return 'youcam';
   if (row.fitzpatrickTaskId) return 'fitzpatrick';
   return 'skiniver';

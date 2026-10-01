@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   isClinicalPanelRole,
   isDoctorVerificationActive,
+  NO_PLAN_MENU_HREFS,
   teamPermissionAllowsClinicalSlug,
   teamPermissionAllowsNavHref,
   type Role,
@@ -41,6 +42,8 @@ export type NavFeatures = {
   /** Permisos de módulo del equipo empresa (solo miembros invitados). */
   teamPermissions?: TeamMemberPermission[] | null;
   isOrgMember?: boolean;
+  /** Profesional verificado sin plan vigente: solo NO_PLAN_MENU_HREFS. */
+  planRestricted?: boolean;
 };
 
 function isClinicalNavItem(item: NavItem): boolean {
@@ -102,6 +105,17 @@ export function filterNavByFeatures(
       clinicalPanel &&
       !doctorActive &&
       !item.allowedWhilePending
+    ) {
+      return false;
+    }
+
+    if (
+      verificationGate &&
+      clinicalItem &&
+      clinicalPanel &&
+      doctorActive &&
+      features.planRestricted &&
+      !(NO_PLAN_MENU_HREFS as readonly string[]).includes(item.href)
     ) {
       return false;
     }

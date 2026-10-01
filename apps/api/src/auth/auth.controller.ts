@@ -14,6 +14,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
+import { AccountStatusService } from './account-status.service';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './current-user.decorator';
 import { ConfirmPhoneVerificationDto } from './dto/confirm-phone-verification.dto';
@@ -42,6 +43,7 @@ function authClient(header?: string): 'mobile' | 'web' {
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
+    private readonly accountStatus: AccountStatusService,
     private readonly config: ConfigService,
   ) {}
 
@@ -177,8 +179,17 @@ export class AuthController {
   @Get('me/permissions')
   @UseGuards(JwtAuthGuard)
   async mePermissions(@CurrentUser() user: JwtPayload) {
-    const permissions = await this.authService.getPublicPermissionsForUser(user.sub);
-    return { permissions };
+    const [permissions, account] = await Promise.all([
+      this.authService.getPublicPermissionsForUser(user.sub),
+      this.accountStatus.getStatus(BigInt(user.sub), user.role),
+    ]);
+    return { permissions, account };
+  }
+
+  @Get('me/account-status')
+  @UseGuards(JwtAuthGuard)
+  meAccountStatus(@CurrentUser() user: JwtPayload) {
+    return this.accountStatus.getStatus(BigInt(user.sub), user.role);
   }
 
   /**
