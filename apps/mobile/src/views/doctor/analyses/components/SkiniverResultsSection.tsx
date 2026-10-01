@@ -70,39 +70,24 @@ function formatStamp(iso: string): string {
   return `${dd}${mm}${yyyy} ${hh}:${min}`;
 }
 
-/** Une campos de texto libre del ítem sin pisar el `class`/`prob` propios. */
+/**
+ * Completa, desde el `description` del propio item, lo que no venga ya
+ * desglosado. Antes esto ademas descartaba el bloque entero cuando
+ * "Diagnostico preciso" no coincidia con el nombre de la clase; en los datos
+ * reales de Skiniver ahi viene un metodo ("despues de la dermatoscopia"), asi
+ * que nunca coincidia y el descriptivo no se mostraba nunca.
+ */
 function enrichCandidate(
   item: SkiniverDiagnosisCandidate,
 ): SkiniverDiagnosisCandidate {
   const parsed = parseSkiniverDescription(item.description);
-  if (!parsed) {
-    return { ...item, conclusionText: undefined };
-  }
-
-  const precise = parsed.preciseDiagnosis?.trim();
-  const preciseMatchesClass =
-    !!precise &&
-    (precise.toLowerCase() === item.class.toLowerCase() ||
-      item.class.toLowerCase().includes(precise.toLowerCase()) ||
-      precise.toLowerCase().includes(item.class.toLowerCase()));
-
-  // Si el description no es de esta clase, no enriquecer con sus textos.
-  if (precise && !preciseMatchesClass) {
-    return {
-      ...item,
-      conclusionText: undefined,
-      preciseDiagnosis: undefined,
-      riskEvaluation: item.riskEvaluation,
-      treatment: item.treatment,
-      advice: item.advice,
-    };
-  }
+  if (!parsed) return item;
 
   return {
     ...item,
     riskEvaluation: item.riskEvaluation || parsed.riskEvaluation || undefined,
-    conclusionText: undefined,
-    preciseDiagnosis: preciseMatchesClass ? precise : item.preciseDiagnosis,
+    preciseDiagnosis:
+      item.preciseDiagnosis || parsed.preciseDiagnosis || undefined,
     treatment: item.treatment || parsed.treatment || undefined,
     advice: item.advice || parsed.advice || undefined,
   };
@@ -373,7 +358,6 @@ export function SkiniverResultsSection({
       description: item.description,
       riskEvaluation: item.riskEvaluation,
       preciseDiagnosis: item.preciseDiagnosis,
-      conclusionText: undefined,
       treatment: item.treatment,
       advice: item.advice,
     };
@@ -439,6 +423,10 @@ export function SkiniverResultsSection({
 
   if (view === 'detail' && active) {
     const riskEvalText = active.riskEvaluation?.trim();
+    const guidance = extracted.riskGuidance;
+    const hasRiskGuidance = Boolean(
+      guidance.description || guidance.suggestion || guidance.shortRecommendation,
+    );
     const hasAdviceBlock = Boolean(
       conclusionLine ||
         active.preciseDiagnosis ||
@@ -595,6 +583,29 @@ export function SkiniverResultsSection({
                   </Text>
                 ) : null}
               </View>
+            </View>
+          ) : null}
+
+          {/* Textos que Skiniver manda como claves propias, no dentro de
+              `description` — antes no se mostraban en ninguna pantalla. */}
+          {hasRiskGuidance ? (
+            <View style={{ marginTop: 14, gap: 6 }}>
+              <Text style={styles.descTitle}>
+                {guidance.title ?? 'Recomendación'}
+              </Text>
+              {guidance.description ? (
+                <Text style={styles.descBody}>{guidance.description}</Text>
+              ) : null}
+              {guidance.suggestion ? (
+                <Text style={styles.descBody}>
+                  Seguimiento: {guidance.suggestion}
+                </Text>
+              ) : null}
+              {guidance.shortRecommendation ? (
+                <Text style={styles.descBody}>
+                  {guidance.shortRecommendation}
+                </Text>
+              ) : null}
             </View>
           ) : null}
         </View>

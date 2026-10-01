@@ -62,10 +62,19 @@ export type SkiniverDiagnosisCandidate = {
   description?: string;
   /** Campos derivados del texto libre `description`. */
   riskEvaluation?: string;
-  conclusionText?: string;
   preciseDiagnosis?: string;
   treatment?: string;
   advice?: string;
+};
+
+/** Textos que Skiniver manda como claves propias, fuera de `description`.
+ * Espejo de SkiniverRiskGuidance en packages/shared/src/skiniver.ts. */
+export type SkiniverRiskGuidance = {
+  title?: string;
+  levelTitle?: string;
+  description?: string;
+  suggestion?: string;
+  shortRecommendation?: string;
 };
 
 export type SkiniverRawResponse = {
@@ -158,15 +167,24 @@ function asFiniteNumber(value: unknown): number | undefined {
 }
 
 /**
- * Parsea el texto libre de `description` de Skiniver (formato real):
+ * ESPEJO de packages/shared/src/skiniver-description.ts — mobile no importa
+ * @piel360/shared (misma convencion que types/skiniver-labels.ts). Si se toca
+ * el parseo alla, hay que copiarlo aca; el API expone lo mismo en
+ * `skiniverDiagnosis.candidates`.
  *
- *   Evaluación del riesgo|de riesgos: <párrafo>
- *    Conclusión:
- *   <prob>% <categoría>
+ * Formato real de `description` (raiz y cada `topn[]`):
  *
- *   Diagnóstico[ preciso]: <texto>
+ *   Evaluacion de riesgos: <parrafo>
+ *    Conclusion:
+ *   <prob>% <categoria>
+ *
+ *   Diagnostico[ preciso]: <texto>
  *   Tratamiento: <texto>
  *   Consejo: <texto>
+ *
+ * Ojo con `Diagnostico preciso`: NO es el nombre de una enfermedad, es como se
+ * llegaria al diagnostico definitivo ("despues de la dermatoscopia"). No sirve
+ * para decidir a que candidato pertenece un texto.
  */
 export function parseSkiniverDescription(
   description: string | null | undefined,
@@ -187,9 +205,7 @@ export function parseSkiniverDescription(
       ?.trim() ?? '';
   const conclusionText =
     description
-      .match(
-        /Conclusi[oó]n:\s*([\s\S]*?)(?=\n\s*Diagn[oó]stico)/i,
-      )?.[1]
+      .match(/Conclusi[oó]n:\s*([\s\S]*?)(?=\n\s*Diagn[oó]stico)/i)?.[1]
       ?.trim() ?? '';
   const preciseDiagnosis =
     description
@@ -216,53 +232,6 @@ export function parseSkiniverDescription(
     treatment,
     advice,
   };
-}
-
-function labelsMatchDiagnosis(label: string, diagnosis: string): boolean {
-  const a = label.trim().toLowerCase();
-  const b = diagnosis.trim().toLowerCase();
-  if (!a || !b) return false;
-  return a === b || a.includes(b) || b.includes(a);
-}
-
-/** Extrae el % de "Conclusión: 58,9% …" / "58.9% …". */
-function conclusionPercent(conclusionText: string | null | undefined): number | null {
-  if (!conclusionText?.trim()) return null;
-  const m = conclusionText.match(/(\d+(?:[.,]\d+)?)\s*%/);
-  if (!m) return null;
-  const n = Number(m[1].replace(',', '.'));
-  return Number.isFinite(n) ? n : null;
-}
-
-/**
- * Skiniver a menudo copia el `description` del top-1 a otros `topn[]`.
- * Solo aceptamos textos de descripción cuando pertenecen a ESTA clase.
- */
-function descriptionBelongsToCandidate(
-  parsed: {
-    riskEvaluation: string;
-    conclusionText: string;
-    preciseDiagnosis: string;
-    treatment: string;
-    advice: string;
-  } | null,
-  diagnosis: string,
-  prob: number,
-): boolean {
-  if (!parsed) return false;
-
-  const precise = parsed.preciseDiagnosis?.trim();
-  if (precise) {
-    return labelsMatchDiagnosis(precise, diagnosis);
-  }
-
-  const conclPct = conclusionPercent(parsed.conclusionText);
-  if (conclPct != null) {
-    const itemPct = normalizedProb(prob);
-    if (Math.abs(conclPct - itemPct) > 0.55) return false;
-  }
-
-  return true;
 }
 
 function readField(
@@ -320,18 +289,17 @@ function normalizeCandidate(
   const description = asTrimmedString(
     readField(item, ['description', 'descripcion']),
   );
+  // Cada `topn[]` trae SU propio `description` completo, asi que se parsea el
+  // suyo y punto. Antes habia una heuristica de pertenencia que miraba si
+  // "Diagnostico preciso" era el nombre de la clase; en los datos reales ahi
+  // viene un metodo ("despues de la dermatoscopia"), nunca coincidia y los
+  // diagnosticos de apoyo se quedaban sin texto.
   const parsed = parseSkiniverDescription(description);
   const itemProb = prob ?? 0;
-  const ownsDescription = descriptionBelongsToCandidate(
-    parsed,
-    diagnosis,
-    itemProb,
-  );
-  const preciseRaw = parsed?.preciseDiagnosis?.trim();
 
   return {
     // Siempre el `class` del propio ítem topn — no usar preciseDiagnosis
-    // de `description` (a menudo viene copiado del principal).
+    // de `description`, que no es el nombre de una enfermedad.
     class: diagnosis,
     class_raw: classRaw,
     prob: itemProb,
@@ -340,17 +308,11 @@ function normalizeCandidate(
     desease: conclusion,
     lesion_code: code ?? fallbackCode,
     atlas_page_link: atlas,
-    description: ownsDescription ? description : undefined,
-    riskEvaluation: ownsDescription
-      ? parsed?.riskEvaluation || undefined
-      : undefined,
-    conclusionText: undefined,
-    preciseDiagnosis:
-      ownsDescription && preciseRaw && labelsMatchDiagnosis(preciseRaw, diagnosis)
-        ? preciseRaw
-        : undefined,
-    treatment: ownsDescription ? parsed?.treatment || undefined : undefined,
-    advice: ownsDescription ? parsed?.advice || undefined : undefined,
+    description,
+    riskEvaluation: parsed?.riskEvaluation || undefined,
+    preciseDiagnosis: parsed?.preciseDiagnosis || undefined,
+    treatment: parsed?.treatment || undefined,
+    advice: parsed?.advice || undefined,
   };
 }
 
@@ -371,6 +333,8 @@ export function extractSkiniverSupportDiagnoses(
   highRiskProb: number;
   hasHighRiskProb: boolean;
   items: SkiniverDiagnosisCandidate[];
+  /** Textos de riesgo del JSON que no vienen dentro de `description`. */
+  riskGuidance: SkiniverRiskGuidance;
 } {
   const prediction = parseSkiniverPrediction(raw);
   if (!prediction) {
@@ -380,6 +344,7 @@ export function extractSkiniverSupportDiagnoses(
       highRiskProb: 0,
       hasHighRiskProb: false,
       items: [],
+      riskGuidance: {},
     };
   }
 
@@ -461,38 +426,19 @@ export function extractSkiniverSupportDiagnoses(
     );
   }
 
-  // No heredar description/evaluación de la raíz en otros ítems:
-  // Skiniver suele repetir el description del top-1 (misma "Evaluación de
-  // riesgos") y eso pintaba el mismo párrafo en todos los detalles.
-  const rootRiskEval = rootParsed?.riskEvaluation?.trim() || '';
-  if (items[0]) {
+  // Skiniver repite el mismo parrafo de evaluacion entre candidatos de la
+  // misma familia (`desease`). Eso es lo que manda, no un error: antes se
+  // borraba por "duplicado del top-1" y los candidatos salian vacios.
+  // Al principal solo se le completa desde la raiz lo que no traiga el suyo.
+  if (items[0] && rootParsed) {
     items = items.map((item) => {
       const isRoot =
         !!rootClass && item.class.toLowerCase() === rootClass.toLowerCase();
-      if (!isRoot) {
-        const evalText = item.riskEvaluation?.trim() || '';
-        const duplicatedFromRoot =
-          !!rootRiskEval && !!evalText && evalText === rootRiskEval;
-        return {
-          ...item,
-          conclusionText: undefined,
-          preciseDiagnosis: duplicatedFromRoot
-            ? undefined
-            : item.preciseDiagnosis,
-          description: duplicatedFromRoot ? undefined : item.description,
-          riskEvaluation: duplicatedFromRoot ? undefined : item.riskEvaluation,
-          treatment: duplicatedFromRoot ? undefined : item.treatment,
-          advice: duplicatedFromRoot ? undefined : item.advice,
-        };
-      }
-      if (!rootParsed) return item;
+      if (!isRoot) return item;
       return {
         ...item,
         description: item.description ?? rootDescription,
         riskEvaluation: item.riskEvaluation || rootParsed.riskEvaluation,
-        // No copiar conclusionText con "% categoría" del description raíz;
-        // la UI arma la conclusión con item.prob + item.desease.
-        conclusionText: undefined,
         preciseDiagnosis: item.preciseDiagnosis || rootParsed.preciseDiagnosis,
         treatment: item.treatment || rootParsed.treatment,
         advice: item.advice || rootParsed.advice,
@@ -527,6 +473,15 @@ export function extractSkiniverSupportDiagnoses(
     /** `true` si el JSON traía `high_risk_prob` (evita confundir con `prob` de clase). */
     hasHighRiskProb: highRiskRaw != null,
     items: items.slice(0, Math.max(1, limit)),
+    riskGuidance: {
+      title: asTrimmedString(readField(root, ['risk_title'])),
+      levelTitle: asTrimmedString(readField(root, ['risk_level_title'])),
+      description: asTrimmedString(readField(root, ['risk_description'])),
+      suggestion: asTrimmedString(readField(root, ['risk_suggestion'])),
+      shortRecommendation: asTrimmedString(
+        readField(root, ['short_recommendation']),
+      ),
+    },
   };
 }
 
