@@ -5,6 +5,16 @@ import { useParameters, type Parameter } from "@/lib/queries/parameters";
 
 const MAX_RESULTS = 50;
 
+/**
+ * Capa flotante del desplegable. El z-index debe superar el bloque de ubicación
+ * del formulario de registro, que se eleva a `z-[1100]` para quedar sobre el
+ * mapa (location-picker-section.tsx); es el mismo nivel que usa su lista de
+ * sugerencias de dirección. Con el `z-20` anterior, los campos de abajo se
+ * pintaban encima de esta lista.
+ */
+const DROPDOWN_CLASS =
+  "absolute z-[1200] mt-1 w-full rounded-xl border border-zinc-200 bg-white shadow-lg";
+
 const COMBINING_DIACRITICS = new RegExp("[\\u0300-\\u036f]", "g");
 
 function normalize(text: string): string {
@@ -98,7 +108,7 @@ export function CatalogCombobox({
         }}
       />
       {open && results.length > 0 ? (
-        <ul className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-zinc-200 bg-white py-1 shadow-lg">
+        <ul className={`${DROPDOWN_CLASS} max-h-64 overflow-y-auto py-1`}>
           {results.map((opt) => (
             <li key={opt.id}>
               <button
@@ -118,7 +128,7 @@ export function CatalogCombobox({
         </ul>
       ) : null}
       {open && !isLoading && results.length === 0 ? (
-        <div className="absolute z-20 mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-500 shadow-lg">
+        <div className={`${DROPDOWN_CLASS} px-3 py-2 text-sm text-zinc-500`}>
           Sin resultados.
         </div>
       ) : null}
