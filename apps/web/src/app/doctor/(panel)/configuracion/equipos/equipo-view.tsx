@@ -35,6 +35,7 @@ type OrgMember = {
   email: string;
   name: string;
   specialty: string | null;
+  professionalKind: string | null;
   city: string | null;
   verificationStatus: string | null;
   lastAccessAt: string | null;
@@ -121,7 +122,12 @@ function buildEditDefaults(
   member: OrgMember,
   laborProfileSet: Set<string>,
 ): Partial<TeamMemberFormValues> {
-  const isLabor = Boolean(member.specialty && laborProfileSet.has(member.specialty));
+  // `professionalKind` es el dato real; la heuristica sobre el catalogo solo
+  // cubre a los miembros creados antes de que se empezara a guardar.
+  const isLabor =
+    member.professionalKind === "labor" ||
+    (member.professionalKind == null &&
+      Boolean(member.specialty && laborProfileSet.has(member.specialty)));
   return {
     professionalKind: isLabor ? "labor" : "specialty",
     specialty: isLabor ? "" : (member.specialty ?? ""),
@@ -156,6 +162,7 @@ export function DoctorEquipoView() {
       email: string;
       password: string;
       specialty?: string;
+      professionalKind?: "specialty" | "labor";
       permissions?: TeamMemberPermission[];
     }) =>
       apiClientFetch<OrgMember>("/organizations/me/members", {
@@ -258,6 +265,9 @@ export function DoctorEquipoView() {
         email: values.email.trim(),
         password: values.password,
         specialty: resolveMemberSpecialty(values),
+        // Sin esto el miembro nacia sin tipo y el panel de verificacion le
+        // exigia los documentos de medico aunque fuera tecnico laboral.
+        professionalKind: values.professionalKind || undefined,
         permissions,
       });
     } finally {

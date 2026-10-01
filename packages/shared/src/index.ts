@@ -19,6 +19,7 @@ export * from "./professional-role.js";
 export * from "./youcam-report.js";
 export * from "./skin-report.js";
 export * from "./skiniver-diagnosis-taxonomy.js";
+export * from "./skiniver-labels.js";
 export * from "./email-template-variables.js";
 export * from "./allied-referral.js";
 export * from "./billing-economics.js";

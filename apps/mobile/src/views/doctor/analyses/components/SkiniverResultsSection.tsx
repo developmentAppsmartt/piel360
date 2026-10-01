@@ -26,6 +26,11 @@ import {
   normalizedProb,
   parseSkiniverDescription,
 } from '../../../../types/analysis';
+import {
+  skiniverCategoryLabel,
+  skiniverDiagnosisLabel,
+  skiniverRiskLabel,
+} from '../../../../types/skiniver-labels';
 import { createAnalysisDetailStyles } from '../styles/analysisDetail.styles';
 import { AnalysisImageCarousel } from './AnalysisImageCarousel';
 import { BodyRegionViewer } from './BodyRegionViewer';
@@ -185,11 +190,11 @@ function DiagnosisStatCard({
       <DonutProb prob={prob} color={color} />
       <View style={styles.diagnosisBody}>
         <Text style={styles.diagnosisTitle} numberOfLines={2}>
-          {item.class}
+          {skiniverDiagnosisLabel(item.class, item.class_raw)}
         </Text>
         {item.desease ? (
           <Text style={styles.diagnosisSub} numberOfLines={1}>
-            {item.desease}
+            {skiniverCategoryLabel(item.desease)}
           </Text>
         ) : null}
         {icdLabel ? (
@@ -262,10 +267,15 @@ export function SkiniverResultsSection({
     [analysis.aiRawResponse],
   );
 
-  const riskLabel =
+  // Skiniver no traduce `risk`: se resuelve contra `risk_level`, que no
+  // depende del idioma. Ademas extractSkiniverSupportDiagnoses cae a
+  // `risk_level` cuando falta `risk`, asi que sin esto se veria "low" crudo.
+  const riskLabel = skiniverRiskLabel(
     extracted.riskLabel !== '—'
       ? extracted.riskLabel
-      : analysis.aiDiagnosis ?? '—';
+      : analysis.aiDiagnosis ?? undefined,
+    extracted.items[0]?.risk_level,
+  );
 
   const gaugePercent = extracted.hasHighRiskProb
     ? extracted.highRiskProb
@@ -312,6 +322,12 @@ export function SkiniverResultsSection({
     active?.class ||
     ''
   ).trim() || 'Sin diagnóstico';
+  // `displayDiagnosis` se compara mas abajo contra `prediction.class` crudo,
+  // asi que la traduccion va aparte y solo se usa para pintar.
+  const displayDiagnosisLabel = skiniverDiagnosisLabel(
+    displayDiagnosis,
+    selectedCandidate?.class_raw ?? active?.class_raw,
+  );
   const banner = riskBannerColors(String(active?.risk ?? riskLabel));
   const bodyLabel = analysis.bodyRegion
     ? BODY_PARTS_INFO[analysis.bodyRegion]?.label ?? analysis.bodyRegion
@@ -320,10 +336,14 @@ export function SkiniverResultsSection({
   const activeProbLabel =
     classProb != null ? formatClassProbPercent(classProb) : null;
 
-  const conclusionLine =
-    (selectedCandidate?.desease || active?.desease) && activeProbLabel
-      ? `${activeProbLabel}% ${selectedCandidate?.desease || active?.desease}`
-      : selectedCandidate?.desease || active?.desease || null;
+  const conclusionCategory = skiniverCategoryLabel(
+    selectedCandidate?.desease || active?.desease,
+  );
+  const conclusionLine = !conclusionCategory
+    ? null
+    : activeProbLabel
+      ? `${activeProbLabel}% ${conclusionCategory}`
+      : conclusionCategory;
 
   const rootCode =
     typeof extracted.prediction?.lesion_code === 'string'
@@ -477,7 +497,12 @@ export function SkiniverResultsSection({
           <AppIcon icon={Icons.alertCircle} size={22} color={banner.text} />
           <View style={styles.infoRowBody}>
             <Text style={[styles.infoRowValue, { color: banner.text }]}>
-              Nivel de Riesgo: {active.risk || riskLabel}
+              {/* skiniverRiskLabel devuelve "—" cuando no hay dato, que es
+                  truthy: el respaldo se decide antes de llamarla. */}
+              Nivel de Riesgo:{' '}
+              {active.risk || active.risk_level
+                ? skiniverRiskLabel(active.risk, active.risk_level)
+                : riskLabel}
             </Text>
           </View>
         </View>
@@ -494,8 +519,8 @@ export function SkiniverResultsSection({
           <View style={styles.infoRowBody}>
             <Text style={styles.infoRowValue}>
               {activeProbLabel
-                ? `${displayDiagnosis} ${activeProbLabel}%`
-                : displayDiagnosis}
+                ? `${displayDiagnosisLabel} ${activeProbLabel}%`
+                : displayDiagnosisLabel}
             </Text>
             <Text style={styles.diagnosisSub}>
               {icdCode
@@ -687,14 +712,16 @@ export function SkiniverResultsSection({
               {storyDiagnosis ? (
                 <>
                   <Text style={styles.storyDiagnosisTitle}>
-                    {String(storyDiagnosis.class ?? '').trim() ||
-                      'Sin diagnóstico'}
+                    {skiniverDiagnosisLabel(
+                      storyDiagnosis.class,
+                      storyDiagnosis.class_raw,
+                    ) || 'Sin diagnóstico'}
                   </Text>
                   <Text style={styles.storyMeta}>
                     Probabilidad:{' '}
                     {Math.round(normalizedProb(storyDiagnosis.prob))}%
                     {storyDiagnosis.desease
-                      ? ` — ${storyDiagnosis.desease}`
+                      ? ` — ${skiniverCategoryLabel(storyDiagnosis.desease)}`
                       : ''}
                   </Text>
                 </>

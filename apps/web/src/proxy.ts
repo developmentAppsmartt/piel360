@@ -21,6 +21,9 @@ import { SESSION_REPLACED_REASON } from "@/lib/login-path";
 const PANELS = ["doctor", "patient", "admin"] as const;
 type Panel = (typeof PANELS)[number];
 
+/** Unica ruta de paciente que queda viva en web: explica que se entra por la app. */
+const PATIENT_APP_PATH = "/patient";
+
 const PUBLIC_PATHS: Record<Panel, string[]> = {
   doctor: [
     "/doctor",
@@ -32,6 +35,8 @@ const PUBLIC_PATHS: Record<Panel, string[]> = {
     "/doctor/password-reset/request",
     "/doctor/password-reset/reset",
   ],
+  // Inalcanzable mientras exista la guarda de `panel === "patient"` en
+  // proxy(); se conserva para poder reabrir el panel quitando solo esa guarda.
   patient: [
     "/patient",
     "/patient/login",
@@ -41,10 +46,6 @@ const PUBLIC_PATHS: Record<Panel, string[]> = {
   ],
   admin: ["/admin/login"],
 };
-
-const SURVEY_EXEMPT_PATHS = ["/patient/encuesta"];
-
-const ACCOUNT_DISABLED_PATH = "/doctor/cuenta-deshabilitada";
 
 const CLINICAL_PENDING_ALLOWED_PREFIXES = [
   "/doctor/home",
@@ -158,6 +159,17 @@ export async function proxy(request: NextRequest) {
   );
   if (!panel) return NextResponse.next();
 
+  // Los pacientes usan solo la app: /patient/* deja de ser navegable en web
+  // —login, registro y panel— y todo cae en la pagina que explica como entrar
+  // desde el movil. Va antes de PUBLIC_PATHS para que tambien cierre
+  // /patient/login y /patient/register. Quitar este bloque reabre el panel tal
+  // y como estaba.
+  if (panel === "patient") {
+    return pathname === PATIENT_APP_PATH
+      ? NextResponse.next()
+      : NextResponse.redirect(new URL(PATIENT_APP_PATH, request.url));
+  }
+
   if (PUBLIC_PATHS[panel].includes(pathname)) return NextResponse.next();
 
   const token = request.cookies.get("piel360_token")?.value;
@@ -185,32 +197,11 @@ export async function proxy(request: NextRequest) {
       ? (fresh.permissions ?? session.permissions)
       : session.permissions;
 
-  if (panel === "doctor") {
-    const onDisabledPage = pathname === ACCOUNT_DISABLED_PATH;
-    if (fresh.account?.disabled && !onDisabledPage) {
-      return NextResponse.redirect(new URL(ACCOUNT_DISABLED_PATH, request.url));
-    }
-    if (onDisabledPage) {
-      return fresh.account && !fresh.account.disabled
-        ? NextResponse.redirect(new URL("/doctor/home", request.url))
-        : NextResponse.next();
-    }
-    if (
-      fresh.account?.planRestricted &&
-      isClinicalSession(session) &&
-      !clinicalPathAllowedWithoutPlan(pathname)
-    ) {
-      return NextResponse.redirect(new URL("/doctor/home", request.url));
-    }
-  }
-
-  if (
-    panel === "patient" &&
-    !session.surveyCompletedAt &&
-    !SURVEY_EXEMPT_PATHS.includes(pathname)
-  ) {
-    return NextResponse.redirect(new URL("/patient/encuesta", request.url));
-  }
+  // Aquí vivía el gate de encuesta obligatoria del paciente. Con el panel
+  // cerrado `panel` ya no puede valer "patient" y TypeScript rechaza la
+  // comparación, así que se retira en vez de silenciarla con un cast: al
+  // reabrir el panel hay que restaurarlo (redirigía a /patient/encuesta
+  // mientras `session.surveyCompletedAt` estuviera vacío).
 
   if (
     panel === "doctor" &&

@@ -1,7 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import type { SkiniverDiagnosisCandidate } from "@piel360/shared";
+import {
+  skiniverCategoryLabel,
+  skiniverDiagnosisLabel,
+  type SkiniverDiagnosisCandidate,
+} from "@piel360/shared";
 import {
   Dialog,
   DialogContent,
@@ -36,11 +40,13 @@ export function DiagnosisDetailDialog({
                 height={210}
                 className="mb-1 h-auto w-32"
               />
-              <DialogTitle>{item.class}</DialogTitle>
+              <DialogTitle>
+                {skiniverDiagnosisLabel(item.class, item.class_raw)}
+              </DialogTitle>
             </DialogHeader>
             <p className="text-sm text-muted-foreground">
               Probabilidad: {Math.round(normalizedProb(item.prob))}%
-              {item.desease && ` — ${item.desease}`}
+              {item.desease && ` — ${skiniverCategoryLabel(item.desease)}`}
             </p>
 
             {!item.atlas_page_link && (

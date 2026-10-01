@@ -3,7 +3,6 @@
 import {
   SKINIVER_AGE_BUCKETS,
   SKINIVER_DIAGNOSIS_CLASS_DEFS,
-  SKINIVER_DISEASE_BUCKET_DEFS,
   type SkiniverReport,
 } from "@piel360/shared";
 import {
@@ -25,11 +24,8 @@ const CLASS_SERIES = Object.entries(SKINIVER_DIAGNOSIS_CLASS_DEFS).map(([key, de
   color: def.color,
 }));
 
-const DISEASE_SERIES = Object.entries(SKINIVER_DISEASE_BUCKET_DEFS).map(([key, def]) => ({
-  key,
-  label: def.label,
-  color: def.color,
-}));
+// Las series de enfermedad no son constantes: dependen de qué se diagnosticó
+// en el periodo, así que llegan en `report.diseaseSeries`.
 
 const AGE_SERIES = SKINIVER_AGE_BUCKETS.map((b) => ({
   key: b.key,
@@ -128,8 +124,8 @@ export function SkiniverReportView({
           No. de diagnósticos por clase por mes
         </ModuleCardTitle>
         <ModuleCardDescription>
-          La clasificación de clases es una agrupación propia sobre el catálogo de
-          diagnósticos de la IA.
+          Las clases son los grupos de patología; cada uno reúne varias
+          condiciones del catálogo de diagnósticos de la IA.
         </ModuleCardDescription>
         <div className="mt-4">
           <MultiSeriesTrendChart points={report.byClass} series={CLASS_SERIES} />
@@ -141,10 +137,14 @@ export function SkiniverReportView({
           No. de diagnósticos por enfermedad por mes
         </ModuleCardTitle>
         <ModuleCardDescription>
-          Las enfermedades son agrupadas a partir del diagnóstico devuelto por la IA.
+          Condiciones concretas diagnosticadas por la IA: las 8 más frecuentes del
+          periodo; el resto se agrupa en «Otras».
         </ModuleCardDescription>
         <div className="mt-4">
-          <MultiSeriesTrendChart points={report.byDisease} series={DISEASE_SERIES} />
+          <MultiSeriesTrendChart
+            points={report.byDisease}
+            series={report.diseaseSeries}
+          />
         </div>
       </ModuleCard>
 

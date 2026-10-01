@@ -1,9 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import type {
-  SkiniverDiagnosisDetails,
-  SkiniverPrediction,
-  YouCamResults,
+import {
+  skiniverCategoryLabel,
+  skiniverDiagnosisLabel,
+  type SkiniverDiagnosisDetails,
+  type SkiniverPrediction,
+  type YouCamResults,
 } from '@piel360/shared';
 import { StorageService } from '../storage/storage.service';
 import { youcamMaskKey } from '../youcam/mask-key.util';
@@ -83,7 +85,13 @@ export class AnalysisImageUrlsService {
     return {
       description: parsed?.riskEvaluation ?? null,
       conclusion: {
-        category: prediction.desease ?? prediction.class ?? null,
+        // Este campo es derivado (categoría o, si falta, el diagnóstico), así
+        // que se traduce acá y no en cada vista: Skiniver no traduce `desease`
+        // ni `class`, y de aquí comen web, mobile y el PDF del reporte.
+        category:
+          skiniverCategoryLabel(prediction.desease) ||
+          skiniverDiagnosisLabel(prediction.class) ||
+          null,
         category_prob: Math.round((aiProbability ?? 0) * 100),
       },
       precise_diagnosis: parsed?.preciseDiagnosis ?? null,

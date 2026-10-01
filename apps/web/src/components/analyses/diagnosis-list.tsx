@@ -1,4 +1,8 @@
-import type { SkiniverDiagnosisCandidate } from "@piel360/shared";
+import {
+  skiniverCategoryLabel,
+  skiniverDiagnosisLabel,
+  type SkiniverDiagnosisCandidate,
+} from "@piel360/shared";
 
 const RISK_COLORS: Record<string, string> = {
   low: "#22c55e",
@@ -43,8 +47,14 @@ export function DiagnosisList({
               </span>
             </div>
             <div>
-              <p className="text-sm font-medium">{item.class}</p>
-              {item.desease && <p className="text-xs text-muted-foreground">{item.desease}</p>}
+              <p className="text-sm font-medium">
+                {skiniverDiagnosisLabel(item.class, item.class_raw)}
+              </p>
+              {item.desease && (
+                <p className="text-xs text-muted-foreground">
+                  {skiniverCategoryLabel(item.desease)}
+                </p>
+              )}
             </div>
           </button>
         );

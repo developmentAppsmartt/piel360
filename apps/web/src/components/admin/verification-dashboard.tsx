@@ -80,6 +80,39 @@ function TypeBadge({ doctor }: { doctor: Doctor }) {
   );
 }
 
+/**
+ * Datos de "Información general" según el tipo de profesional, para que el
+ * moderador vea los mismos campos que el formulario de registro le pidió.
+ *
+ * Un técnico laboral no tiene registro médico ni entidades universitarias; el
+ * número de licencia ya solo se pide en el registro de empresa, así que no
+ * aparece en ninguno de los dos.
+ */
+function generalInfoRows(
+  d: Doctor,
+): readonly (readonly [string, string | null | undefined])[] {
+  if (d.professionalKind === "labor") {
+    return [
+      ["Tipo de usuario", accountTypeLabel(d)],
+      ["Perfil técnico", d.specialty],
+      ["Institución educativa técnica", d.technicalInstitution],
+      ["País", d.country],
+      ["Ciudad", d.city],
+      ["Departamento", d.department],
+    ] as const;
+  }
+  return [
+    ["Tipo de usuario", accountTypeLabel(d)],
+    ["Especialidad", d.specialty],
+    ["Registro médico", d.medicalRegistry],
+    ["Entidad educativa pregrado", d.educationEntity],
+    ["Entidad educativa postgrado", d.graduationInstitution],
+    ["País", d.country],
+    ["Ciudad", d.city],
+    ["Departamento", d.department],
+  ] as const;
+}
+
 function initials(first: string, last: string) {
   return `${first[0] ?? ""}${last[0] ?? ""}`.toUpperCase() || "?";
 }
@@ -167,10 +200,14 @@ function DocRow({
   title,
   url,
   fileKey,
+  optional = false,
 }: {
   title: string;
   url?: string | null;
   fileKey?: string | null;
+  /** Un documento que no bloquea la verificación no se marca "Pendiente": el
+   * moderador estaría persiguiendo algo que no tiene que exigir. */
+  optional?: boolean;
 }) {
   const uploaded = Boolean(url || fileKey);
   return (
@@ -189,10 +226,12 @@ function DocRow({
           "rounded-full px-2 py-0.5 text-[11px] font-semibold",
           uploaded
             ? "bg-emerald-50 text-emerald-700"
-            : "bg-amber-50 text-amber-700",
+            : optional
+              ? "bg-muted text-muted-foreground"
+              : "bg-amber-50 text-amber-700",
         )}
       >
-        {uploaded ? "Cargado" : "Pendiente"}
+        {uploaded ? "Cargado" : optional ? "Opcional" : "Pendiente"}
       </span>
       {url ? (
         <a
@@ -487,18 +526,7 @@ function DetailPanel({
               Información general
             </h3>
             <dl className="space-y-2 text-sm">
-              {(
-                [
-                  ["Tipo de usuario", accountTypeLabel(d)],
-                  ["Especialidad", d.specialty],
-                  ["N.° licencia", d.licenseNumber],
-                  ["Registro médico", d.medicalRegistry],
-                  ["Institución", d.graduationInstitution ?? d.educationEntity],
-                  ["País", d.country],
-                  ["Ciudad", d.city],
-                  ["Departamento", d.department],
-                ] as const
-              ).map(([label, value]) => (
+              {generalInfoRows(d).map(([label, value]) => (
                 <div key={label} className="flex justify-between gap-3">
                   <dt className="text-muted-foreground">{label}</dt>
                   <dd className="text-right font-medium">
@@ -807,6 +835,7 @@ function DetailPanel({
                 title={doc.label}
                 url={d[doc.docUrl]}
                 fileKey={d[doc.docKey]}
+                optional={doc.optional}
               />
             ))}
           </section>
@@ -955,6 +984,13 @@ export function VerificationDashboard({
   const criteria = criteriaDoctor
     ? computeVerificationCriteria(criteriaDoctor)
     : null;
+
+  // Nombra los documentos que de verdad se le exigen a este profesional; los
+  // opcionales quedan fuera porque no condicionan el criterio.
+  const requiredDocsSummary = doctorDocuments(criteriaDoctor?.professionalKind)
+    .filter((doc) => !doc.optional)
+    .map((doc) => doc.label)
+    .join(", ");
 
   return (
     <div className="space-y-6">
@@ -1237,7 +1273,9 @@ export function VerificationDashboard({
               },
               {
                 title: "Documentos legibles y válidos",
-                desc: "Cédula, registro y diploma claros y vigentes.",
+                // Los documentos exigidos dependen del tipo de profesional, así
+                // que la descripción los nombra en vez de asumir los de médico.
+                desc: `${requiredDocsSummary} — claros y vigentes.`,
                 status: criteria?.validDocs ?? "pending",
                 icon: ShieldCheck,
                 highlight: false,
