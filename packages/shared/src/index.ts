@@ -5,6 +5,7 @@ export * from "./password-policy.js";
 export * from "./doctor-specialties.js";
 export * from "./provider-public-alias.js";
 export * from "./skiniver.js";
+export * from "./skiniver-description.js";
 export * from "./youcam.js";
 export * from "./wompi.js";
 export * from "./fitzpatrick.js";

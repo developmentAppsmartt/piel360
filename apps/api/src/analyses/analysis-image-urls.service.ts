@@ -1,15 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import {
+  parseSkiniverDescription,
   skiniverCategoryLabel,
   skiniverDiagnosisLabel,
+  type SkiniverCandidateDetails,
   type SkiniverDiagnosisDetails,
   type SkiniverPrediction,
+  type SkiniverRiskGuidance,
   type YouCamResults,
 } from '@piel360/shared';
 import { StorageService } from '../storage/storage.service';
 import { youcamMaskKey } from '../youcam/mask-key.util';
-import { parseSkiniverDescription } from '../skiniver/skiniver-description.util';
 
 /** Extraído de AnalysesService — lo reutiliza también PatientsService
  * (historial 3D) para no duplicar el firmado de URLs ni la lógica de
@@ -76,7 +78,7 @@ export class AnalysisImageUrlsService {
 
   /** Skiniver no manda diagnóstico/tratamiento/consejo/ICD como claves
    * separadas — vienen concatenados como texto libre en `description`, y el
-   * "ICD" real se llama `lesion_code`. Ver skiniver-description.util.ts. */
+   * "ICD" real se llama `lesion_code`. Ver `parseSkiniverDescription`. */
   private buildSkiniverDiagnosis(
     prediction: SkiniverPrediction,
     aiProbability: number | null,
@@ -98,6 +100,68 @@ export class AnalysisImageUrlsService {
       treatment: parsed?.treatment ?? null,
       advice: parsed?.advice ?? null,
       icd_code: prediction.lesion_code ?? null,
+      candidates: this.buildSkiniverCandidates(prediction),
+      risk: this.buildSkiniverRiskGuidance(prediction),
+    };
+  }
+
+  /** Un descriptivo por `topn[]`. Cada candidato trae su propio `description`
+   * completo, así que se parsea el suyo y nunca se hereda el del principal:
+   * antes se descartaba por heurística y los diagnósticos de apoyo salían sin
+   * texto, aunque el JSON sí lo traía. */
+  private buildSkiniverCandidates(
+    prediction: SkiniverPrediction,
+  ): SkiniverCandidateDetails[] {
+    const topn = Array.isArray(prediction.topn) ? prediction.topn : [];
+    const rootClass = prediction.class?.trim().toLowerCase();
+
+    return topn.flatMap((item) => {
+      const className = item?.class?.trim();
+      if (!className) return [];
+      const parsed = parseSkiniverDescription(item.description);
+      const prob = Number(item.prob);
+      const safeProb = Number.isFinite(prob) ? prob : 0;
+      return [
+        {
+          class: className,
+          class_raw: item.class_raw ?? null,
+          label: skiniverDiagnosisLabel(className, item.class_raw),
+          // Skiniver manda 0–1 en `topn[]`; el resto del sistema usa 0–100.
+          prob:
+            Math.round((safeProb <= 1 ? safeProb * 100 : safeProb) * 10) / 10,
+          category: skiniverCategoryLabel(item.desease) || null,
+          risk_level: item.risk_level ?? null,
+          // El ICD de la raíz solo vale para el candidato que ES la raíz.
+          icd_code:
+            item.lesion_code ??
+            (className.toLowerCase() === rootClass
+              ? (prediction.lesion_code ?? null)
+              : null),
+          atlas_page_link: item.atlas_page_link ?? null,
+          description: parsed?.riskEvaluation || null,
+          precise_diagnosis: parsed?.preciseDiagnosis || null,
+          treatment: parsed?.treatment || null,
+          advice: parsed?.advice || null,
+        },
+      ];
+    });
+  }
+
+  /** Textos que Skiniver manda como claves propias, fuera de `description`. */
+  private buildSkiniverRiskGuidance(
+    prediction: SkiniverPrediction,
+  ): SkiniverRiskGuidance {
+    const raw = prediction as unknown as Record<string, unknown>;
+    const text = (key: string): string | null => {
+      const value = raw[key];
+      return typeof value === 'string' && value.trim() ? value.trim() : null;
+    };
+    return {
+      title: text('risk_title'),
+      level_title: text('risk_level_title'),
+      description: text('risk_description'),
+      suggestion: text('risk_suggestion'),
+      short_recommendation: text('short_recommendation'),
     };
   }
 

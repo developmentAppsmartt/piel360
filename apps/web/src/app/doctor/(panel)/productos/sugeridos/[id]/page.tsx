@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TreatmentForm } from "@/components/treatments/treatment-form";
+import { SUGGESTED_PRODUCT_EXCLUDED_METRICS } from "@/lib/condition-labels";
 import { TreatmentItemsEditor } from "@/components/treatments/treatment-items-editor";
 import { useTreatment, useUpdateTreatment } from "@/lib/queries/treatments";
 
@@ -37,6 +38,7 @@ export default function EditarGrupoSugeridoPage() {
       <TreatmentForm
         defaultValues={treatment.data}
         forceCategoryPicker={false}
+        excludedMetrics={SUGGESTED_PRODUCT_EXCLUDED_METRICS}
         submitLabel="Guardar cambios"
         onSubmit={(input) => updateMutation.mutateAsync(input)}
       />

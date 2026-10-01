@@ -18,6 +18,10 @@ import { RiskGauge } from "@/components/analyses/risk-gauge";
 import { YoucamProgressView } from "@/components/analyses/youcam-progress-view";
 import { YoucamReportView } from "@/components/analyses/youcam-report-view";
 import { YoucamResultsSection } from "@/components/analyses/youcam-results-section";
+import {
+  SkiniverDescriptive,
+  SkiniverRiskGuidanceBlock,
+} from "@/components/analyses/skiniver-descriptive";
 import { ModuleCard } from "@/components/ui/module-card";
 import { useAnalysis, useConfirmAnalysis } from "@/lib/queries/analyses";
 
@@ -183,14 +187,10 @@ export function AnalysisResultsView({
 
           {analysis.data.skiniverDiagnosis ? (
             <ModuleCard className="space-y-3 p-4">
-              {analysis.data.skiniverDiagnosis.description && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Descripción
-                  </p>
-                  <p className="text-sm">{analysis.data.skiniverDiagnosis.description}</p>
-                </div>
-              )}
+              <SkiniverDescriptive
+                details={analysis.data.skiniverDiagnosis}
+                icdCode={analysis.data.skiniverDiagnosis.icd_code}
+              />
               {analysis.data.skiniverDiagnosis.conclusion.category && (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground">
@@ -203,38 +203,9 @@ export function AnalysisResultsView({
                   </p>
                 </div>
               )}
-              {analysis.data.skiniverDiagnosis.precise_diagnosis && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Diagnóstico preciso
-                  </p>
-                  <p className="text-sm">
-                    {analysis.data.skiniverDiagnosis.precise_diagnosis}
-                  </p>
-                </div>
-              )}
-              {analysis.data.skiniverDiagnosis.treatment && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Tratamiento
-                  </p>
-                  <p className="text-sm">{analysis.data.skiniverDiagnosis.treatment}</p>
-                </div>
-              )}
-              {analysis.data.skiniverDiagnosis.advice && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground">Consejo</p>
-                  <p className="text-sm">{analysis.data.skiniverDiagnosis.advice}</p>
-                </div>
-              )}
-              {analysis.data.skiniverDiagnosis.icd_code && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Código ICD
-                  </p>
-                  <p className="text-sm">{analysis.data.skiniverDiagnosis.icd_code}</p>
-                </div>
-              )}
+              <SkiniverRiskGuidanceBlock
+                risk={analysis.data.skiniverDiagnosis.risk}
+              />
             </ModuleCard>
           ) : null}
 
@@ -303,6 +274,15 @@ export function AnalysisResultsView({
       {isSkiniver && (
         <DiagnosisDetailDialog
           item={selectedDiagnosis}
+          details={
+            selectedDiagnosis
+              ? (analysis.data.skiniverDiagnosis?.candidates.find(
+                  (candidate) =>
+                    candidate.class.toLowerCase() ===
+                    selectedDiagnosis.class.trim().toLowerCase(),
+                ) ?? null)
+              : null
+          }
           onClose={() => setSelectedDiagnosis(null)}
         />
       )}
