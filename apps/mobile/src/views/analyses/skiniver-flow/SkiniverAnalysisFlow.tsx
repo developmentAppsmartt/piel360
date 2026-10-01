@@ -10,6 +10,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { StatusBar } from 'expo-status-bar';
 import { AppIcon } from '../../../components/AppIcon';
+import { KeyboardAwareScrollView } from '../../../components/KeyboardAwareScrollView';
 import { Icons } from '../../../components/icons';
 import { useBranding } from '../../../context/BrandingContext';
 import { ANALYSIS_PROVIDER_STATIC_LABELS, maskVendorMessage } from '../../../data/analysisProviderLabel';
@@ -99,9 +100,12 @@ export function SkiniverAnalysisFlow({
     () => createYoucamFlowStyles(branding.colors),
     [branding.colors],
   );
+  const [profileGender, setProfileGender] = useState<string | null>(null);
   const modelGender = useMemo(
-    () => bodyModelGenderFromPatient(patientGender),
-    [patientGender],
+    () =>
+      bodyModelGenderFromPatient(patientGender) ??
+      bodyModelGenderFromPatient(profileGender),
+    [patientGender, profileGender],
   );
   const [step, setStep] = useState<Step>('consent');
   const [selection, setSelection] = useState<BodySelection | null>(null);
@@ -115,12 +119,17 @@ export function SkiniverAnalysisFlow({
     : null;
 
   useEffect(() => {
+    setSelection(null);
+  }, [modelGender]);
+
+  useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const patient = await patientsService.getById(patientId);
         if (cancelled) return;
         setImportantNotes(patient.importantNotes ?? '');
+        setProfileGender(patient.gender ?? null);
       } catch {
         // El análisis puede seguir sin las notas.
       } finally {
@@ -286,135 +295,141 @@ export function SkiniverAnalysisFlow({
 
       {step === 'capture' ? (
         <View style={styles.card}>
-          <Text style={styles.title}>Foto de la zona</Text>
-          <Text style={styles.subtitle}>
-            Enfoca de cerca {regionLabel ?? 'la zona marcada'}. Usa buena luz y
-            recorta para que la lesión ocupe el marco.
-          </Text>
-
-          <Text
-            style={{
-              marginTop: 12,
-              marginBottom: 6,
-              fontSize: 14,
-              fontWeight: '700',
-              color: branding.colors.text,
-            }}
+          <KeyboardAwareScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ flexGrow: 1 }}
+            showsVerticalScrollIndicator={false}
           >
-            Notas importantes
-          </Text>
-          <TextInput
-            value={importantNotes}
-            onChangeText={setImportantNotes}
-            multiline
-            maxLength={500}
-            editable={notesLoaded && !picking}
-            textAlignVertical="top"
-            placeholder="Alergias, antecedentes, observaciones clínicas…"
-            placeholderTextColor={branding.colors.muted}
-            style={{
-              minHeight: 88,
-              borderWidth: 1,
-              borderColor: '#E5E7EB',
-              borderRadius: 12,
-              paddingHorizontal: 12,
-              paddingVertical: 10,
-              fontSize: 14,
-              color: branding.colors.text,
-              marginBottom: 4,
-            }}
-          />
-          <Text
-            style={{
-              fontSize: 12,
-              color: branding.colors.muted,
-              marginBottom: 12,
-            }}
-          >
-            {importantNotes.length}/500
-          </Text>
+            <Text style={styles.title}>Foto de la zona</Text>
+            <Text style={styles.subtitle}>
+              Enfoca de cerca {regionLabel ?? 'la zona marcada'}. Usa buena luz y
+              recorta para que la lesión ocupe el marco.
+            </Text>
 
-          <Text
-            style={{
-              marginTop: 8,
-              marginBottom: 16,
-              textAlign: 'center',
-              fontSize: 16,
-              fontWeight: '600',
-              color: '#6B7280',
-            }}
-          >
-            Seleccionar imagen
-          </Text>
-
-          {picking ? (
-            <ActivityIndicator
-              color={branding.colors.primary}
-              style={{ marginVertical: 24 }}
-            />
-          ) : (
-            <View
+            <Text
               style={{
-                alignItems: 'center',
-                gap: 28,
-                marginBottom: 28,
+                marginTop: 12,
+                marginBottom: 6,
+                fontSize: 14,
+                fontWeight: '700',
+                color: branding.colors.text,
               }}
             >
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Cámara"
-                disabled={picking}
-                onPress={() => void handlePick('camera')}
-                style={{ alignItems: 'center', gap: 10 }}
-              >
-                <AppIcon
-                  icon={Icons.camera}
-                  size={52}
-                  color={branding.colors.primary}
-                />
-                <Text
-                  style={{
-                    fontSize: 15,
-                    fontWeight: '600',
-                    color: '#6B7280',
-                  }}
-                >
-                  Cámara
-                </Text>
-              </Pressable>
+              Notas importantes
+            </Text>
+            <TextInput
+              value={importantNotes}
+              onChangeText={setImportantNotes}
+              multiline
+              maxLength={500}
+              editable={notesLoaded && !picking}
+              textAlignVertical="top"
+              placeholder="Alergias, antecedentes, observaciones clínicas…"
+              placeholderTextColor={branding.colors.muted}
+              style={{
+                minHeight: 88,
+                borderWidth: 1,
+                borderColor: '#E5E7EB',
+                borderRadius: 12,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                fontSize: 14,
+                color: branding.colors.text,
+                marginBottom: 4,
+              }}
+            />
+            <Text
+              style={{
+                fontSize: 12,
+                color: branding.colors.muted,
+                marginBottom: 12,
+              }}
+            >
+              {importantNotes.length}/500
+            </Text>
 
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Galería"
-                disabled={picking}
-                onPress={() => void handlePick('library')}
-                style={{ alignItems: 'center', gap: 10 }}
-              >
-                <AppIcon
-                  icon={Icons.image}
-                  size={52}
-                  color={branding.colors.primary}
-                />
-                <Text
-                  style={{
-                    fontSize: 15,
-                    fontWeight: '600',
-                    color: '#6B7280',
-                  }}
-                >
-                  Galería
-                </Text>
-              </Pressable>
-            </View>
-          )}
+            <Text
+              style={{
+                marginTop: 8,
+                marginBottom: 16,
+                textAlign: 'center',
+                fontSize: 16,
+                fontWeight: '600',
+                color: '#6B7280',
+              }}
+            >
+              Seleccionar imagen
+            </Text>
 
-          <Pressable
-            style={[styles.primaryBtn, { borderRadius: 999 }]}
-            disabled={picking}
-            onPress={() => setStep('region')}
-          >
-            <Text style={styles.primaryBtnText}>Volver a zona 3D</Text>
-          </Pressable>
+            {picking ? (
+              <ActivityIndicator
+                color={branding.colors.primary}
+                style={{ marginVertical: 24 }}
+              />
+            ) : (
+              <View
+                style={{
+                  alignItems: 'center',
+                  gap: 28,
+                  marginBottom: 28,
+                }}
+              >
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Cámara"
+                  disabled={picking}
+                  onPress={() => void handlePick('camera')}
+                  style={{ alignItems: 'center', gap: 10 }}
+                >
+                  <AppIcon
+                    icon={Icons.camera}
+                    size={52}
+                    color={branding.colors.primary}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: '600',
+                      color: '#6B7280',
+                    }}
+                  >
+                    Cámara
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Galería"
+                  disabled={picking}
+                  onPress={() => void handlePick('library')}
+                  style={{ alignItems: 'center', gap: 10 }}
+                >
+                  <AppIcon
+                    icon={Icons.image}
+                    size={52}
+                    color={branding.colors.primary}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: '600',
+                      color: '#6B7280',
+                    }}
+                  >
+                    Galería
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+
+            <Pressable
+              style={[styles.primaryBtn, { borderRadius: 999 }]}
+              disabled={picking}
+              onPress={() => setStep('region')}
+            >
+              <Text style={styles.primaryBtnText}>Volver a zona 3D</Text>
+            </Pressable>
+          </KeyboardAwareScrollView>
         </View>
       ) : null}
     </View>

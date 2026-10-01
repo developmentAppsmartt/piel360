@@ -17,6 +17,13 @@ export function normalizeModel(scene: THREE.Object3D) {
     }
   });
 
+  // useGLTF cachea la escena: partir de la escala original evita que una
+  // segunda normalización (remontaje, StrictMode) devuelva el modelo a su
+  // tamaño crudo y los clicks se guarden en otra escala.
+  scene.scale.setScalar(1);
+  scene.position.set(0, 0, 0);
+  scene.updateMatrixWorld(true);
+
   const box = new THREE.Box3().setFromObject(scene);
   const size = box.getSize(new THREE.Vector3());
   const scale = 1.8 / size.y;
