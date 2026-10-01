@@ -69,6 +69,11 @@ export class UpdateDoctorDto {
   @IsString()
   graduationInstitution?: string;
 
+  /** Solo técnicos laborales; faltaba, así que el perfil no podía guardarlo. */
+  @IsOptional()
+  @IsString()
+  technicalInstitution?: string;
+
   @IsOptional()
   @IsString()
   address?: string;

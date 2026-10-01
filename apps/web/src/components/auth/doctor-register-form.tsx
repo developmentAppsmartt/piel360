@@ -22,7 +22,7 @@ import {
   type AuthActionState,
 } from "@/lib/actions/auth";
 import { sendEmailOtpAction, verifyEmailOtpAction } from "@/lib/actions/email-otp";
-import { CatalogCombobox } from "@/components/auth/catalog-combobox";
+import { InstitutionField } from "@/components/auth/institution-field";
 import { sendPhoneOtpAction, verifyPhoneOtpAction } from "@/lib/actions/phone-otp";
 import { homeForUser } from "@/lib/auth-redirect";
 import { ApiError } from "@/lib/api-error";
@@ -737,38 +737,35 @@ export function DoctorRegisterForm({
                 required
               />
             </Field>
-            <Field label="Entidad educativa pregrado" required>
-              <CatalogCombobox
-                typeSlug="education_entity"
-                className={inputClass}
-                placeholder="Busca tu universidad"
-                value={educationEntity}
-                onChange={setEducationEntity}
-                required
-              />
-            </Field>
-            <Field label="Entidad educativa postgrado (especialización médica)">
-              <CatalogCombobox
-                typeSlug="education_entity"
-                className={inputClass}
-                placeholder="Busca la institución de postgrado"
-                value={graduationInstitution}
-                onChange={setGraduationInstitution}
-              />
-            </Field>
+            <InstitutionField
+              label="Entidad educativa pregrado"
+              otherLabel="Otra institución de pregrado"
+              typeSlug="education_entity"
+              placeholder="Busca tu universidad"
+              value={educationEntity}
+              onChange={setEducationEntity}
+              required
+            />
+            <InstitutionField
+              label="Entidad educativa postgrado (especialización médica)"
+              otherLabel="Otra institución de postgrado"
+              typeSlug="education_entity"
+              placeholder="Busca la institución de postgrado"
+              value={graduationInstitution}
+              onChange={setGraduationInstitution}
+            />
           </>
         ) : null}
         {professionalKind === "labor" ? (
-          <Field label="Institución educativa técnica" required>
-            <CatalogCombobox
-              typeSlug="technical_education_institution"
-              className={inputClass}
-              placeholder="Busca tu institución técnica"
-              value={technicalInstitution}
-              onChange={setTechnicalInstitution}
-              required
-            />
-          </Field>
+          <InstitutionField
+            label="Institución educativa técnica"
+            otherLabel="Otra institución educativa técnica"
+            typeSlug="technical_education_institution"
+            placeholder="Busca tu institución técnica"
+            value={technicalInstitution}
+            onChange={setTechnicalInstitution}
+            required
+          />
         ) : null}
       </div>
 

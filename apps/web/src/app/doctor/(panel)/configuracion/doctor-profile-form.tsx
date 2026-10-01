@@ -8,6 +8,7 @@ import {
   isValidE164Digits,
   splitPhoneDigits,
 } from "@/components/auth/auth-form-primitives";
+import { InstitutionField } from "@/components/auth/institution-field";
 import { PhoneOtpField } from "@/components/auth/phone-otp-field";
 import { Button } from "@/components/ui/button";
 import { verifyPhoneOtpAction } from "@/lib/actions/phone-otp";
@@ -170,6 +171,7 @@ function profileToForm(p: MyDoctorProfile) {
     licenseNumber: p.licenseNumber ?? "",
     educationEntity: p.educationEntity ?? "",
     graduationInstitution: p.graduationInstitution ?? "",
+    technicalInstitution: p.technicalInstitution ?? "",
     address: p.address ?? "",
     city: p.city ?? "",
     department: p.department ?? "",
@@ -266,6 +268,8 @@ export function DoctorProfileForm() {
             educationEntity: displayForm.educationEntity.trim() || undefined,
             graduationInstitution:
               displayForm.graduationInstitution.trim() || undefined,
+            technicalInstitution:
+              displayForm.technicalInstitution.trim() || undefined,
             address: displayForm.address.trim() || undefined,
             city: displayForm.city.trim() || undefined,
             department: displayForm.department.trim() || undefined,
@@ -528,20 +532,37 @@ export function DoctorProfileForm() {
             onChange={(e) => set("licenseNumber", e.target.value)}
           />
         </Field>
-        <Field label="Entidad educativa">
-          <input
-            className={inputClass}
-            value={displayForm.educationEntity}
-            onChange={(e) => set("educationEntity", e.target.value)}
+        {/* Mismos campos y etiquetas que el registro, y cada uno con su salida
+            a texto libre cuando la institución no está en el catálogo. */}
+        {profile.professionalKind === "labor" ? (
+          <InstitutionField
+            label="Institución educativa técnica"
+            otherLabel="Otra institución educativa técnica"
+            typeSlug="technical_education_institution"
+            placeholder="Busca tu institución técnica"
+            value={displayForm.technicalInstitution}
+            onChange={(v) => set("technicalInstitution", v)}
           />
-        </Field>
-        <Field label="Institución de graduación">
-          <input
-            className={inputClass}
-            value={displayForm.graduationInstitution}
-            onChange={(e) => set("graduationInstitution", e.target.value)}
-          />
-        </Field>
+        ) : (
+          <>
+            <InstitutionField
+              label="Entidad educativa pregrado"
+              otherLabel="Otra institución de pregrado"
+              typeSlug="education_entity"
+              placeholder="Busca tu universidad"
+              value={displayForm.educationEntity}
+              onChange={(v) => set("educationEntity", v)}
+            />
+            <InstitutionField
+              label="Entidad educativa postgrado (especialización médica)"
+              otherLabel="Otra institución de postgrado"
+              typeSlug="education_entity"
+              placeholder="Busca la institución de postgrado"
+              value={displayForm.graduationInstitution}
+              onChange={(v) => set("graduationInstitution", v)}
+            />
+          </>
+        )}
           </>
         ) : null}
       </div>
