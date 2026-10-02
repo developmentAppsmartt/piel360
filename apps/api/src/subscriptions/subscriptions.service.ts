@@ -466,7 +466,19 @@ export class SubscriptionsService {
 
     const subscriptions = await this.prisma.subscription.findMany({
       where: { userId: ctx.subscriptionUserId },
-      include: { plan: { include: { provider: true } } },
+      include: {
+        plan: { include: { provider: true } },
+        invoice: {
+          select: {
+            id: true,
+            grossAmount: true,
+            planBaseAmount: true,
+            ivaAmount: true,
+            currency: true,
+            createdAt: true,
+          },
+        },
+      },
       orderBy: { id: 'desc' },
     });
 
