@@ -145,9 +145,26 @@ const DIAGNOSIS_MAP: Record<string, { class: SkiniverDiagnosisClass }> = {
 
 /** `null` para "sin diagnóstico" o "Piel Sin Patología" — el caller decide
  * excluirlo (reportes de clase/enfermedad) o no (reportes demográficos). */
+/** La IA devuelve "sin patología" en varios idiomas, como diagnóstico y como
+ * categoría (`desease`): cualquiera de esas formas queda fuera de los conteos. */
+const NO_PATHOLOGY_KEYS = new Set(
+  [
+    SKINIVER_NO_PATHOLOGY_DIAGNOSIS,
+    "Sin patología",
+    "No pathologies",
+    "No pathology",
+    "Healthy skin",
+    "Нет патологий",
+  ].map(normalize),
+);
+
 export function isNoPathologyDiagnosis(aiDiagnosis: string | null | undefined): boolean {
   if (!aiDiagnosis) return false;
-  return normalize(aiDiagnosis) === normalize(SKINIVER_NO_PATHOLOGY_DIAGNOSIS);
+  return NO_PATHOLOGY_KEYS.has(normalize(aiDiagnosis));
+}
+
+export function isNoPathologyCategory(desease: string | null | undefined): boolean {
+  return isNoPathologyDiagnosis(desease);
 }
 
 export function classifyDiagnosisClass(

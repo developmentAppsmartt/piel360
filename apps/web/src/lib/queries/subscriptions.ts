@@ -9,11 +9,24 @@ export interface Subscription {
   endsAt: string | null;
   wompiTransactionId: string | null;
   createdAt: string;
+  updatedAt?: string;
   remainingCredits: number;
+  /** Factura interna creada al activar la compra (valor real cobrado). */
+  invoice?: {
+    id: string;
+    grossAmount: string;
+    planBaseAmount: string;
+    ivaAmount: string;
+    currency: string;
+    createdAt: string;
+  } | null;
   plan: {
     id: string;
     name: string;
+    description?: string | null;
+    features?: { label: string; included: boolean }[];
     analysisLimit: number;
+    analysisLimits?: { skiniver?: number; aesthetic?: number };
     durationDays: number;
     price: string;
     maxUsers?: number;

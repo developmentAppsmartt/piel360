@@ -9,6 +9,7 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { AnalysisWatermark } from './AnalysisWatermark';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { AppIcon } from '../../../../components/AppIcon';
 import { Icons } from '../../../../components/icons';
@@ -743,6 +744,7 @@ export function YoucamResultsSection({
             </Pressable>
           </View>
         ) : null}
+        {showBase || maskUrl ? <AnalysisWatermark /> : null}
         {badgeLabel ? (
           <View
             style={[
