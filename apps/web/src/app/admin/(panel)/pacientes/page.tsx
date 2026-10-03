@@ -27,7 +27,6 @@ export default function AdminPacientesPage() {
         <PatientsTable
           patients={patients.data}
           panel="admin"
-          showNewButton={false}
           showProfessionalColumn
         />
       )}

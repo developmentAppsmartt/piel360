@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { createColumnHelper, type ColumnDef } from "@tanstack/react-table";
 import { Mail, Plus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -150,18 +149,18 @@ function buildColumns(basePath: string, showProfessionalColumn = false) {
   return columns;
 }
 
+/** Solo lista. El boton "Nuevo paciente" vive en `PatientsListHeader`, que es
+ * quien decide si la pantalla permite crear; tenerlo tambien aqui lo pintaba
+ * dos veces en /doctor/pacientes. */
 export function PatientsTable({
   patients,
   panel = "doctor",
-  showNewButton = true,
   showProfessionalColumn = false,
 }: {
   patients: Patient[];
   panel?: PatientsPanel;
-  showNewButton?: boolean;
   showProfessionalColumn?: boolean;
 }) {
-  const router = useRouter();
   const resolvedBase = patientsListPath(panel);
 
   const withFitzpatrick = patients.filter((p) => p.fitzpatrickType).length;
@@ -217,18 +216,6 @@ export function PatientsTable({
         emptyMessage="Aún no hay pacientes registrados."
         getRowHref={(row) => `${resolvedBase}/${row.id}`}
       />
-
-      {showNewButton && panel === "doctor" ? (
-        <div className="flex justify-end">
-          <Button
-            onClick={() => router.push("/doctor/pacientes/nuevo")}
-            className="gap-1.5"
-          >
-            <Plus className="size-4" />
-            Nuevo paciente
-          </Button>
-        </div>
-      ) : null}
     </div>
   );
 }
