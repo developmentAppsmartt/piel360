@@ -3,8 +3,10 @@ import {
   SKINIVER_AGE_BUCKETS,
   SKIN_TONE_BUCKET_DEFS,
   classifyDiagnosisClass,
+  isNoPathologyCategory,
   isNoPathologyDiagnosis,
   normalizeGender,
+  normalizeLabelKey,
   skinToneBucketForFitzpatrick,
   skiniverCategoryColor,
   skiniverCategoryLabel,
@@ -43,7 +45,9 @@ export interface SkiniverReportRange {
  * que las series muestren también los meses sin diagnósticos en vez de saltarlos. */
 function monthKeysInRange(from: Date, to: Date): string[] {
   const keys: string[] = [];
-  const cursor = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1));
+  const cursor = new Date(
+    Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1),
+  );
   const end = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), 1));
   while (cursor.getTime() <= end.getTime()) {
     keys.push(
@@ -79,8 +83,35 @@ function buildSeries(
   }
   return months.map((period) => ({
     period,
-    counts: byPeriod.get(period) ?? ({} as Record<string, number>),
+    counts: byPeriod.get(period) ?? {},
   }));
+}
+
+const TOP_DIAGNOSES_LIMIT = 10;
+
+/** Suma las filas que comparten etiqueta (sin distinguir tildes ni
+ * mayúsculas) y las ordena de mayor a menor. `extra` conserva el primer valor
+ * no nulo, p. ej. el CIE-10 de un diagnóstico. */
+function mergeByLabel<T>(
+  rows: { label: string; count: number; extra: T | null }[],
+): { label: string; count: number; extra: T | null }[] {
+  const merged = new Map<
+    string,
+    { label: string; count: number; extra: T | null }
+  >();
+  for (const row of rows) {
+    const key = normalizeLabelKey(row.label);
+    const current = merged.get(key);
+    if (current) {
+      current.count += row.count;
+      current.extra ??= row.extra;
+    } else {
+      merged.set(key, { ...row });
+    }
+  }
+  return [...merged.values()].sort(
+    (a, b) => b.count - a.count || a.label.localeCompare(b.label, 'es'),
+  );
 }
 
 /** Cuántas condiciones se grafican antes de agrupar el resto en "Otras". */
@@ -168,27 +199,33 @@ export class SkiniverReportService {
   ): Promise<SkiniverReport> {
     const { from, to, toExclusive } = range;
 
-    const [diagnosisRows, ageRows, skinToneRows, categoryRows, topRows, ageGenderRows] =
-      await Promise.all([
-        this.prisma.$queryRaw<SkiniverDiagnosisRow[]>(
-          skiniverMonthlyDiagnosesQuery(doctorIds, from, toExclusive),
-        ),
-        this.prisma.$queryRaw<SkiniverAgeRow[]>(
-          skiniverAgeMonthlyQuery(doctorIds, from, toExclusive),
-        ),
-        this.prisma.$queryRaw<SkiniverSkinToneRow[]>(
-          skiniverSkinToneQuery(doctorIds, from, toExclusive),
-        ),
-        this.prisma.$queryRaw<SkiniverCategoryRow[]>(
-          skiniverCategoryQuery(doctorIds, from, toExclusive),
-        ),
-        this.prisma.$queryRaw<SkiniverTopDiagnosisRow[]>(
-          skiniverTopDiagnosesQuery(doctorIds, from, toExclusive),
-        ),
-        this.prisma.$queryRaw<SkiniverAgeGenderSqlRow[]>(
-          skiniverAgeGenderQuery(doctorIds, from, toExclusive),
-        ),
-      ]);
+    const [
+      diagnosisRows,
+      ageRows,
+      skinToneRows,
+      categoryRows,
+      topRows,
+      ageGenderRows,
+    ] = await Promise.all([
+      this.prisma.$queryRaw<SkiniverDiagnosisRow[]>(
+        skiniverMonthlyDiagnosesQuery(doctorIds, from, toExclusive),
+      ),
+      this.prisma.$queryRaw<SkiniverAgeRow[]>(
+        skiniverAgeMonthlyQuery(doctorIds, from, toExclusive),
+      ),
+      this.prisma.$queryRaw<SkiniverSkinToneRow[]>(
+        skiniverSkinToneQuery(doctorIds, from, toExclusive),
+      ),
+      this.prisma.$queryRaw<SkiniverCategoryRow[]>(
+        skiniverCategoryQuery(doctorIds, from, toExclusive),
+      ),
+      this.prisma.$queryRaw<SkiniverTopDiagnosisRow[]>(
+        skiniverTopDiagnosesQuery(doctorIds, from, toExclusive),
+      ),
+      this.prisma.$queryRaw<SkiniverAgeGenderSqlRow[]>(
+        skiniverAgeGenderQuery(doctorIds, from, toExclusive),
+      ),
+    ]);
 
     const months = monthKeysInRange(from, to);
 
@@ -211,31 +248,51 @@ export class SkiniverReportService {
       })),
     );
 
+    // La IA escribe la misma categoría en varios idiomas ("Cancer" y
+    // "Cáncer"): se agrupa por la etiqueta traducida para que no aparezca dos
+    // veces en el donut.
+    const categories = mergeByLabel(
+      categoryRows
+        .filter(
+          (row): row is SkiniverCategoryRow & { category: string } =>
+            Boolean(row.category) && !isNoPathologyCategory(row.category),
+        )
+        .map((row) => ({
+          label: skiniverCategoryLabel(row.category),
+          count: row.count,
+          extra: null,
+        })),
+    );
+
     // El total del periodo es el de diagnósticos con patología: es el
     // denominador de los porcentajes del donut y del top 10, que comparten
     // ese mismo universo.
-    const total = categoryRows.reduce((sum, row) => sum + row.count, 0);
+    const total = categories.reduce((sum, row) => sum + row.count, 0);
 
-    const byCategory: SkiniverCategorySlice[] = categoryRows
-      .filter((row): row is SkiniverCategoryRow & { category: string } =>
-        Boolean(row.category),
-      )
-      .map((row) => ({
-        // El color se deriva del valor crudo para que no cambie si mañana se
-        // reconoce una categoría más y su etiqueta pasa a estar traducida.
-        key: row.category,
-        label: skiniverCategoryLabel(row.category),
-        color: skiniverCategoryColor(row.category),
-        count: row.count,
-        pct: pct(row.count, total),
-      }));
-
-    const topDiagnoses: SkiniverTopDiagnosis[] = topRows.map((row) => ({
-      diagnosis: skiniverDiagnosisLabel(row.diagnosis),
-      icdCode: row.icd_code?.trim() || null,
+    const byCategory: SkiniverCategorySlice[] = categories.map((row) => ({
+      key: normalizeLabelKey(row.label),
+      label: row.label,
+      color: skiniverCategoryColor(row.label),
       count: row.count,
       pct: pct(row.count, total),
     }));
+
+    const topDiagnoses: SkiniverTopDiagnosis[] = mergeByLabel(
+      topRows
+        .filter((row) => !isNoPathologyDiagnosis(row.diagnosis))
+        .map((row) => ({
+          label: skiniverDiagnosisLabel(row.diagnosis),
+          count: row.count,
+          extra: row.icd_code?.trim() || null,
+        })),
+    )
+      .slice(0, TOP_DIAGNOSES_LIMIT)
+      .map((row) => ({
+        diagnosis: row.label,
+        icdCode: row.extra,
+        count: row.count,
+        pct: pct(row.count, total),
+      }));
 
     const ageTotals = new Map<string, number>();
     for (const point of byAge) {
@@ -260,7 +317,12 @@ export class SkiniverReportService {
     const genderByBucket = new Map<
       string,
       { male: number; female: number; unknown: number }
-    >(SKINIVER_AGE_BUCKETS.map((b) => [b.key, { male: 0, female: 0, unknown: 0 }]));
+    >(
+      SKINIVER_AGE_BUCKETS.map((b) => [
+        b.key,
+        { male: 0, female: 0, unknown: 0 },
+      ]),
+    );
     for (const row of ageGenderRows) {
       const bucket = genderByBucket.get(row.age_bucket);
       if (!bucket) continue;

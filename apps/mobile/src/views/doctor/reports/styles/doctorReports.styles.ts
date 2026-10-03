@@ -1,4 +1,4 @@
-import type { AppBranding } from '../../../config/branding.defaults';
+import type { AppBranding } from '../../../../config/branding.defaults';
 import { StyleSheet } from 'react-native';
 import { appShadow } from '../../../../styles/shadow';
 

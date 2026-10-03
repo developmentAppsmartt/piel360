@@ -160,9 +160,10 @@ export interface SkiniverTopDiagnosisRow {
   count: number;
 }
 
-/** Top 10 de diagnósticos puntuales. El ICD (`lesion_code`) solo existe en la
- * raíz del JSON, nunca en `topn[]`; `MAX` porque un mismo diagnóstico siempre
- * trae el mismo código y el GROUP BY necesita un agregado. */
+/** Conteo por diagnóstico puntual; el Top 10 se corta en TS después de unir
+ * el mismo diagnóstico escrito en distintos idiomas. El ICD (`lesion_code`)
+ * solo existe en la raíz del JSON, nunca en `topn[]`; `MAX` porque un mismo
+ * diagnóstico siempre trae el mismo código y el GROUP BY necesita un agregado. */
 export function skiniverTopDiagnosesQuery(
   doctorIds: DoctorIds,
   from: Date,
@@ -178,7 +179,6 @@ export function skiniverTopDiagnosesQuery(
       AND a.ai_diagnosis <> ${NO_PATHOLOGY}
     GROUP BY 1
     ORDER BY 3 DESC, 1 ASC
-    LIMIT 10
   `;
 }
 
