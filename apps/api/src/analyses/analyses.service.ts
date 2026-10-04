@@ -407,6 +407,14 @@ export class AnalysesService {
   async confirm(id: string, dto: ConfirmAnalysisDto, currentUser: JwtPayload) {
     const analysis = await this.findOne(id, currentUser);
     const finalDiagnosis = dto.finalDiagnosis ?? analysis.aiDiagnosis;
+    // El PDF del reporte se genera una sola vez y se cachea (ensureReportUrl
+    // devuelve el guardado mientras existan token y key). Como las
+    // observaciones salen en el PDF, si cambian hay que tirar el archivo para
+    // que se regenere; el token se conserva para no romper el enlace
+    // permanente que ya se envió por correo.
+    // `undefined` = el cliente no mandó el campo, así que Prisma lo deja igual.
+    const notesChanged =
+      dto.doctorNotes !== undefined && dto.doctorNotes !== analysis.doctorNotes;
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const row = await tx.analysis.update({
@@ -418,6 +426,7 @@ export class AnalysesService {
           doctorNotes: dto.doctorNotes,
           confirmedById: BigInt(currentUser.sub),
           confirmedAt: new Date(),
+          ...(notesChanged ? { reportPdfKey: null } : {}),
         },
         include: { patient: true },
       });

@@ -96,6 +96,7 @@ interface ReportAnalysis {
   skinAgeYears: number | null;
   chronologicalAgeYears: number | null;
   skinAgeDifference: number | null;
+  doctorNotes: string | null;
 }
 
 interface ReportPatient {
@@ -187,6 +188,14 @@ export class ReportPdfService {
       .map((line) => `<p>${escapeHtml(String(line))}</p>`)
       .join('');
 
+    const notes = analysis.doctorNotes?.trim();
+    const notesHtml = notes
+      ? `<div class="notes">
+        <h2>OBSERVACIONES DEL MÉDICO</h2>
+        <p>${escapeHtml(notes)}</p>
+      </div>`
+      : '';
+
     const headerLogoHtml = headerLogo
       ? `<img class="header-logo" src="${headerLogo}" alt="PIEL 360" />`
       : '';
@@ -224,6 +233,13 @@ export class ReportPdfService {
     }
     .summary h2 { margin: 0 0 3px; font-size: 10px; letter-spacing: 0.4px; color: ${BRAND_DARK}; }
     .summary p { margin: 0; font-size: 10px; line-height: 1.35; }
+    .notes {
+      margin-top: 6px; padding: 8px 10px; border-radius: 8px;
+      background: #F8FAFC; border: 1px solid #E5E7EB;
+      max-height: 30mm; overflow: hidden;
+    }
+    .notes h2 { margin: 0 0 3px; font-size: 10px; letter-spacing: 0.4px; color: ${BRAND_DARK}; }
+    .notes p { margin: 0; font-size: 10px; line-height: 1.35; white-space: pre-line; }
     table { width: 100%; border-collapse: collapse; margin-top: 8px; table-layout: fixed; }
     th, td {
       text-align: left; padding: 3px 4px; border-bottom: 1px solid #E5E7EB;
@@ -265,6 +281,7 @@ export class ReportPdfService {
         <h2>RESUMEN</h2>
         <p>${escapeHtml(buildSummary(scores, overall, skinTypeLabel))}</p>
       </div>
+      ${notesHtml}
       <table>
         <thead>
           <tr>
@@ -360,7 +377,10 @@ export class ReportPdfService {
       const pdf = await this.generatePdf(html);
       const key = `analyses/${analysisId}/report.pdf`;
       await this.storage.upload(key, pdf, 'application/pdf');
-      const token = randomBytes(32).toString('hex');
+      // Se reaprovecha el token existente: al regenerar el PDF (p. ej. porque
+      // cambiaron las observaciones) un token nuevo dejaría en 404 el enlace
+      // que ya se envió por correo.
+      const token = analysis.reportToken ?? randomBytes(32).toString('hex');
       await this.prisma.analysis.update({
         where: { id: analysisId },
         data: { reportToken: token, reportPdfKey: key },

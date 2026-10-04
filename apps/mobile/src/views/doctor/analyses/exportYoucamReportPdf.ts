@@ -23,6 +23,8 @@ export type YoucamPdfPayload = {
   ageDiffMessage: string | null;
   bandLabel: string | null;
   summary: string;
+  /** Observaciones del médico; `null` cuando aún no escribió ninguna. */
+  notes: string | null;
   metrics: YoucamPdfMetric[];
   brandPrimary: string;
   brandDark: string;
@@ -182,6 +184,27 @@ function html(
       font-size: 10px;
       line-height: 1.35;
     }
+    .notes {
+      margin-top: 6px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #F8FAFC;
+      border: 1px solid #E5E7EB;
+      max-height: 30mm;
+      overflow: hidden;
+    }
+    .notes h2 {
+      margin: 0 0 3px;
+      font-size: 10px;
+      letter-spacing: 0.4px;
+      color: ${dark};
+    }
+    .notes p {
+      margin: 0;
+      font-size: 10px;
+      line-height: 1.35;
+      white-space: pre-line;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -277,6 +300,14 @@ function html(
         <h2>RESUMEN</h2>
         <p>${escapeHtml(payload.summary)}</p>
       </div>
+      ${
+        payload.notes
+          ? `<div class="notes">
+        <h2>OBSERVACIONES DEL MÉDICO</h2>
+        <p>${escapeHtml(payload.notes)}</p>
+      </div>`
+          : ''
+      }
       <table>
         <thead>
           <tr>
