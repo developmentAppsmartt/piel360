@@ -1,11 +1,28 @@
 import { Pressable, Text, View, StyleSheet, useWindowDimensions } from 'react-native';
 import { useState } from 'react';
-import Svg, { Circle, Line, Polyline, Text as SvgText } from 'react-native-svg';
+import Svg, {
+  Circle,
+  G,
+  Line,
+  Polyline,
+  Rect,
+  Text as SvgText,
+} from 'react-native-svg';
 import type {
+  SkiniverAgeGenderRow,
+  SkiniverTopDiagnosis,
   SkinReportCategory,
   SkinReportDistributionSlice,
   SkinReportTrendPoint,
-} from '../../../types/skin-report';
+} from '../../../../types/skin-report';
+
+export type DonutSlice = {
+  key: string;
+  label: string;
+  color: string;
+  count: number;
+  pct: number;
+};
 
 /** Dona de bandas de puntaje (paridad CRM ScoreDistributionDonut). */
 export function ScoreDistributionDonut({
@@ -16,6 +33,28 @@ export function ScoreDistributionDonut({
   slices: SkinReportDistributionSlice[];
   total: number;
   size?: number;
+}) {
+  return (
+    <DistributionDonut
+      slices={slices.map((s) => ({ ...s, key: s.band }))}
+      total={total}
+      size={size}
+      centerHint="Análisis"
+    />
+  );
+}
+
+/** Dona genérica con leyenda (categorías, tonos de piel, bandas). */
+export function DistributionDonut({
+  slices,
+  total,
+  size = 160,
+  centerHint,
+}: {
+  slices: DonutSlice[];
+  total: number;
+  size?: number;
+  centerHint: string;
 }) {
   const r = 60;
   const c = 2 * Math.PI * r;
@@ -55,7 +94,7 @@ export function ScoreDistributionDonut({
           />
           {arcs.map((arc) => (
             <Circle
-              key={arc.band}
+              key={arc.key}
               cx={80}
               cy={80}
               r={r}
@@ -74,12 +113,12 @@ export function ScoreDistributionDonut({
           <Text style={donutStyles.centerValue}>
             {total.toLocaleString('es-CO')}
           </Text>
-          <Text style={donutStyles.centerHint}>Análisis</Text>
+          <Text style={donutStyles.centerHint}>{centerHint}</Text>
         </View>
       </View>
       <View style={donutStyles.legend}>
         {slices.map((slice) => (
-          <View key={slice.band} style={donutStyles.legendRow}>
+          <View key={slice.key} style={donutStyles.legendRow}>
             <View
               style={[donutStyles.dot, { backgroundColor: slice.color }]}
             />
@@ -458,6 +497,260 @@ export function MultiSeriesTrendChart({
     </View>
   );
 }
+
+/** Tabla "Top 10 de diagnósticos más recurrentes" (paridad CRM TopDiagnosesTable). */
+export function TopDiagnosesTable({ rows }: { rows: SkiniverTopDiagnosis[] }) {
+  if (rows.length === 0) {
+    return (
+      <Text style={trendStyles.empty}>
+        No hay diagnósticos en el periodo seleccionado.
+      </Text>
+    );
+  }
+  return (
+    <View>
+      <View style={[tableStyles.row, tableStyles.headRow]}>
+        <Text style={[tableStyles.index, tableStyles.head]}>#</Text>
+        <Text style={[tableStyles.name, tableStyles.head]}>Diagnóstico</Text>
+        <Text style={[tableStyles.code, tableStyles.head]}>CIE-10</Text>
+        <Text style={[tableStyles.count, tableStyles.head]}>Cant.</Text>
+        <Text style={[tableStyles.pct, tableStyles.head]}>%</Text>
+      </View>
+      {rows.map((row, index) => (
+        <View
+          key={row.diagnosis}
+          style={[
+            tableStyles.row,
+            index < rows.length - 1 && tableStyles.rowDivider,
+          ]}
+        >
+          <Text style={tableStyles.index}>{index + 1}</Text>
+          <Text style={tableStyles.name}>{row.diagnosis}</Text>
+          <Text style={tableStyles.code}>{row.icdCode ?? '—'}</Text>
+          <Text style={[tableStyles.count, tableStyles.countValue]}>
+            {row.count}
+          </Text>
+          <Text style={tableStyles.pct}>{row.pct.toFixed(1)}%</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+const AGE_GENDER_SERIES = [
+  { key: 'male', label: 'Hombres', color: '#3b82f6' },
+  { key: 'female', label: 'Mujeres', color: '#14b8a6' },
+  { key: 'unknown', label: 'Sin género', color: '#cbd5e1' },
+] as const;
+
+/** Barras agrupadas por rango de edad y sexo (paridad CRM AgeGenderBars). */
+export function AgeGenderBars({ rows }: { rows: SkiniverAgeGenderRow[] }) {
+  const { width: screenW } = useWindowDimensions();
+  const hasAny = rows.some((r) => r.male + r.female + r.unknown > 0);
+  if (!hasAny) {
+    return (
+      <Text style={trendStyles.empty}>
+        Requiere la fecha de nacimiento y el género del paciente. Complétalos en
+        la ficha del paciente para ver este reporte.
+      </Text>
+    );
+  }
+
+  // "Sin género" solo si tiene datos: una barra gris sola se lee como un
+  // tercer sexo.
+  const series = AGE_GENDER_SERIES.filter(
+    (s) => s.key !== 'unknown' || rows.some((r) => r.unknown > 0),
+  );
+
+  const w = Math.max(300, screenW - 64);
+  const h = 180;
+  const padX = 28;
+  const padY = 14;
+  const plotW = w - padX * 2;
+  const plotH = h - padY * 2;
+  const rawMax = Math.max(
+    1,
+    ...rows.flatMap((r) => series.map((s) => r[s.key])),
+  );
+  const magnitude = 10 ** Math.floor(Math.log10(rawMax));
+  const step = magnitude / 2 || 0.5;
+  const yMax = Math.max(step, Math.ceil(rawMax / step) * step);
+  const groupW = plotW / rows.length;
+  const barW = Math.min(14, (groupW * 0.7) / series.length);
+  const ticks = [0, yMax / 2, yMax];
+  const toY = (value: number) => padY + (1 - value / yMax) * plotH;
+
+  return (
+    <View style={{ gap: 10 }}>
+      <View style={multiStyles.legend}>
+        {series.map((s) => (
+          <View key={s.key} style={multiStyles.legendItem}>
+            <View style={[multiStyles.swatch, { backgroundColor: s.color }]} />
+            <Text style={multiStyles.legendText}>{s.label}</Text>
+          </View>
+        ))}
+      </View>
+      <Svg width={w} height={h + 22} viewBox={`0 0 ${w} ${h + 22}`}>
+        {ticks.map((t) => (
+          <Line
+            key={t}
+            x1={padX}
+            x2={w - padX}
+            y1={toY(t)}
+            y2={toY(t)}
+            stroke="#E5E7EB"
+            strokeDasharray="4 4"
+          />
+        ))}
+        {ticks.map((t) => (
+          <SvgText
+            key={`lbl-${t}`}
+            x={padX - 6}
+            y={toY(t) + 3}
+            fontSize={9}
+            fill="#9CA3AF"
+            textAnchor="end"
+          >
+            {t}
+          </SvgText>
+        ))}
+        {rows.map((row, groupIndex) => {
+          const groupCenter = padX + groupIndex * groupW + groupW / 2;
+          const barsW = barW * series.length + 2 * (series.length - 1);
+          const firstX = groupCenter - barsW / 2;
+          return (
+            <G key={row.key}>
+              {series.map((s, i) => {
+                const y = toY(row[s.key]);
+                return (
+                  <Rect
+                    key={s.key}
+                    x={firstX + i * (barW + 2)}
+                    y={y}
+                    width={barW}
+                    height={Math.max(0, padY + plotH - y)}
+                    fill={s.color}
+                    rx={2}
+                  />
+                );
+              })}
+              <SvgText
+                x={groupCenter}
+                y={h + 14}
+                fontSize={9}
+                fill="#9CA3AF"
+                textAnchor="middle"
+              >
+                {row.key}
+              </SvgText>
+            </G>
+          );
+        })}
+      </Svg>
+    </View>
+  );
+}
+
+/** Barras horizontales de conteo por rango de edad (paridad CRM AgeDistributionBars). */
+export function AgeDistributionBars({ slices }: { slices: DonutSlice[] }) {
+  const max = Math.max(...slices.map((s) => s.count), 0);
+  if (max === 0) {
+    return (
+      <Text style={trendStyles.empty}>
+        Requiere la fecha de nacimiento del paciente. Complétala en la ficha del
+        paciente para ver este reporte.
+      </Text>
+    );
+  }
+  return (
+    <View style={{ gap: 10 }}>
+      {slices.map((slice) => (
+        <View key={slice.key} style={ageStyles.row}>
+          <Text style={ageStyles.label}>{slice.label}</Text>
+          <View style={ageStyles.track}>
+            <View
+              style={[
+                ageStyles.fill,
+                {
+                  // Mínimo visible para que un rango con datos no parezca vacío.
+                  width: `${Math.max(3, (slice.count / max) * 100)}%`,
+                  backgroundColor: slice.color,
+                },
+              ]}
+            />
+          </View>
+          <Text style={ageStyles.value}>
+            <Text style={ageStyles.valueStrong}>{slice.count}</Text>
+            <Text style={ageStyles.valuePct}> ({slice.pct.toFixed(1)}%)</Text>
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+const tableStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 9,
+    gap: 6,
+  },
+  headRow: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E7EB',
+    paddingVertical: 6,
+  },
+  rowDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#F3F4F6',
+  },
+  head: { fontSize: 11, color: '#6B7280', fontWeight: '500' },
+  index: {
+    width: 18,
+    fontSize: 12,
+    color: '#6B7280',
+    fontVariant: ['tabular-nums'],
+  },
+  name: { flex: 1, fontSize: 13, color: '#111827', fontWeight: '600' },
+  code: {
+    width: 48,
+    fontSize: 12,
+    color: '#6B7280',
+    fontVariant: ['tabular-nums'],
+  },
+  count: {
+    width: 38,
+    textAlign: 'right',
+    fontSize: 12,
+    color: '#111827',
+    fontVariant: ['tabular-nums'],
+  },
+  countValue: { fontWeight: '700', fontSize: 13 },
+  pct: {
+    width: 44,
+    textAlign: 'right',
+    fontSize: 12,
+    color: '#6B7280',
+    fontVariant: ['tabular-nums'],
+  },
+});
+
+const ageStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  label: { width: 84, fontSize: 12, color: '#6B7280' },
+  track: {
+    flex: 1,
+    height: 16,
+    borderRadius: 6,
+    backgroundColor: '#F3F4F6',
+    overflow: 'hidden',
+  },
+  fill: { height: '100%', borderRadius: 6 },
+  value: { width: 78, textAlign: 'right', fontVariant: ['tabular-nums'] },
+  valueStrong: { fontSize: 13, fontWeight: '700', color: '#111827' },
+  valuePct: { fontSize: 11, color: '#6B7280' },
+});
 
 const multiStyles = StyleSheet.create({
   legend: {

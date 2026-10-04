@@ -69,6 +69,8 @@ function ageBucketCase(): Prisma.Sql {
 export interface SkiniverDiagnosisRow {
   period: string;
   ai_diagnosis: string | null;
+  /** `desease` de la IA: respaldo de la clase cuando el nombre no se reconoce. */
+  category: string | null;
   count: number;
 }
 
@@ -88,10 +90,11 @@ export function skiniverMonthlyDiagnosesQuery(
     SELECT
       to_char(date_trunc('month', a.created_at), 'YYYY-MM') AS period,
       a.ai_diagnosis                                        AS ai_diagnosis,
+      a.ai_raw_response->>'desease'                         AS category,
       COUNT(*)::int                                         AS count
     ${baseJoin(doctorIds, from, toExclusive)}
       AND a.ai_diagnosis IS NOT NULL
-    GROUP BY 1, 2
+    GROUP BY 1, 2, 3
   `;
 }
 
@@ -160,9 +163,10 @@ export interface SkiniverTopDiagnosisRow {
   count: number;
 }
 
-/** Top 10 de diagnósticos puntuales. El ICD (`lesion_code`) solo existe en la
- * raíz del JSON, nunca en `topn[]`; `MAX` porque un mismo diagnóstico siempre
- * trae el mismo código y el GROUP BY necesita un agregado. */
+/** Conteo por diagnóstico puntual; el Top 10 se corta en TS después de unir
+ * el mismo diagnóstico escrito en distintos idiomas. El ICD (`lesion_code`)
+ * solo existe en la raíz del JSON, nunca en `topn[]`; `MAX` porque un mismo
+ * diagnóstico siempre trae el mismo código y el GROUP BY necesita un agregado. */
 export function skiniverTopDiagnosesQuery(
   doctorIds: DoctorIds,
   from: Date,
@@ -178,7 +182,6 @@ export function skiniverTopDiagnosesQuery(
       AND a.ai_diagnosis <> ${NO_PATHOLOGY}
     GROUP BY 1
     ORDER BY 3 DESC, 1 ASC
-    LIMIT 10
   `;
 }
 

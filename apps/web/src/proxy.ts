@@ -24,6 +24,8 @@ type Panel = (typeof PANELS)[number];
 /** Unica ruta de paciente que queda viva en web: explica que se entra por la app. */
 const PATIENT_APP_PATH = "/patient";
 
+const ACCOUNT_DISABLED_PATH = "/doctor/cuenta-deshabilitada";
+
 const PUBLIC_PATHS: Record<Panel, string[]> = {
   doctor: [
     "/doctor",
@@ -196,6 +198,25 @@ export async function proxy(request: NextRequest) {
     panel === "doctor" || panel === "admin"
       ? (fresh.permissions ?? session.permissions)
       : session.permissions;
+
+  if (panel === "doctor") {
+    const onDisabledPage = pathname === ACCOUNT_DISABLED_PATH;
+    if (fresh.account?.disabled && !onDisabledPage) {
+      return NextResponse.redirect(new URL(ACCOUNT_DISABLED_PATH, request.url));
+    }
+    if (onDisabledPage) {
+      return fresh.account && !fresh.account.disabled
+        ? NextResponse.redirect(new URL("/doctor/home", request.url))
+        : NextResponse.next();
+    }
+    if (
+      fresh.account?.planRestricted &&
+      isClinicalSession(session) &&
+      !clinicalPathAllowedWithoutPlan(pathname)
+    ) {
+      return NextResponse.redirect(new URL("/doctor/home", request.url));
+    }
+  }
 
   // Aquí vivía el gate de encuesta obligatoria del paciente. Con el panel
   // cerrado `panel` ya no puede valer "patient" y TypeScript rechaza la

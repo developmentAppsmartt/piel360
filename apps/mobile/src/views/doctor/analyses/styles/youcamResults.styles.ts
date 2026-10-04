@@ -219,7 +219,8 @@ export function createYoucamResultsStyles(
       position: 'absolute',
       right: s(6),
       top: s(8),
-      bottom: s(8),
+      // Deja libre la esquina inferior derecha para la marca de agua.
+      bottom: '17%',
       width: s(72),
       justifyContent: 'space-between',
       alignItems: 'flex-end',

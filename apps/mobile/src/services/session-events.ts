@@ -37,3 +37,14 @@ export function onAccountDisabled(handler: (() => void) | null) {
 export function emitAccountDisabled() {
   accountDisabledListener?.();
 }
+
+/** Un análisis consumió un crédito: el plan puede haber quedado agotado. */
+let creditsConsumedListener: (() => void) | null = null;
+
+export function onCreditsConsumed(handler: (() => void) | null) {
+  creditsConsumedListener = handler;
+}
+
+export function emitCreditsConsumed() {
+  creditsConsumedListener?.();
+}

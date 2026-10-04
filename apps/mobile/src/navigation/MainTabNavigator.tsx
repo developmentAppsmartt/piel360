@@ -3,6 +3,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppIcon } from '../components/AppIcon';
 import { Icons, type AppIconName } from '../components/icons';
+import { DepletedCreditsModal } from '../components/DepletedCreditsModal';
 import { NoActivePlanModal } from '../components/NoActivePlanModal';
 import { useAuth } from '../context/AuthContext';
 import { useBranding } from '../context/BrandingContext';
@@ -388,6 +389,16 @@ export function MainTabNavigator() {
           <NoActivePlanModal
             userId={user.id}
             expiredPlans={accountStatus?.expiredPlans ?? []}
+          />
+        ) : null}
+        {isDoctor &&
+        doctorActive &&
+        !planRestricted &&
+        user &&
+        accountStatus?.depletedPlans?.length ? (
+          <DepletedCreditsModal
+            userId={user.id}
+            depletedPlans={accountStatus.depletedPlans}
           />
         ) : null}
       </View>

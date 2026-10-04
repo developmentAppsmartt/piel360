@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Text, View } from 'react-native';
 import { Image } from 'expo-image';
+import { AnalysisWatermark } from './AnalysisWatermark';
 import { useBranding } from '../../../../context/BrandingContext';
 import { ANALYSIS_PROVIDER_STATIC_LABELS } from '../../../../data/analysisProviderLabel';
 import {
@@ -93,6 +94,7 @@ export function FitzpatrickResultsSection({
             style={styles.fitzViewerImage}
             contentFit="cover"
           />
+          <AnalysisWatermark />
         </View>
       ) : null}
 

@@ -52,6 +52,19 @@ export type AccountStatus = {
   /** Profesional verificado sin plan vigente: menú limitado. */
   planRestricted: boolean;
   expiredPlans: ExpiredPlanInfo[];
+  /** Planes vigentes que consumieron todos sus análisis. */
+  depletedPlans?: DepletedPlanInfo[];
+};
+
+export type DepletedPlanInfo = {
+  subscriptionId: string;
+  planName: string;
+  /** Opcional: versiones anteriores del API solo enviaban planes sin créditos. */
+  reason?: 'credits' | 'expired';
+  analysisLimit: number;
+  remaining?: number;
+  endsAt: string | null;
+  dataDeletionAt?: string | null;
 };
 
 export const EXPIRED_PLAN_DATA_RETENTION_DAYS = 60;
