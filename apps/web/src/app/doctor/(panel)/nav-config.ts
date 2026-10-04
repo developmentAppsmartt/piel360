@@ -37,7 +37,7 @@ export const doctorNav: NavItem[] = [
     permissionsAny: clinicalNavPermission("clinical.maps"),
     children: [
       {
-        label: "Médicos",
+        label: "Profesionales",
         href: "/doctor/mapas/medicos",
         icon: Stethoscope,
         permissionsAny: clinicalNavPermission("clinical.maps.doctors"),

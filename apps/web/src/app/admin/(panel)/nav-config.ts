@@ -69,7 +69,7 @@ export const adminNav: NavItem[] = [
     permissionsAny: adminNavPermission("admin.maps"),
     children: [
       {
-        label: "Médicos",
+        label: "Profesionales",
         href: "/admin/mapa/medicos",
         icon: Stethoscope,
         permissionsAny: adminNavPermission("admin.maps.doctors"),
