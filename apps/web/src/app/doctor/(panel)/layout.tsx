@@ -3,6 +3,7 @@
 // src/proxy.ts, que intercepta /doctor/(panel)/* antes de llegar aquí.
 import { redirect } from "next/navigation";
 import { isDoctorVerificationActive, toPublicProviderPermissions } from "@piel360/shared";
+import { DepletedCreditsNotice } from "@/components/doctor/depleted-credits-notice";
 import { NoActivePlanNotice } from "@/components/doctor/no-active-plan-notice";
 import { PanelShell } from "@/components/layout/panel-shell";
 import { fetchSessionStateFromCookies } from "@/lib/server-auth-permissions";
@@ -72,6 +73,12 @@ export default async function DoctorPanelLayout({
         <NoActivePlanNotice
           userId={session.sub}
           expiredPlans={account?.expiredPlans ?? []}
+        />
+      ) : null}
+      {active && !planRestricted && account?.depletedPlans?.length ? (
+        <DepletedCreditsNotice
+          userId={session.sub}
+          depletedPlans={account.depletedPlans}
         />
       ) : null}
       {children}

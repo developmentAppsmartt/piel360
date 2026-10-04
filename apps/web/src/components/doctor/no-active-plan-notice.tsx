@@ -46,8 +46,11 @@ export function NoActivePlanNotice({
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    // sessionStorage no existe en el server: se abre después del mount para
+    // no desincronizar la hidratación, que siempre arranca con open=false.
     if (sessionStorage.getItem(storageKey)) return;
     sessionStorage.setItem(storageKey, "1");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpen(true);
   }, [storageKey]);
 

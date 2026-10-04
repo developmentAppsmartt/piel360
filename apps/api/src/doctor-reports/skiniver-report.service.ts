@@ -233,7 +233,12 @@ export class SkiniverReportService {
       months,
       diagnosisRows.map((row) => ({
         period: row.period,
-        key: classifyDiagnosisClass(row.ai_diagnosis),
+        key: classifyDiagnosisClass(row.ai_diagnosis, {
+          label: row.ai_diagnosis
+            ? skiniverDiagnosisLabel(row.ai_diagnosis)
+            : null,
+          category: row.category ? skiniverCategoryLabel(row.category) : null,
+        }),
         count: row.count,
       })),
     );

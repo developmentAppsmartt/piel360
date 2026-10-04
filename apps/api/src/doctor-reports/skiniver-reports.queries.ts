@@ -69,6 +69,8 @@ function ageBucketCase(): Prisma.Sql {
 export interface SkiniverDiagnosisRow {
   period: string;
   ai_diagnosis: string | null;
+  /** `desease` de la IA: respaldo de la clase cuando el nombre no se reconoce. */
+  category: string | null;
   count: number;
 }
 
@@ -88,10 +90,11 @@ export function skiniverMonthlyDiagnosesQuery(
     SELECT
       to_char(date_trunc('month', a.created_at), 'YYYY-MM') AS period,
       a.ai_diagnosis                                        AS ai_diagnosis,
+      a.ai_raw_response->>'desease'                         AS category,
       COUNT(*)::int                                         AS count
     ${baseJoin(doctorIds, from, toExclusive)}
       AND a.ai_diagnosis IS NOT NULL
-    GROUP BY 1, 2
+    GROUP BY 1, 2, 3
   `;
 }
 

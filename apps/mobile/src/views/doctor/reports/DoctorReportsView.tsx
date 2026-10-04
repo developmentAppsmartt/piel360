@@ -29,7 +29,6 @@ import {
 } from '../../../types/skin-report';
 import { DoctorHeader } from '../patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
-import { AnalysisDetailView } from '../analyses/AnalysisDetailView';
 import {
   AgeDistributionBars,
   AgeGenderBars,
@@ -170,6 +169,10 @@ export function DoctorReportsView({
   const isDermatologicoTab = tab === 'dermatologico';
 
   if (openAnalysis) {
+    // require diferido: AnalysisDetailView → NosologyPicker → AppModuleChrome
+    // importa esta vista, y un import estático cierra el ciclo.
+    const { AnalysisDetailView } =
+      require('../analyses/AnalysisDetailView') as typeof import('../analyses/AnalysisDetailView');
     return (
       <AnalysisDetailView
         analysisId={openAnalysis.id}

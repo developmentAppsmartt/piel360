@@ -13,6 +13,7 @@ import { authService } from '../services/auth.service';
 import { doctorsService } from '../services/doctors.service';
 import {
   onAccountDisabled,
+  onCreditsConsumed,
   onSessionEnded,
   SESSION_REPLACED_MESSAGE,
 } from '../services/session-events';
@@ -179,7 +180,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     onAccountDisabled(() => void refreshAccountStatus());
-    return () => onAccountDisabled(null);
+    onCreditsConsumed(() => void refreshAccountStatus());
+    return () => {
+      onAccountDisabled(null);
+      onCreditsConsumed(null);
+    };
   }, [refreshAccountStatus]);
 
   // Un admin puede deshabilitar la cuenta o el plan puede vencer con la app abierta.

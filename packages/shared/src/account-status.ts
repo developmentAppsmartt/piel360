@@ -14,6 +14,23 @@ export type ExpiredPlanInfo = {
   dataDeletionAt: string;
 };
 
+/**
+ * Plan consumido mientras la cuenta conserva otro plan vigente: o gastó todos
+ * sus análisis (`credits`) o venció por fecha (`expired`).
+ */
+export type DepletedPlanInfo = {
+  subscriptionId: string;
+  planName: string;
+  reason: "credits" | "expired";
+  analysisLimit: number;
+  /** Análisis que le quedaban (0 si `credits`). */
+  remaining: number;
+  /** Fin de vigencia (ISO); `null` si no vence. */
+  endsAt: string | null;
+  /** Solo `expired`: `endsAt` + EXPIRED_PLAN_DATA_RETENTION_DAYS. */
+  dataDeletionAt: string | null;
+};
+
 export type AccountStatus = {
   disabled: boolean;
   disabledReason: string | null;
@@ -24,6 +41,8 @@ export type AccountStatus = {
   planRestricted: boolean;
   /** Planes vencidos más recientes (uno por plan) — vacío si nunca tuvo plan. */
   expiredPlans: ExpiredPlanInfo[];
+  /** Planes sin créditos o vencidos con otro plan aún vigente (vacío si `planRestricted`). */
+  depletedPlans: DepletedPlanInfo[];
 };
 
 /** Módulos del CRM que siguen disponibles sin plan activo. */
