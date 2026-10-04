@@ -52,6 +52,8 @@ export function AnalysisResultsView({
   const isYoucam = !!analysis.data?.youcamTaskId;
   const isFitzpatrick = !!analysis.data?.fitzpatrickTaskId;
   const isSkiniver = !isYoucam && !isFitzpatrick;
+  // Dermatologico y estetico piden observaciones; Fitzpatrick no.
+  const usesDoctorNotes = isSkiniver || isYoucam;
   const prediction = isSkiniver
     ? (analysis.data?.aiRawResponse as SkiniverPrediction | undefined)
     : undefined;
@@ -236,7 +238,7 @@ export function AnalysisResultsView({
             </p>
             {/* Las observaciones guardadas no se mostraban en ningún lado:
                 solo viajaban al backend al corregir. */}
-            {isSkiniver ? (
+            {usesDoctorNotes ? (
               <ModuleCard className="space-y-2 p-4">
                 <p className="text-xs font-medium text-muted-foreground">
                   Observaciones
@@ -260,7 +262,7 @@ export function AnalysisResultsView({
         ) : (
           <ConfirmAnalysisForm
             aiDiagnosis={analysis.data.aiDiagnosis}
-            requireNotes={isSkiniver}
+            requireNotes={usesDoctorNotes}
             initialNotes={analysis.data.doctorNotes ?? ""}
             onCancel={editingNotes ? () => setEditingNotes(false) : undefined}
             onSubmit={async (input) => {

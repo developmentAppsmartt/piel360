@@ -372,6 +372,7 @@ export function YoucamReportView({
           ageDiff != null ? skinAgeDifferenceMessage(ageDiff) : null,
         bandLabel: band ? youcamScoreBandLabel(band) : null,
         summary: buildSummary(scores, overall, skinTypeLabel),
+        notes: analysis.doctorNotes?.trim() || null,
         metrics: reportRows.map((row) => {
           const itemBand = youcamScoreBand(row.score);
           return {
@@ -590,6 +591,15 @@ export function YoucamReportView({
             <Text style={styles.summaryTitle}>RESUMEN</Text>
             <Text style={styles.summaryBody}>
               {buildSummary(scores, overall, skinTypeLabel)}
+            </Text>
+          </View>
+
+          <View style={styles.summaryBox}>
+            <Text style={styles.summaryTitle}>OBSERVACIONES DEL MÉDICO</Text>
+            <Text style={styles.summaryBody}>
+              {analysis.doctorNotes?.trim()
+                ? analysis.doctorNotes
+                : 'Sin observaciones del médico todavía.'}
             </Text>
           </View>
 

@@ -355,6 +355,17 @@ export function YoucamReportView({
           </p>
         </div>
 
+        <div className="rounded-xl bg-muted/50 p-4">
+          <p className="text-xs font-bold tracking-wide text-muted-foreground">
+            OBSERVACIONES DEL MÉDICO
+          </p>
+          <p className="mt-1 text-sm leading-relaxed whitespace-pre-line">
+            {analysis.doctorNotes?.trim()
+              ? analysis.doctorNotes
+              : "Sin observaciones del médico todavía."}
+          </p>
+        </div>
+
         <div className="flex justify-center py-2">
           <RadarChart scores={scores} color="var(--primary)" />
         </div>
