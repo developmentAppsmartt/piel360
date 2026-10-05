@@ -26,14 +26,6 @@ function formatDate(iso: string) {
   });
 }
 
-function joinPlanNames(names: string[]) {
-  if (names.length <= 1) return names;
-  return names.flatMap((name, index) => {
-    if (index === 0) return [name];
-    return [index === names.length - 1 ? " y " : ", ", name];
-  });
-}
-
 /**
  * Aviso de planes consumidos (sin créditos o vencidos) mientras la cuenta
  * conserva otro plan vigente. Se muestra una vez por sesión del navegador y
@@ -62,7 +54,6 @@ export function DepletedCreditsNotice({
     setOpen(true);
   }, [storageKey]);
 
-  const names = joinPlanNames(depletedPlans.map((plan) => plan.planName));
   const plural = depletedPlans.length > 1;
   const hasCredits = depletedPlans.some((plan) => plan.reason === "credits");
   const hasExpired = depletedPlans.some((plan) => plan.reason === "expired");
@@ -92,43 +83,29 @@ export function DepletedCreditsNotice({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="overflow-hidden p-0 sm:max-w-2xl">
-        <div className="pointer-events-none absolute -top-16 -left-16 size-44 rounded-full bg-primary/10" />
-        <div className="pointer-events-none absolute -right-16 -bottom-16 size-44 rounded-full bg-primary/10" />
+      <DialogContent className="overflow-hidden p-0 sm:max-w-xl">
+        <div className="pointer-events-none absolute -top-14 -left-14 size-36 rounded-full bg-primary/10" />
+        <div className="pointer-events-none absolute -right-14 -bottom-14 size-36 rounded-full bg-primary/10" />
 
-        <div className="relative space-y-5 px-6 pt-8 pb-6 text-center sm:px-10">
-          <div className="flex justify-center">
-            <Logo className="h-16" />
-          </div>
-          <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Gauge className="size-9" aria-hidden />
+        <div className="relative space-y-4 px-6 pt-7 pb-6 text-center sm:px-9">
+          <div className="flex items-center justify-center gap-3">
+            <Logo className="h-12" />
+            <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Gauge className="size-6" aria-hidden />
+            </span>
           </div>
 
-          <DialogTitle className="text-2xl font-bold text-primary sm:text-3xl">
+          <DialogTitle className="text-2xl font-bold text-primary sm:text-[1.7rem]">
             {copy.title}
           </DialogTitle>
-          <DialogDescription className="sr-only">
-            Uno o más planes se quedaron sin créditos o terminaron su vigencia.
+          <DialogDescription className="text-left text-sm text-foreground/80 sm:text-[15px]">
+            <strong className="text-primary">
+              ¡Esperamos que haya disfrutado mucho usando sus planes!
+            </strong>{" "}
+            {copy.body}
           </DialogDescription>
 
-          <div className="space-y-3 text-left text-sm text-foreground/80 sm:text-base">
-            <p>
-              ¡Esperamos que haya disfrutado mucho usando{" "}
-              {names.map((part, index) =>
-                index % 2 === 0 ? (
-                  <strong key={index} className="text-primary">
-                    {part}
-                  </strong>
-                ) : (
-                  <span key={index}>{part}</span>
-                ),
-              )}
-              !
-            </p>
-            <p>{copy.body}</p>
-          </div>
-
-          <div className="space-y-2 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-left">
+          <div className="space-y-2.5 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-left">
             <p className="text-xs font-semibold tracking-wide text-amber-800 uppercase">
               {copy.section}
             </p>
@@ -137,9 +114,9 @@ export function DepletedCreditsNotice({
                 const expired = plan.reason === "expired";
                 const Icon = expired ? CalendarX : BatteryLow;
                 return (
-                  <li key={plan.subscriptionId} className="flex items-center gap-4">
-                    <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
-                      <Icon className="size-6" aria-hidden />
+                  <li key={plan.subscriptionId} className="flex items-center gap-3">
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                      <Icon className="size-5" aria-hidden />
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="flex items-center gap-2 text-base font-bold text-foreground">
@@ -177,7 +154,7 @@ export function DepletedCreditsNotice({
             <Link
               href="/doctor/planes"
               onClick={() => setOpen(false)}
-              className="inline-flex h-12 items-center gap-2 rounded-xl bg-primary px-7 text-sm font-semibold text-primary-foreground shadow-md transition hover:opacity-90"
+              className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-7 text-sm font-semibold text-primary-foreground shadow-md transition hover:opacity-90"
             >
               {copy.cta}
               <ArrowRight className="size-4" />
