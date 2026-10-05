@@ -14,15 +14,15 @@ export function ImageWatermark({ className }: { className?: string }) {
     <span
       aria-hidden
       className={cn(
-        "pointer-events-none absolute right-1.5 bottom-1.5 z-10 w-[22%] max-w-[110px] min-w-[36px] select-none",
+        "pointer-events-none absolute right-1.5 bottom-1.5 z-10 w-[34%] max-w-[180px] min-w-[44px] select-none",
         className,
       )}
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- asset local; es un overlay decorativo, no contenido */}
       <img
-        src="/logo-piel360.png"
+        src="/piel-marca.png"
         alt=""
-        className="block h-auto w-full opacity-70 drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)]"
+        className="block h-auto w-full opacity-90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]"
       />
     </span>
   );
