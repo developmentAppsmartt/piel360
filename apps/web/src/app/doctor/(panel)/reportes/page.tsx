@@ -64,7 +64,11 @@ export default function ReportesPage() {
   const skiniver = useDoctorSkiniverReport(filters, isSkiniverTab);
   const team = useOrganizationTeam();
   const members = team.data?.members ?? [];
-  const showProfessionalFilter = members.length > 1;
+  // Solo el dueño filtra por profesional: el backend devuelve 403 a los demás
+  // (doctor-reports.service.ts#resolveDoctorIds) y el desplegable además les
+  // enseñaba los nombres del resto del equipo. Mismo criterio que Pacientes.
+  const showProfessionalFilter =
+    team.data?.memberRole === "owner" && members.length > 1;
 
   const isLifestyleTab =
     tab === "nacimiento" ||

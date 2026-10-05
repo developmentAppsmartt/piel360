@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Droplet, Sun } from "lucide-react";
+import { ImageWatermark } from "@/components/analyses/image-watermark";
 import { ModuleCard } from "@/components/ui/module-card";
 import { RecommendationsPanel } from "@/components/analyses/recommendations-panel";
 import {
@@ -300,6 +301,7 @@ function RegionCarousel({
                       className="absolute inset-0 size-full object-cover"
                     />
                   ) : null}
+                  <ImageWatermark className="right-0.5 bottom-0.5 w-[55%] min-w-0" />
                 </span>
                 <span
                   className={cn(
@@ -657,6 +659,9 @@ export function YoucamResultsSection({
               {badgeLabel}
             </span>
           ) : null}
+          {/* Fuera del contenedor que se escala: con el zoom la marca crecería
+              y podría salirse del encuadre. */}
+          {showBase || maskUrl ? <ImageWatermark className="bottom-3 right-3" /> : null}
         </div>
       </ModuleCard>
 

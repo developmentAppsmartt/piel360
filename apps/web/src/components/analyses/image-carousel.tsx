@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ImageWatermark } from "@/components/analyses/image-watermark";
 
 export function ImageCarousel({
   images,
@@ -34,10 +35,18 @@ export function ImageCarousel({
             alt={current.label}
             className="absolute inset-0 h-full w-full object-contain"
           />
+          <ImageWatermark />
         </div>
       ) : (
-        // eslint-disable-next-line @next/next/no-img-element -- URL firmada externa (S3), no apta para next/image
-        <img src={current.url} alt={current.label} className="w-full rounded-lg border border-border" />
+        <div className="relative w-full">
+          {/* eslint-disable-next-line @next/next/no-img-element -- URL firmada externa (S3), no apta para next/image */}
+          <img
+            src={current.url}
+            alt={current.label}
+            className="w-full rounded-lg border border-border"
+          />
+          <ImageWatermark />
+        </div>
       )}
       <div className="flex items-center justify-between">
         <Button
