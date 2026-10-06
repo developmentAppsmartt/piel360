@@ -4,6 +4,7 @@ import { LogOut } from "lucide-react";
 import Image from "next/image";
 import type { Role } from "@piel360/shared";
 import { logoutAction } from "@/lib/actions/auth";
+import { useClearClientQueryCache } from "@/lib/clear-client-query-cache";
 import { resolveRoleDisplayLabel } from "@/lib/user-role-display";
 import { useMyDoctorProfile } from "@/lib/queries/doctors";
 import { cn } from "@/lib/utils";
@@ -38,17 +39,19 @@ export function SidebarFooter({
   empresa?: boolean;
 }) {
   const profile = useMyDoctorProfile(enrichFromDoctorProfile);
+  const clearClientCache = useClearClientQueryCache();
+  const doctor = enrichFromDoctorProfile ? profile.data : undefined;
 
-  const displayName = profile.data
-    ? `${profile.data.firstName} ${profile.data.lastName}`.trim()
+  const displayName = doctor
+    ? `${doctor.firstName} ${doctor.lastName}`.trim()
     : name;
-  const displaySubtitle = profile.data
+  const displaySubtitle = doctor
     ? resolveRoleDisplayLabel(panelRole, {
-        specialty: profile.data.specialty,
+        specialty: doctor.specialty,
         empresa,
       })
     : subtitle;
-  const photo = profile.data?.avatarUrl ?? avatarUrl ?? null;
+  const photo = doctor?.avatarUrl ?? avatarUrl ?? null;
 
   return (
     <div className="mt-auto shrink-0 border-t border-sidebar-border bg-sidebar">
@@ -90,7 +93,13 @@ export function SidebarFooter({
         ) : null}
       </div>
 
-      <form action={logoutAction} className="border-t border-sidebar-border">
+      <form
+        action={async () => {
+          clearClientCache();
+          await logoutAction();
+        }}
+        className="border-t border-sidebar-border"
+      >
         <button
           type="submit"
           title={collapsed ? "Cerrar sesión" : undefined}

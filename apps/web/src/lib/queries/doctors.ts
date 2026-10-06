@@ -69,6 +69,8 @@ export interface Doctor {
   };
   /** Presente en verificación admin cuando es cuenta empresa / aliada. */
   organization?: DoctorOrganization | null;
+  /** Empresa aliada que invitó al profesional (equipo o referido). */
+  invitedByAlliedOrganization?: { id: string; name: string } | null;
 }
 
 export type DoctorOrganization = {

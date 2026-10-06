@@ -16,6 +16,8 @@ import type { DepletedPlanInfo } from '../types/auth';
 const LOGO = { uri: OFFLINE_LOGO_URI };
 const PLANS_WEB_URL = 'https://piel360.com/doctor/planes';
 const SUPPORT_EMAIL = 'soporte@piel360.com';
+/** Tope al tamaño de letra del sistema: sin él la tarjeta crece más que la pantalla. */
+const MAX_FONT_SCALE = 1.15;
 
 /** Combinaciones usuario + planes agotados ya avisadas mientras la app siga
  * abierta: si se agota otro plan, el aviso vuelve a aparecer. */
@@ -131,56 +133,66 @@ export function DepletedCreditsModal({
           </Pressable>
 
           <View style={styles.content}>
-            <Image source={LOGO} resizeMode="contain" style={styles.logo} />
-            <View style={[styles.iconWrap, { backgroundColor: `${primary}1A` }]}>
-              <GaugeIcon color={branding.colors.primaryDark} size={28} />
+            <View style={styles.header}>
+              <Image source={LOGO} resizeMode="contain" style={styles.logo} />
+              <View style={[styles.iconWrap, { backgroundColor: `${primary}1A` }]}>
+                <GaugeIcon color={branding.colors.primaryDark} size={22} />
+              </View>
             </View>
 
-            <Text style={[styles.title, { color: branding.colors.primaryDark }]}>
+            <Text
+              style={[styles.title, { color: branding.colors.primaryDark }]}
+              maxFontSizeMultiplier={MAX_FONT_SCALE}
+            >
               {copy.title}
             </Text>
 
-            <Text style={styles.paragraph}>
-              <Text style={[styles.strong, { color: primary }]}>
-                ¡Esperamos que haya disfrutado mucho usando sus planes!
-              </Text>{' '}
+            <Text style={styles.paragraph} maxFontSizeMultiplier={MAX_FONT_SCALE}>
               {copy.body}
             </Text>
 
             <View style={styles.depletedBox}>
-              <Text style={styles.depletedEyebrow}>{copy.section}</Text>
+              <Text style={styles.depletedEyebrow} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+                {copy.section}
+              </Text>
               {depletedPlans.map((plan) => {
                 const expired = plan.reason === 'expired';
                 return (
                   <View key={plan.subscriptionId} style={styles.depletedRow}>
                     <View style={styles.depletedIcon}>
                       {expired ? (
-                        <CalendarXIcon color="#B45309" />
+                        <CalendarXIcon color="#B45309" size={20} />
                       ) : (
-                        <BatteryLowIcon color="#B45309" />
+                        <BatteryLowIcon color="#B45309" size={20} />
                       )}
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.depletedName} numberOfLines={2}>
-                        {plan.planName}
-                      </Text>
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>
-                          {expired ? 'Vencido' : 'Sin créditos'}
+                      <View style={styles.nameRow}>
+                        <Text
+                          style={styles.depletedName}
+                          numberOfLines={1}
+                          maxFontSizeMultiplier={MAX_FONT_SCALE}
+                        >
+                          {plan.planName}
                         </Text>
+                        <View style={styles.badge}>
+                          <Text style={styles.badgeText} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+                            {expired ? 'Vencido' : 'Sin créditos'}
+                          </Text>
+                        </View>
                       </View>
-                      <Text style={styles.depletedMeta}>
+                      <Text style={styles.depletedMeta} maxFontSizeMultiplier={MAX_FONT_SCALE}>
                         <Text style={styles.depletedZero}>{plan.remaining ?? 0}</Text> de{' '}
                         {plan.analysisLimit} análisis {expired ? 'sin usar' : 'disponibles'}
                       </Text>
                       {plan.endsAt ? (
-                        <Text style={styles.depletedEnds}>
-                          {expired ? 'Venció el' : 'Vigente hasta'} {formatDate(plan.endsAt)}
-                        </Text>
-                      ) : null}
-                      {expired && plan.dataDeletionAt ? (
-                        <Text style={styles.deletion}>
-                          Datos del plan se conservan hasta {formatDate(plan.dataDeletionAt)}
+                        <Text style={styles.depletedEnds} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+                          {expired ? 'Venció' : 'Vigente hasta'} {formatDate(plan.endsAt)}
+                          {expired && plan.dataDeletionAt ? (
+                            <Text style={styles.deletion}>
+                              {' · '}datos hasta {formatDate(plan.dataDeletionAt)}
+                            </Text>
+                          ) : null}
                         </Text>
                       ) : null}
                     </View>
@@ -200,10 +212,12 @@ export function DepletedCreditsModal({
                 { backgroundColor: primary, opacity: pressed ? 0.85 : 1 },
               ]}
             >
-              <Text style={styles.buttonText}>{copy.cta} →</Text>
+              <Text style={styles.buttonText} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+                {copy.cta} →
+              </Text>
             </Pressable>
 
-            <Text style={styles.help}>
+            <Text style={styles.help} maxFontSizeMultiplier={MAX_FONT_SCALE}>
               ¿Necesita ayuda? Por favor{' '}
               <Text
                 style={[styles.link, { color: primary }]}
@@ -237,8 +251,8 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     position: 'absolute',
-    top: 14,
-    right: 16,
+    top: 12,
+    right: 14,
     zIndex: 2,
   },
   closeText: {
@@ -252,14 +266,19 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
     gap: 9,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   logo: {
-    width: 84,
-    height: 64,
+    width: 52,
+    height: 46,
   },
   iconWrap: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -273,9 +292,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     color: '#1F2937',
-  },
-  strong: {
-    fontWeight: '700',
   },
   depletedBox: {
     alignSelf: 'stretch',
@@ -296,53 +312,55 @@ const styles = StyleSheet.create({
   depletedRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   depletedIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: '#FEF3C7',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   depletedName: {
-    fontSize: 15,
+    flexShrink: 1,
+    fontSize: 14,
     fontWeight: '800',
     color: '#111827',
   },
   depletedMeta: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#4B5563',
-    marginTop: 2,
+    marginTop: 1,
   },
   depletedZero: {
     fontWeight: '800',
     color: '#92400E',
   },
   depletedEnds: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6B7280',
-    marginTop: 2,
+    marginTop: 1,
   },
   badge: {
-    alignSelf: 'flex-start',
-    marginTop: 3,
     borderRadius: 999,
     backgroundColor: '#FDE68A',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: 7,
+    paddingVertical: 1,
   },
   badgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: '#78350F',
   },
   deletion: {
-    fontSize: 12,
     fontWeight: '600',
     color: '#B91C1C',
-    marginTop: 2,
   },
   button: {
     alignSelf: 'stretch',
