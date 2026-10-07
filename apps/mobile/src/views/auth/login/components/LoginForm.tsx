@@ -237,6 +237,10 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
         </Text>
       </Text>
 
+      <Text style={styles.poweredBy}>
+        POWERED BY <Text style={styles.poweredByBrand}>PIEL360</Text>
+      </Text>
+
       {/* Oculto por temas legales: aún no se cuenta con estas certificaciones.
       <View style={styles.complianceBlock}>
         <View style={styles.complianceRow}>

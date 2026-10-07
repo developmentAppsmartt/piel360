@@ -209,6 +209,18 @@ export function createLoginStyles(colors: AppBranding['colors']) {
       fontWeight: '700',
       textDecorationLine: 'underline',
     },
+    poweredBy: {
+      marginTop: 14,
+      textAlign: 'center',
+      color: 'rgba(255,255,255,0.55)',
+      fontSize: 11,
+      fontWeight: '600',
+      letterSpacing: 1.2,
+    },
+    poweredByBrand: {
+      color: ACCENT,
+      fontWeight: '800',
+    },
     complianceBlock: {
       marginTop: 20,
       gap: 10,
