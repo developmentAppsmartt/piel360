@@ -47,6 +47,7 @@ export default async function DoctorPanelLayout({
     verificationStatus: session.verificationStatus,
     teamPermissions: session.teamPermissions,
     isOrgMember: session.isOrgMember,
+    organizationMemberRole: session.organizationMemberRole,
     planRestricted,
   };
 

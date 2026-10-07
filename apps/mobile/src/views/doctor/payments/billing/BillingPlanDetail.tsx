@@ -4,6 +4,8 @@ import { AppIcon } from '../../../../components/AppIcon';
 import { Icons, type AppIconName } from '../../../../components/icons';
 import type { Subscription } from '../../../../types/subscription';
 import type { BillingStyles } from '../styles/billing.styles';
+import { useBranding } from '../../../../context/BrandingContext';
+import { DEFAULT_BRANDING } from '../../../../config/branding.defaults';
 import { CreditsBar, PlanAvatar, StatusPill } from './BillingPlanCard';
 import {
   amountPaid,
@@ -86,6 +88,7 @@ export function BillingPlanDetail({
   primaryColor,
   onOpenHistory,
 }: BillingPlanDetailProps) {
+  const branding = useBranding();
   const category = billingCategory(sub);
   const theme = CATEGORY_THEME[category];
   const { left, total } = creditsOf(sub);
@@ -103,7 +106,7 @@ export function BillingPlanDetail({
     >
       <View style={styles.panel}>
         <View style={styles.heroTop}>
-          <PlanAvatar styles={styles} sub={sub} size={64} iconColor={primaryColor} />
+          <PlanAvatar styles={styles} sub={sub} size={64} iconColor={DEFAULT_BRANDING.colors.primary} />
           <View style={{ flex: 1, gap: 4 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <Text style={styles.heroName}>{sub.plan.name}</Text>
@@ -180,24 +183,24 @@ export function BillingPlanDetail({
         </View>
         <View style={styles.panelBody}>
           <View style={styles.billRow}>
-            <AppIcon icon={Icons.creditCard} size={16} color="#64748B" />
+            <AppIcon icon={Icons.creditCard} size={16} color={branding.colors.icon} />
             <Text style={styles.billLabel}>Valor del plan</Text>
             <Text style={styles.billValue}>{formatCop(amountPaid(sub))}</Text>
           </View>
           {iva > 0 ? (
             <View style={styles.billRow}>
-              <AppIcon icon={Icons.file} size={16} color="#64748B" />
+              <AppIcon icon={Icons.file} size={16} color={branding.colors.icon} />
               <Text style={styles.billLabel}>IVA incluido</Text>
               <Text style={styles.billValue}>{formatCop(iva)}</Text>
             </View>
           ) : null}
           <View style={styles.billRow}>
-            <AppIcon icon={Icons.calendarDay} size={16} color="#64748B" />
+            <AppIcon icon={Icons.calendarDay} size={16} color={branding.colors.icon} />
             <Text style={styles.billLabel}>Fecha de compra</Text>
             <Text style={styles.billValue}>{formatDate(purchaseDate(sub))}</Text>
           </View>
           <View style={[styles.billRow, { borderBottomWidth: 0 }]}>
-            <AppIcon icon={Icons.file} size={16} color="#64748B" />
+            <AppIcon icon={Icons.file} size={16} color={branding.colors.icon} />
             <Text style={styles.billLabel}>Factura</Text>
             <Pressable style={styles.invoiceBtn} onPress={() => openInvoice(sub)}>
               <Text style={styles.invoiceBtnText}>Ver factura</Text>
@@ -216,7 +219,7 @@ export function BillingPlanDetail({
           <Pressable style={styles.actionRow} onPress={onOpenHistory}>
             <AppIcon icon={Icons.creditCard} size={18} color={primaryColor} />
             <Text style={styles.actionText}>Ver historial de facturación</Text>
-            <AppIcon icon={Icons.chevronRight} size={20} color="#64748B" />
+            <AppIcon icon={Icons.chevronRight} size={20} color={branding.colors.icon} />
           </Pressable>
           <Pressable
             style={styles.actionRow}
@@ -224,7 +227,7 @@ export function BillingPlanDetail({
           >
             <AppIcon icon={Icons.clipboardList} size={18} color={primaryColor} />
             <Text style={styles.actionText}>Gestionar plan</Text>
-            <AppIcon icon={Icons.chevronRight} size={20} color="#64748B" />
+            <AppIcon icon={Icons.chevronRight} size={20} color={branding.colors.icon} />
           </Pressable>
         </View>
       </View>
@@ -241,10 +244,10 @@ export function BillingPlanDetail({
           </View>
         </View>
         <Pressable
-          style={styles.primaryBtn}
+          style={({ pressed }) => [styles.primaryBtn, pressed && { backgroundColor: branding.colors.buttonHover }]}
           onPress={() => void Linking.openURL(PLANS_WEB_URL)}
         >
-          <AppIcon icon={Icons.shopping} size={18} color="#FFFFFF" />
+          <AppIcon icon={Icons.shopping} size={18} color={branding.colors.buttonText} />
           <Text style={styles.primaryBtnText}>Comprar créditos</Text>
         </Pressable>
       </View>

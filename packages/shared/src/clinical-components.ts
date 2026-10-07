@@ -110,6 +110,13 @@ export const CLINICAL_COMPONENTS: readonly ClinicalComponentDef[] = [
     sortOrder: 113,
     parentSlug: "clinical.settings",
   },
+  {
+    slug: "clinical.settings.personalization",
+    label: "Personalización",
+    href: "/doctor/configuracion/personalizacion",
+    sortOrder: 114,
+    parentSlug: "clinical.settings",
+  },
   { slug: "clinical.support", label: "Soporte", href: "/doctor/soporte", sortOrder: 120 },
 ] as const;
 
@@ -134,8 +141,23 @@ export const EMPRESA_CLINICAL_COMPONENT_SLUGS = [
   "clinical.settings",
   "clinical.settings.account",
   "clinical.settings.team",
+  "clinical.settings.personalization",
   "clinical.support",
 ] as const;
+
+/**
+ * Módulos que solo ve el dueño de la cuenta: un miembro invitado al equipo de
+ * una empresa no los ve aunque su rol tenga el slug asignado.
+ */
+export const OWNER_ONLY_CLINICAL_HREFS = [
+  "/doctor/configuracion/personalizacion",
+] as const;
+
+export function isOwnerOnlyClinicalPath(pathname: string): boolean {
+  return OWNER_ONLY_CLINICAL_HREFS.some(
+    (href) => pathname === href || pathname.startsWith(`${href}/`),
+  );
+}
 
 export function clinicalComponentByHref(href: string): ClinicalComponentDef | undefined {
   return CLINICAL_COMPONENTS.find((component) => component.href === href);

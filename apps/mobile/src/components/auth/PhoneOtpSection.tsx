@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { authService } from '../../services/auth.service';
 import { ApiError } from '../../services/api.client';
+import { useBranding } from '../../context/BrandingContext';
 import {
   combinePhoneDigits,
   digitsOnly,
@@ -47,6 +48,7 @@ export function PhoneOtpSection({
   primaryColor = '#7C5CFF',
   onDark = '#FFFFFF',
 }: PhoneOtpSectionProps) {
+  const branding = useBranding();
   const phone = combinePhoneDigits(prefix, national);
   const phoneValid =
     digitsOnly(prefix).length >= 1 &&
@@ -170,14 +172,21 @@ export function PhoneOtpSection({
             boxBackground={inputBg}
           />
           <Pressable
-            style={[styles.verifyBtn, { backgroundColor: primaryColor }]}
+            style={({ pressed }) => [
+              styles.verifyBtn,
+              {
+                backgroundColor: pressed
+                  ? branding.colors.buttonHover
+                  : branding.colors.button,
+              },
+            ]}
             onPress={handleVerify}
             disabled={otpCode.trim().length < 4 || verifying || disabled}
           >
             {verifying ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <ActivityIndicator color={branding.colors.buttonText} />
             ) : (
-              <Text style={styles.verifyBtnText}>Verificar celular</Text>
+              <Text style={[styles.verifyBtnText, { color: branding.colors.buttonText }]}>Verificar celular</Text>
             )}
           </Pressable>
         </View>

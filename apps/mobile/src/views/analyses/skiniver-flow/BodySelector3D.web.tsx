@@ -12,6 +12,7 @@ import {
   type BodySelection,
 } from '../../../data/bodyRegions';
 import { normalizeModel, placeSavedPoint } from './bodyModelPlacement';
+import { useBranding } from '../../../context/BrandingContext';
 
 const femaleModule = require('../../../../assets/models/female/realistic_female_character_new.glb');
 const maleModule = require('../../../../assets/models/male/realistic_male_character_new.glb');
@@ -91,6 +92,7 @@ export function BodySelector3D({
   focusPoint = null,
   focusRegion = null,
 }: BodySelector3DProps) {
+  const branding = useBranding();
   const [gender, setGender] = useState<Gender>(initialGender);
   const [marker, setMarker] = useState<THREE.Vector3 | null>(
     focusPoint ? new THREE.Vector3(...focusPoint) : null,
@@ -167,9 +169,9 @@ export function BodySelector3D({
                   flex: 1,
                   padding: '10px 0',
                   borderRadius: 10,
-                  border: `1px solid ${active ? primaryColor : '#cbd5e1'}`,
-                  background: active ? primaryColor : '#fff',
-                  color: active ? '#fff' : '#334155',
+                  border: `1px solid ${active ? branding.colors.buttonHover : '#cbd5e1'}`,
+                  background: active ? branding.colors.buttonHover : '#fff',
+                  color: active ? branding.colors.buttonText : '#334155',
                   fontWeight: 600,
                   cursor: 'pointer',
                 }}

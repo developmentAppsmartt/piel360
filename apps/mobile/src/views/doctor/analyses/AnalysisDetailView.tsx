@@ -449,7 +449,7 @@ export function AnalysisDetailView({
             <AppIcon
               icon={Icons.back}
               size={22}
-              color={branding.colors.muted}
+              color={branding.colors.iconMuted}
             />
           </Pressable>
           <Text style={styles.cardTitle}>
@@ -465,7 +465,7 @@ export function AnalysisDetailView({
             <AppIcon
               icon={Icons.close}
               size={18}
-              color={branding.colors.muted}
+              color={branding.colors.iconMuted}
             />
           </Pressable>
         </View>
@@ -490,11 +490,9 @@ export function AnalysisDetailView({
 
             {showShare ? (
               <Pressable
-                style={[
-                  styles.shareBtn,
+                style={({ pressed }) => [styles.shareBtn,
                   analysis.sharedWithPatient && styles.shareBtnShared,
-                  sharing && styles.shareBtnDisabled,
-                ]}
+                  sharing && styles.shareBtnDisabled, pressed && { backgroundColor: branding.colors.buttonHover }]}
                 onPress={
                   analysis.sharedWithPatient ? handleUnshare : handleShare
                 }
@@ -505,7 +503,7 @@ export function AnalysisDetailView({
                     color={
                       analysis.sharedWithPatient
                         ? branding.colors.success
-                        : branding.colors.textOnDark
+                        : branding.colors.buttonText
                     }
                   />
                 ) : (
@@ -520,7 +518,7 @@ export function AnalysisDetailView({
                       color={
                         analysis.sharedWithPatient
                           ? branding.colors.success
-                          : branding.colors.textOnDark
+                          : branding.colors.buttonText
                       }
                     />
                     <Text

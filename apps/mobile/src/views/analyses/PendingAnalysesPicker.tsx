@@ -113,7 +113,7 @@ export function PendingAnalysesPicker({
             <AppIcon
               icon={Icons.chevronRight}
               size={20}
-              color={branding.colors.muted}
+              color={branding.colors.iconMuted}
             />
           </Pressable>
         ))}

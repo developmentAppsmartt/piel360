@@ -10,7 +10,7 @@ export function createChatStyles(colors: AppBranding['colors']) {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: '#F3F4F6',
+      backgroundColor: colors.screenBackground ?? '#F3F4F6',
     },
     header: {
       backgroundColor: colors.primary,
@@ -68,12 +68,12 @@ export function createChatStyles(colors: AppBranding['colors']) {
       width: 36,
       height: 36,
       borderRadius: 18,
-      backgroundColor: softPrimary(colors.primary),
+      backgroundColor: softPrimary(colors.icon),
       alignItems: 'center',
       justifyContent: 'center',
     },
     peerAvatarText: {
-      color: colors.primary,
+      color: colors.icon,
       fontWeight: '700',
       fontSize: 13,
     },
@@ -107,7 +107,7 @@ export function createChatStyles(colors: AppBranding['colors']) {
       paddingVertical: 10,
     },
     bubbleMe: {
-      backgroundColor: colors.primary,
+      backgroundColor: colors.loginAccent,
       borderBottomRightRadius: 4,
     },
     bubblePeer: {
@@ -119,7 +119,7 @@ export function createChatStyles(colors: AppBranding['colors']) {
       lineHeight: 21,
     },
     bubbleTextMe: {
-      color: colors.textOnDark,
+      color: colors.primaryText,
     },
     bubbleTextPeer: {
       color: colors.text,
@@ -130,7 +130,8 @@ export function createChatStyles(colors: AppBranding['colors']) {
       alignSelf: 'flex-end',
     },
     bubbleMetaMe: {
-      color: 'rgba(255,255,255,0.75)',
+      color: colors.primaryText,
+      opacity: 0.75,
     },
     bubbleMetaPeer: {
       color: colors.muted,
@@ -185,13 +186,13 @@ export function createChatStyles(colors: AppBranding['colors']) {
     attachmentIconText: {
       fontSize: 12,
       fontWeight: '800',
-      color: colors.primary,
+      color: colors.primaryText,
     },
     attachmentName: {
       flex: 1,
       fontSize: 13,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.secondaryText,
     },
     attachmentAction: {
       width: 32,
@@ -224,14 +225,14 @@ export function createChatStyles(colors: AppBranding['colors']) {
       alignItems: 'center',
       alignSelf: 'center',
       gap: 6,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       borderRadius: 999,
       paddingHorizontal: 14,
       paddingVertical: 8,
       height: 36,
     },
     quickChipText: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
       fontSize: 12,
       fontWeight: '700',
     },
@@ -277,12 +278,12 @@ export function createChatStyles(colors: AppBranding['colors']) {
       width: 44,
       height: 44,
       borderRadius: 12,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       alignItems: 'center',
       justifyContent: 'center',
     },
     sendBtnText: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
       fontSize: 18,
       fontWeight: '700',
     },

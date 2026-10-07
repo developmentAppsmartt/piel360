@@ -90,12 +90,19 @@ export function AnalysisRequestToast({
 
       <Pressable
         onPress={onPressDetail}
-        style={styles.cta}
+        style={({ pressed }) => [
+          styles.cta,
+          {
+            backgroundColor: pressed
+              ? branding.colors.buttonHover
+              : branding.colors.button,
+          },
+        ]}
         accessibilityRole="button"
         accessibilityLabel="Ver detalle de la solicitud"
       >
-        <Text style={styles.ctaText}>Ver detalle</Text>
-        <AppIcon icon={Icons.chevronRight} size={16} color="#FFFFFF" />
+        <Text style={[styles.ctaText, { color: branding.colors.buttonText }]}>Ver detalle</Text>
+        <AppIcon icon={Icons.chevronRight} size={16} color={branding.colors.buttonText} />
       </Pressable>
 
       <Pressable

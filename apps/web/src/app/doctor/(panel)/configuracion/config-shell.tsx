@@ -11,7 +11,7 @@ type ConfigTab = {
   id: string;
   label: string;
   href: string;
-  visible?: (ctx: { empresa: boolean }) => boolean;
+  visible?: (ctx: { empresa: boolean; showPersonalization: boolean }) => boolean;
 };
 
 const TABS: ConfigTab[] = [
@@ -22,7 +22,12 @@ const TABS: ConfigTab[] = [
     href: `${BASE}/equipos`,
     visible: ({ empresa }) => empresa,
   },
-  { id: "preferencias", label: "Preferencias", href: `${BASE}/preferencias` },
+  {
+    id: "personalizacion",
+    label: "Personalización",
+    href: `${BASE}/personalizacion`,
+    visible: ({ showPersonalization }) => showPersonalization,
+  },
 ];
 
 function isTabActive(pathname: string, href: string) {
@@ -30,12 +35,21 @@ function isTabActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function ConfiguracionShell({ children }: { children: React.ReactNode }) {
+export function ConfiguracionShell({
+  children,
+  showPersonalization,
+}: {
+  children: React.ReactNode;
+  /** Resuelto en el servidor: slug del módulo y no ser miembro invitado. */
+  showPersonalization: boolean;
+}) {
   const pathname = usePathname();
   const profile = useMyDoctorProfile();
   const empresa = profile.data ? isEnterpriseDoctor(profile.data) : false;
 
-  const tabs = TABS.filter((tab) => tab.visible?.({ empresa }) ?? true);
+  const tabs = TABS.filter(
+    (tab) => tab.visible?.({ empresa, showPersonalization }) ?? true,
+  );
 
   return (
     <div className="space-y-6">
@@ -45,8 +59,8 @@ export function ConfiguracionShell({ children }: { children: React.ReactNode }) 
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {empresa
-            ? "Administra tu empresa, equipo y preferencias."
-            : "Administra tu cuenta, equipo y preferencias."}
+            ? "Administra tu empresa, equipo y personalización."
+            : "Administra tu cuenta y personalización."}
         </p>
       </div>
 

@@ -71,7 +71,7 @@ export function RegisterView({ navigation }: Props) {
             {!isCard ? (
               <>
                 <View style={styles.logoWrap}>
-                  <BrandLogo height={120} style={styles.logo} />
+                  <BrandLogo variant="login" height={120} style={styles.logo} />
                 </View>
                 <Text style={styles.subtitle}>
                   Registro de paciente. Completa los pasos para crear tu cuenta.

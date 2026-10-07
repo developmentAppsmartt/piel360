@@ -418,7 +418,9 @@ export function PatientAgendaView({
                   },
                 ]}
               >
-                <Text style={styles.btnText}>Enviar solicitud</Text>
+                <Text style={[styles.btnText, styles.primaryBtnText]}>
+                  Enviar solicitud
+                </Text>
               </Pressable>
             </View>
 

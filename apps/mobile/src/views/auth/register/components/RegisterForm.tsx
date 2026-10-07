@@ -34,7 +34,6 @@ import {
 } from '../../../../lib/phone';
 import { AuthConsent } from '../../login/components/AuthConsent';
 import { AuthGradientButton } from '../../login/components/AuthGradientButton';
-import { AUTH_THEME } from '../../authTheme';
 import { createLoginStyles } from '../../login/styles/login.styles';
 import { LegalDocumentModal } from '../../../../components/legal/LegalDocumentModal';
 import type { LegalDocId } from '../../../../data/legal/documents';
@@ -100,7 +99,7 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const [legalDoc, setLegalDoc] = useState<LegalDocId | null>(null);
 
-  const primary = AUTH_THEME.purple;
+  const primary = branding.colors.primary;
   const onDark = branding.colors.textOnDark;
   const text = branding.colors.text;
   const { width: windowWidth } = useWindowDimensions();
@@ -535,7 +534,7 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
             mode="register"
             variant="card"
             disabled={submitting}
-            primaryColor={AUTH_THEME.purple}
+            primaryColor={branding.colors.primary}
           />
         </View>
 
@@ -566,7 +565,7 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
 
         <View style={styles.buttonRow}>
           <Pressable
-            style={styles.buttonSecondaryCard}
+            style={({ pressed }) => [styles.buttonSecondaryCard, pressed && { backgroundColor: branding.colors.buttonHover }]}
             onPress={() => goTo('profile')}
             disabled={submitting}
           >
@@ -646,7 +645,7 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
 
         <View style={styles.buttonRow}>
           <Pressable
-            style={styles.buttonSecondaryCard}
+            style={({ pressed }) => [styles.buttonSecondaryCard, pressed && { backgroundColor: branding.colors.buttonHover }]}
             onPress={goSurveyBack}
             disabled={submitting}
           >

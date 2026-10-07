@@ -281,9 +281,9 @@ export function ChangePasswordFlow({
                           gap: 12,
                           borderWidth: 2,
                           borderColor: selected
-                            ? branding.colors.primary
+                            ? branding.colors.icon
                             : pressed
-                              ? branding.colors.secondary
+                              ? `${branding.colors.icon}66`
                               : '#E5E7EB',
                           backgroundColor: selected
                             ? '#E8F1FB'
@@ -302,18 +302,14 @@ export function ChangePasswordFlow({
                           alignItems: 'center',
                           justifyContent: 'center',
                           backgroundColor: selected
-                            ? branding.colors.primary
-                            : '#E8F1FB',
+                            ? `${branding.colors.icon}33`
+                            : `${branding.colors.icon}1A`,
                         }}
                       >
                         <AppIcon
                           icon={option.icon}
                           size={22}
-                          color={
-                            selected
-                              ? '#FFFFFF'
-                              : branding.colors.primary
-                          }
+                          color={branding.colors.icon}
                         />
                       </View>
                       <Text
@@ -333,20 +329,20 @@ export function ChangePasswordFlow({
                           borderRadius: 11,
                           borderWidth: 2,
                           borderColor: selected
-                            ? branding.colors.primary
+                            ? branding.colors.icon
                             : '#CBD5E1',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          backgroundColor: selected
-                            ? branding.colors.primary
-                            : 'transparent',
-                        }}
+                          }}
                       >
                         {selected ? (
-                          <AppIcon
-                            icon={Icons.check}
-                            size={14}
-                            color="#FFFFFF"
+                          <View
+                            style={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: 5,
+                              backgroundColor: branding.colors.icon,
+                            }}
                           />
                         ) : null}
                       </View>
@@ -547,3 +543,4 @@ export function ForgotPasswordView({ navigation }: Props) {
     />
   );
 }
+

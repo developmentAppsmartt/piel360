@@ -32,7 +32,7 @@ export function CreatePatientSuccess({
         <AppIcon
           icon={Icons.smile}
           size={40}
-          color={branding.colors.primary}
+          color={branding.colors.icon}
         />
       </View>
       <Text style={styles.successTitle}>Nuevo Paciente Creado</Text>
@@ -48,7 +48,7 @@ export function CreatePatientSuccess({
         <Text style={styles.successLink}>ℹ Nuevo Análisis de Fototipo</Text>
       </Pressable>
 
-      <Pressable style={styles.successDone} onPress={onDone}>
+      <Pressable style={({ pressed }) => [styles.successDone, pressed && { backgroundColor: branding.colors.buttonHover }]} onPress={onDone}>
         <Text style={styles.nextBtnText}>Ir al listado</Text>
       </Pressable>
     </View>

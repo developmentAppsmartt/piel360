@@ -121,7 +121,7 @@ export function SkinDiseasesView({
               <AppIcon
                 icon={Icons.chevronRight}
                 size={18}
-                color={branding.colors.muted}
+                color={branding.colors.iconMuted}
               />
             </Pressable>
           ))}

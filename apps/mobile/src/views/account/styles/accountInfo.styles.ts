@@ -5,7 +5,7 @@ export function createAccountInfoStyles(colors: AppBranding['colors']) {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: colors.screenBackground ?? '#FFFFFF',
     },
     header: {
       flexDirection: 'row',
@@ -33,7 +33,7 @@ export function createAccountInfoStyles(colors: AppBranding['colors']) {
     body: {
       fontSize: 15,
       lineHeight: 22,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
   });
 }

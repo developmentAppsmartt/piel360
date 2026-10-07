@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { AppIcon } from '../../../components/AppIcon';
 import { Icons, type AppIconName } from '../../../components/icons';
 import { useBranding } from '../../../context/BrandingContext';
+import { DEFAULT_BRANDING } from '../../../config/branding.defaults';
 import { ApiError } from '../../../services/api.client';
 import {
   doctorsService,
@@ -266,12 +267,12 @@ export function PaymentsBillingView({
             <Text style={styles.totalValue}>{formatCop(billedTotal)}</Text>
             <Text style={styles.totalHint}>Últimos {BILLING_WINDOW_DAYS} días</Text>
           </View>
-          <AppIcon icon={Icons.chevronRight} size={22} color={branding.colors.primary} />
+          <AppIcon icon={Icons.chevronRight} size={22} color={branding.colors.icon} />
         </Pressable>
 
         <View style={styles.searchRow}>
           <View style={styles.searchBox}>
-            <AppIcon icon={Icons.search} size={18} color={branding.colors.muted} />
+            <AppIcon icon={Icons.search} size={18} color={branding.colors.iconMuted} />
             <TextInput
               style={styles.searchInput}
               value={query}
@@ -286,7 +287,7 @@ export function PaymentsBillingView({
             onPress={openSort}
             accessibilityLabel="Ordenar planes"
           >
-            <AppIcon icon={Icons.settings} size={18} color={branding.colors.primary} />
+            <AppIcon icon={Icons.settings} size={18} color={branding.colors.icon} />
           </Pressable>
         </View>
 
@@ -366,7 +367,7 @@ export function PaymentsBillingView({
                   key={sub.id}
                   styles={styles}
                   sub={sub}
-                  iconColor={branding.colors.primary}
+                  iconColor={DEFAULT_BRANDING.colors.primary}
                   onPress={() => push({ name: 'detail', subscriptionId: sub.id })}
                 />
               ))}
@@ -375,18 +376,18 @@ export function PaymentsBillingView({
         })}
 
         <Pressable style={styles.linkRow} onPress={() => push({ name: 'history' })}>
-          <AppIcon icon={Icons.creditCard} size={18} color={branding.colors.primary} />
+          <AppIcon icon={Icons.creditCard} size={18} color={branding.colors.icon} />
           <Text style={styles.linkRowText}>Historial de facturación</Text>
-          <AppIcon icon={Icons.chevronRight} size={20} color="#64748B" />
+          <AppIcon icon={Icons.chevronRight} size={20} color={branding.colors.icon} />
         </Pressable>
         {doctor ? (
           <Pressable
             style={styles.linkRow}
             onPress={() => push({ name: 'billingData' })}
           >
-            <AppIcon icon={Icons.doc} size={18} color={branding.colors.primary} />
+            <AppIcon icon={Icons.doc} size={18} color={branding.colors.icon} />
             <Text style={styles.linkRowText}>Datos de facturación</Text>
-            <AppIcon icon={Icons.chevronRight} size={20} color="#64748B" />
+            <AppIcon icon={Icons.chevronRight} size={20} color={branding.colors.icon} />
           </Pressable>
         ) : null}
       </ScrollView>
@@ -406,7 +407,7 @@ export function PaymentsBillingView({
         <BillingPlanDetail
           styles={styles}
           sub={selected}
-          primaryColor={branding.colors.primary}
+          primaryColor={branding.colors.icon}
           onOpenHistory={() => push({ name: 'history' })}
         />
       ) : (
@@ -454,7 +455,7 @@ export function PaymentsBillingView({
             onPress={openSupport}
             accessibilityLabel="Soporte"
           >
-            <AppIcon icon={Icons.support} size={20} color={branding.colors.muted} />
+            <AppIcon icon={Icons.support} size={20} color={branding.colors.iconMuted} />
           </Pressable>
         </View>
         {renderBody()}
@@ -462,3 +463,4 @@ export function PaymentsBillingView({
     </View>
   );
 }
+

@@ -58,8 +58,16 @@ export function HomeReminderCard({
 }: HomeReminderCardProps) {
   const branding = useBranding();
   const styles = useMemo(
-    () => createStyles(branding.colors.primary, branding.colors.primaryDark),
-    [branding.colors.primary, branding.colors.primaryDark],
+    () => createStyles(
+        branding.colors.primary,
+        branding.colors.primaryText,
+        branding.colors.secondaryTextOverride,
+      ),
+    [
+      branding.colors.primary,
+      branding.colors.primaryText,
+      branding.colors.secondaryTextOverride,
+    ],
   );
 
   const dateLabel = appointmentDataField(item.data, 'dateLabel');
@@ -131,7 +139,7 @@ export function HomeReminderCard({
             <AppIcon
               icon={Icons.calendarDay}
               size={14}
-              color={branding.colors.primary}
+              color={branding.colors.icon}
             />
             <Text style={styles.agendaLinkText}>
               Consulta tu cita en Agenda ›
@@ -147,7 +155,7 @@ export function HomeReminderCard({
             <AppIcon
               icon={Icons.chat}
               size={14}
-              color={branding.colors.primary}
+              color={branding.colors.icon}
             />
             <Text style={styles.agendaLinkText}>Abrir conversación ›</Text>
           </Pressable>
@@ -158,12 +166,19 @@ export function HomeReminderCard({
 
       <Pressable
         onPress={onPress}
-        style={styles.cta}
+        style={({ pressed }) => [
+          styles.cta,
+          {
+            backgroundColor: pressed
+              ? branding.colors.buttonHover
+              : branding.colors.button,
+          },
+        ]}
         accessibilityRole="button"
         accessibilityLabel={ctaLabel(item, role)}
       >
-        <Text style={styles.ctaText}>{ctaLabel(item, role)}</Text>
-        <AppIcon icon={Icons.chevronRight} size={16} color="#FFFFFF" />
+        <Text style={[styles.ctaText, { color: branding.colors.buttonText }]}>{ctaLabel(item, role)}</Text>
+        <AppIcon icon={Icons.chevronRight} size={16} color={branding.colors.buttonText} />
       </Pressable>
 
       <Pressable
@@ -176,7 +191,7 @@ export function HomeReminderCard({
         <AppIcon
           icon={Icons.close}
           size={16}
-          color={branding.colors.muted}
+          color={branding.colors.iconMuted}
         />
       </Pressable>
     </View>
@@ -229,7 +244,11 @@ const stylesStack = StyleSheet.create({
   },
 });
 
-function createStyles(primary: string, primaryDark: string) {
+function createStyles(
+  primary: string,
+  primaryText: string,
+  secondaryText: string | null,
+) {
   return StyleSheet.create({
     wrap: {
       flexDirection: 'row',
@@ -278,16 +297,16 @@ function createStyles(primary: string, primaryDark: string) {
     title: {
       fontSize: 14,
       fontWeight: '800',
-      color: primaryDark,
+      color: primaryText,
     },
     body: {
       fontSize: 12,
       lineHeight: 17,
-      color: '#4B5C6E',
+      color: secondaryText ?? '#4B5C6E',
     },
     when: {
       fontSize: 11,
-      color: '#94A3B8',
+      color: secondaryText ?? '#94A3B8',
       marginTop: 2,
     },
     metaBlock: {
@@ -301,11 +320,11 @@ function createStyles(primary: string, primaryDark: string) {
     },
     metaText: {
       fontSize: 12,
-      color: '#3A5570',
+      color: secondaryText ?? '#3A5570',
     },
     metaStrong: {
       fontWeight: '700',
-      color: primaryDark,
+      color: primaryText,
     },
     agendaLink: {
       flexDirection: 'row',

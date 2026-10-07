@@ -5,6 +5,7 @@ import { AppIcon } from '../../../../components/AppIcon';
 import { Icons, type AppIconName } from '../../../../components/icons';
 import { useAuth } from '../../../../context/AuthContext';
 import { useBranding } from '../../../../context/BrandingContext';
+import { DEFAULT_BRANDING } from '../../../../config/branding.defaults';
 import {
   clinicalModulesService,
   type ClinicalSideModule,
@@ -72,6 +73,9 @@ const PATIENT_MENU: MenuItem[] = [
   { id: 'salir', label: 'Salir', icon: Icons.logout },
 ];
 
+/** Únicos ítems del menú que toman los colores de la personalización. */
+const BRANDED_ITEMS: AccountMenuId[] = ['perfil', 'config'];
+
 /** Sin plan activo solo quedan cuenta, reportes y soporte. */
 const NO_PLAN_HIDDEN_ITEMS: AccountMenuId[] = [
   'fototipo',
@@ -95,6 +99,15 @@ export function AccountDrawer({
 }: AccountDrawerProps) {
   const insets = useSafeAreaInsets();
   const branding = useBranding();
+  const { icon, primaryText } = branding.colors;
+  const menuIconColor =
+    icon.toUpperCase() === DEFAULT_BRANDING.colors.icon.toUpperCase()
+      ? branding.colors.muted
+      : icon;
+  const brandedTextColor =
+    primaryText.toUpperCase() === DEFAULT_BRANDING.colors.primaryText.toUpperCase()
+      ? null
+      : primaryText;
   const styles = useMemo(
     () => createAccountDrawerStyles(branding.colors),
     [branding.colors],
@@ -151,20 +164,32 @@ export function AccountDrawer({
                     style={styles.item}
                     onPress={() => setSecurityOpen((v) => !v)}
                   >
-                    <AppIcon icon={item.icon} size={20} color={branding.colors.muted} />
+                    <AppIcon icon={item.icon} size={20} color={menuIconColor} />
                     <Text style={styles.itemLabel}>{item.label}</Text>
                     <Text style={styles.chevron}>{securityOpen ? '▾' : '▸'}</Text>
                   </Pressable>
                 );
               }
+              const branded = BRANDED_ITEMS.includes(item.id);
               return (
                 <Pressable
                   key={item.id}
                   style={[styles.item, item.nested && styles.itemNested]}
                   onPress={() => onSelect(item.id)}
                 >
-                  <AppIcon icon={item.icon} size={20} color={branding.colors.muted} />
-                  <Text style={styles.itemLabel}>{item.label}</Text>
+                  <AppIcon
+                    icon={item.icon}
+                    size={20}
+                    color={menuIconColor}
+                  />
+                  <Text
+                    style={[
+                      styles.itemLabel,
+                      branded && brandedTextColor ? { color: brandedTextColor } : null,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
                 </Pressable>
               );
             })}

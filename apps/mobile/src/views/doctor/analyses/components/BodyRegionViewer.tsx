@@ -65,7 +65,7 @@ export function BodyRegionViewer({
             onPress={onClose}
             accessibilityLabel="Cerrar figura"
           >
-            <AppIcon icon={Icons.close} size={18} color={branding.colors.muted} />
+            <AppIcon icon={Icons.close} size={18} color={branding.colors.iconMuted} />
           </Pressable>
         </View>
 
@@ -80,10 +80,12 @@ export function BodyRegionViewer({
         </View>
 
         <Pressable
-          style={[styles.closeAction, { backgroundColor: branding.colors.primary }]}
+          style={[styles.closeAction, { backgroundColor: branding.colors.button }]}
           onPress={onClose}
         >
-          <Text style={styles.closeActionText}>Cerrar</Text>
+          <Text style={[styles.closeActionText, { color: branding.colors.buttonText }]}>
+            Cerrar
+          </Text>
         </Pressable>
       </View>
     </Modal>

@@ -10,7 +10,7 @@ export function createYoucamFlowStyles(colors: AppBranding['colors']) {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: soft(colors.primary, '18'),
+      backgroundColor: colors.screenBackground ?? soft(colors.primary, '18'),
     },
     card: {
       flex: 1,
@@ -20,7 +20,7 @@ export function createYoucamFlowStyles(colors: AppBranding['colors']) {
       backgroundColor: '#FFFFFF',
       borderRadius: 20,
       borderWidth: 1.5,
-      borderColor: soft(colors.primary, '55'),
+      borderColor: soft(colors.icon, '55'),
       paddingHorizontal: 20,
       paddingTop: 22,
       paddingBottom: 18,
@@ -36,20 +36,20 @@ export function createYoucamFlowStyles(colors: AppBranding['colors']) {
       marginTop: 6,
       fontSize: 14,
       fontWeight: '600',
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       textAlign: 'center',
       marginBottom: 16,
     },
     body: {
       fontSize: 14,
       lineHeight: 21,
-      color: colors.text,
+      color: colors.secondaryText,
       marginBottom: 12,
     },
     bullet: {
       fontSize: 13,
       lineHeight: 20,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       marginBottom: 14,
     },
     link: {
@@ -78,18 +78,18 @@ export function createYoucamFlowStyles(colors: AppBranding['colors']) {
       marginTop: 2,
     },
     checkboxOn: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
+      backgroundColor: colors.buttonHover,
+      borderColor: colors.buttonHover,
     },
     checkLabel: {
       flex: 1,
       fontSize: 13,
       lineHeight: 19,
-      color: colors.text,
+      color: colors.secondaryText,
       fontWeight: '600',
     },
     primaryBtn: {
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       borderRadius: 14,
       paddingVertical: 16,
       alignItems: 'center',
@@ -98,7 +98,7 @@ export function createYoucamFlowStyles(colors: AppBranding['colors']) {
       opacity: 0.45,
     },
     primaryBtnText: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
       fontSize: 16,
       fontWeight: '800',
     },
@@ -131,7 +131,7 @@ export function createYoucamFlowStyles(colors: AppBranding['colors']) {
       fontSize: 14,
       lineHeight: 20,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.secondaryText,
     },
     footerLogo: {
       marginTop: 'auto',
@@ -141,7 +141,7 @@ export function createYoucamFlowStyles(colors: AppBranding['colors']) {
     footerLogoText: {
       fontSize: 13,
       fontWeight: '800',
-      color: colors.primary,
+      color: colors.primaryText,
       letterSpacing: 1,
     },
     cancel: {
@@ -149,7 +149,7 @@ export function createYoucamFlowStyles(colors: AppBranding['colors']) {
       marginTop: 12,
     },
     cancelText: {
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       fontWeight: '600',
       fontSize: 14,
     },

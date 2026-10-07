@@ -112,10 +112,15 @@ export function AccountDisabledView() {
           onPress={() => void Linking.openURL(`mailto:${SUPPORT_EMAIL}`)}
           style={({ pressed }) => [
             styles.button,
-            { backgroundColor: primary, opacity: pressed ? 0.85 : 1 },
+            {
+              backgroundColor: pressed
+                ? branding.colors.buttonHover
+                : branding.colors.button,
+              opacity: pressed ? 0.85 : 1,
+            },
           ]}
         >
-          <Text style={styles.buttonText}>Contactar a soporte</Text>
+          <Text style={[styles.buttonText, { color: branding.colors.buttonText }]}>Contactar a soporte</Text>
         </Pressable>
 
         <View style={styles.row}>

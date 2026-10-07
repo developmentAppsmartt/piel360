@@ -28,11 +28,11 @@ export function createYoucamResultsStyles(
       color: colors.text,
     },
     summaryMuted: {
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       fontWeight: '600',
     },
     summaryAccent: {
-      color: colors.primary,
+      color: colors.primaryText,
       fontWeight: '800',
     },
     summaryPositive: {
@@ -66,7 +66,7 @@ export function createYoucamResultsStyles(
       top: 0,
       fontSize: 11,
       fontWeight: '800',
-      color: colors.primary,
+      color: colors.primaryText,
       transform: [{ translateX: -8 }],
     },
     scoreBarMax: {
@@ -86,7 +86,7 @@ export function createYoucamResultsStyles(
     scoreBarFill: {
       height: 8,
       borderRadius: 4,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.icon,
     },
     viewer: {
       width: '100%',
@@ -117,7 +117,7 @@ export function createYoucamResultsStyles(
       position: 'absolute',
       bottom: s(12),
       left: s(12),
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       borderRadius: 999,
       paddingHorizontal: s(12),
       paddingVertical: s(6),
@@ -151,7 +151,7 @@ export function createYoucamResultsStyles(
       marginTop: -1,
     },
     viewerBadgeText: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
       fontSize: tablet ? s(12) + 3 : 14,
       fontWeight: '800',
     },
@@ -410,7 +410,7 @@ export function createYoucamResultsStyles(
     catalogEmpty: {
       fontSize: 12,
       lineHeight: 18,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       paddingHorizontal: 4,
     },
     recBlock: {
@@ -474,7 +474,7 @@ export function createYoucamResultsStyles(
     recSeeAll: {
       fontSize: 12,
       fontWeight: '700',
-      color: colors.primary,
+      color: colors.primaryText,
     },
     recSectionRule: {
       height: 2,
@@ -533,7 +533,7 @@ export function createYoucamResultsStyles(
     },
     recHiddenHint: {
       fontSize: 12,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       fontWeight: '600',
       paddingVertical: 4,
     },
@@ -559,7 +559,7 @@ export function createYoucamResultsStyles(
       ...appShadow({ opacity: 0.06, radius: 8, offsetY: 2, elevation: 2 }),
     },
     routineCardOn: {
-      borderColor: colors.primary,
+      borderColor: colors.buttonHover,
       borderWidth: 1.5,
       backgroundColor: '#FFFFFF',
     },
@@ -620,7 +620,7 @@ export function createYoucamResultsStyles(
       flex: 1,
       fontSize: 11,
       fontWeight: '600',
-      color: colors.primary,
+      color: colors.secondaryText,
     },
     routineDetail: {
       flexDirection: tablet ? 'row' : 'column',
@@ -643,7 +643,7 @@ export function createYoucamResultsStyles(
     routineDetailText: {
       fontSize: 12,
       lineHeight: 18,
-      color: colors.text,
+      color: colors.secondaryText,
     },
     routineMomentRow: {
       flexDirection: 'row',
@@ -659,16 +659,16 @@ export function createYoucamResultsStyles(
       paddingHorizontal: 8,
       paddingVertical: 4,
       borderWidth: 1,
-      borderColor: soft(colors.primary, '33'),
+      borderColor: soft(colors.icon, '33'),
     },
     routineMomentText: {
       fontSize: 11,
       fontWeight: '700',
-      color: colors.primary,
+      color: colors.primaryText,
     },
     routineSkinHint: {
       fontSize: 11,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       fontWeight: '600',
     },
     routineMediaCol: {
@@ -758,7 +758,7 @@ export function createYoucamResultsStyles(
     recoCardSub: {
       fontSize: 11,
       fontWeight: '700',
-      color: colors.primary,
+      color: colors.primaryText,
       paddingHorizontal: 8,
       paddingBottom: 10,
       paddingTop: 2,
@@ -768,7 +768,7 @@ export function createYoucamResultsStyles(
       marginHorizontal: 8,
       marginBottom: 10,
       paddingHorizontal: 0,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       fontWeight: '600',
     },
     viewerEmpty: {
@@ -788,42 +788,15 @@ export function createYoucamResultsStyles(
     },
     actionBtn: {
       flex: 1,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       borderRadius: 14,
       paddingVertical: 14,
       alignItems: 'center',
     },
     actionBtnText: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
       fontWeight: '800',
       fontSize: 14,
-    },
-    scoreModeRow: {
-      flexDirection: 'row',
-      alignSelf: 'flex-start',
-      backgroundColor: '#F3F4F6',
-      borderRadius: 999,
-      padding: 3,
-      gap: 0,
-    },
-    scoreModeBtn: {
-      borderRadius: 999,
-      borderWidth: 0,
-      backgroundColor: 'transparent',
-      paddingHorizontal: 14,
-      paddingVertical: 7,
-    },
-    scoreModeBtnOn: {
-      borderColor: 'transparent',
-      backgroundColor: colors.primary,
-    },
-    scoreModeText: {
-      fontSize: 12,
-      fontWeight: '700',
-      color: colors.muted,
-    },
-    scoreModeTextOn: {
-      color: colors.textOnDark,
     },
     regionRow: {
       flexDirection: 'row',
@@ -839,7 +812,7 @@ export function createYoucamResultsStyles(
       paddingVertical: 6,
     },
     regionPillOn: {
-      borderColor: colors.primary,
+      borderColor: colors.buttonHover,
       backgroundColor: soft(colors.primary, '14'),
     },
     regionPillText: {
@@ -873,7 +846,7 @@ export function createYoucamResultsStyles(
     metricScrollFill: {
       height: '100%',
       borderRadius: 999,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.icon,
     },
     metricChip: {
       width: 78,
@@ -893,7 +866,7 @@ export function createYoucamResultsStyles(
       overflow: 'hidden',
     },
     metricRingActive: {
-      borderColor: colors.primary,
+      borderColor: colors.buttonHover,
       backgroundColor: soft(colors.primary, '14'),
     },
     metricRingScore: {
@@ -933,7 +906,7 @@ export function createYoucamResultsStyles(
     zonePanelTitle: {
       fontSize: 14,
       fontWeight: '800',
-      color: colors.primary,
+      color: colors.primaryText,
     },
     zoneRow: {
       flexDirection: 'row',
@@ -958,7 +931,7 @@ export function createYoucamResultsStyles(
     },
     zoneRowSub: {
       fontSize: 11,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       fontWeight: '500',
     },
     zoneRowValue: {
@@ -984,7 +957,7 @@ export function createYoucamResultsStyles(
       borderRadius: 16,
       padding: 14,
       borderWidth: 1,
-      borderColor: soft(colors.primary, '22'),
+      borderColor: soft(colors.icon, '22'),
       flexDirection: 'row',
       alignItems: 'flex-start',
       gap: 10,
@@ -996,12 +969,12 @@ export function createYoucamResultsStyles(
     copyText: {
       fontSize: 13,
       lineHeight: 19,
-      color: colors.text,
+      color: colors.secondaryText,
     },
     // Progress
     progressScreen: {
       flex: 1,
-      backgroundColor: soft(colors.primary, '18'),
+      backgroundColor: colors.screenBackground ?? soft(colors.primary, '18'),
     },
     progressCard: {
       flex: 1,
@@ -1034,7 +1007,7 @@ export function createYoucamResultsStyles(
       borderRadius: 999,
     },
     toggleBtnOn: {
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
     },
     toggleText: {
       fontSize: 13,
@@ -1042,7 +1015,7 @@ export function createYoucamResultsStyles(
       color: colors.muted,
     },
     toggleTextOn: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
     },
     legendRow: {
       flexDirection: 'row',
@@ -1063,7 +1036,7 @@ export function createYoucamResultsStyles(
     legendText: {
       fontSize: 12,
       fontWeight: '600',
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     barRow: {
       marginBottom: 12,
@@ -1089,7 +1062,7 @@ export function createYoucamResultsStyles(
     },
     barMeta: {
       fontSize: 11,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       marginTop: 2,
     },
     toggleHint: {
@@ -1123,8 +1096,8 @@ export function createYoucamResultsStyles(
       borderColor: '#E5E7EB',
     },
     categoryChipOn: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
+      backgroundColor: colors.buttonHover,
+      borderColor: colors.buttonHover,
     },
     categoryChipText: {
       fontSize: 12,
@@ -1133,7 +1106,7 @@ export function createYoucamResultsStyles(
       flexShrink: 0,
     },
     categoryChipTextOn: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
     },
     colChartScroll: {
       paddingBottom: 16,
@@ -1183,7 +1156,7 @@ export function createYoucamResultsStyles(
     },
     note: {
       fontSize: 13,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       lineHeight: 18,
       backgroundColor: '#F9FAFB',
       borderRadius: 12,
@@ -1221,7 +1194,7 @@ export function createYoucamResultsStyles(
       width: 72,
       height: 72,
       borderRadius: 12,
-      backgroundColor: soft(colors.primary, '22'),
+      backgroundColor: soft(colors.icon, '22'),
       overflow: 'hidden',
       alignItems: 'center',
       justifyContent: 'center',
@@ -1238,11 +1211,11 @@ export function createYoucamResultsStyles(
     reportMetaText: {
       fontSize: 13,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.secondaryText,
     },
     reportMetaMuted: {
       fontSize: 12,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     reportStats: {
       gap: 4,
@@ -1251,7 +1224,7 @@ export function createYoucamResultsStyles(
     bandLabel: {
       fontSize: 13,
       fontWeight: '700',
-      color: colors.primary,
+      color: colors.primaryText,
       marginTop: 4,
     },
     rangeTrack: {
@@ -1313,7 +1286,7 @@ export function createYoucamResultsStyles(
     summaryBody: {
       fontSize: 13,
       lineHeight: 19,
-      color: colors.text,
+      color: colors.secondaryText,
     },
     sectionHeading: {
       fontSize: 14,
@@ -1396,7 +1369,7 @@ export function createYoucamResultsStyles(
     },
     metricRowScaleText: {
       fontSize: 10,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       fontWeight: '600',
     },
     metricAdviceBox: {
@@ -1407,7 +1380,7 @@ export function createYoucamResultsStyles(
     metricAdviceText: {
       fontSize: 13,
       lineHeight: 19,
-      color: colors.text,
+      color: colors.secondaryText,
       fontWeight: '500',
     },
     radarWrap: {

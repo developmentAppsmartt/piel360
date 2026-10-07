@@ -77,7 +77,6 @@ export function DepletedCreditsModal({
   depletedPlans: DepletedPlanInfo[];
 }) {
   const branding = useBranding();
-  const primary = branding.colors.primary;
   const [visible, setVisible] = useState(false);
   const several = depletedPlans.length > 1;
   const hasCredits = depletedPlans.some((plan) => plan.reason !== 'expired');
@@ -129,19 +128,19 @@ export function DepletedCreditsModal({
             style={styles.closeButton}
             hitSlop={12}
           >
-            <Text style={[styles.closeText, { color: branding.colors.primaryDark }]}>✕</Text>
+            <Text style={[styles.closeText, { color: branding.colors.iconMuted }]}>✕</Text>
           </Pressable>
 
           <View style={styles.content}>
             <View style={styles.header}>
               <Image source={LOGO} resizeMode="contain" style={styles.logo} />
-              <View style={[styles.iconWrap, { backgroundColor: `${primary}1A` }]}>
-                <GaugeIcon color={branding.colors.primaryDark} size={22} />
+              <View style={[styles.iconWrap, { backgroundColor: `${branding.colors.icon}1A` }]}>
+                <GaugeIcon color={branding.colors.icon} size={22} />
               </View>
             </View>
 
             <Text
-              style={[styles.title, { color: branding.colors.primaryDark }]}
+              style={[styles.title, { color: branding.colors.primaryText }]}
               maxFontSizeMultiplier={MAX_FONT_SCALE}
             >
               {copy.title}
@@ -209,10 +208,15 @@ export function DepletedCreditsModal({
               }}
               style={({ pressed }) => [
                 styles.button,
-                { backgroundColor: primary, opacity: pressed ? 0.85 : 1 },
+                {
+              backgroundColor: pressed
+                ? branding.colors.buttonHover
+                : branding.colors.button,
+              opacity: pressed ? 0.85 : 1,
+            },
               ]}
             >
-              <Text style={styles.buttonText} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+              <Text style={[styles.buttonText, { color: branding.colors.buttonText }]} maxFontSizeMultiplier={MAX_FONT_SCALE}>
                 {copy.cta} →
               </Text>
             </Pressable>
@@ -220,7 +224,7 @@ export function DepletedCreditsModal({
             <Text style={styles.help} maxFontSizeMultiplier={MAX_FONT_SCALE}>
               ¿Necesita ayuda? Por favor{' '}
               <Text
-                style={[styles.link, { color: primary }]}
+                style={[styles.link, { color: branding.colors.primaryText }]}
                 onPress={() => void Linking.openURL(`mailto:${SUPPORT_EMAIL}`)}
               >
                 contacte con nosotros

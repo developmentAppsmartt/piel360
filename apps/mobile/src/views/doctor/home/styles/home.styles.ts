@@ -10,7 +10,7 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: '#F5F6FA',
+      backgroundColor: colors.screenBackground ?? '#F5F6FA',
     },
     scroll: { flex: 1 },
     scrollContent: {
@@ -38,10 +38,14 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
       width: 64,
       height: 64,
       borderRadius: 32,
-      backgroundColor: soft(colors.primary, '33'),
+      backgroundColor: soft(colors.icon, '33'),
       overflow: 'hidden',
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    companyLogo: {
+      width: 96,
+      height: 56,
     },
     avatarImage: {
       width: 64,
@@ -51,7 +55,7 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
     avatarText: {
       fontSize: 18,
       fontWeight: '800',
-      color: colors.primary,
+      color: colors.icon,
     },
     bellBtn: {
       width: 42,
@@ -63,7 +67,7 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
     },
     welcomeLabel: {
       fontSize: 15,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     welcomeNameRow: {
       flexDirection: 'row',
@@ -74,7 +78,7 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
     welcomeName: {
       fontSize: 24,
       fontWeight: '800',
-      color: colors.primary,
+      color: colors.primaryText,
       letterSpacing: -0.3,
       flexShrink: 1,
     },
@@ -121,7 +125,7 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
     statValue: {
       fontSize: 22,
       fontWeight: '800',
-      color: colors.primary,
+      color: colors.primaryText,
     },
     statLabel: {
       fontSize: 11,
@@ -133,7 +137,7 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
     statHint: {
       fontSize: 9,
       fontWeight: '600',
-      color: colors.primary,
+      color: colors.secondaryText,
       lineHeight: 12,
       textAlign: 'center',
       marginTop: 1,
@@ -162,7 +166,7 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
       paddingHorizontal: 12,
     },
     actionBtnText: {
-      color: colors.textOnDark,
+      color: colors.buttonGradientText,
       fontSize: 14,
       fontWeight: '700',
       textAlign: 'center',
@@ -202,14 +206,14 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
       width: 40,
       height: 40,
       borderRadius: 20,
-      backgroundColor: soft(colors.secondary, '28'),
+      backgroundColor: soft(colors.icon, '28'),
       alignItems: 'center',
       justifyContent: 'center',
     },
     activityAvatarText: {
       fontSize: 13,
       fontWeight: '800',
-      color: colors.secondary,
+      color: colors.icon,
     },
     activityBody: {
       flex: 1,
@@ -222,7 +226,7 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
     },
     activityMeta: {
       fontSize: 12,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     badge: {
       borderRadius: 999,
@@ -268,7 +272,7 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
     },
     emptyText: {
       fontSize: 14,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       textAlign: 'center',
     },
     loading: {
@@ -315,7 +319,7 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
     },
     statsPieSub: {
       fontSize: 13,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       marginBottom: 8,
     },
     statsMetaRow: {
@@ -339,7 +343,7 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
     statsMetaLabel: {
       fontSize: 12,
       fontWeight: '600',
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
   });
 }

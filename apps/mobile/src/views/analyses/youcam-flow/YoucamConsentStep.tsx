@@ -71,7 +71,7 @@ export function YoucamConsentStep({
         </Pressable>
 
         <Pressable
-          style={[styles.primaryBtn, !accepted && styles.primaryBtnDisabled]}
+          style={({ pressed }) => [styles.primaryBtn, !accepted && styles.primaryBtnDisabled, pressed && { backgroundColor: branding.colors.buttonHover }]}
           disabled={!accepted}
           onPress={onNext}
         >

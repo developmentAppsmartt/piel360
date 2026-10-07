@@ -6,10 +6,8 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useBranding } from '../../../../context/BrandingContext';
 import type { LoginStyles } from '../styles/login.styles';
-import { AUTH_THEME } from '../../authTheme';
-
-const GRADIENT_COLORS = AUTH_THEME.gradient;
 
 type AuthGradientButtonProps = {
   label: string;
@@ -28,6 +26,7 @@ export function AuthGradientButton({
   styles,
   containerStyle,
 }: AuthGradientButtonProps) {
+  const branding = useBranding();
   return (
     <Pressable
       onPress={onPress}
@@ -39,18 +38,24 @@ export function AuthGradientButton({
         (disabled || loading) && styles.buttonDisabled,
       ]}
     >
-      <LinearGradient
-        colors={[...GRADIENT_COLORS]}
-        start={{ x: 0, y: 0.5 }}
-        end={{ x: 1, y: 0.5 }}
-        style={styles.button}
-      >
-        {loading ? (
-          <ActivityIndicator color="#FFFFFF" />
-        ) : (
-          <Text style={styles.buttonText}>{label}</Text>
-        )}
-      </LinearGradient>
+      {({ pressed }) => (
+        <LinearGradient
+          colors={[
+            ...(pressed
+              ? branding.colors.buttonGradientHover
+              : branding.colors.buttonGradient),
+          ]}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={styles.button}
+        >
+          {loading ? (
+            <ActivityIndicator color={branding.colors.buttonGradientText} />
+          ) : (
+            <Text style={styles.buttonText}>{label}</Text>
+          )}
+        </LinearGradient>
+      )}
     </Pressable>
   );
 }

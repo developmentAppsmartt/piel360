@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { AppIcon } from './AppIcon';
 import { Icons } from './icons';
+import { useBranding } from '../context/BrandingContext';
 import {
   daysInMonthGridLocal,
   ymdLocal,
@@ -81,7 +82,7 @@ export function CalendarDateField({
   disabled = false,
   allowFuture = true,
   allowPast = true,
-  accentColor = '#1E5A9E',
+  accentColor: accentColorProp,
   textColor = '#1A1A1A',
   mutedColor = '#9CA3AF',
   triggerStyle,
@@ -93,6 +94,8 @@ export function CalendarDateField({
   onVisibleMonthChange,
   disableBlockedDays = false,
 }: CalendarDateFieldProps) {
+  const branding = useBranding();
+  const accentColor = accentColorProp ?? branding.colors.primary;
   const rangeMode = typeof onChangeRange === 'function';
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState(() => parseIsoOrToday(value));

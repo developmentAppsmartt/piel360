@@ -16,6 +16,7 @@ import type {
   SkinReportTrendPoint,
 } from '../../../../types/skin-report';
 import { skinReportScoreColor } from '../../../../types/skin-report';
+import { useBranding } from '../../../../context/BrandingContext';
 
 export type DonutSlice = {
   key: string;
@@ -136,13 +137,15 @@ export function DistributionDonut({
 /** Línea de evolución 0–100 (paridad CRM ScoreTrendChart). */
 export function ScoreTrendChart({
   points,
-  primaryColor = '#1E5A9E',
+  primaryColor: primaryColorProp,
   emptyMessage = 'No hay análisis en el periodo seleccionado.',
 }: {
   points: SkinReportTrendPoint[];
   primaryColor?: string;
   emptyMessage?: string;
 }) {
+  const branding = useBranding();
+  const primaryColor = primaryColorProp ?? branding.colors.primary;
   const { width: screenW } = useWindowDimensions();
   const w = Math.max(320, screenW - 64);
   const h = 180;
@@ -377,7 +380,7 @@ export function TopProblemsList({ categories }: { categories: SkinReportCategory
 export function SegmentBars({
   segments,
   valueKey = 'avgScore',
-  barColor = '#1E5A9E',
+  barColor: barColorProp,
 }: {
   segments: {
     key: string;
@@ -389,6 +392,8 @@ export function SegmentBars({
   valueKey?: 'avgScore' | 'pct' | 'patients';
   barColor?: string;
 }) {
+  const branding = useBranding();
+  const barColor = barColorProp ?? branding.colors.primary;
   if (segments.length === 0) {
     return <Text style={barStyles.empty}>Sin datos en el periodo.</Text>;
   }

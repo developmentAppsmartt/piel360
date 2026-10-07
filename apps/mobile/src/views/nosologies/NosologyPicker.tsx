@@ -93,7 +93,7 @@ export function NosologyPicker({
               <AppIcon
                 icon={Icons.back}
                 size={22}
-                color={branding.colors.primary}
+                color={branding.colors.icon}
               />
             </Pressable>
           ) : null}
@@ -164,10 +164,8 @@ export function NosologyPicker({
           style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}
         >
           <Pressable
-            style={[
-              styles.saveBtn,
-              (!activeCategory || !selectedItemId) && styles.saveBtnDisabled,
-            ]}
+            style={({ pressed }) => [styles.saveBtn,
+              (!activeCategory || !selectedItemId) && styles.saveBtnDisabled, pressed && { backgroundColor: branding.colors.buttonHover }]}
             disabled={!activeCategory || !selectedItemId}
             onPress={confirmSelection}
           >

@@ -124,13 +124,18 @@ export function OfflineScreen({ onReconnect }: { onReconnect: () => void }) {
           disabled={checking}
           style={({ pressed }) => [
             styles.button,
-            { backgroundColor: primary, opacity: pressed || checking ? 0.85 : 1 },
+            {
+              backgroundColor: pressed
+                ? branding.colors.buttonHover
+                : branding.colors.button,
+              opacity: pressed || checking ? 0.85 : 1,
+            },
           ]}
         >
           {checking ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color={branding.colors.buttonText} />
           ) : (
-            <Text style={styles.buttonText}>Intentar de nuevo</Text>
+            <Text style={[styles.buttonText, { color: branding.colors.buttonText }]}>Intentar de nuevo</Text>
           )}
         </Pressable>
 

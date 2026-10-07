@@ -10,6 +10,7 @@ import {
 import { Alert, AppState } from 'react-native';
 import { isPhoneVerificationSkipped } from '../config/env';
 import { authService } from '../services/auth.service';
+import { useBrandingSync } from './BrandingContext';
 import { doctorsService } from '../services/doctors.service';
 import {
   onAccountDisabled,
@@ -73,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [needsPhoneVerification, setNeedsPhoneVerification] = useState(false);
   const [accountStatus, setAccountStatus] = useState<AccountStatus | null>(null);
+  const syncBranding = useBrandingSync();
 
   /** Si falla (p. ej. sin conexión) se conserva el último estado conocido. */
   const refreshAccountStatus = useCallback(async () => {
@@ -187,14 +189,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [refreshAccountStatus]);
 
-  // Un admin puede deshabilitar la cuenta o el plan puede vencer con la app abierta.
+  // La marca personalizada se hereda del profesional/empresa de la sesión.
+  const userId = user?.id;
+  useEffect(() => {
+    if (userId) void syncBranding();
+  }, [userId, syncBranding]);
+
+  // Un admin puede deshabilitar la cuenta, el plan puede vencer o la empresa
+  // cambiar su personalización con la app abierta.
   useEffect(() => {
     if (!user) return;
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void refreshAccountStatus();
+      if (state !== 'active') return;
+      void refreshAccountStatus();
+      void syncBranding();
     });
     return () => sub.remove();
-  }, [user, refreshAccountStatus]);
+  }, [user, refreshAccountStatus, syncBranding]);
 
   /**
    * La sesión dejó de valer del lado del servidor (otro login la cerró, o

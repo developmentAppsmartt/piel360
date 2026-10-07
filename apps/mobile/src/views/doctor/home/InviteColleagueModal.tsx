@@ -175,7 +175,7 @@ export function InviteColleagueModal({
         >
           <View style={styles.header}>
             <View style={styles.headerIcon}>
-              <AppIcon icon={Icons.accountGroup} size={22} color={primary} />
+              <AppIcon icon={Icons.accountGroup} size={22} color={branding.colors.icon} />
             </View>
             <View style={styles.headerText}>
               <Text style={styles.title}>Invitar a un colega</Text>
@@ -189,7 +189,7 @@ export function InviteColleagueModal({
               accessibilityLabel="Cerrar"
               style={styles.closeBtn}
             >
-              <AppIcon icon={Icons.close} size={18} color={primary} />
+              <AppIcon icon={Icons.close} size={18} color={branding.colors.icon} />
             </Pressable>
           </View>
 
@@ -210,7 +210,7 @@ export function InviteColleagueModal({
             />
 
             <View style={styles.linkRow}>
-              <AppIcon icon={Icons.paperclip} size={20} color={primary} />
+              <AppIcon icon={Icons.paperclip} size={20} color={branding.colors.icon} />
               <View style={styles.linkTextWrap}>
                 <Text style={styles.linkLabel}>Comparte este enlace:</Text>
                 <Text style={styles.linkUrl}>{COLLEAGUE_INVITE_DISPLAY}</Text>
@@ -259,7 +259,7 @@ export function InviteColleagueModal({
             </View>
 
             <View style={styles.infoBox}>
-              <AppIcon icon={Icons.information} size={20} color={primary} />
+              <AppIcon icon={Icons.information} size={20} color={branding.colors.icon} />
               <View style={styles.infoTextWrap}>
                 <Text style={styles.infoTitle}>¿Por qué invitar a un colega?</Text>
                 <Text style={styles.infoBody}>
@@ -434,3 +434,4 @@ function createStyles(primary: string) {
     },
   });
 }
+

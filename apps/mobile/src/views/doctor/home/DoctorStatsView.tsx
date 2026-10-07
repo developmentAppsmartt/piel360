@@ -62,7 +62,7 @@ export function DoctorStatsView({
           hitSlop={12}
           style={styles.statsBackBtn}
         >
-          <AppIcon icon={Icons.back} size={22} color={primary} />
+          <AppIcon icon={Icons.back} size={22} color={branding.colors.icon} />
         </Pressable>
         <Text style={styles.statsTitle}>Estadísticas</Text>
         <View style={{ width: 40 }} />

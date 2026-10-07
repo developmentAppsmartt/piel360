@@ -201,11 +201,11 @@ export function FitzpatrickRulesView({
             </View>
             <Pressable
               onPress={() => void handleSimulate()}
-              style={styles.primaryBtn}
+              style={({ pressed }) => [styles.primaryBtn, pressed && { backgroundColor: branding.colors.buttonHover }]}
               disabled={simulating}
             >
               {simulating ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={branding.colors.buttonText} />
               ) : (
                 <Text style={styles.primaryBtnText}>Simular</Text>
               )}
@@ -291,3 +291,4 @@ export function FitzpatrickRulesView({
     </View>
   );
 }
+

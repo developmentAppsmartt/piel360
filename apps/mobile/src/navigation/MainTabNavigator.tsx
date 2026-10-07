@@ -7,6 +7,7 @@ import { DepletedCreditsModal } from '../components/DepletedCreditsModal';
 import { NoActivePlanModal } from '../components/NoActivePlanModal';
 import { useAuth } from '../context/AuthContext';
 import { useBranding } from '../context/BrandingContext';
+import { DEFAULT_BRANDING } from '../config/branding.defaults';
 import { useNotifications } from '../context/NotificationsContext';
 import {
   patientsService,
@@ -116,8 +117,15 @@ export function MainTabNavigator() {
   const [openConversationId, setOpenConversationId] = useState<string | null>(
     null,
   );
-  const activeColor = branding.colors.primary;
-  const inactiveColor = '#9CA3AF';
+  const activeColor =
+    branding.colors.loginAccent.toUpperCase() ===
+    DEFAULT_BRANDING.colors.loginAccent.toUpperCase()
+      ? branding.colors.icon
+      : branding.colors.loginAccent;
+  const inactiveColor =
+    branding.colors.iconMuted === DEFAULT_BRANDING.colors.iconMuted
+      ? '#9CA3AF'
+      : branding.colors.iconMuted;
   const analysisUnlocked = pendingRequests.length > 0;
   const hideTabBar =
     inboxOpen ||
@@ -307,7 +315,7 @@ export function MainTabNavigator() {
 
   if (inboxOpen) {
     return (
-      <View style={styles.shell}>
+      <View style={[styles.shell, branding.colors.screenBackground ? { backgroundColor: branding.colors.screenBackground } : null]}>
         <NotificationsView
           onBack={closeInbox}
           onSelect={(action) => void handleNotificationSelect(action)}
@@ -317,7 +325,7 @@ export function MainTabNavigator() {
   }
 
   return (
-    <View style={styles.shell}>
+    <View style={[styles.shell, branding.colors.screenBackground ? { backgroundColor: branding.colors.screenBackground } : null]}>
       <View style={styles.content}>
         {doctorActive &&
         (activeTab === 'home' || (!isDoctor && activeTab === 'analysis')) ? (

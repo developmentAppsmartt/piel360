@@ -293,7 +293,7 @@ export function DoctorReportsView({
               <AppIcon
                 icon={Icons.chartBar}
                 size={32}
-                color={branding.colors.muted}
+                color={branding.colors.iconMuted}
               />
               <Text style={styles.emptyTitle}>
                 Aún no hay datos en este periodo
@@ -906,3 +906,4 @@ function DermatologicoTab({
     </View>
   );
 }
+

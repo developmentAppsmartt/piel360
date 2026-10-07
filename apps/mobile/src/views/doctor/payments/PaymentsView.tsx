@@ -182,7 +182,7 @@ export function PaymentsView({
             <AppIcon
               icon={Icons.support}
               size={20}
-              color={branding.colors.muted}
+              color={branding.colors.iconMuted}
             />
           </Pressable>
         </View>
@@ -266,7 +266,7 @@ export function PaymentsView({
                     </Text>
                     <Text style={styles.planPrice}>{formatPrice(plan.customerPrice ?? plan.price)}</Text>
                     <Pressable
-                      style={styles.contractBtn}
+                      style={({ pressed }) => [styles.contractBtn, pressed && { backgroundColor: branding.colors.buttonHover }]}
                       onPress={() => openContract(plan)}
                     >
                       <Text style={styles.contractBtnText}>Contratar</Text>
@@ -281,3 +281,4 @@ export function PaymentsView({
     </View>
   );
 }
+

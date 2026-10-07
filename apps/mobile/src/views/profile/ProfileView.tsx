@@ -485,7 +485,7 @@ export function ProfileView({ onBack, onOpenMessages }: ProfileViewProps) {
           <ProfileSection
             key={section.id}
             styles={styles}
-            accentColor={branding.colors.primary}
+            accentColor={branding.colors.icon}
             section={section}
             toggles={toggles}
             onToggle={(rowId, next) =>

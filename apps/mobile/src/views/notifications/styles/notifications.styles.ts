@@ -5,7 +5,7 @@ export function createNotificationsStyles(colors: AppBranding['colors']) {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: '#F3F4F6',
+      backgroundColor: colors.screenBackground ?? '#F3F4F6',
     },
     toolbar: {
       flexDirection: 'row',
@@ -25,7 +25,7 @@ export function createNotificationsStyles(colors: AppBranding['colors']) {
     markAll: {
       fontSize: 13,
       fontWeight: '600',
-      color: colors.primary,
+      color: colors.secondaryText,
     },
     listContent: {
       padding: 16,
@@ -44,7 +44,7 @@ export function createNotificationsStyles(colors: AppBranding['colors']) {
       borderColor: '#E5E7EB',
     },
     cardUnread: {
-      borderColor: colors.primary,
+      borderColor: colors.icon,
       backgroundColor: `${colors.primary}0F`,
     },
     iconWrap: {
@@ -66,13 +66,13 @@ export function createNotificationsStyles(colors: AppBranding['colors']) {
     },
     cardBodyText: {
       fontSize: 13,
-      color: '#6B7280',
+      color: colors.secondaryTextOverride ?? '#6B7280',
       lineHeight: 18,
     },
     cardWhen: {
       marginTop: 4,
       fontSize: 11,
-      color: '#9CA3AF',
+      color: colors.secondaryTextOverride ?? '#9CA3AF',
     },
     dot: {
       width: 8,
@@ -90,7 +90,7 @@ export function createNotificationsStyles(colors: AppBranding['colors']) {
     },
     emptyText: {
       fontSize: 14,
-      color: '#6B7280',
+      color: colors.secondaryTextOverride ?? '#6B7280',
       textAlign: 'center',
     },
     error: {
