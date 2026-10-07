@@ -3,6 +3,10 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
+import {
+  DEFAULT_BRANDING,
+  type AppBranding,
+} from '../../../config/branding.defaults';
 
 export type YoucamPdfMetric = {
   title: string;
@@ -26,8 +30,7 @@ export type YoucamPdfPayload = {
   /** Observaciones del médico; `null` cuando aún no escribió ninguna. */
   notes: string | null;
   metrics: YoucamPdfMetric[];
-  brandPrimary: string;
-  brandDark: string;
+  branding: AppBranding;
 };
 
 const HEADER_LOGO = require('../../../../assets/logo-headers.png');
@@ -59,13 +62,57 @@ async function assetToDataUri(
   }
 }
 
+/** El logo de la empresa es una URL firmada; se incrusta para que el PDF no dependa de la red. */
+async function remoteImageToDataUri(source: AppBranding['companyLogoImage']): Promise<string | null> {
+  const uri = source && typeof source === 'object' && 'uri' in source ? source.uri : null;
+  if (!uri || !FileSystem.cacheDirectory) return null;
+  try {
+    const dest = `${FileSystem.cacheDirectory}report-company-logo-${Date.now()}`;
+    const res = await FileSystem.downloadAsync(uri, dest);
+    if (res.status !== 200) return null;
+    const mime = res.headers['Content-Type'] ?? res.headers['content-type'] ?? 'image/png';
+    const base64 = await FileSystem.readAsStringAsync(dest, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    void FileSystem.deleteAsync(dest, { idempotent: true });
+    return `data:${mime};base64,${base64}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Logo monocromo pintado con `color` (máscara CSS sobre el PNG). */
+function tintedLogo(className: string, uri: string, color: string, width: number, height: number) {
+  const mask = `url('${uri}') no-repeat center / contain`;
+  return `<span class="${className}" role="img" aria-label="PIEL 360" style="display:inline-block;width:${width}px;height:${height}px;background:${color};-webkit-mask:${mask};mask:${mask};"></span>`;
+}
+
+function isLight(hex: string): boolean {
+  const value = hex.replace('#', '');
+  if (value.length !== 6) return false;
+  const r = parseInt(value.slice(0, 2), 16);
+  const g = parseInt(value.slice(2, 4), 16);
+  const b = parseInt(value.slice(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 160;
+}
+
 function html(
   payload: YoucamPdfPayload,
   headerLogoUri: string | null,
   footerLogoUri: string | null,
+  companyLogoUri: string | null,
 ): string {
-  const primary = payload.brandPrimary;
-  const dark = payload.brandDark;
+  const { colors } = payload.branding;
+  const defaults = DEFAULT_BRANDING.colors;
+  const primary = colors.primary;
+  const title = colors.primaryText;
+  const text = colors.secondaryTextOverride;
+  const iconCustomized = colors.iconMuted === colors.icon;
+  const line =
+    colors.loginAccent.toUpperCase() !== defaults.loginAccent.toUpperCase()
+      ? colors.loginAccent
+      : primary;
+  const headerText = isLight(primary) ? title : '#fff';
   const metrics = payload.metrics
     .map(
       (row) => `
@@ -93,10 +140,17 @@ function html(
     .join('');
 
   const headerLogo = headerLogoUri
-    ? `<img class="header-logo" src="${headerLogoUri}" alt="PIEL 360" />`
+    ? iconCustomized
+      ? tintedLogo('header-logo', headerLogoUri, colors.iconOnHeader, 88, 34)
+      : `<img class="header-logo" src="${headerLogoUri}" alt="PIEL 360" />`
+    : '';
+  const companyLogo = companyLogoUri
+    ? `<img class="company-logo" src="${companyLogoUri}" alt="Logo de la empresa" />`
     : '';
   const footerLogo = footerLogoUri
-    ? `<img class="footer-logo" src="${footerLogoUri}" alt="PIEL 360" />`
+    ? iconCustomized
+      ? tintedLogo('footer-logo', footerLogoUri, colors.icon, 109, 42)
+      : `<img class="footer-logo" src="${footerLogoUri}" alt="PIEL 360" />`
     : `<div class="footer-logo-fallback"><strong>PIEL 360</strong><span>EXPLORA TU PIEL, ENTIENDE TU SALUD</span></div>`;
 
   return `<!DOCTYPE html>
@@ -113,7 +167,7 @@ function html(
       height: 297mm;
       overflow: hidden;
       font-family: Helvetica, Arial, sans-serif;
-      color: #1A1A1A;
+      color: ${text ?? '#1A1A1A'};
       background: #fff;
     }
     .page {
@@ -126,7 +180,7 @@ function html(
     header {
       flex: 0 0 auto;
       background: ${primary};
-      color: #fff;
+      color: ${headerText};
       padding: 10px 16px;
       display: flex;
       align-items: center;
@@ -144,6 +198,21 @@ function html(
       object-fit: contain;
       flex-shrink: 0;
     }
+    .header-logos {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .company-logo {
+      height: 34px;
+      width: auto;
+      max-width: 110px;
+      object-fit: contain;
+      background: #fff;
+      border-radius: 6px;
+      padding: 2px 4px;
+    }
     main {
       flex: 1 1 auto;
       padding: 12px 16px 8px;
@@ -153,11 +222,11 @@ function html(
     h1 {
       font-size: 15px;
       margin: 0 0 3px;
-      color: ${dark};
+      color: ${title};
       line-height: 1.2;
     }
     .meta {
-      color: #64748B;
+      color: ${text ?? '#64748B'};
       font-size: 11px;
       margin: 0 0 8px;
     }
@@ -177,7 +246,7 @@ function html(
       margin: 0 0 3px;
       font-size: 10px;
       letter-spacing: 0.4px;
-      color: ${dark};
+      color: ${title};
     }
     .summary p {
       margin: 0;
@@ -220,7 +289,7 @@ function html(
       line-height: 1.25;
     }
     th {
-      color: ${dark};
+      color: ${title};
       font-size: 8px;
       text-transform: uppercase;
       letter-spacing: 0.3px;
@@ -229,12 +298,12 @@ function html(
     .col-metric { width: 18%; font-weight: 600; }
     .col-score { width: 10%; }
     .col-band { width: 12%; }
-    .col-advice { width: 60%; color: #334155; }
+    .col-advice { width: 60%; color: ${text ?? '#334155'}; }
     footer {
       flex: 0 0 auto;
       margin-top: auto;
       padding: 8px 16px 10px;
-      border-top: 3px solid ${primary};
+      border-top: 3px solid ${line};
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -242,19 +311,19 @@ function html(
     }
     .footer-text { min-width: 0; flex: 1; }
     .footer-brand {
-      color: ${dark};
+      color: ${title};
       font-size: 10px;
       font-weight: 700;
       line-height: 1.3;
     }
     .disclaimer {
-      color: #64748B;
+      color: ${text ?? '#64748B'};
       margin-top: 2px;
       font-size: 8.5px;
       line-height: 1.3;
     }
     .footer-stamp {
-      color: #94A3B8;
+      color: ${text ?? '#94A3B8'};
       margin-top: 2px;
       font-size: 8px;
     }
@@ -267,7 +336,7 @@ function html(
     }
     .footer-logo-fallback {
       text-align: right;
-      color: ${dark};
+      color: ${title};
       flex-shrink: 0;
     }
     .footer-logo-fallback strong {
@@ -290,7 +359,7 @@ function html(
         <div class="brandSub">Reporte de análisis estético · Salud de la piel</div>
         <div class="header-meta">Generado: ${escapeHtml(payload.createdAt)}</div>
       </div>
-      ${headerLogo}
+      <div class="header-logos">${headerLogo}${companyLogo}</div>
     </header>
     <main>
       <h1>Reporte Salud de la Piel</h1>
@@ -354,11 +423,12 @@ async function persistShareablePdf(sourceUri: string, base64?: string) {
 }
 
 export async function exportYoucamReportPdf(payload: YoucamPdfPayload) {
-  const [headerLogoUri, footerLogoUri] = await Promise.all([
+  const [headerLogoUri, footerLogoUri, companyLogoUri] = await Promise.all([
     assetToDataUri(HEADER_LOGO, 'image/png'),
     assetToDataUri(FOOTER_LOGO, 'image/png'),
+    remoteImageToDataUri(payload.branding.companyLogoImage),
   ]);
-  const markup = html(payload, headerLogoUri, footerLogoUri);
+  const markup = html(payload, headerLogoUri, footerLogoUri, companyLogoUri);
 
   if (Platform.OS === 'web') {
     await Print.printAsync({ html: markup });

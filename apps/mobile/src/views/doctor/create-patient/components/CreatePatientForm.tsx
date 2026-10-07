@@ -408,7 +408,7 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <Pressable style={styles.nextBtn} onPress={submit}>
+        <Pressable style={({ pressed }) => [styles.nextBtn, pressed && { backgroundColor: branding.colors.buttonHover }]} onPress={submit}>
           <Text style={styles.nextBtnText}>Siguiente</Text>
         </Pressable>
       </View>

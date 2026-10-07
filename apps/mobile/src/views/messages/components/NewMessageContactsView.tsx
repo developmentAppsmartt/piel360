@@ -153,7 +153,7 @@ export function NewMessageContactsView({
                   <AppIcon
                     icon={Icons.chevronRight}
                     size={20}
-                    color={branding.colors.muted}
+                    color={branding.colors.iconMuted}
                   />
                 )}
               </Pressable>

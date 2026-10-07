@@ -215,7 +215,7 @@ export function NosologiesView({
               <AppIcon
                 icon={Icons.back}
                 size={22}
-                color={branding.colors.primary}
+                color={branding.colors.icon}
               />
             </Pressable>
           ) : null}

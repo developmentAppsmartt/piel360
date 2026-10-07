@@ -7,6 +7,7 @@ import {
   clinicalPathAllowedWithoutPlan,
   isClinicalPanelRole,
   isDoctorVerificationActive,
+  isOwnerOnlyClinicalPath,
   SESSION_REPLACED,
   teamPermissionAllowsNavHref,
   type AccountStatus,
@@ -64,6 +65,7 @@ interface SessionPayload {
   permissions?: string[];
   teamPermissions?: TeamMemberPermission[] | null;
   isOrgMember?: boolean;
+  organizationMemberRole?: "owner" | "member" | null;
   surveyCompletedAt?: string | null;
   verificationStatus?: string;
 }
@@ -96,7 +98,8 @@ function monitorPathAllowed(pathname: string): boolean {
 function clinicalPathAllowedWhilePending(pathname: string): boolean {
   if (
     pathname.startsWith("/doctor/configuracion/equipos") ||
-    pathname.startsWith("/doctor/configuracion/referidos")
+    pathname.startsWith("/doctor/configuracion/referidos") ||
+    pathname.startsWith("/doctor/configuracion/personalizacion")
   ) {
     return false;
   }
@@ -246,6 +249,14 @@ export async function proxy(request: NextRequest) {
     !clinicalRouteAllowed(pathname, permissions)
   ) {
     return NextResponse.redirect(new URL("/doctor/home", request.url));
+  }
+
+  if (
+    panel === "doctor" &&
+    session.organizationMemberRole === "member" &&
+    isOwnerOnlyClinicalPath(pathname)
+  ) {
+    return NextResponse.redirect(new URL("/doctor/configuracion", request.url));
   }
 
   if (

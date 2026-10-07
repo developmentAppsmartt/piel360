@@ -39,6 +39,7 @@ import {
   ScoreTrendChart,
   SegmentBars,
   TopDiagnosesTable,
+  TopProblemsList,
 } from './components/ReportCharts';
 import { SkiniverClinicalBrowser } from './components/SkiniverClinicalBrowser';
 import {
@@ -292,7 +293,7 @@ export function DoctorReportsView({
               <AppIcon
                 icon={Icons.chartBar}
                 size={32}
-                color={branding.colors.muted}
+                color={branding.colors.iconMuted}
               />
               <Text style={styles.emptyTitle}>
                 Aún no hay datos en este periodo
@@ -673,18 +674,12 @@ function TopTab({
           );
         })}
       </View>
-      <CategoryRankingBars categories={rows} variant="needs" />
-      <View style={{ gap: 6, marginTop: 4 }}>
-        {rows.map((c) => (
-          <Text key={c.key} style={styles.categoryMeta}>
-            {c.label}: {c.patientsAffected}/{c.patients} afectados (
-            {c.affectedPct.toFixed(0)}%)
-            {c.trendDelta == null
-              ? ''
-              : ` · evol. ${c.trendDelta > 0 ? '+' : ''}${c.trendDelta.toFixed(1)}`}
-          </Text>
-        ))}
-      </View>
+      <TopProblemsList categories={rows} />
+      <Text style={styles.categoryMeta}>
+        “Pacientes afectados” son los que registraron un puntaje menor a 70 en
+        esa categoría durante el periodo. La evolución compara el primer y el
+        último mes con datos de la ventana de tendencia.
+      </Text>
     </View>
   );
 }
@@ -911,3 +906,4 @@ function DermatologicoTab({
     </View>
   );
 }
+

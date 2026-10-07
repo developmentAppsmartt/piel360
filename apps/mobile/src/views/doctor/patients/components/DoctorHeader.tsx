@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppIcon } from '../../../../components/AppIcon';
 import { BrandLogo } from '../../../../components/BrandLogo';
 import { Icons } from '../../../../components/icons';
+import { useBranding } from '../../../../context/BrandingContext';
 import { useNotificationsOptional } from '../../../../context/NotificationsContext';
 import type { DoctorPatientsStyles } from '../styles/patients.styles';
 
@@ -45,6 +46,7 @@ export function DoctorHeader({
   suppressNotifications = false,
 }: DoctorHeaderProps) {
   const insets = useSafeAreaInsets();
+  const branding = useBranding();
   const onDark = styles.headerIcon.color as string;
   const notifications = useNotificationsOptional();
   const badgeCount =
@@ -65,7 +67,7 @@ export function DoctorHeader({
             <AppIcon icon={Icons.back} size={24} color={onDark} />
           </Pressable>
         ) : null}
-        <BrandLogo variant="header" height={44} style={styles.headerLogo} />
+        <BrandLogo variant="header" height={44} style={[styles.headerLogo, { tintColor: branding.colors.iconOnHeader }]} />
       </View>
       <View style={styles.headerActions}>
         <Pressable

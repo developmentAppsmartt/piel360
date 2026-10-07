@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
 import { AppIcon } from '../../../../components/AppIcon';
 import { Icons } from '../../../../components/icons';
+import { useBranding } from '../../../../context/BrandingContext';
 import type { Subscription } from '../../../../types/subscription';
 import type { BillingStyles } from '../styles/billing.styles';
 import {
@@ -114,6 +115,7 @@ export function BillingPlanCard({
   iconColor: string;
   onPress: () => void;
 }) {
+  const branding = useBranding();
   const theme = CATEGORY_THEME[billingCategory(sub)];
   const date = cardDate(sub);
   return (
@@ -146,7 +148,7 @@ export function BillingPlanCard({
           </Text>
         </View>
       </View>
-      <AppIcon icon={Icons.chevronRight} size={22} color="#64748B" />
+      <AppIcon icon={Icons.chevronRight} size={22} color={branding.colors.icon} />
     </Pressable>
   );
 }

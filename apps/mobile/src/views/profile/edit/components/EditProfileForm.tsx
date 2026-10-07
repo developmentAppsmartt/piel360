@@ -505,12 +505,12 @@ export function EditProfileForm({
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <Pressable
-        style={[styles.saveButton, submitting && styles.saveButtonDisabled]}
+        style={({ pressed }) => [styles.saveButton, submitting && styles.saveButtonDisabled, pressed && { backgroundColor: branding.colors.buttonHover }]}
         onPress={() => void handleSave()}
         disabled={submitting}
       >
         {submitting ? (
-          <ActivityIndicator color={onDark} />
+          <ActivityIndicator color={branding.colors.buttonText} />
         ) : (
           <Text style={styles.saveButtonText}>Guardar cambios</Text>
         )}

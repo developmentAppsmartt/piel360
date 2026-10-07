@@ -184,7 +184,7 @@ export function NotificationsView({
                   <AppIcon
                     icon={icon}
                     size={22}
-                    color={branding.colors.primary}
+                    color={branding.colors.icon}
                   />
                 </View>
                 <View style={styles.cardBody}>

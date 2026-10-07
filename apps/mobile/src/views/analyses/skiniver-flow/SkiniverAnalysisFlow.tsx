@@ -254,11 +254,9 @@ export function SkiniverAnalysisFlow({
               accessibilityLabel={
                 regionLabel ? `Continuar con ${regionLabel}` : 'Continuar'
               }
-              style={[
-                styles.primaryBtn,
+              style={({ pressed }) => [styles.primaryBtn,
                 { borderRadius: 999 },
-                !selection && styles.primaryBtnDisabled,
-              ]}
+                !selection && styles.primaryBtnDisabled, pressed && { backgroundColor: branding.colors.buttonHover }]}
               disabled={!selection}
               onPress={() => {
                 void persistImportantNotes();
@@ -384,7 +382,7 @@ export function SkiniverAnalysisFlow({
                   <AppIcon
                     icon={Icons.camera}
                     size={52}
-                    color={branding.colors.primary}
+                    color={branding.colors.icon}
                   />
                   <Text
                     style={{
@@ -407,7 +405,7 @@ export function SkiniverAnalysisFlow({
                   <AppIcon
                     icon={Icons.image}
                     size={52}
-                    color={branding.colors.primary}
+                    color={branding.colors.icon}
                   />
                   <Text
                     style={{
@@ -423,7 +421,7 @@ export function SkiniverAnalysisFlow({
             )}
 
             <Pressable
-              style={[styles.primaryBtn, { borderRadius: 999 }]}
+              style={({ pressed }) => [styles.primaryBtn, { borderRadius: 999 }, pressed && { backgroundColor: branding.colors.buttonHover }]}
               disabled={picking}
               onPress={() => setStep('region')}
             >

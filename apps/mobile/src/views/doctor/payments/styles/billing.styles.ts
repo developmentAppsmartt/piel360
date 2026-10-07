@@ -1,11 +1,13 @@
 import { StyleSheet } from 'react-native';
-import type { AppBranding } from '../../../../config/branding.defaults';
+import { DEFAULT_BRANDING, type AppBranding } from '../../../../config/branding.defaults';
 
 function soft(hex: string, a = '22'): string {
   return /^#[0-9A-Fa-f]{6}$/.test(hex) ? `${hex}${a}` : hex;
 }
 
 export function createBillingStyles(colors: AppBranding['colors']) {
+  /** Tarjetas de estado y totales: colores descriptivos que no se personalizan. */
+  const sys = DEFAULT_BRANDING.colors;
   return StyleSheet.create({
     content: {
       paddingHorizontal: 16,
@@ -15,7 +17,7 @@ export function createBillingStyles(colors: AppBranding['colors']) {
     },
     subtitle: {
       fontSize: 14,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       lineHeight: 20,
     },
 
@@ -47,11 +49,11 @@ export function createBillingStyles(colors: AppBranding['colors']) {
     summaryValue: {
       fontSize: 22,
       fontWeight: '800',
-      color: colors.primaryDark,
+      color: colors.primaryText,
     },
     summaryHint: {
       fontSize: 11,
-      color: colors.muted,
+      color: sys.muted,
       lineHeight: 14,
     },
     totalCard: {
@@ -60,31 +62,31 @@ export function createBillingStyles(colors: AppBranding['colors']) {
       gap: 12,
       borderRadius: 14,
       borderWidth: 1,
-      borderColor: soft(colors.primary, '33'),
-      backgroundColor: soft(colors.primary, '0D'),
+      borderColor: soft(sys.icon, '33'),
+      backgroundColor: soft(sys.primary, '0D'),
       padding: 14,
     },
     totalIcon: {
       width: 46,
       height: 46,
       borderRadius: 23,
-      backgroundColor: colors.secondary,
+      backgroundColor: sys.secondary,
       alignItems: 'center',
       justifyContent: 'center',
     },
     totalLabel: {
       fontSize: 13,
       fontWeight: '700',
-      color: colors.primary,
+      color: colors.primaryText,
     },
     totalValue: {
       fontSize: 22,
       fontWeight: '800',
-      color: colors.primaryDark,
+      color: colors.primaryText,
     },
     totalHint: {
       fontSize: 12,
-      color: colors.muted,
+      color: sys.muted,
     },
 
     /* Búsqueda y filtros */
@@ -137,8 +139,8 @@ export function createBillingStyles(colors: AppBranding['colors']) {
       backgroundColor: '#FFFFFF',
     },
     chipActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
+      backgroundColor: colors.buttonHover,
+      borderColor: colors.buttonHover,
     },
     chipDot: {
       width: 8,
@@ -151,7 +153,7 @@ export function createBillingStyles(colors: AppBranding['colors']) {
       color: colors.text,
     },
     chipTextActive: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
     },
     chipCount: {
       minWidth: 22,
@@ -167,7 +169,7 @@ export function createBillingStyles(colors: AppBranding['colors']) {
     chipCountText: {
       fontSize: 11,
       fontWeight: '700',
-      color: colors.primaryDark,
+      color: colors.primaryText,
     },
 
     /* Secciones */
@@ -186,7 +188,7 @@ export function createBillingStyles(colors: AppBranding['colors']) {
       flex: 1,
       fontSize: 15,
       fontWeight: '800',
-      color: colors.primaryDark,
+      color: colors.primaryText,
     },
     sectionHint: {
       fontSize: 13,
@@ -204,7 +206,7 @@ export function createBillingStyles(colors: AppBranding['colors']) {
     },
     emptyText: {
       fontSize: 14,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       textAlign: 'center',
       lineHeight: 20,
       paddingVertical: 16,
@@ -240,11 +242,11 @@ export function createBillingStyles(colors: AppBranding['colors']) {
       flex: 1,
       fontSize: 15,
       fontWeight: '800',
-      color: colors.primaryDark,
+      color: colors.primaryText,
     },
     planSubtitle: {
       fontSize: 12,
-      color: colors.muted,
+      color: sys.muted,
     },
     creditsRow: {
       flexDirection: 'row',
@@ -255,11 +257,11 @@ export function createBillingStyles(colors: AppBranding['colors']) {
     creditsText: {
       fontSize: 14,
       fontWeight: '800',
-      color: colors.primaryDark,
+      color: colors.primaryText,
     },
     creditsTotal: {
       fontWeight: '500',
-      color: colors.muted,
+      color: sys.muted,
     },
     barTrack: {
       flex: 1,
@@ -274,7 +276,7 @@ export function createBillingStyles(colors: AppBranding['colors']) {
     },
     pctText: {
       fontSize: 12,
-      color: colors.muted,
+      color: sys.muted,
       minWidth: 34,
       textAlign: 'right',
     },
@@ -286,7 +288,7 @@ export function createBillingStyles(colors: AppBranding['colors']) {
     },
     planDateText: {
       fontSize: 12,
-      color: colors.muted,
+      color: sys.muted,
     },
     pill: {
       flexDirection: 'row',
@@ -318,7 +320,7 @@ export function createBillingStyles(colors: AppBranding['colors']) {
       flex: 1,
       fontSize: 14,
       fontWeight: '700',
-      color: colors.primaryDark,
+      color: colors.primaryText,
     },
 
     /* Detalle */
@@ -340,7 +342,7 @@ export function createBillingStyles(colors: AppBranding['colors']) {
     panelTitle: {
       fontSize: 15,
       fontWeight: '800',
-      color: colors.primaryDark,
+      color: colors.primaryText,
     },
     panelBody: {
       paddingHorizontal: 14,
@@ -363,7 +365,7 @@ export function createBillingStyles(colors: AppBranding['colors']) {
     heroName: {
       fontSize: 18,
       fontWeight: '800',
-      color: colors.primaryDark,
+      color: colors.primaryText,
       flexShrink: 1,
     },
     creditsBox: {
@@ -379,7 +381,7 @@ export function createBillingStyles(colors: AppBranding['colors']) {
     creditsBig: {
       fontSize: 18,
       fontWeight: '800',
-      color: colors.primaryDark,
+      color: colors.primaryText,
     },
     heroMeta: {
       flexDirection: 'row',
@@ -398,12 +400,12 @@ export function createBillingStyles(colors: AppBranding['colors']) {
     },
     metaLabel: {
       fontSize: 12,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     metaValue: {
       fontSize: 14,
       fontWeight: '700',
-      color: colors.primaryDark,
+      color: colors.primaryText,
     },
     infoRow: {
       flexDirection: 'row',
@@ -420,7 +422,7 @@ export function createBillingStyles(colors: AppBranding['colors']) {
       width: 32,
       height: 32,
       borderRadius: 16,
-      backgroundColor: soft(colors.primary, '12'),
+      backgroundColor: soft(colors.icon, '12'),
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -439,12 +441,12 @@ export function createBillingStyles(colors: AppBranding['colors']) {
     billLabel: {
       flex: 1,
       fontSize: 13,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     billValue: {
       fontSize: 14,
       fontWeight: '800',
-      color: colors.primaryDark,
+      color: colors.primaryText,
     },
     invoiceBtn: {
       flexDirection: 'row',
@@ -452,14 +454,14 @@ export function createBillingStyles(colors: AppBranding['colors']) {
       gap: 6,
       borderRadius: 999,
       borderWidth: 1,
-      borderColor: soft(colors.primary, '55'),
+      borderColor: soft(colors.icon, '55'),
       paddingHorizontal: 14,
       paddingVertical: 7,
     },
     invoiceBtnText: {
       fontSize: 13,
       fontWeight: '700',
-      color: colors.primary,
+      color: colors.primaryText,
     },
     actionRow: {
       flexDirection: 'row',
@@ -476,12 +478,12 @@ export function createBillingStyles(colors: AppBranding['colors']) {
       flex: 1,
       fontSize: 14,
       fontWeight: '700',
-      color: colors.primaryDark,
+      color: colors.primaryText,
     },
     moreCredits: {
       borderRadius: 16,
       borderWidth: 1,
-      borderColor: soft(colors.primary, '33'),
+      borderColor: soft(colors.icon, '33'),
       backgroundColor: soft(colors.primary, '0D'),
       padding: 14,
       gap: 12,
@@ -493,7 +495,7 @@ export function createBillingStyles(colors: AppBranding['colors']) {
     moreCreditsTitle: {
       fontSize: 15,
       fontWeight: '800',
-      color: colors.primaryDark,
+      color: colors.primaryText,
     },
     primaryBtn: {
       flexDirection: 'row',
@@ -501,11 +503,11 @@ export function createBillingStyles(colors: AppBranding['colors']) {
       justifyContent: 'center',
       gap: 8,
       borderRadius: 999,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       paddingVertical: 13,
     },
     primaryBtnText: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
       fontSize: 15,
       fontWeight: '700',
     },
@@ -528,16 +530,16 @@ export function createBillingStyles(colors: AppBranding['colors']) {
       flex: 1,
       fontSize: 14,
       fontWeight: '800',
-      color: colors.primaryDark,
+      color: colors.primaryText,
     },
     historyAmount: {
       fontSize: 15,
       fontWeight: '800',
-      color: colors.primary,
+      color: colors.primaryText,
     },
     historyMeta: {
       fontSize: 12,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
 
     /* Formulario de facturación */
@@ -547,7 +549,7 @@ export function createBillingStyles(colors: AppBranding['colors']) {
     fieldLabel: {
       fontSize: 12,
       fontWeight: '700',
-      color: colors.primaryDark,
+      color: colors.primaryText,
     },
     input: {
       borderWidth: 1,

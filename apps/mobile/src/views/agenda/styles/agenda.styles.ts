@@ -6,7 +6,7 @@ export function createAgendaStyles(colors: AppBranding['colors']) {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: '#E8F4FC',
+      backgroundColor: colors.screenBackground ?? '#E8F4FC',
     },
     centered: {
       flex: 1,
@@ -32,7 +32,7 @@ export function createAgendaStyles(colors: AppBranding['colors']) {
     },
     sectionSubtitle: {
       fontSize: 13,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       lineHeight: 18,
       marginBottom: 4,
     },
@@ -62,7 +62,7 @@ export function createAgendaStyles(colors: AppBranding['colors']) {
     },
     weeklySlotText: {
       fontSize: 13,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       lineHeight: 18,
     },
     input: {
@@ -78,7 +78,7 @@ export function createAgendaStyles(colors: AppBranding['colors']) {
     },
     primaryBtn: {
       marginTop: 8,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       borderRadius: 999,
       paddingVertical: 12,
       paddingHorizontal: 14,
@@ -91,6 +91,9 @@ export function createAgendaStyles(colors: AppBranding['colors']) {
       paddingVertical: 12,
       paddingHorizontal: 14,
       alignItems: 'center',
+    },
+    primaryBtnText: {
+      color: colors.buttonText,
     },
     btnText: {
       color: '#FFFFFF',
@@ -111,8 +114,8 @@ export function createAgendaStyles(colors: AppBranding['colors']) {
       paddingVertical: 8,
     },
     chipActive: {
-      borderColor: colors.primary,
-      backgroundColor: colors.primary,
+      borderColor: colors.buttonHover,
+      backgroundColor: colors.buttonHover,
     },
     chipText: {
       fontSize: 13,
@@ -120,11 +123,11 @@ export function createAgendaStyles(colors: AppBranding['colors']) {
       color: colors.text,
     },
     chipTextActive: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
     },
     mutedText: {
       fontSize: 13,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     errorText: {
       fontSize: 13,
@@ -159,8 +162,8 @@ export function createAgendaStyles(colors: AppBranding['colors']) {
       borderColor: '#E5E7EB',
     },
     statusBtnActive: {
-      borderColor: colors.primary,
-      backgroundColor: colors.primary,
+      borderColor: colors.buttonHover,
+      backgroundColor: colors.button,
     },
     statusBtnText: {
       fontWeight: '700',
@@ -168,10 +171,10 @@ export function createAgendaStyles(colors: AppBranding['colors']) {
       color: colors.text,
     },
     statusBtnTextActive: {
-      color: '#FFFFFF',
+      color: colors.buttonText,
     },
     emptyText: {
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       fontSize: 13,
       textAlign: 'center',
       paddingVertical: 8,
@@ -190,12 +193,12 @@ export function createAgendaStyles(colors: AppBranding['colors']) {
       width: 26,
       height: 26,
       borderRadius: 13,
-      backgroundColor: colors.primaryDark,
+      backgroundColor: `${colors.icon}26`,
       alignItems: 'center',
       justifyContent: 'center',
     },
     stepBadgeText: {
-      color: '#FFFFFF',
+      color: colors.primaryText,
       fontSize: 13,
       fontWeight: '800',
     },
@@ -248,7 +251,7 @@ export function createAgendaStyles(colors: AppBranding['colors']) {
       width: 36,
       height: 36,
       borderRadius: 18,
-      backgroundColor: `${colors.primary}22`,
+      backgroundColor: `${colors.icon}22`,
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
@@ -269,12 +272,12 @@ export function createAgendaStyles(colors: AppBranding['colors']) {
     },
     searchResultDoc: {
       fontSize: 12,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     searchEmpty: {
       padding: 14,
       fontSize: 13,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       textAlign: 'center',
     },
     selectedChip: {
@@ -316,7 +319,7 @@ export function createAgendaStyles(colors: AppBranding['colors']) {
       flex: 1,
       fontSize: 14,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.secondaryText,
     },
     selectFieldPlaceholder: {
       color: '#9CA3AF',

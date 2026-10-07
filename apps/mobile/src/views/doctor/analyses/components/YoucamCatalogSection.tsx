@@ -482,7 +482,7 @@ export function YoucamCatalogSection({
       {open ? (
         loading ? (
           <View style={styles.recLoading}>
-            <ActivityIndicator color={primary} />
+            <ActivityIndicator color={branding.colors.icon} />
           </View>
         ) : (
           <View style={styles.recBody}>
@@ -493,8 +493,8 @@ export function YoucamCatalogSection({
               styles={styles}
               title="Productos sugeridos"
               icon={Icons.shopping}
-              iconColor={primary}
-              mutedColor={muted}
+              iconColor={branding.colors.icon}
+              mutedColor={branding.colors.iconMuted}
               open={sectionOpen.products}
               onToggle={() => toggleSection('products')}
               onSeeAll={() =>
@@ -521,8 +521,8 @@ export function YoucamCatalogSection({
               styles={styles}
               title="Rutinas"
               icon={Icons.clipboardList}
-              iconColor={primary}
-              mutedColor={muted}
+              iconColor={branding.colors.icon}
+              mutedColor={branding.colors.iconMuted}
               open={sectionOpen.routines}
               onToggle={() => toggleSection('routines')}
               onSeeAll={() =>
@@ -644,8 +644,8 @@ export function YoucamCatalogSection({
               styles={styles}
               title="Tratamientos"
               icon={Icons.needle}
-              iconColor={primary}
-              mutedColor={muted}
+              iconColor={branding.colors.icon}
+              mutedColor={branding.colors.iconMuted}
               open={sectionOpen.treatments}
               onToggle={() => toggleSection('treatments')}
               onSeeAll={() =>
@@ -672,8 +672,8 @@ export function YoucamCatalogSection({
               styles={styles}
               title="Suplementos"
               icon={Icons.pill}
-              iconColor={primary}
-              mutedColor={muted}
+              iconColor={branding.colors.icon}
+              mutedColor={branding.colors.iconMuted}
               open={sectionOpen.supplements}
               onToggle={() => toggleSection('supplements')}
               onSeeAll={() =>
@@ -1038,6 +1038,7 @@ function RoutineMediaModal({
   onDark: string;
   primary: string;
 }) {
+  const branding = useBranding();
   const mediaHeight = Math.min(Dimensions.get('window').height * 0.55, 480);
 
   return (
@@ -1088,7 +1089,7 @@ function RoutineMediaModal({
               {preview?.kind === 'video' ? 'Video de la rutina' : 'Imagen guía'}
             </Text>
             <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Cerrar">
-              <AppIcon icon={Icons.close} size={22} color="#64748B" />
+              <AppIcon icon={Icons.close} size={22} color={branding.colors.iconMuted} />
             </Pressable>
           </View>
           {preview?.kind === 'image' ? (
@@ -1119,16 +1120,20 @@ function RoutineMediaModal({
         </View>
         <Pressable
           onPress={onClose}
-          style={{
+          style={({ pressed }) => ({
             marginTop: 14,
             alignSelf: 'center',
-            backgroundColor: primary,
+            backgroundColor: pressed
+              ? branding.colors.buttonHover
+              : branding.colors.button,
             borderRadius: 14,
             paddingHorizontal: 22,
             paddingVertical: 11,
-          }}
+          })}
         >
-          <Text style={{ color: onDark, fontWeight: '700' }}>Cerrar</Text>
+          <Text style={{ color: branding.colors.buttonText, fontWeight: '700' }}>
+            Cerrar
+          </Text>
         </Pressable>
       </View>
     </Modal>
@@ -1146,6 +1151,7 @@ function CatalogDetailModal({
   primary: string;
   onOpenMedia: (preview: MediaPreview) => void;
 }) {
+  const branding = useBranding();
   const kindLabel =
     detail?.kind === 'routine'
       ? 'Rutina'
@@ -1208,7 +1214,7 @@ function CatalogDetailModal({
               {kindLabel}
             </Text>
             <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Cerrar">
-              <AppIcon icon={Icons.close} size={22} color="#64748B" />
+              <AppIcon icon={Icons.close} size={22} color={branding.colors.iconMuted} />
             </Pressable>
           </View>
           <ScrollView>
@@ -1329,16 +1335,18 @@ function CatalogDetailModal({
               {detail?.url ? (
                 <Pressable
                   onPress={() => openUrl(detail.url)}
-                  style={{
+                  style={({ pressed }) => ({
                     marginTop: 8,
                     alignSelf: 'flex-start',
-                    backgroundColor: primary,
+                    backgroundColor: pressed
+                      ? branding.colors.buttonHover
+                      : branding.colors.button,
                     borderRadius: 14,
                     paddingHorizontal: 14,
                     paddingVertical: 8,
-                  }}
+                  })}
                 >
-                  <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>
+                  <Text style={{ color: branding.colors.buttonText, fontWeight: '700' }}>
                     Ver más
                   </Text>
                 </Pressable>

@@ -22,6 +22,8 @@ export interface NavItem {
   requiresEmpresa?: boolean;
   /** Requiere Doctor.empresaReferida = true (módulo Referidos). */
   requiresEmpresaReferida?: boolean;
+  /** Oculto para miembros invitados al equipo de una empresa. */
+  ownerOnly?: boolean;
   /**
    * Visible aunque el doctor aún no esté activo (pending / in_review / …).
    * Sin este flag, el ítem solo aparece con verificationStatus active|approved.
@@ -42,6 +44,7 @@ export type NavFeatures = {
   /** Permisos de módulo del equipo empresa (solo miembros invitados). */
   teamPermissions?: TeamMemberPermission[] | null;
   isOrgMember?: boolean;
+  organizationMemberRole?: "owner" | "member" | null;
   /** Profesional verificado sin plan vigente: solo NO_PLAN_MENU_HREFS. */
   planRestricted?: boolean;
 };
@@ -98,6 +101,7 @@ export function filterNavByFeatures(
     }
     if (item.requiresEmpresa && !features.empresa) return false;
     if (item.requiresEmpresaReferida && !features.empresaReferida) return false;
+    if (item.ownerOnly && features.organizationMemberRole === "member") return false;
 
     if (
       verificationGate &&

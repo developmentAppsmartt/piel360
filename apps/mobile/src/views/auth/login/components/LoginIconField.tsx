@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Text, TextInput, View, type TextInputProps } from 'react-native';
 import { AppIcon } from '../../../../components/AppIcon';
 import type { AppIconName } from '../../../../components/icons';
+import { useBranding } from '../../../../context/BrandingContext';
 import type { LoginStyles } from '../styles/login.styles';
 
 type LoginIconFieldProps = TextInputProps & {
@@ -18,9 +19,10 @@ export function LoginIconField({
   endAdornment,
   ...props
 }: LoginIconFieldProps) {
+  const branding = useBranding();
   return (
     <View style={styles.iconField}>
-      <AppIcon icon={icon} size={20} color="#64748B" />
+      <AppIcon icon={icon} size={20} color={branding.colors.iconMuted} />
       <View style={styles.iconFieldBody}>
         <Text style={styles.iconFieldLabel}>{label}</Text>
         <TextInput

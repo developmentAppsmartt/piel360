@@ -13,9 +13,7 @@ import Svg, { Circle, Line, Polygon, Text as SvgText } from 'react-native-svg';
 import { AppIcon } from '../../../components/AppIcon';
 import { Icons } from '../../../components/icons';
 import { useBranding } from '../../../context/BrandingContext';
-import {
-  youcamMetricAdvice,
-} from '../../../data/youcamMetricCopy';
+import { useYoucamScorer } from '../../../lib/youcam-scoring';
 import {
   YOUCAM_METRIC_LABELS,
   youcamMetricLabel,
@@ -240,12 +238,12 @@ export function YoucamReportView({
   );
   const [exporting, setExporting] = useState(false);
 
+  const scorer = useYoucamScorer();
   const metrics = useMemo(
     () =>
       parseYoucamMetrics(analysis.aiRawResponse as YoucamRawResponse | null),
     [analysis.aiRawResponse],
   );
-  // Puntuación ajustada (uiScore): la elige el doctor; sin toggle en el análisis.
   const preferRaw = false;
   const scores = useMemo(
     () => youcamScoresByType(metrics, preferRaw),
@@ -374,16 +372,15 @@ export function YoucamReportView({
         summary: buildSummary(scores, overall, skinTypeLabel),
         notes: analysis.doctorNotes?.trim() || null,
         metrics: reportRows.map((row) => {
-          const itemBand = youcamScoreBand(row.score);
+          const itemBand = scorer.band(row.type, row.score);
           return {
             title: row.title,
             score: row.score,
             band: youcamScoreBandLabel(itemBand),
-            advice: youcamMetricAdvice(row.type, itemBand),
+            advice: scorer.advice(row.type, itemBand),
           };
         }),
-        brandPrimary: branding.colors.primary,
-        brandDark: branding.colors.primaryDark,
+        branding,
       });
     } catch (err) {
       Alert.alert(
@@ -418,7 +415,7 @@ export function YoucamReportView({
             <AppIcon
               icon={Icons.back}
               size={24}
-              color={branding.colors.muted}
+              color={branding.colors.iconMuted}
             />
           </Pressable>
           <View style={styles.reportActions}>
@@ -431,7 +428,7 @@ export function YoucamReportView({
               <AppIcon
                 icon={Icons.download}
                 size={18}
-                color={branding.colors.muted}
+                color={branding.colors.iconMuted}
               />
             </Pressable>
             {canShare ? (
@@ -452,7 +449,7 @@ export function YoucamReportView({
                   color={
                     analysis.sharedWithPatient
                       ? branding.colors.success
-                      : branding.colors.muted
+                      : branding.colors.iconMuted
                   }
                 />
               </Pressable>
@@ -475,7 +472,7 @@ export function YoucamReportView({
                 <AppIcon
                   icon={Icons.account}
                   size={32}
-                  color={branding.colors.primary}
+                  color={branding.colors.icon}
                 />
               )}
             </View>
@@ -604,16 +601,16 @@ export function YoucamReportView({
           </View>
 
           <View style={styles.radarWrap}>
-            <RadarChart scores={scores} color={branding.colors.primary} />
+            <RadarChart scores={scores} color={branding.colors.primaryText} />
           </View>
 
           <Text style={styles.sectionHeading}>Detalle por métrica</Text>
 
           <View style={styles.metricList}>
             {reportRows.map((row) => {
-              const itemBand = youcamScoreBand(row.score);
+              const itemBand = scorer.band(row.type, row.score);
               const color = BAND_COLOR[itemBand];
-              const advice = youcamMetricAdvice(row.type, itemBand);
+              const advice = scorer.advice(row.type, itemBand);
 
               return (
                 <View key={row.key} style={styles.metricRowCard}>
@@ -630,7 +627,7 @@ export function YoucamReportView({
                           <AppIcon
                             icon={Icons.camera}
                             size={22}
-                            color={branding.colors.muted}
+                            color={branding.colors.iconMuted}
                           />
                         </View>
                       )}

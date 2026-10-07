@@ -20,7 +20,8 @@ import {
   type FitzpatrickScale,
 } from '../../../../data/fitzpatrickLabels';
 import { PATIENT_FITZ_OPTIONS } from '../../../../data/patientFormOptions';
-import { youcamMetricAdvice, youcamMetricCopy } from '../../../../data/youcamMetricCopy';
+import { youcamMetricCopy } from '../../../../data/youcamMetricCopy';
+import { useYoucamScorer } from '../../../../lib/youcam-scoring';
 import { youcamMetricConvention, youcamViewerBadgeLabel } from '../../../../data/youcamMetricConventions';
 import {
   formatSignedYears,
@@ -43,7 +44,6 @@ import {
   YOUCAM_MAIN_METRIC_TYPES,
   youcamMetricValue,
   youcamOverallScore,
-  youcamScoreBand,
   youcamSkinAge,
   youcamSkinType,
 } from '../../../../types/analysis';
@@ -381,6 +381,7 @@ export function YoucamResultsSection({
     [branding.colors, conventionScale],
   );
 
+  const scorer = useYoucamScorer();
   const metrics = useMemo(
     () =>
       parseYoucamMetrics(analysis.aiRawResponse as YoucamRawResponse | null),
@@ -399,7 +400,6 @@ export function YoucamResultsSection({
     () => resolveSkinTypeChip(analysis, skinType),
     [analysis, skinType],
   );
-  // Puntuación ajustada (uiScore): la elige el doctor; el paciente no cambia modo.
   const preferRaw = false;
   const chips = useMemo(
     () =>
@@ -528,9 +528,9 @@ export function YoucamResultsSection({
     copyType &&
     copyType !== 'overview' &&
     copyType !== 'all'
-      ? youcamMetricAdvice(
+      ? scorer.advice(
           copyType,
-          youcamScoreBand(activeScore),
+          scorer.band(copyType, activeScore),
           activeRegion && activeRegion.region !== DEFAULT_REGION
             ? activeRegion.label
             : null,
@@ -749,7 +749,7 @@ export function YoucamResultsSection({
           <View
             style={[
               styles.viewerBadge,
-              selected && selected.type !== 'overview'
+              selected && !isOverview && !isSkinAge && !isFototipo
                 ? {
                     backgroundColor: youcamMetricConvention(selected.type)
                       .color,
@@ -922,7 +922,7 @@ export function YoucamResultsSection({
                     icon={Icons.back}
                     size={14}
                     color={
-                      active ? branding.colors.primary : branding.colors.muted
+                      active ? branding.colors.icon : branding.colors.iconMuted
                     }
                   />
                 </View>
@@ -953,7 +953,7 @@ export function YoucamResultsSection({
           <AppIcon
             icon={Icons.chevronRight}
             size={16}
-            color={branding.colors.primary}
+            color={branding.colors.icon}
           />
         </Pressable>
       ) : null}
@@ -970,7 +970,7 @@ export function YoucamResultsSection({
               <AppIcon
                 icon={Icons.back}
                 size={18}
-                color={branding.colors.primary}
+                color={branding.colors.icon}
               />
             </View>
           </Pressable>
@@ -1001,7 +1001,7 @@ export function YoucamResultsSection({
               <AppIcon
                 icon={Icons.back}
                 size={18}
-                color={branding.colors.primary}
+                color={branding.colors.icon}
               />
             </View>
           </Pressable>
@@ -1050,7 +1050,7 @@ export function YoucamResultsSection({
         <AppIcon
           icon={Icons.information}
           size={18}
-          color={branding.colors.primary}
+          color={branding.colors.icon}
         />
         <View style={styles.copyCardBody}>
           <Text style={styles.copyText}>{copyText}</Text>

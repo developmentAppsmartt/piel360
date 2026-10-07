@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   BackHandler,
-  Image,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
@@ -66,6 +66,19 @@ export function OfflineScreen({ onReconnect }: { onReconnect: () => void }) {
   const insets = useSafeAreaInsets();
   const [offline, setOffline] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [logoFailed, setLogoFailed] = useState(false);
+  const companyLogoUri =
+    branding.companyLogoImage &&
+    typeof branding.companyLogoImage === 'object' &&
+    'uri' in branding.companyLogoImage
+      ? branding.companyLogoImage.uri
+      : null;
+
+  // Sin red no se puede descargar: se guarda en disco mientras hay conexión.
+  useEffect(() => {
+    setLogoFailed(false);
+    if (companyLogoUri) void Image.prefetch(companyLogoUri, 'disk');
+  }, [companyLogoUri]);
 
   useEffect(
     () =>
@@ -78,7 +91,10 @@ export function OfflineScreen({ onReconnect }: { onReconnect: () => void }) {
 
   if (!offline) return null;
 
-  const primary = branding.colors.primary;
+  const { colors } = branding;
+  const showCompanyLogo = !!companyLogoUri && !logoFailed;
+  const background = colors.screenBackground;
+  const secondaryText = colors.secondaryTextOverride ?? '#1F3B63';
 
   const retry = async () => {
     setChecking(true);
@@ -91,29 +107,44 @@ export function OfflineScreen({ onReconnect }: { onReconnect: () => void }) {
   };
 
   return (
-    <View style={[StyleSheet.absoluteFill, styles.root]}>
+    <View
+      style={[
+        StyleSheet.absoluteFill,
+        styles.root,
+        { backgroundColor: background ?? '#F7FAFE' },
+      ]}
+    >
       <LinearGradient
-        colors={['#EAF2FC', '#F7FAFE']}
+        colors={background ? [background, background] : ['#EAF2FC', '#F7FAFE']}
         style={[styles.hero, { paddingTop: insets.top + 32 }]}
       >
         <View style={styles.illustration}>
           <Image
-            source={OFFLINE_LOGO}
-            accessibilityLabel={branding.appName}
-            resizeMode="contain"
+            source={showCompanyLogo ? { uri: companyLogoUri } : OFFLINE_LOGO}
+            accessibilityLabel={showCompanyLogo ? 'Logo de la empresa' : branding.appName}
+            contentFit="contain"
+            cachePolicy="disk"
+            onError={() => setLogoFailed(true)}
             style={styles.logo}
           />
-          <View style={[styles.badge, { borderColor: `${primary}33` }]}>
-            <WifiOffIcon color={primary} size={26} />
+          <View style={[styles.badge, { borderColor: `${colors.icon}33` }]}>
+            <WifiOffIcon color={colors.icon} size={26} />
           </View>
         </View>
-        <Text style={[styles.title, { color: branding.colors.primaryDark }]}>
+        <Text style={[styles.title, { color: colors.primaryText }]}>
           Sin conexión a Internet
         </Text>
       </LinearGradient>
 
       <View style={[styles.sheet, { paddingBottom: insets.bottom + 28 }]}>
-        <Text style={styles.message}>
+        <Text
+          style={[
+            styles.message,
+            colors.secondaryTextOverride
+              ? { color: colors.secondaryTextOverride }
+              : null,
+          ]}
+        >
           Revisa tu conexión. Asegúrate de que tu Wi-Fi o datos móviles estén
           activados y el Modo Avión esté desactivado, e inténtalo de nuevo.
         </Text>
@@ -124,13 +155,18 @@ export function OfflineScreen({ onReconnect }: { onReconnect: () => void }) {
           disabled={checking}
           style={({ pressed }) => [
             styles.button,
-            { backgroundColor: primary, opacity: pressed || checking ? 0.85 : 1 },
+            {
+              backgroundColor: pressed
+                ? branding.colors.buttonHover
+                : branding.colors.button,
+              opacity: pressed || checking ? 0.85 : 1,
+            },
           ]}
         >
           {checking ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color={branding.colors.buttonText} />
           ) : (
-            <Text style={styles.buttonText}>Intentar de nuevo</Text>
+            <Text style={[styles.buttonText, { color: branding.colors.buttonText }]}>Intentar de nuevo</Text>
           )}
         </Pressable>
 
@@ -138,9 +174,14 @@ export function OfflineScreen({ onReconnect }: { onReconnect: () => void }) {
           <Pressable
             accessibilityRole="button"
             onPress={() => BackHandler.exitApp()}
-            style={styles.linkButton}
+            style={[styles.linkButton, { borderColor: secondaryText }]}
           >
-            <Text style={[styles.linkText, { color: primary }]}>
+            <Text
+              style={[
+                styles.linkText,
+                { color: secondaryText },
+              ]}
+            >
               Cerrar aplicación
             </Text>
           </Pressable>
@@ -154,7 +195,6 @@ const styles = StyleSheet.create({
   root: {
     zIndex: 1000,
     elevation: 1000,
-    backgroundColor: '#F7FAFE',
   },
   hero: {
     flex: 1,
@@ -215,8 +255,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   linkButton: {
+    height: 54,
+    borderRadius: 27,
+    borderWidth: 1.5,
     alignItems: 'center',
-    paddingVertical: 6,
+    justifyContent: 'center',
   },
   linkText: {
     fontSize: 16,

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { AppIcon } from '../../../components/AppIcon';
 import { Icons } from '../../../components/icons';
+import { useBranding } from '../../../context/BrandingContext';
 import type { ChatMessage } from '../../../types/messages';
 import type { ChatStyles } from '../styles/chat.styles';
 import { downloadChatImage } from '../utils/downloadChatImage';
@@ -29,6 +30,7 @@ export function ChatBubble({
   canDownloadImages = false,
   accentColor = '#1E5A9E',
 }: ChatBubbleProps) {
+  const branding = useBranding();
   const mine = message.from === 'me';
   const attachment = message.attachment;
   const [downloading, setDownloading] = useState(false);
@@ -76,9 +78,9 @@ export function ChatBubble({
                 disabled={downloading}
               >
                 {downloading ? (
-                  <ActivityIndicator size="small" color="#FFF" />
+                  <ActivityIndicator size="small" color={branding.colors.buttonText} />
                 ) : (
-                  <AppIcon icon={Icons.download} size={16} color="#FFF" />
+                  <AppIcon icon={Icons.download} size={16} color={branding.colors.buttonText} />
                 )}
               </Pressable>
             ) : null}

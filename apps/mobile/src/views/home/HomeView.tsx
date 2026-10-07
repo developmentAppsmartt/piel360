@@ -807,7 +807,7 @@ export function HomeView({
                 <AppIcon
                   icon={Icons.smile}
                   size={22}
-                  color={branding.colors.primary}
+                  color={branding.colors.icon}
                 />
               </View>
               <Text style={styles.linkLabel}>
@@ -816,7 +816,7 @@ export function HomeView({
               <AppIcon
                 icon={Icons.chevronRight}
                 size={20}
-                color={branding.colors.muted}
+                color={branding.colors.iconMuted}
               />
             </Pressable>
           ) : null}
@@ -832,14 +832,14 @@ export function HomeView({
                 <AppIcon
                   icon={Icons.prescription}
                   size={22}
-                  color={branding.colors.primary}
+                  color={branding.colors.icon}
                 />
               </View>
               <Text style={styles.linkLabel}>Enfermedades de la piel</Text>
               <AppIcon
                 icon={Icons.chevronRight}
                 size={20}
-                color={branding.colors.muted}
+                color={branding.colors.iconMuted}
               />
             </Pressable>
           ) : null}
@@ -860,7 +860,7 @@ export function HomeView({
               <AppIcon
                 icon={Icons.calendarClock}
                 size={16}
-                color={branding.colors.primary}
+                color={branding.colors.icon}
               />
               <Text style={styles.assignText}>Asignar Cita</Text>
             </Pressable>
@@ -935,7 +935,7 @@ export function HomeView({
                       <AppIcon
                         icon={Icons.skin}
                         size={22}
-                        color={branding.colors.primary}
+                        color={branding.colors.icon}
                       />
                     </View>
                     <AppIcon
@@ -954,7 +954,7 @@ export function HomeView({
                     <AppIcon
                       icon={Icons.chevronRight}
                       size={18}
-                      color={branding.colors.muted}
+                      color={branding.colors.iconMuted}
                     />
                   </Pressable>
                 );

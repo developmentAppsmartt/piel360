@@ -255,7 +255,7 @@ export function LocationPicker({
               <AppIcon
                 icon={Icons.mapMarker}
                 size={16}
-                color={branding.colors.primary}
+                color={branding.colors.icon}
               />
               <Text style={styles.gpsText}>Mi ubicación</Text>
             </>
@@ -266,7 +266,7 @@ export function LocationPicker({
       <View style={styles.searchBlock}>
         <Text style={styles.subLabel}>Buscar dirección exacta</Text>
         <View style={styles.searchWrap}>
-          <AppIcon icon={Icons.search} size={18} color={branding.colors.muted} />
+          <AppIcon icon={Icons.search} size={18} color={branding.colors.iconMuted} />
           <TextInput
             ref={searchInputRef}
             style={styles.searchInput}
@@ -318,7 +318,7 @@ export function LocationPicker({
                 <AppIcon
                   icon={Icons.mapMarker}
                   size={16}
-                  color={branding.colors.muted}
+                  color={branding.colors.iconMuted}
                 />
                 <Text style={styles.suggestionText}>{s.description}</Text>
               </Pressable>

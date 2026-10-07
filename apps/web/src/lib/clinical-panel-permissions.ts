@@ -36,6 +36,9 @@ export function clinicalRouteAllowed(
   if (pathname.startsWith("/doctor/configuracion/referidos")) {
     return hasAnyPermission(userPermissions, ["clinical.settings.referrals"]);
   }
+  if (pathname.startsWith("/doctor/configuracion/personalizacion")) {
+    return hasAnyPermission(userPermissions, ["clinical.settings.personalization"]);
+  }
   if (
     pathname === "/doctor/reglas-edad-piel" ||
     pathname.startsWith("/doctor/reglas-edad-piel/") ||

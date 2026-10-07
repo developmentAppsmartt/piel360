@@ -145,7 +145,7 @@ export function FitzpatrickAnalysisFlow({
                   <AppIcon
                     icon={tip.icon}
                     size={22}
-                    color={branding.colors.primary}
+                    color={branding.colors.icon}
                   />
                 </View>
                 <Text style={styles.tipText}>{tip.text}</Text>
@@ -154,12 +154,12 @@ export function FitzpatrickAnalysisFlow({
           </ScrollView>
 
           <Pressable
-            style={[styles.primaryBtn, busy && { opacity: 0.7 }]}
+            style={({ pressed }) => [styles.primaryBtn, busy && { opacity: 0.7 }, pressed && { backgroundColor: branding.colors.buttonHover }]}
             disabled={busy}
             onPress={() => void handleStart()}
           >
             {busy ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={branding.colors.buttonText} />
             ) : (
               <Text style={styles.primaryBtnText}>Iniciar captura</Text>
             )}

@@ -9,7 +9,7 @@ export function createCreatePatientStyles(colors: AppBranding['colors']) {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: '#F5F3FF',
+      backgroundColor: colors.screenBackground ?? '#F5F3FF',
     },
     scroll: { flex: 1 },
     scrollContent: {
@@ -27,7 +27,7 @@ export function createCreatePatientStyles(colors: AppBranding['colors']) {
     label: {
       fontSize: 12,
       fontWeight: '600',
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     input: {
       backgroundColor: '#F9FAFB',
@@ -51,8 +51,8 @@ export function createCreatePatientStyles(colors: AppBranding['colors']) {
       paddingVertical: 8,
     },
     chipActive: {
-      borderColor: colors.primary,
-      backgroundColor: colors.primary,
+      borderColor: colors.buttonHover,
+      backgroundColor: colors.buttonHover,
     },
     chipText: { fontSize: 13, fontWeight: '600', color: colors.text },
     chipTextActive: { color: colors.textOnDark },
@@ -68,8 +68,8 @@ export function createCreatePatientStyles(colors: AppBranding['colors']) {
       paddingVertical: 8,
     },
     iconChipActive: {
-      borderColor: colors.primary,
-      backgroundColor: colors.primary,
+      borderColor: colors.buttonHover,
+      backgroundColor: colors.buttonHover,
     },
     fitzRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 6 },
     fitzDot: {
@@ -80,12 +80,12 @@ export function createCreatePatientStyles(colors: AppBranding['colors']) {
       borderColor: 'transparent',
     },
     fitzDotActive: {
-      borderColor: colors.primary,
+      borderColor: colors.buttonHover,
     },
     hint: { fontSize: 12, color: colors.muted, lineHeight: 17 },
     error: { color: colors.error, fontSize: 14 },
     nextBtn: {
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       borderRadius: 14,
       paddingVertical: 15,
       alignItems: 'center',
@@ -93,7 +93,7 @@ export function createCreatePatientStyles(colors: AppBranding['colors']) {
     },
     nextBtnDisabled: { opacity: 0.6 },
     nextBtnText: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
       fontWeight: '700',
       fontSize: 16,
     },
@@ -119,7 +119,7 @@ export function createCreatePatientStyles(colors: AppBranding['colors']) {
     successTitle: {
       fontSize: 20,
       fontWeight: '800',
-      color: colors.primaryDark,
+      color: colors.primaryText,
       textAlign: 'center',
     },
     successId: { fontSize: 14, color: colors.muted },
@@ -132,7 +132,7 @@ export function createCreatePatientStyles(colors: AppBranding['colors']) {
     },
     successDone: {
       marginTop: 20,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       borderRadius: 14,
       paddingHorizontal: 28,
       paddingVertical: 14,
@@ -140,18 +140,18 @@ export function createCreatePatientStyles(colors: AppBranding['colors']) {
     consentTitle: {
       fontSize: 22,
       fontWeight: '800',
-      color: colors.primaryDark,
+      color: colors.primaryText,
     },
     consentSubtitle: {
       fontSize: 15,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.secondaryText,
       marginTop: 4,
     },
     consentBody: {
       fontSize: 14,
       lineHeight: 21,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       marginTop: 12,
     },
     checkRow: {

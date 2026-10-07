@@ -103,17 +103,24 @@ function MemberAvatar({ name }: { name: string }) {
   );
 }
 
-function MemberStatusBadge({ active }: { active: boolean }) {
-  if (active) {
+function MemberStatusBadge({ status }: { status: string | null }) {
+  if (memberIsActive(status)) {
     return (
       <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
         Activo
       </span>
     );
   }
+  if (status === "rejected") {
+    return (
+      <span className="inline-flex rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-600">
+        Rechazado
+      </span>
+    );
+  }
   return (
-    <span className="inline-flex rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-600">
-      Inactivo
+    <span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+      En moderación
     </span>
   );
 }
@@ -479,9 +486,7 @@ export function DoctorEquipoView() {
                             {member.specialty ?? "—"}
                           </td>
                           <td className="px-4 py-3">
-                            <MemberStatusBadge
-                              active={memberIsActive(member.verificationStatus)}
-                            />
+                            <MemberStatusBadge status={member.verificationStatus} />
                           </td>
                           <td className="px-4 py-3 text-muted-foreground">
                             {formatLastAccess(member.lastAccessAt)}

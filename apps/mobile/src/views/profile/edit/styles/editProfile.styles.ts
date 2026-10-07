@@ -5,7 +5,7 @@ export function createEditProfileStyles(colors: AppBranding['colors']) {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: '#F3F4F6',
+      backgroundColor: colors.screenBackground ?? '#F3F4F6',
     },
     scroll: {
       flex: 1,
@@ -37,7 +37,7 @@ export function createEditProfileStyles(colors: AppBranding['colors']) {
     label: {
       fontSize: 13,
       fontWeight: '600',
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     input: {
       backgroundColor: '#F9FAFB',
@@ -74,8 +74,8 @@ export function createEditProfileStyles(colors: AppBranding['colors']) {
       paddingVertical: 8,
     },
     chipActive: {
-      borderColor: colors.primary,
-      backgroundColor: colors.primary,
+      borderColor: colors.buttonHover,
+      backgroundColor: colors.buttonHover,
     },
     chipText: {
       fontSize: 13,
@@ -83,7 +83,7 @@ export function createEditProfileStyles(colors: AppBranding['colors']) {
       color: colors.text,
     },
     chipTextActive: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
     },
     iconChip: {
       flexDirection: 'row',
@@ -97,8 +97,8 @@ export function createEditProfileStyles(colors: AppBranding['colors']) {
       paddingVertical: 8,
     },
     iconChipActive: {
-      borderColor: colors.primary,
-      backgroundColor: colors.primary,
+      borderColor: colors.buttonHover,
+      backgroundColor: colors.buttonHover,
     },
     fitzRow: {
       flexDirection: 'row',
@@ -113,11 +113,11 @@ export function createEditProfileStyles(colors: AppBranding['colors']) {
       borderColor: 'transparent',
     },
     fitzDotActive: {
-      borderColor: colors.primary,
+      borderColor: colors.buttonHover,
     },
     hint: {
       fontSize: 12,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       lineHeight: 17,
     },
     error: {
@@ -126,7 +126,7 @@ export function createEditProfileStyles(colors: AppBranding['colors']) {
       marginTop: 4,
     },
     saveButton: {
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       borderRadius: 14,
       paddingVertical: 16,
       alignItems: 'center',
@@ -136,7 +136,7 @@ export function createEditProfileStyles(colors: AppBranding['colors']) {
       opacity: 0.65,
     },
     saveButtonText: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
       fontSize: 16,
       fontWeight: '700',
     },

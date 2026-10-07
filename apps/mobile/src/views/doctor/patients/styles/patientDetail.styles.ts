@@ -10,7 +10,7 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: soft(colors.primary, '18'),
+      backgroundColor: colors.screenBackground ?? soft(colors.primary, '18'),
     },
     card: {
       flex: 1,
@@ -52,7 +52,7 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
       backgroundColor: '#FFFFFF',
       borderRadius: 18,
       borderWidth: 1,
-      borderColor: soft(colors.primary, '28'),
+      borderColor: soft(colors.icon, '28'),
       ...appShadow({ opacity: 0.06, radius: 10, offsetY: 3, elevation: 2 }),
     },
     identityInfo: {
@@ -64,7 +64,7 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
       width: 72,
       height: 72,
       borderRadius: 36,
-      backgroundColor: soft(colors.primary),
+      backgroundColor: soft(colors.icon),
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
@@ -77,12 +77,12 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
     avatarText: {
       fontSize: 24,
       fontWeight: '800',
-      color: colors.primary,
+      color: colors.icon,
     },
     name: {
       fontSize: 18,
       fontWeight: '800',
-      color: colors.primaryDark,
+      color: colors.primaryText,
       textAlign: 'left',
     },
     metaRow: {
@@ -93,7 +93,7 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
     meta: {
       flexShrink: 1,
       fontSize: 13,
-      color: colors.primary,
+      color: colors.secondaryText,
       textAlign: 'left',
       lineHeight: 18,
       fontWeight: '500',
@@ -135,8 +135,8 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
       borderColor: '#E5E7EB',
     },
     historyFilterChipOn: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
+      backgroundColor: colors.buttonHover,
+      borderColor: colors.buttonHover,
     },
     historyFilterChipText: {
       fontSize: 12,
@@ -144,7 +144,7 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
       color: colors.muted,
     },
     historyFilterChipTextOn: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
     },
     newAnalysisSection: {
       marginTop: 16,
@@ -155,7 +155,7 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
     newAnalysisHint: {
       fontSize: 15,
       fontWeight: '700',
-      color: colors.primaryDark,
+      color: colors.primaryText,
       textAlign: 'left',
       marginBottom: 2,
     },
@@ -181,22 +181,22 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
       paddingHorizontal: 12,
     },
     clinicalActionPrimary: {
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
     },
     clinicalActionSecondary: {
       backgroundColor: '#FFFFFF',
       borderWidth: 1.5,
-      borderColor: colors.primary,
+      borderColor: colors.icon,
     },
     clinicalActionPrimaryText: {
       fontSize: 12,
       fontWeight: '700',
-      color: colors.textOnDark,
+      color: colors.buttonText,
     },
     clinicalActionSecondaryText: {
       fontSize: 12,
       fontWeight: '700',
-      color: colors.primary,
+      color: colors.secondaryText,
     },
     providerCard: {
       flex: 1,
@@ -237,7 +237,7 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
     },
     providerEmptyText: {
       fontSize: 13,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       textAlign: 'left',
       fontWeight: '600',
       lineHeight: 18,
@@ -267,14 +267,14 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
       marginTop: 12,
       alignSelf: 'stretch',
       marginHorizontal: 24,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       borderRadius: 999,
       paddingVertical: 14,
       paddingHorizontal: 24,
       alignItems: 'center',
     },
     newAnalysisText: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
       fontWeight: '700',
       fontSize: 15,
     },
@@ -308,7 +308,7 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
     historyTitle: {
       fontSize: 15,
       fontWeight: '700',
-      color: colors.primaryDark,
+      color: colors.primaryText,
       flexShrink: 1,
     },
     historyActions: {
@@ -323,7 +323,7 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       borderRadius: 999,
       paddingVertical: 8,
       paddingHorizontal: 12,
@@ -331,7 +331,7 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
     historyActionPrimaryText: {
       fontSize: 12,
       fontWeight: '700',
-      color: colors.textOnDark,
+      color: colors.buttonText,
     },
     historyActionSecondary: {
       flexDirection: 'row',
@@ -340,14 +340,14 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
       backgroundColor: 'transparent',
       borderRadius: 999,
       borderWidth: 1.5,
-      borderColor: colors.primary,
+      borderColor: colors.icon,
       paddingVertical: 8,
       paddingHorizontal: 14,
     },
     historyActionSecondaryText: {
       fontSize: 12,
       fontWeight: '700',
-      color: colors.primary,
+      color: colors.secondaryText,
     },
     requestOverlay: {
       flex: 1,
@@ -366,12 +366,12 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
     requestSheetTitle: {
       fontSize: 18,
       fontWeight: '800',
-      color: colors.primaryDark,
+      color: colors.primaryText,
     },
     requestSheetSubtitle: {
       fontSize: 13,
       lineHeight: 18,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       marginBottom: 4,
     },
     requestOption: {
@@ -403,7 +403,7 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
     requestCancelText: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     historyAction: {
       flexDirection: 'row',
@@ -428,7 +428,7 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
       backgroundColor: '#FFFFFF',
       borderRadius: 16,
       borderWidth: 1,
-      borderColor: soft(colors.primary, '28'),
+      borderColor: soft(colors.icon, '28'),
       paddingVertical: 14,
       paddingHorizontal: 14,
       flexDirection: 'row',
@@ -471,12 +471,12 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
       minWidth: 0,
       fontSize: 14,
       fontWeight: '800',
-      color: colors.primaryDark,
+      color: colors.primaryText,
     },
     differential: {
       fontSize: 12,
       fontWeight: '500',
-      color: colors.primary,
+      color: colors.secondaryText,
     },
     metaBadges: {
       flexDirection: 'row',
@@ -552,7 +552,7 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
     regionLine: {
       fontSize: 12,
       fontWeight: '600',
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     stampRow: {
       flexDirection: 'row',
@@ -562,14 +562,14 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
     },
     stamp: {
       fontSize: 12,
-      color: colors.primary,
+      color: colors.secondaryText,
       fontWeight: '500',
     },
     goBtn: {
       width: 30,
       height: 30,
       borderRadius: 15,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -578,7 +578,7 @@ export function createPatientDetailStyles(colors: AppBranding['colors']) {
       alignItems: 'center',
     },
     emptyText: {
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       fontSize: 14,
       textAlign: 'center',
     },

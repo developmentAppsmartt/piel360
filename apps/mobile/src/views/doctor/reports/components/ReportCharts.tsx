@@ -15,6 +15,8 @@ import type {
   SkinReportDistributionSlice,
   SkinReportTrendPoint,
 } from '../../../../types/skin-report';
+import { skinReportScoreColor } from '../../../../types/skin-report';
+import { useBranding } from '../../../../context/BrandingContext';
 
 export type DonutSlice = {
   key: string;
@@ -135,13 +137,15 @@ export function DistributionDonut({
 /** Línea de evolución 0–100 (paridad CRM ScoreTrendChart). */
 export function ScoreTrendChart({
   points,
-  primaryColor = '#1E5A9E',
+  primaryColor: primaryColorProp,
   emptyMessage = 'No hay análisis en el periodo seleccionado.',
 }: {
   points: SkinReportTrendPoint[];
   primaryColor?: string;
   emptyMessage?: string;
 }) {
+  const branding = useBranding();
+  const primaryColor = primaryColorProp ?? branding.colors.primary;
   const { width: screenW } = useWindowDimensions();
   const w = Math.max(320, screenW - 64);
   const h = 180;
@@ -223,6 +227,21 @@ export function ScoreTrendChart({
         ),
       )}
       {points.map((p, i) =>
+        p.avgScore == null ? null : (
+          <SvgText
+            key={`val-${p.period}`}
+            x={toX(i)}
+            y={toY(p.avgScore) - 8}
+            fontSize={10}
+            fontWeight="700"
+            fill={primaryColor}
+            textAnchor="middle"
+          >
+            {Math.round(p.avgScore)}
+          </SvgText>
+        ),
+      )}
+      {points.map((p, i) =>
         i % labelStep === 0 || i === points.length - 1 ? (
           <SvgText
             key={`x-${p.period}`}
@@ -294,11 +313,74 @@ export function CategoryRankingBars({
   );
 }
 
+function TrendLabel({ delta }: { delta: number | null }) {
+  if (delta == null) {
+    return <Text style={[topStyles.trend, { color: '#9CA3AF' }]}>— sin evolución</Text>;
+  }
+  const flat = Math.abs(delta) < 0.5;
+  const improved = delta > 0;
+  const color = flat ? '#6B7280' : improved ? '#059669' : '#DC2626';
+  const arrow = flat ? '–' : improved ? '↑' : '↓';
+  return (
+    <Text style={[topStyles.trend, { color }]}>
+      {arrow} {delta > 0 ? '+' : ''}
+      {delta.toFixed(1)}
+    </Text>
+  );
+}
+
+/** Top problemas: paridad con la tabla del CRM (color por banda de puntaje). */
+export function TopProblemsList({ categories }: { categories: SkinReportCategory[] }) {
+  if (categories.length === 0) {
+    return (
+      <Text style={barStyles.empty}>Sin categorías con datos en el periodo.</Text>
+    );
+  }
+  return (
+    <View style={topStyles.list}>
+      {categories.map((category, index) => {
+        const score = category.avgScore ?? 0;
+        return (
+          <View key={category.key} style={topStyles.row}>
+            <View style={topStyles.mainLine}>
+              <Text style={barStyles.index}>{index + 1}</Text>
+              <Text style={barStyles.label} numberOfLines={1}>
+                {category.label}
+              </Text>
+              <View style={barStyles.track}>
+                <View
+                  style={[
+                    barStyles.fill,
+                    {
+                      width: `${Math.max(0, Math.min(100, score))}%`,
+                      backgroundColor: skinReportScoreColor(score),
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={barStyles.score}>{score.toFixed(0)}</Text>
+            </View>
+            <View style={topStyles.metaLine}>
+              <Text style={topStyles.affected}>
+                <Text style={topStyles.affectedPct}>
+                  {category.affectedPct.toFixed(0)}%
+                </Text>{' '}
+                afectados ({category.patientsAffected}/{category.patients})
+              </Text>
+              <TrendLabel delta={category.trendDelta} />
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 /** Barras genéricas para segmentos lifestyle / clínicas. */
 export function SegmentBars({
   segments,
   valueKey = 'avgScore',
-  barColor = '#1E5A9E',
+  barColor: barColorProp,
 }: {
   segments: {
     key: string;
@@ -310,6 +392,8 @@ export function SegmentBars({
   valueKey?: 'avgScore' | 'pct' | 'patients';
   barColor?: string;
 }) {
+  const branding = useBranding();
+  const barColor = barColorProp ?? branding.colors.primary;
   if (segments.length === 0) {
     return <Text style={barStyles.empty}>Sin datos en el periodo.</Text>;
   }
@@ -879,6 +963,41 @@ const barStyles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#111827',
+    fontVariant: ['tabular-nums'],
+  },
+});
+
+const topStyles = StyleSheet.create({
+  list: { gap: 2 },
+  row: {
+    paddingVertical: 7,
+    paddingHorizontal: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E7EB',
+    gap: 3,
+  },
+  mainLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  metaLine: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingLeft: 24,
+  },
+  affected: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontVariant: ['tabular-nums'],
+  },
+  affectedPct: {
+    fontWeight: '700',
+    color: '#374151',
+  },
+  trend: {
+    fontSize: 11,
+    fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
 });

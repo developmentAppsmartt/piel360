@@ -85,7 +85,7 @@ export function createNosologiesStyles(colors: AppBranding['colors']) {
       paddingHorizontal: 16,
       fontSize: 13,
       lineHeight: 18,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       marginBottom: 12,
     },
     searchWrap: {
@@ -125,7 +125,7 @@ export function createNosologiesStyles(colors: AppBranding['colors']) {
       flex: 1,
       fontSize: 15,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.secondaryText,
     },
     rowAction: {
       width: 28,
@@ -162,7 +162,7 @@ export function createNosologiesStyles(colors: AppBranding['colors']) {
       borderTopColor: '#E5E7EB',
     },
     saveBtn: {
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       borderRadius: 14,
       paddingVertical: 15,
       alignItems: 'center',
@@ -171,7 +171,7 @@ export function createNosologiesStyles(colors: AppBranding['colors']) {
       opacity: 0.5,
     },
     saveBtnText: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
       fontWeight: '800',
       fontSize: 15,
       letterSpacing: 0.4,
@@ -182,7 +182,7 @@ export function createNosologiesStyles(colors: AppBranding['colors']) {
       alignItems: 'center',
     },
     emptyText: {
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       fontSize: 14,
       textAlign: 'center',
     },

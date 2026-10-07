@@ -6,7 +6,7 @@ export function createClinicalRulesStyles(colors: AppBranding['colors']) {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: '#F5F6FA',
+      backgroundColor: colors.screenBackground ?? '#F5F6FA',
     },
     centered: {
       flex: 1,
@@ -27,7 +27,7 @@ export function createClinicalRulesStyles(colors: AppBranding['colors']) {
     subtitle: {
       fontSize: 14,
       lineHeight: 20,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       marginTop: 4,
     },
     card: {
@@ -45,7 +45,7 @@ export function createClinicalRulesStyles(colors: AppBranding['colors']) {
     cardBody: {
       fontSize: 13,
       lineHeight: 19,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     statsRow: {
       flexDirection: 'row',
@@ -63,12 +63,12 @@ export function createClinicalRulesStyles(colors: AppBranding['colors']) {
     statValue: {
       fontSize: 20,
       fontWeight: '800',
-      color: colors.primary,
+      color: colors.primaryText,
     },
     statLabel: {
       fontSize: 12,
       fontWeight: '600',
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       marginTop: 2,
     },
     chipRow: {
@@ -85,8 +85,8 @@ export function createClinicalRulesStyles(colors: AppBranding['colors']) {
       paddingVertical: 8,
     },
     chipActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
+      backgroundColor: colors.buttonHover,
+      borderColor: colors.buttonHover,
     },
     chipText: {
       fontSize: 13,
@@ -94,7 +94,7 @@ export function createClinicalRulesStyles(colors: AppBranding['colors']) {
       color: colors.text,
     },
     chipTextActive: {
-      color: '#FFFFFF',
+      color: colors.buttonText,
     },
     ruleCard: {
       backgroundColor: '#FFFFFF',
@@ -118,7 +118,7 @@ export function createClinicalRulesStyles(colors: AppBranding['colors']) {
     },
     ruleMeta: {
       fontSize: 12,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     badge: {
       borderRadius: 999,
@@ -138,13 +138,13 @@ export function createClinicalRulesStyles(colors: AppBranding['colors']) {
       color: '#6B7280',
     },
     primaryBtn: {
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       borderRadius: 999,
       paddingVertical: 12,
       alignItems: 'center',
     },
     primaryBtnText: {
-      color: '#FFFFFF',
+      color: colors.buttonText,
       fontWeight: '700',
       fontSize: 14,
     },
@@ -177,7 +177,7 @@ export function createClinicalRulesStyles(colors: AppBranding['colors']) {
       textAlign: 'center',
     },
     emptyText: {
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       fontSize: 13,
       textAlign: 'center',
       paddingVertical: 12,
@@ -192,7 +192,7 @@ export function createClinicalRulesStyles(colors: AppBranding['colors']) {
     },
     recoItem: {
       fontSize: 13,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     previewBox: {
       height: 280,

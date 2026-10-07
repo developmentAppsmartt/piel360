@@ -9,7 +9,7 @@ export function createPaymentsStyles(colors: AppBranding['colors']) {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: soft(colors.primary, '18'),
+      backgroundColor: colors.screenBackground ?? soft(colors.primary, '18'),
     },
     card: {
       flex: 1,
@@ -73,7 +73,7 @@ export function createPaymentsStyles(colors: AppBranding['colors']) {
     },
     cell: {
       fontSize: 13,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       fontWeight: '500',
     },
     statusDot: {
@@ -96,7 +96,7 @@ export function createPaymentsStyles(colors: AppBranding['colors']) {
     },
     emptyText: {
       fontSize: 14,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       textAlign: 'center',
       lineHeight: 20,
     },
@@ -108,12 +108,12 @@ export function createPaymentsStyles(colors: AppBranding['colors']) {
     sectionTitle: {
       fontSize: 16,
       fontWeight: '800',
-      color: colors.primaryDark,
+      color: colors.primaryText,
       marginBottom: 4,
     },
     sectionHint: {
       fontSize: 13,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       lineHeight: 18,
       marginBottom: 10,
     },
@@ -125,7 +125,7 @@ export function createPaymentsStyles(colors: AppBranding['colors']) {
       backgroundColor: '#FFFFFF',
       borderRadius: 14,
       borderWidth: 1,
-      borderColor: soft(colors.primary, '28'),
+      borderColor: soft(colors.icon, '28'),
       padding: 12,
       gap: 6,
     },
@@ -136,13 +136,13 @@ export function createPaymentsStyles(colors: AppBranding['colors']) {
     },
     planMeta: {
       fontSize: 13,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       lineHeight: 18,
     },
     planPrice: {
       fontSize: 16,
       fontWeight: '800',
-      color: colors.primary,
+      color: colors.primaryText,
     },
     badge: {
       alignSelf: 'flex-start',
@@ -159,13 +159,13 @@ export function createPaymentsStyles(colors: AppBranding['colors']) {
     contractBtn: {
       marginTop: 4,
       alignSelf: 'flex-start',
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       borderRadius: 999,
       paddingHorizontal: 14,
       paddingVertical: 8,
     },
     contractBtnText: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
       fontWeight: '700',
       fontSize: 13,
     },
@@ -176,7 +176,7 @@ export function createPaymentsStyles(colors: AppBranding['colors']) {
     fieldLabel: {
       fontSize: 12,
       fontWeight: '700',
-      color: colors.primaryDark,
+      color: colors.primaryText,
     },
     input: {
       borderWidth: 1,
@@ -199,7 +199,7 @@ export function createPaymentsStyles(colors: AppBranding['colors']) {
       marginBottom: 10,
     },
     languageOptionActive: {
-      borderColor: colors.primary,
+      borderColor: colors.buttonHover,
       backgroundColor: soft(colors.primary, '12'),
     },
     languageTitle: {
@@ -209,7 +209,7 @@ export function createPaymentsStyles(colors: AppBranding['colors']) {
     },
     languageHint: {
       fontSize: 13,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       marginTop: 2,
     },
   });

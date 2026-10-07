@@ -50,7 +50,6 @@ export function NoActivePlanModal({
   expiredPlans: ExpiredPlanInfo[];
 }) {
   const branding = useBranding();
-  const primary = branding.colors.primary;
   const [visible, setVisible] = useState(false);
   const expired = expiredPlans.length > 0;
 
@@ -73,16 +72,16 @@ export function NoActivePlanModal({
             style={styles.closeButton}
             hitSlop={12}
           >
-            <Text style={[styles.closeText, { color: branding.colors.primaryDark }]}>✕</Text>
+            <Text style={[styles.closeText, { color: branding.colors.iconMuted }]}>✕</Text>
           </Pressable>
 
           <ScrollView contentContainerStyle={styles.content}>
             <Image source={LOGO} resizeMode="contain" style={styles.logo} />
-            <View style={[styles.iconWrap, { backgroundColor: `${primary}1A` }]}>
-              <TimerIcon color={branding.colors.primaryDark} />
+            <View style={[styles.iconWrap, { backgroundColor: `${branding.colors.icon}1A` }]}>
+              <TimerIcon color={branding.colors.icon} />
             </View>
 
-            <Text style={[styles.title, { color: branding.colors.primaryDark }]}>
+            <Text style={[styles.title, { color: branding.colors.primaryText }]}>
               {expired ? '¡Su suscripción ha finalizado!' : 'No tiene un plan activo'}
             </Text>
 
@@ -93,7 +92,7 @@ export function NoActivePlanModal({
                   {expiredPlans.map((plan, index) => (
                     <Text key={plan.planName}>
                       {index === 0 ? '' : index === expiredPlans.length - 1 ? ' y ' : ', '}
-                      <Text style={[styles.strong, { color: primary }]}>{plan.planName}</Text>
+                      <Text style={[styles.strong, { color: branding.colors.primaryText }]}>{plan.planName}</Text>
                     </Text>
                   ))}
                   !
@@ -106,11 +105,11 @@ export function NoActivePlanModal({
                   Si no realiza ninguna acción, sus datos analíticos se eliminarán
                   después de {EXPIRED_PLAN_DATA_RETENTION_DAYS} días en:
                 </Text>
-                <View style={[styles.deletionBox, { backgroundColor: `${primary}0F` }]}>
+                <View style={[styles.deletionBox, { backgroundColor: `${branding.colors.icon}0F` }]}>
                   {expiredPlans.map((plan, index) => (
                     <View key={plan.planName} style={styles.deletionRow}>
-                      <View style={[styles.stepBadge, { backgroundColor: primary }]}>
-                        <Text style={styles.stepText}>{index + 1}</Text>
+                      <View style={[styles.stepBadge, { backgroundColor: `${branding.colors.icon}26` }]}>
+                        <Text style={[styles.stepText, { color: branding.colors.primaryText }]}>{index + 1}</Text>
                       </View>
                       <Text style={styles.deletionText}>
                         {plan.planName}:{' '}
@@ -136,10 +135,15 @@ export function NoActivePlanModal({
               }}
               style={({ pressed }) => [
                 styles.button,
-                { backgroundColor: primary, opacity: pressed ? 0.85 : 1 },
+                {
+              backgroundColor: pressed
+                ? branding.colors.buttonHover
+                : branding.colors.button,
+              opacity: pressed ? 0.85 : 1,
+            },
               ]}
             >
-              <Text style={styles.buttonText}>
+              <Text style={[styles.buttonText, { color: branding.colors.buttonText }]}>
                 {expired ? 'Extender mi suscripción →' : 'Ver planes →'}
               </Text>
             </Pressable>
@@ -147,7 +151,7 @@ export function NoActivePlanModal({
             <Text style={styles.help}>
               ¿Necesita ayuda? Por favor{' '}
               <Text
-                style={[styles.link, { color: primary }]}
+                style={[styles.link, { color: branding.colors.primaryText }]}
                 onPress={() => void Linking.openURL(`mailto:${SUPPORT_EMAIL}`)}
               >
                 contacte con nosotros

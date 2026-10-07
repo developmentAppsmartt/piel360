@@ -514,7 +514,12 @@ export function DoctorAgendaView({
                       selectedBlocked ? styles.primaryBtn : styles.dangerBtn
                     }
                   >
-                    <Text style={styles.btnText}>
+                    <Text
+                      style={[
+                        styles.btnText,
+                        selectedBlocked && styles.primaryBtnText,
+                      ]}
+                    >
                       {selectedBlocked
                         ? 'Marcar como disponible'
                         : 'Marcar como no disponible'}
@@ -572,7 +577,7 @@ export function DoctorAgendaView({
                   <AppIcon
                     icon={Icons.search}
                     size={18}
-                    color={branding.colors.muted}
+                    color={branding.colors.iconMuted}
                   />
                   <TextInput
                     value={patientQuery}
@@ -591,7 +596,7 @@ export function DoctorAgendaView({
                       <AppIcon
                         icon={Icons.close}
                         size={18}
-                        color={branding.colors.muted}
+                        color={branding.colors.iconMuted}
                       />
                     </Pressable>
                   ) : null}
@@ -625,7 +630,7 @@ export function DoctorAgendaView({
                               <PatientAvatar
                                 patient={p}
                                 styles={styles}
-                                iconColor={primary}
+                                iconColor={branding.colors.icon}
                               />
                               <View style={styles.searchResultBody}>
                                 <Text
@@ -677,7 +682,7 @@ export function DoctorAgendaView({
                     <PatientAvatar
                       patient={selectedPatient}
                       styles={styles}
-                      iconColor={primary}
+                      iconColor={branding.colors.icon}
                     />
                     <View style={styles.selectedChipBody}>
                       <Text style={styles.selectedChipName} numberOfLines={1}>
@@ -694,7 +699,7 @@ export function DoctorAgendaView({
                       <AppIcon
                         icon={Icons.close}
                         size={18}
-                        color={branding.colors.muted}
+                        color={branding.colors.iconMuted}
                       />
                     </Pressable>
                   </View>
@@ -784,7 +789,7 @@ export function DoctorAgendaView({
                   <AppIcon
                     icon={Icons.clock}
                     size={18}
-                    color={branding.colors.muted}
+                    color={branding.colors.iconMuted}
                   />
                   <Text
                     style={[
@@ -841,9 +846,11 @@ export function DoctorAgendaView({
 
               <Pressable
                 onPress={() => void propose()}
-                style={styles.primaryBtn}
+                style={({ pressed }) => [styles.primaryBtn, pressed && { backgroundColor: branding.colors.buttonHover }]}
               >
-                <Text style={styles.btnText}>Enviar propuesta</Text>
+                <Text style={[styles.btnText, styles.primaryBtnText]}>
+                  Enviar propuesta
+                </Text>
               </Pressable>
             </View>
 

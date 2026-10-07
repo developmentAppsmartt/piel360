@@ -19,6 +19,7 @@ import {
   type BodySelection,
 } from '../../../data/bodyRegions';
 import { normalizeModel, placeSavedPoint } from './bodyModelPlacement';
+import { useBranding } from '../../../context/BrandingContext';
 
 const femaleModule = require('../../../../assets/models/female/realistic_female_character_new.glb');
 const maleModule = require('../../../../assets/models/male/realistic_male_character_new.glb');
@@ -97,6 +98,7 @@ export function BodySelector3D({
   focusPoint = null,
   focusRegion = null,
 }: BodySelector3DProps) {
+  const branding = useBranding();
   const [gender, setGender] = useState<Gender>(initialGender);
   const [modelUri, setModelUri] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -188,12 +190,12 @@ export function BodySelector3D({
                 style={[
                   styles.genderBtn,
                   active && {
-                    backgroundColor: primaryColor,
-                    borderColor: primaryColor,
+                    backgroundColor: branding.colors.buttonHover,
+                    borderColor: branding.colors.buttonHover,
                   },
                 ]}
               >
-                <Text style={[styles.genderText, active && { color: '#fff' }]}>
+                <Text style={[styles.genderText, active && { color: branding.colors.buttonText }]}>
                   {g === 'female' ? 'Mujer' : 'Hombre'}
                 </Text>
               </Pressable>

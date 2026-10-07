@@ -196,7 +196,7 @@ export function ChatThreadView({
                 styles={styles}
                 message={item}
                 canDownloadImages={isDoctor}
-                accentColor={branding.colors.primary}
+                accentColor={branding.colors.button}
               />
             )}
           />

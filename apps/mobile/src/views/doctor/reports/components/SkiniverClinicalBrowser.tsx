@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { AppIcon } from '../../../../components/AppIcon';
 import { Icons } from '../../../../components/icons';
+import { useBranding } from '../../../../context/BrandingContext';
 import { analysesService } from '../../../../services/analyses.service';
 import type { PatientAnalysisSummary } from '../../../../types/analysis';
 import { skiniverDiagnosisLabel } from '../../../../types/skiniver-labels';
@@ -37,6 +38,7 @@ export function SkiniverClinicalBrowser({
   primary: string;
   onOpen: (analysisId: string, patientName: string) => void;
 }) {
+  const branding = useBranding();
   const [rows, setRows] = useState<PatientAnalysisSummary[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [search, setSearch] = useState('');
@@ -70,7 +72,7 @@ export function SkiniverClinicalBrowser({
   return (
     <View style={{ gap: 10 }}>
       <View style={styles.searchBox}>
-        <AppIcon icon={Icons.search} size={16} color="#9CA3AF" />
+        <AppIcon icon={Icons.search} size={16} color={branding.colors.iconMuted} />
         <TextInput
           value={search}
           onChangeText={setSearch}

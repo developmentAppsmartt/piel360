@@ -2,6 +2,25 @@
 
 export type SkinReportBand = 'excelente' | 'bueno' | 'regular' | 'malo';
 
+/** Mismos cortes y colores que SKIN_REPORT_BANDS de shared. */
+const SKIN_REPORT_BAND_COLORS: Record<SkinReportBand, string> = {
+  excelente: '#22c55e',
+  bueno: '#84cc16',
+  regular: '#facc15',
+  malo: '#ef4444',
+};
+
+export function skinReportBand(score: number): SkinReportBand {
+  if (score >= 90) return 'excelente';
+  if (score >= 70) return 'bueno';
+  if (score >= 50) return 'regular';
+  return 'malo';
+}
+
+export function skinReportScoreColor(score: number): string {
+  return SKIN_REPORT_BAND_COLORS[skinReportBand(score)];
+}
+
 export type ReportDelta = {
   current: number | null;
   previous: number | null;

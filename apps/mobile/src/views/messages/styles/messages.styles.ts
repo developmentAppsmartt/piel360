@@ -11,7 +11,7 @@ export function createMessagesStyles(colors: AppBranding['colors']) {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: '#F3F4F6',
+      backgroundColor: colors.screenBackground ?? '#F3F4F6',
     },
     header: {
       backgroundColor: colors.primary,
@@ -27,7 +27,7 @@ export function createMessagesStyles(colors: AppBranding['colors']) {
       fontWeight: '700',
     },
     headerIcon: {
-      color: colors.textOnDark,
+      color: colors.iconOnHeader,
       fontSize: 20,
       fontWeight: '600',
       padding: 8,
@@ -47,7 +47,7 @@ export function createMessagesStyles(colors: AppBranding['colors']) {
       borderBottomColor: 'transparent',
     },
     tabActive: {
-      borderBottomColor: colors.primary,
+      borderBottomColor: colors.secondaryText,
     },
     tabLabel: {
       fontSize: 14,
@@ -55,7 +55,7 @@ export function createMessagesStyles(colors: AppBranding['colors']) {
       color: '#9CA3AF',
     },
     tabLabelActive: {
-      color: colors.primary,
+      color: colors.secondaryText,
       fontWeight: '700',
     },
     listContent: {
@@ -68,7 +68,7 @@ export function createMessagesStyles(colors: AppBranding['colors']) {
       alignItems: 'center',
     },
     emptyText: {
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       fontSize: 15,
       textAlign: 'center',
     },
@@ -94,14 +94,14 @@ export function createMessagesStyles(colors: AppBranding['colors']) {
       width: 52,
       height: 52,
       borderRadius: 26,
-      backgroundColor: softPrimary(colors.primary),
+      backgroundColor: softPrimary(colors.icon),
       alignItems: 'center',
       justifyContent: 'center',
     },
     avatarText: {
       fontSize: 16,
       fontWeight: '700',
-      color: colors.primary,
+      color: colors.icon,
     },
     cardBody: {
       flex: 1,
@@ -122,7 +122,7 @@ export function createMessagesStyles(colors: AppBranding['colors']) {
     },
     cardTime: {
       fontSize: 12,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       fontWeight: '500',
     },
     cardBottom: {
@@ -133,7 +133,7 @@ export function createMessagesStyles(colors: AppBranding['colors']) {
     cardPreview: {
       flex: 1,
       fontSize: 13,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     badge: {
       minWidth: 22,
@@ -151,7 +151,7 @@ export function createMessagesStyles(colors: AppBranding['colors']) {
     },
     readMark: {
       fontSize: 14,
-      color: colors.primary,
+      color: colors.primaryText,
       fontWeight: '700',
     },
     fab: {
@@ -161,13 +161,13 @@ export function createMessagesStyles(colors: AppBranding['colors']) {
       width: 58,
       height: 58,
       borderRadius: 29,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       alignItems: 'center',
       justifyContent: 'center',
       ...appShadow({ opacity: 0.18, radius: 10, offsetY: 4, elevation: 5 }),
     },
     fabIcon: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
       fontSize: 28,
       fontWeight: '400',
       marginTop: -2,

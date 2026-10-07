@@ -28,7 +28,6 @@ import { ApiError } from '../../../services/api.client';
 import { authService } from '../../../services/auth.service';
 import { AuthBackground } from '../login/components/AuthBackground';
 import { AuthGradientButton } from '../login/components/AuthGradientButton';
-import { AUTH_THEME } from '../authTheme';
 import { createLoginStyles } from '../login/styles/login.styles';
 
 export function PhoneVerificationView() {
@@ -109,7 +108,7 @@ export function PhoneVerificationView() {
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         {loading ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <ActivityIndicator color={AUTH_THEME.purple} size="large" />
+            <ActivityIndicator color={branding.colors.primary} size="large" />
           </View>
         ) : (
           <KeyboardAvoidingView
@@ -127,7 +126,7 @@ export function PhoneVerificationView() {
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.logoWrap}>
-                <BrandLogo height={120} />
+                <BrandLogo variant="login" height={120} />
               </View>
 
               <Text style={styles.brand}>Verifica tu celular</Text>
@@ -146,7 +145,7 @@ export function PhoneVerificationView() {
                 mode="profile"
                 variant="auth"
                 disabled={submitting}
-                primaryColor={AUTH_THEME.purple}
+                primaryColor={branding.colors.primary}
                 onDark={branding.colors.textOnDark}
               />
 

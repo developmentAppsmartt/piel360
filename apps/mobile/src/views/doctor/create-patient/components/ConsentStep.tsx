@@ -58,7 +58,7 @@ export function ConsentStep({ onBack, onAccept, submitting }: ConsentStepProps) 
         </Pressable>
 
         <Pressable
-          style={[styles.nextBtn, (!accepted || submitting) && styles.nextBtnDisabled]}
+          style={({ pressed }) => [styles.nextBtn, (!accepted || submitting) && styles.nextBtnDisabled, pressed && { backgroundColor: branding.colors.buttonHover }]}
           disabled={!accepted || submitting}
           onPress={onAccept}
         >
