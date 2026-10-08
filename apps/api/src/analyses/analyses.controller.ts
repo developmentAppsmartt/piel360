@@ -70,8 +70,13 @@ export class AnalysesController {
     @CurrentUser() user: JwtPayload,
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Query('professionalUserId') professionalUserId?: string,
   ) {
-    return this.analysesService.getConsumption(user, { from, to });
+    return this.analysesService.getConsumption(user, {
+      from,
+      to,
+      professionalUserId,
+    });
   }
 
   /** Poll de captura: isValid/error sin exponer el resultado clínico. */

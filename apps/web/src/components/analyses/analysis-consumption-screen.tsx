@@ -12,13 +12,20 @@ import {
   toLocalMonthKey,
   useAnalysisConsumption,
 } from "@/lib/queries/analysis-consumption";
+import { useOrganizationTeam } from "@/lib/queries/organizations";
 
+/**
+ * `showTeamFilter` solo lo activa el panel del profesional: las pantallas de
+ * admin comparten esta vista y para ellas `GET /organizations/me` no aplica.
+ */
 export function AnalysisConsumptionScreen({
   subtitle,
   headerExtra,
+  showTeamFilter = false,
 }: {
   subtitle?: string;
   headerExtra?: React.ReactNode;
+  showTeamFilter?: boolean;
 }) {
   const today = useMemo(() => new Date(), []);
   const [range, setRange] = useState<ConsumptionRangePreset>("month");
@@ -29,11 +36,35 @@ export function AnalysisConsumptionScreen({
   );
   const [customTo, setCustomTo] = useState(() => rangeForPreset("month").to!);
 
+  const [professionalUserId, setProfessionalUserId] = useState("all");
+
+  const team = useOrganizationTeam(showTeamFilter);
+  const members = team.data?.members ?? [];
+  // Solo el dueño filtra por profesional: al resto el API responde 403
+  // (analyses.service.ts#getConsumption).
+  const showProfessionalFilter =
+    team.data?.memberRole === "owner" && members.length > 1;
+
   const params = useMemo(() => {
-    if (range === "day") return { from: dayDate, to: dayDate };
-    if (range === "month") return rangeForMonthKey(monthKey);
-    return { from: customFrom, to: customTo };
-  }, [range, dayDate, monthKey, customFrom, customTo]);
+    const professional = showProfessionalFilter ? professionalUserId : "all";
+    if (range === "day")
+      return { from: dayDate, to: dayDate, professionalUserId: professional };
+    if (range === "month")
+      return { ...rangeForMonthKey(monthKey), professionalUserId: professional };
+    return {
+      from: customFrom,
+      to: customTo,
+      professionalUserId: professional,
+    };
+  }, [
+    range,
+    dayDate,
+    monthKey,
+    customFrom,
+    customTo,
+    professionalUserId,
+    showProfessionalFilter,
+  ]);
 
   const query = useAnalysisConsumption(params);
 
@@ -60,6 +91,10 @@ export function AnalysisConsumptionScreen({
       subscriptionEndsAt={data.subscriptionEndsAt}
       subtitle={subtitle}
       headerExtra={headerExtra}
+      members={members}
+      showProfessionalFilter={showProfessionalFilter}
+      professionalUserId={professionalUserId}
+      onProfessionalChange={setProfessionalUserId}
       range={range}
       onRangeChange={(next) => {
         setRange(next);

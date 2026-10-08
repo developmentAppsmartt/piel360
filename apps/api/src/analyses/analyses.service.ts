@@ -464,14 +464,20 @@ export class AnalysesService {
    */
   async getConsumption(
     currentUser: JwtPayload,
-    query: { from?: string; to?: string } = {},
+    query: { from?: string; to?: string; professionalUserId?: string } = {},
   ) {
     const { from, to } = resolveConsumptionRange(query.from, query.to);
 
     let subscriptionUserIds: bigint[] | null = null;
+    // Filtro por miembro del equipo. Mismo contrato que los reportes
+    // (DoctorReportsService#resolveDoctorIds): solo el dueño puede filtrar.
+    let professionalUserId: bigint | null = null;
 
     if (currentUser.role === 'superadmin') {
       // Plataforma completa.
+      if (query.professionalUserId) {
+        professionalUserId = BigInt(query.professionalUserId);
+      }
     } else if (isDoctorPanelRole(currentUser.role)) {
       await this.orgContext.assertTeamPermissionForUser(
         currentUser.sub,
@@ -481,6 +487,23 @@ export class AnalysesService {
         currentUser.sub,
       );
       subscriptionUserIds = [scope.ctx.subscriptionUserId];
+
+      if (query.professionalUserId) {
+        if (!scope.ctx.isOrgOwner) {
+          throw new ForbiddenException(
+            'Solo el dueño del equipo puede filtrar por profesional',
+          );
+        }
+        const professional = scope.professionals.find(
+          (item) => item.userId === query.professionalUserId,
+        );
+        if (!professional) {
+          throw new BadRequestException(
+            'Profesional no encontrado en tu equipo',
+          );
+        }
+        professionalUserId = BigInt(professional.userId);
+      }
     } else {
       throw new ForbiddenException(
         'No tienes permiso para consultar el consumo de análisis',
@@ -559,11 +582,17 @@ export class AnalysesService {
     // para superadmin (plataforma completa) no significa nada.
     const subscriptionEndsAt = subscriptions.length === 1 ? endsAt : null;
 
+    // El filtro por profesional solo afecta a lo "del periodo" (serie diaria,
+    // detalle y `periodDone`). `limit`/`done`/`available` salen de las
+    // suscripciones y son el saldo del plan de la empresa, no de una persona.
     const usages = await this.prisma.subscriptionUsage.findMany({
       where: {
         createdAt: { gte: from, lte: to },
         ...(subscriptionUserIds
           ? { subscriptionId: { in: subscriptions.map((s) => s.id) } }
+          : {}),
+        ...(professionalUserId
+          ? { analysis: { userId: professionalUserId } }
           : {}),
       },
       select: {
@@ -575,21 +604,25 @@ export class AnalysesService {
             youcamTaskId: true,
             fitzpatrickTaskId: true,
             provider: { select: { slug: true } },
-            user: { select: { name: true } },
+            user: { select: { id: true, name: true } },
           },
         },
       },
       orderBy: { createdAt: 'asc' },
     });
 
+    // La gráfica es por día y el detalle por día Y profesional: con varios
+    // miembros consumiendo el mismo día, una sola fila por día atribuía todos
+    // los créditos al que más gastó y ocultaba a los demás.
+    type ProBucket = {
+      name: string;
+      aesthetic: number;
+      derm: number;
+      patients: Set<string>;
+    };
     const byDay = new Map<
       string,
-      {
-        aesthetic: number;
-        derm: number;
-        patients: Set<string>;
-        pros: Map<string, number>;
-      }
+      { aesthetic: number; derm: number; pros: Map<string, ProBucket> }
     >();
 
     for (const usage of usages) {
@@ -598,25 +631,33 @@ export class AnalysesService {
       const key = dayKey(usage.createdAt);
       let bucket = byDay.get(key);
       if (!bucket) {
-        bucket = {
+        bucket = { aesthetic: 0, derm: 0, pros: new Map() };
+        byDay.set(key, bucket);
+      }
+      // Se agrupa por id y no por nombre: dos miembros pueden llamarse igual.
+      const proKey = usage.analysis.user?.id?.toString() ?? '';
+      let pro = bucket.pros.get(proKey);
+      if (!pro) {
+        pro = {
+          name: usage.analysis.user?.name?.trim() || 'Sin asignar',
           aesthetic: 0,
           derm: 0,
           patients: new Set(),
-          pros: new Map(),
         };
-        byDay.set(key, bucket);
+        bucket.pros.set(proKey, pro);
       }
+
       const qty = usage.quantity ?? 1;
       if (isAestheticAnalysis(usage.analysis)) {
         bucket.aesthetic += qty;
+        pro.aesthetic += qty;
         aesthetic.periodDone += qty;
       } else {
         bucket.derm += qty;
+        pro.derm += qty;
         derm.periodDone += qty;
       }
-      bucket.patients.add(usage.analysis.patientId.toString());
-      const pro = usage.analysis.user?.name?.trim() || 'Sin asignar';
-      bucket.pros.set(pro, (bucket.pros.get(pro) ?? 0) + qty);
+      pro.patients.add(usage.analysis.patientId.toString());
     }
 
     const sortedKeys = [...byDay.keys()].sort();
@@ -629,16 +670,22 @@ export class AnalysesService {
       };
     });
 
-    const rows = [...sortedKeys].reverse().map((key) => {
+    const rows = [...sortedKeys].reverse().flatMap((key) => {
       const b = byDay.get(key)!;
-      return {
-        date: formatDayLong(key),
-        aesthetic: b.aesthetic,
-        derm: b.derm,
-        total: b.aesthetic + b.derm,
-        patients: b.patients.size,
-        professional: topProfessional(b.pros),
-      };
+      return [...b.pros.entries()]
+        .map(([proKey, pro]) => ({
+          date: formatDayLong(key),
+          aesthetic: pro.aesthetic,
+          derm: pro.derm,
+          total: pro.aesthetic + pro.derm,
+          patients: pro.patients.size,
+          professional: pro.name,
+          professionalUserId: proKey || null,
+        }))
+        .sort(
+          (a, z) =>
+            z.total - a.total || a.professional.localeCompare(z.professional),
+        );
     });
 
     return {
@@ -971,14 +1018,3 @@ function formatDayLong(key: string) {
   return `${d}/${m}/${y}`;
 }
 
-function topProfessional(counts: Map<string, number>) {
-  let best = 'Sin asignar';
-  let bestN = -1;
-  for (const [name, n] of counts) {
-    if (n > bestN) {
-      best = name;
-      bestN = n;
-    }
-  }
-  return best;
-}

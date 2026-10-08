@@ -27,6 +27,8 @@ export type DailyConsumptionRow = {
   total: number;
   patients: number;
   professional: string;
+  /** `null` cuando el análisis no tiene usuario ejecutor ("Sin asignar"). */
+  professionalUserId: string | null;
 };
 
 export type AnalysisConsumptionResponse = {
@@ -43,19 +45,30 @@ export type AnalysisConsumptionResponse = {
 export type ConsumptionRangeParams = {
   from?: string;
   to?: string;
+  /** Sentinela "all" → no se manda (solo el dueño del equipo puede filtrar). */
+  professionalUserId?: string;
 };
 
 function toQuery(params: ConsumptionRangeParams) {
   const q = new URLSearchParams();
   if (params.from) q.set("from", params.from);
   if (params.to) q.set("to", params.to);
+  if (params.professionalUserId && params.professionalUserId !== "all") {
+    q.set("professionalUserId", params.professionalUserId);
+  }
   const s = q.toString();
   return s ? `?${s}` : "";
 }
 
 export function useAnalysisConsumption(params: ConsumptionRangeParams = {}) {
   return useQuery({
-    queryKey: ["analyses", "consumption", params.from ?? null, params.to ?? null],
+    queryKey: [
+      "analyses",
+      "consumption",
+      params.from ?? null,
+      params.to ?? null,
+      params.professionalUserId ?? null,
+    ],
     queryFn: () =>
       apiClientFetch<AnalysisConsumptionResponse>(
         `/analyses/consumption${toQuery(params)}`,
