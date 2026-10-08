@@ -1,16 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from "lucide-react";
+import { GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ModuleCard } from "@/components/ui/module-card";
 import { RoutineStepMediaUpload } from "@/components/routines/routine-step-media-upload";
-import { apiClientFetch } from "@/lib/api-client";
+import { DragHandle, SortableList } from "@/components/shared/sortable-list";
 import { useProducts } from "@/lib/queries/products";
 import {
   useCreateRoutineStep,
   useDeleteRoutineStep,
+  useReorderRoutineSteps,
   useUpdateRoutineStep,
   type RoutineStep,
 } from "@/lib/queries/routines";
@@ -21,10 +21,13 @@ const inputCls =
 function StepEditForm({
   routineId,
   step,
+  nextOrder,
   onDone,
 }: {
   routineId: string;
   step?: RoutineStep;
+  /** Posicion del paso nuevo: el final de la lista. */
+  nextOrder: number;
   onDone: () => void;
 }) {
   const { data: products } = useProducts();
@@ -47,7 +50,7 @@ function StepEditForm({
   async function handleSave() {
     if (!title.trim()) return;
     const input = {
-      order: step?.order ?? 0,
+      order: step?.order ?? nextOrder,
       title,
       description: description || undefined,
       productIds: productIds.map((id) => Number(id)),
@@ -136,32 +139,13 @@ export function RoutineStepsEditor({
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const deleteStep = useDeleteRoutineStep(routineId);
-  const qc = useQueryClient();
+  const reorderSteps = useReorderRoutineSteps(routineId);
 
   const sorted = [...steps].sort((a, b) => a.order - b.order);
 
-  // useUpdateRoutineStep está atado a un solo stepId — para el swap de
-  // reordenamiento se necesitan actualizar dos pasos distintos a la vez, así
-  // que acá se llama la API directo en vez de usar ese hook.
-  async function move(step: RoutineStep, direction: -1 | 1) {
-    const swapWith = sorted[sorted.indexOf(step) + direction];
-    if (!swapWith) return;
-    await Promise.all([
-      apiClientFetch(`/routines/${routineId}/steps/${step.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ order: swapWith.order }),
-      }),
-      apiClientFetch(`/routines/${routineId}/steps/${swapWith.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ order: step.order }),
-      }),
-    ]);
-    qc.invalidateQueries({ queryKey: ["routines", routineId] });
-  }
-
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-medium text-foreground">Pasos de la rutina</p>
         {!adding && (
           <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)}>
@@ -175,65 +159,75 @@ export function RoutineStepsEditor({
         <p className="text-sm text-muted-foreground">Esta rutina todavía no tiene pasos.</p>
       )}
 
-      {sorted.map((step, index) =>
-        editingId === step.id ? (
-          <StepEditForm key={step.id} routineId={routineId} step={step} onDone={() => setEditingId(null)} />
-        ) : (
-          <ModuleCard key={step.id} className="flex items-start justify-between gap-3 p-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">
-                {index + 1}. {step.title}
-              </p>
-              {step.description && (
-                <p className="mt-0.5 text-sm text-muted-foreground">{step.description}</p>
-              )}
-              {step.mediaUrl && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Tiene {step.mediaType === "video" ? "video" : step.mediaType === "gif" ? "GIF" : "imagen"} adjunto
-                </p>
-              )}
-            </div>
-            <div className="flex shrink-0 gap-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                disabled={index === 0}
-                onClick={() => move(step, -1)}
-              >
-                <ArrowUp className="size-4" />
-                <span className="sr-only">Subir</span>
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                disabled={index === sorted.length - 1}
-                onClick={() => move(step, 1)}
-              >
-                <ArrowDown className="size-4" />
-                <span className="sr-only">Bajar</span>
-              </Button>
-              <Button type="button" variant="ghost" size="icon-sm" onClick={() => setEditingId(step.id)}>
-                <Pencil className="size-4" />
-                <span className="sr-only">Editar</span>
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="text-destructive hover:text-destructive"
-                onClick={() => deleteStep.mutate(step.id)}
-              >
-                <Trash2 className="size-4" />
-                <span className="sr-only">Eliminar</span>
-              </Button>
-            </div>
-          </ModuleCard>
-        ),
+      {sorted.length > 1 && (
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <GripVertical className="size-3.5 shrink-0" aria-hidden />
+          Arrastra los pasos desde el asa para cambiar su orden.
+        </p>
       )}
 
-      {adding && <StepEditForm routineId={routineId} onDone={() => setAdding(false)} />}
+      <SortableList
+        items={sorted}
+        getId={(step: RoutineStep) => step.id}
+        onReorder={(orderedIds) => reorderSteps.mutate(orderedIds)}
+        renderItem={(step, dragHandle) =>
+          editingId === step.id ? (
+            <StepEditForm
+              routineId={routineId}
+              step={step}
+              nextOrder={sorted.length}
+              onDone={() => setEditingId(null)}
+            />
+          ) : (
+            <ModuleCard className="flex items-start gap-3 p-3">
+              {/* El asa solo aparece si hay algo que reordenar. */}
+              {sorted.length > 1 ? (
+                <span className="mt-1 shrink-0">
+                  <DragHandle {...dragHandle} />
+                </span>
+              ) : null}
+              <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary tabular-nums">
+                {sorted.indexOf(step) + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">{step.title}</p>
+                {step.description && (
+                  <p className="mt-0.5 text-sm text-muted-foreground">{step.description}</p>
+                )}
+                {step.mediaUrl && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Tiene {step.mediaType === "video" ? "video" : step.mediaType === "gif" ? "GIF" : "imagen"} adjunto
+                  </p>
+                )}
+              </div>
+              <div className="flex shrink-0 gap-1">
+                <Button type="button" variant="ghost" size="icon-sm" onClick={() => setEditingId(step.id)}>
+                  <Pencil className="size-4" />
+                  <span className="sr-only">Editar</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => deleteStep.mutate(step.id)}
+                >
+                  <Trash2 className="size-4" />
+                  <span className="sr-only">Eliminar</span>
+                </Button>
+              </div>
+            </ModuleCard>
+          )
+        }
+      />
+
+      {adding && (
+        <StepEditForm
+          routineId={routineId}
+          nextOrder={sorted.length}
+          onDone={() => setAdding(false)}
+        />
+      )}
     </div>
   );
 }

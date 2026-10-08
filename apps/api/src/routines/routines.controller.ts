@@ -22,6 +22,7 @@ import { RoutinesService } from './routines.service';
 import { CreateRoutineDto } from './dto/create-routine.dto';
 import { UpdateRoutineDto } from './dto/update-routine.dto';
 import { CreateRoutineStepDto } from './dto/create-routine-step.dto';
+import { ReorderRoutineStepsDto } from './dto/reorder-routine-steps.dto';
 import { UpdateRoutineStepDto } from './dto/update-routine-step.dto';
 
 @Controller('routines')
@@ -79,6 +80,17 @@ export class RoutinesController {
     @Body() dto: CreateRoutineStepDto,
   ) {
     return this.routinesService.createStep(user.sub, id, dto);
+  }
+
+  // Va antes de ':id/steps/:stepId' a proposito: si no, Nest tomaria "reorder"
+  // como un stepId.
+  @Patch(':id/steps/reorder')
+  reorderSteps(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: ReorderRoutineStepsDto,
+  ) {
+    return this.routinesService.reorderSteps(user.sub, id, dto.orderedStepIds);
   }
 
   @Patch(':id/steps/:stepId')
