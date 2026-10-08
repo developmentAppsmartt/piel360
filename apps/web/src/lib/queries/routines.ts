@@ -169,6 +169,21 @@ export function useUpdateRoutineStep(routineId: string, stepId: string) {
   });
 }
 
+export function useReorderRoutineSteps(routineId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (orderedStepIds: string[]) =>
+      apiClientFetch<Routine>(`/routines/${routineId}/steps/reorder`, {
+        method: "PATCH",
+        body: JSON.stringify({ orderedStepIds }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["routines", routineId] });
+      qc.invalidateQueries({ queryKey: ["routines"] });
+    },
+  });
+}
+
 export function useDeleteRoutineStep(routineId: string) {
   const qc = useQueryClient();
   return useMutation({

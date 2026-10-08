@@ -9,9 +9,13 @@ import {
 } from 'class-validator';
 
 export class CreateRoutineStepDto {
+  /** Opcional: sin este dato el paso se coloca al final de la rutina. Antes era
+   * obligatorio y el formulario mandaba siempre 0, asi que todos los pasos
+   * quedaban empatados y no se podian ordenar. */
+  @IsOptional()
   @IsInt()
   @Type(() => Number)
-  order: number;
+  order?: number;
 
   @IsString()
   @IsNotEmpty()

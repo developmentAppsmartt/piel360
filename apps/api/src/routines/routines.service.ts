@@ -231,7 +231,7 @@ export class RoutinesService {
     const step = await this.prisma.routineStep.create({
       data: {
         routineId: BigInt(routineId),
-        order: dto.order,
+        order: dto.order ?? (await this.nextStepOrder(BigInt(routineId))),
         title: dto.title,
         description: dto.description,
         products: dto.productIds?.length
@@ -285,6 +285,38 @@ export class RoutinesService {
       include: { products: { include: { product: true } } },
     });
     return this.resolveStepMedia(updated);
+  }
+
+  /** Siguiente posicion libre de la rutina, para que el paso nuevo vaya al final. */
+  private async nextStepOrder(routineId: bigint): Promise<number> {
+    const last = await this.prisma.routineStep.aggregate({
+      where: { routineId },
+      _max: { order: true },
+    });
+    return last._max.order == null ? 0 : last._max.order + 1;
+  }
+
+  /** Reescribe las posiciones en una sola transaccion a partir del orden que
+   * manda el cliente. El `updateMany` filtra tambien por `routineId`, asi que
+   * un id de otra rutina simplemente no afecta a nada. */
+  async reorderSteps(
+    userId: string,
+    routineId: string,
+    orderedStepIds: string[],
+  ) {
+    const doctorId = await this.catalogDoctorId(userId);
+    await this.ensureRoutineOwner(BigInt(routineId), doctorId);
+
+    await this.prisma.$transaction(
+      orderedStepIds.map((stepId, index) =>
+        this.prisma.routineStep.updateMany({
+          where: { id: BigInt(stepId), routineId: BigInt(routineId) },
+          data: { order: index },
+        }),
+      ),
+    );
+
+    return this.getRoutine(userId, routineId);
   }
 
   async deleteStep(userId: string, routineId: string, stepId: string) {
