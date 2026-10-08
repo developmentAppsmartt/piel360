@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
   ArrowLeft,
   Check,
@@ -15,6 +15,7 @@ import {
   Smartphone,
   Upload,
   UserRound,
+  X,
 } from "lucide-react";
 import {
   BRANDING_BACKGROUND_COLORS,
@@ -240,9 +241,38 @@ function readImageSize(file: File): Promise<{ width: number; height: number } | 
   });
 }
 
+/** Ejemplo visual de logo con fondo (incorrecto) y sin fondo (correcto). */
+function LogoExamples() {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <figure className="space-y-1">
+        <div className="relative flex h-20 items-center justify-center rounded-lg bg-[#0E1A38] p-3">
+          <div className="flex h-full w-full items-center justify-center rounded bg-white p-1.5">
+            <img src="/logo-piel360.png" alt="" className="max-h-full w-auto object-contain" />
+          </div>
+          <span className="absolute -right-1.5 -top-1.5 flex size-6 items-center justify-center rounded-full bg-red-500 text-white shadow">
+            <X className="size-3.5" strokeWidth={3} aria-hidden />
+          </span>
+        </div>
+        <figcaption className="text-center text-[11px] text-muted-foreground">Con fondo</figcaption>
+      </figure>
+      <figure className="space-y-1">
+        <div className="relative flex h-20 items-center justify-center rounded-lg bg-[#0E1A38] p-3">
+          <img src="/mobile-login-logo.png" alt="" className="max-h-full w-auto object-contain" />
+          <span className="absolute -right-1.5 -top-1.5 flex size-6 items-center justify-center rounded-full bg-emerald-500 text-white shadow">
+            <Check className="size-3.5" strokeWidth={3} aria-hidden />
+          </span>
+        </div>
+        <figcaption className="text-center text-[11px] text-muted-foreground">Sin fondo</figcaption>
+      </figure>
+    </div>
+  );
+}
+
 function ImagePicker({
   title,
   description,
+  examples,
   recommended,
   src,
   isCustom,
@@ -252,6 +282,7 @@ function ImagePicker({
 }: {
   title: string;
   description: string;
+  examples?: ReactNode;
   /** Tamaño recomendado; avisa (sin bloquear) si la imagen elegida se aleja mucho. */
   recommended: { width: number; height: number };
   src: string;
@@ -270,6 +301,7 @@ function ImagePicker({
         <p className="text-sm font-semibold text-foreground">{title}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
       </div>
+      {examples}
       <div
         className={cn(
           "flex h-36 items-center justify-center overflow-hidden rounded-lg border border-border/60",
@@ -883,7 +915,8 @@ export function IdentidadCorporativaView() {
               />
               <ImagePicker
                 title="Logo del login"
-                description="PNG con fondo transparente, horizontal o cuadrado. También se muestra en el registro y junto al nombre en el inicio."
+                description="Sube el logo sin fondo (PNG transparente), horizontal o cuadrado. Si trae fondo blanco o de color, se verá como un recuadro sobre el login. También se muestra en el registro y junto al nombre en el inicio."
+                examples={<LogoExamples />}
                 recommended={{ width: 600, height: 300 }}
                 src={logoImage.src}
                 isCustom={logoImage.custom}
