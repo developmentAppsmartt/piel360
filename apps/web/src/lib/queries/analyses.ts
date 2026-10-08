@@ -98,6 +98,7 @@ export interface AnalysisListItem {
   id: string;
   patientId: string;
   youcamTaskId: string | null;
+  fitzpatrickTaskId: string | null;
   bodyRegion: string | null;
   isValid: boolean;
   aiDiagnosis: string | null;

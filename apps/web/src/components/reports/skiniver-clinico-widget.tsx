@@ -13,10 +13,7 @@ import { DiagnosisDetailDialog } from "@/components/analyses/diagnosis-detail-di
 import { DiagnosisList } from "@/components/analyses/diagnosis-list";
 import { ImageCarousel } from "@/components/analyses/image-carousel";
 import { RiskGauge } from "@/components/analyses/risk-gauge";
-import {
-  ANALYSIS_PROVIDER_STATIC_LABELS,
-  analysisProviderLabel,
-} from "@/lib/analysis-provider-label";
+import { isDermatologicalAnalysis } from "@/lib/patient-comparison";
 import { useAnalyses, useAnalysis } from "@/lib/queries/analyses";
 import { ModuleCard } from "@/components/ui/module-card";
 import { cn } from "@/lib/utils";
@@ -43,10 +40,12 @@ export function SkiniverClinicoWidget() {
     useState<SkiniverDiagnosisCandidate | null>(null);
 
   const skiniverAnalyses = useMemo(() => {
+    // Por tipo de análisis y no por `provider.displayLabel`: esa etiqueta es
+    // texto para el usuario y en producción quedó con el valor anterior al
+    // seed, así que compararla dejaba la lista siempre vacía. Es el mismo
+    // criterio que el SQL del reporte (skiniver-reports.queries.ts).
     const rows = (analyses.data ?? []).filter(
-      (a) =>
-        a.isValid &&
-        analysisProviderLabel(a) === ANALYSIS_PROVIDER_STATIC_LABELS.skiniver,
+      (a) => a.isValid && isDermatologicalAnalysis(a),
     );
     const q = search.trim().toLowerCase();
     const filtered = q

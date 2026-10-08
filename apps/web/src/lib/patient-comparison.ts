@@ -38,14 +38,20 @@ export function emptyComparisonNotes(): ComparisonNotes {
   return { general: "", categories: {} };
 }
 
-export function isAestheticAnalysis(a: Analysis): boolean {
+/** Lo mínimo para saber de qué tipo es un análisis, para que los predicados
+ * sirvan tanto con `Analysis` como con el `AnalysisListItem` de `GET /analyses`. */
+type AnalysisKindRow = {
+  youcamTaskId: string | null;
+  fitzpatrickTaskId?: string | null;
+  isValid?: boolean;
+};
+
+export function isAestheticAnalysis(a: AnalysisKindRow): boolean {
   return !!a.youcamTaskId && a.isValid !== false;
 }
 
-export function isDermatologicalAnalysis(a: Analysis): boolean {
-  const fitzpatrick = (a as Analysis & { fitzpatrickTaskId?: string | null })
-    .fitzpatrickTaskId;
-  return !a.youcamTaskId && !fitzpatrick;
+export function isDermatologicalAnalysis(a: AnalysisKindRow): boolean {
+  return !a.youcamTaskId && !a.fitzpatrickTaskId;
 }
 
 export function formatAnalysisDate(iso: string): string {
