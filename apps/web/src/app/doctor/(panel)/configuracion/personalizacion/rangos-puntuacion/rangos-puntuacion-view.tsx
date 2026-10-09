@@ -16,18 +16,10 @@ import {
 } from "@piel360/shared";
 import { cn } from "@/lib/utils";
 import { useMyScoreConfig, useUpdateScoreConfig } from "@/lib/queries/score-config";
-
-const BAND_LABELS: Record<YoucamScoreBand, string> = {
-  regular: "Regular",
-  promedio: "Promedio",
-  buena: "Buena",
-};
-
-const BAND_STYLES: Record<YoucamScoreBand, { bar: string; chip: string }> = {
-  regular: { bar: "bg-rose-400", chip: "bg-rose-50 text-rose-700" },
-  promedio: { bar: "bg-amber-400", chip: "bg-amber-50 text-amber-700" },
-  buena: { bar: "bg-emerald-500", chip: "bg-emerald-50 text-emerald-700" },
-};
+import {
+  SCORE_BAND_LABELS as BAND_LABELS,
+  SCORE_BAND_STYLES as BAND_STYLES,
+} from "@/lib/score-band-styles";
 
 const CARD_CLASS =
   "rounded-2xl border border-border/80 bg-card p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]";
