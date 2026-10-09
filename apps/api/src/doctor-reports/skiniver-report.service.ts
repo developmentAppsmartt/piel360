@@ -5,6 +5,8 @@ import {
   classifyDiagnosisClass,
   isNoPathologyCategory,
   isNoPathologyDiagnosis,
+  isSkiniverCategoryName,
+  isSkiniverDiagnosisName,
   normalizeGender,
   normalizeLabelKey,
   skinToneBucketForFitzpatrick,
@@ -133,12 +135,35 @@ function buildDiseaseSeries(rows: SkiniverDiagnosisRow[]): {
   entries: { period: string; key: string | null; count: number }[];
   series: SkiniverTrendSeriesDef[];
 } {
-  // La etiqueta traducida es la identidad de la serie: dos filas con el mismo
-  // diagnóstico en distinto idioma tienen que sumar en la misma serie.
+  /**
+   * Etiqueta de la serie, o `null` si la fila no es una enfermedad.
+   *
+   * `class_raw` manda: es el id del clasificador, así que el mismo
+   * diagnóstico en dos idiomas colapsa en una sola serie en vez de aparecer
+   * dos veces.
+   *
+   * Un valor que no es un diagnóstico conocido pero sí una **categoría**
+   * ("Acné", "Infecciones por hongos") no es una enfermedad: va a "Otras", que
+   * es la mezcla de niveles que reportó el cliente. Se pregunta primero por el
+   * diagnóstico porque "Dermatitis" y "Eccema" son las dos cosas a la vez y sí
+   * son diagnósticos del atlas. Un nombre que no es ni lo uno ni lo otro se
+   * grafica tal cual: suele ser un diagnóstico nuevo del modelo.
+   */
+  const diseaseLabel = (row: SkiniverDiagnosisRow): string | null => {
+    if (!row.ai_diagnosis || isNoPathologyDiagnosis(row.ai_diagnosis)) return null;
+    if (
+      !isSkiniverDiagnosisName(row.ai_diagnosis, row.class_raw) &&
+      isSkiniverCategoryName(row.ai_diagnosis)
+    ) {
+      return null;
+    }
+    return skiniverDiagnosisLabel(row.ai_diagnosis, row.class_raw);
+  };
+
   const totals = new Map<string, number>();
   for (const row of rows) {
-    if (!row.ai_diagnosis || isNoPathologyDiagnosis(row.ai_diagnosis)) continue;
-    const label = skiniverDiagnosisLabel(row.ai_diagnosis);
+    const label = diseaseLabel(row);
+    if (!label) continue;
     totals.set(label, (totals.get(label) ?? 0) + row.count);
   }
 
@@ -152,10 +177,10 @@ function buildDiseaseSeries(rows: SkiniverDiagnosisRow[]): {
     if (!row.ai_diagnosis || isNoPathologyDiagnosis(row.ai_diagnosis)) {
       return { period: row.period, key: null, count: row.count };
     }
-    const label = skiniverDiagnosisLabel(row.ai_diagnosis);
+    const label = diseaseLabel(row);
     return {
       period: row.period,
-      key: topSet.has(label) ? label : OTHER_DISEASE_KEY,
+      key: label && topSet.has(label) ? label : OTHER_DISEASE_KEY,
       count: row.count,
     };
   });
@@ -168,7 +193,9 @@ function buildDiseaseSeries(rows: SkiniverDiagnosisRow[]): {
     label,
     color: skiniverCategoryColor(label),
   }));
-  if (totals.size > top.length) {
+  // "Otras" no solo recoge lo que se queda fuera del Top 8: también las filas
+  // que se descartaron por ser categorías.
+  if (entries.some((entry) => entry.key === OTHER_DISEASE_KEY)) {
     series.push({
       key: OTHER_DISEASE_KEY,
       label: 'Otras',
@@ -235,7 +262,7 @@ export class SkiniverReportService {
         period: row.period,
         key: classifyDiagnosisClass(row.ai_diagnosis, {
           label: row.ai_diagnosis
-            ? skiniverDiagnosisLabel(row.ai_diagnosis)
+            ? skiniverDiagnosisLabel(row.ai_diagnosis, row.class_raw)
             : null,
           category: row.category ? skiniverCategoryLabel(row.category) : null,
         }),
@@ -269,12 +296,33 @@ export class SkiniverReportService {
         })),
     );
 
-    // El total del periodo es el de diagnósticos con patología: es el
-    // denominador de los porcentajes del donut y del top 10, que comparten
-    // ese mismo universo.
-    const total = categories.reduce((sum, row) => sum + row.count, 0);
+    const diagnoses = mergeByLabel(
+      topRows
+        .filter((row) => !isNoPathologyDiagnosis(row.diagnosis))
+        .map((row) => ({
+          label: skiniverDiagnosisLabel(row.diagnosis, row.class_raw),
+          count: row.count,
+          extra: row.icd_code?.trim() || null,
+        })),
+    );
 
-    const byCategory: SkiniverCategorySlice[] = categories.map((row) => ({
+    // El total se cuenta con las ENFERMEDADES y es el único denominador de la
+    // pantalla. Antes salía de sumar las categorías, que es otro nivel y otro
+    // universo: un análisis diagnosticado sin `desease` entraba en el top 10 y
+    // en las clases pero no en el total, y los porcentajes pasaban del 100%.
+    const total = diagnoses.reduce((sum, row) => sum + row.count, 0);
+
+    // Los diagnósticos sin categoría no pueden desaparecer del donut, o sus
+    // porciones no sumarían el total.
+    const categorized = categories.reduce((sum, row) => sum + row.count, 0);
+    const uncategorized = total - categorized;
+
+    const byCategory: SkiniverCategorySlice[] = [
+      ...categories,
+      ...(uncategorized > 0
+        ? [{ label: 'Sin categoría', count: uncategorized, extra: null }]
+        : []),
+    ].map((row) => ({
       key: normalizeLabelKey(row.label),
       label: row.label,
       color: skiniverCategoryColor(row.label),
@@ -282,15 +330,7 @@ export class SkiniverReportService {
       pct: pct(row.count, total),
     }));
 
-    const topDiagnoses: SkiniverTopDiagnosis[] = mergeByLabel(
-      topRows
-        .filter((row) => !isNoPathologyDiagnosis(row.diagnosis))
-        .map((row) => ({
-          label: skiniverDiagnosisLabel(row.diagnosis),
-          count: row.count,
-          extra: row.icd_code?.trim() || null,
-        })),
-    )
+    const topDiagnoses: SkiniverTopDiagnosis[] = diagnoses
       .slice(0, TOP_DIAGNOSES_LIMIT)
       .map((row) => ({
         diagnosis: row.label,

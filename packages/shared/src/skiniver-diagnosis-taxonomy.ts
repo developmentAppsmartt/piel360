@@ -89,17 +89,14 @@ const DIAGNOSIS_MAP: Record<string, { class: SkiniverDiagnosisClass }> = {
   "carcinoma de celulas escamosas": { class: "tumors" },
   melanoma: { class: "tumors" },
   "lentigo melanoma": { class: "tumors" },
-  // Micosis — cutáneas van a infecciosas, las de anexos (uña/pelo) a "anexos"
+  // Micosis cutáneas. Las de uña y pelo no están acá: van en CLASS_OVERRIDES,
+  // que es lo que las saca de su categoría.
   "micosis cutanea": { class: "infectious" },
   "micosis cutaneas": { class: "infectious" },
-  // Nombres reales del clasificador (`2G_skin_mycosis`, `2PS_shining_versicolor`),
-  // que no coinciden con el wording del atlas. Sin estos alias caían en
-  // "Otras"/"other" y el reporte no mostraba ninguna infección por hongos.
+  // `2G_skin_mycosis` llega con un wording que no es el del atlas; sin este
+  // alias caía en "other" y el reporte no mostraba ninguna infección por hongos.
   "micosis de la piel": { class: "infectious" },
-  "versicolor brillante": { class: "infectious" },
   "pitiriasis versicolor": { class: "infectious" },
-  onicomicosis: { class: "annex" },
-  tricomicosis: { class: "annex" },
   // Papuloescamosas
   "psoriasis vulgar": { class: "inflammatory" },
   "psoriasis pustulosa": { class: "inflammatory" },
@@ -185,29 +182,55 @@ const CATEGORY_CLASS: Record<string, SkiniverDiagnosisClass> = {
   eccema: "inflammatory",
   urticaria: "inflammatory",
   eritema: "inflammatory",
-  rosacea: "inflammatory",
   "trastornos papuloescamosos": "inflammatory",
   "hidradenitis supurativa": "annex",
+  // El vitíligo es un trastorno de la pigmentación: ninguna de las cinco
+  // clases le corresponde. Se deja explícito para que se vea que está
+  // decidido y no que falta la entrada.
+  vitiligo: "other",
+};
+
+/**
+ * Diagnósticos cuya clase NO es la de su categoría. Onicomicosis y
+ * tricomicosis son micosis, pero de uña y de pelo: clínicamente pesan como
+ * trastornos de anexos, que es lo que el reporte quiere mostrar.
+ */
+const CLASS_OVERRIDES: Record<string, SkiniverDiagnosisClass> = {
+  onicomicosis: "annex",
+  tricomicosis: "annex",
 };
 
 /**
  * `null` para "sin diagnóstico" o "sin patología" — el caller decide excluirlo.
- * Busca por el nombre crudo, luego por el nombre traducido (`label`) y por
- * último por la categoría traducida; solo si nada coincide cae en "other".
+ *
+ * Manda la **categoría** que devuelve la IA, y el mapa de nombres es el
+ * respaldo. Antes era al revés, y entonces una curación nuestra desfasada
+ * pisaba el dato que sí manda el modelo: un alias equivocado bastaba para
+ * mandar un diagnóstico a la clase de otra cosa. Con este orden, la clase
+ * coincide siempre con la categoría que se ve en el donut de la misma
+ * pantalla, y un diagnóstico nuevo no cae en "Otras" mientras su categoría
+ * sea conocida.
  */
 export function classifyDiagnosisClass(
   aiDiagnosis: string | null | undefined,
   options?: { label?: string | null; category?: string | null },
 ): SkiniverDiagnosisClass | null {
   if (!aiDiagnosis || isNoPathologyDiagnosis(aiDiagnosis)) return null;
-  const byName =
-    DIAGNOSIS_MAP[normalize(aiDiagnosis)]?.class ??
-    (options?.label ? DIAGNOSIS_MAP[normalize(options.label)]?.class : undefined);
-  if (byName) return byName;
+
+  const override =
+    CLASS_OVERRIDES[normalize(aiDiagnosis)] ??
+    (options?.label ? CLASS_OVERRIDES[normalize(options.label)] : undefined);
+  if (override) return override;
+
   const byCategory = options?.category
     ? CATEGORY_CLASS[normalize(options.category)]
     : undefined;
-  return byCategory ?? "other";
+  if (byCategory) return byCategory;
+
+  const byName =
+    DIAGNOSIS_MAP[normalize(aiDiagnosis)]?.class ??
+    (options?.label ? DIAGNOSIS_MAP[normalize(options.label)]?.class : undefined);
+  return byName ?? "other";
 }
 
 // ─── Tono de piel (Fitzpatrick) ─────────────────────────────────────────────
