@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { DEFAULT_BRANDING } from '../../../../config/branding.defaults';
 import { Image, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useBranding } from '../../../../context/BrandingContext';
@@ -22,11 +23,21 @@ const noPointer = { pointerEvents: 'none' as const };
 
 export function AuthBackground({ children }: AuthBackgroundProps) {
   const branding = useBranding();
+  const [failedUri, setFailedUri] = useState<string | null>(null);
+  const custom = branding.loginHeroImage;
+  const customUri = typeof custom === 'object' && 'uri' in custom ? custom.uri : null;
+  const showingCustom = Boolean(customUri) && customUri !== failedUri;
+  const heroSource = customUri && !showingCustom ? DEFAULT_BRANDING.loginHeroImage : custom;
+  const onHeroError = () => {
+    if (customUri) setFailedUri(customUri);
+  };
   const { width, height } = useWindowDimensions();
   const { isTablet, isLandscape } = useDeviceLayout();
   const useSplitLayout = isTablet && isLandscape;
   const formPaneWidth = Math.min(width * 0.46, 520);
-  const heroWidth = Math.max(width, height);
+  // La imagen del sistema se ancla a la derecha más ancha que la pantalla; la
+  // personalizada cubre la pantalla completa, igual que la vista previa del CRM.
+  const heroWidth = showingCustom ? width : Math.max(width, height);
 
   if (useSplitLayout) {
     return (
@@ -51,7 +62,8 @@ export function AuthBackground({ children }: AuthBackgroundProps) {
               style={[StyleSheet.absoluteFill, noPointer]}
             />
             <Image
-              source={branding.loginHeroImage}
+              source={heroSource}
+              onError={onHeroError}
               style={[styles.heroFill, noPointer]}
               resizeMode="cover"
             />
@@ -75,7 +87,8 @@ export function AuthBackground({ children }: AuthBackgroundProps) {
         style={[styles.backLayer, noPointer]}
       />
       <Image
-        source={branding.loginHeroImage}
+        source={heroSource}
+        onError={onHeroError}
         style={[styles.heroImage, { width: heroWidth }, noPointer]}
         resizeMode="cover"
       />
@@ -99,7 +112,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   backLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   heroImage: {
     position: 'absolute',
@@ -129,7 +142,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   heroFill: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
   },

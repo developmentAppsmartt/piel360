@@ -74,7 +74,7 @@ export function AboutPiel360Content({
             accessibilityLabel="Cerrar"
             hitSlop={8}
           >
-            <AppIcon icon={Icons.close} size={18} color={primary} />
+            <AppIcon icon={Icons.close} size={18} color={branding.colors.icon} />
           </Pressable>
         </View>
       ) : null}
@@ -105,7 +105,7 @@ export function AboutPiel360Content({
         {DIAGNOSES.map((item) => (
           <View key={item.label} style={styles.diagnosisCard}>
             <View style={styles.diagnosisIcon}>
-              <AppIcon icon={item.icon} size={22} color={primary} />
+              <AppIcon icon={item.icon} size={22} color={branding.colors.icon} />
             </View>
             <Text style={styles.diagnosisLabel}>{item.label.toUpperCase()}</Text>
           </View>
@@ -326,3 +326,4 @@ const modalStyles = StyleSheet.create({
     fontSize: 15,
   },
 });
+

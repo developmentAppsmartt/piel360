@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
 import {
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { AppIcon } from '../../../../components/AppIcon';
+import { KeyboardAwareScrollView } from '../../../../components/KeyboardAwareScrollView';
 import { BirthDateField } from '../../../../components/BirthDateField';
 import { LocationPicker } from '../../../../components/maps/LocationPicker';
 import { useBranding } from '../../../../context/BrandingContext';
@@ -131,7 +131,7 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
   }
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
       style={styles.scroll}
       contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
@@ -408,10 +408,10 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <Pressable style={styles.nextBtn} onPress={submit}>
+        <Pressable style={({ pressed }) => [styles.nextBtn, pressed && { backgroundColor: branding.colors.buttonHover }]} onPress={submit}>
           <Text style={styles.nextBtnText}>Siguiente</Text>
         </Pressable>
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }

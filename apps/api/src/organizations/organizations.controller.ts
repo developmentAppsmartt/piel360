@@ -24,6 +24,8 @@ import { RequirePermission } from '../auth/permissions.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import type { JwtPayload } from '../auth/types';
 import { BillingService } from '../billing/billing.service';
+import { DoctorsService } from '../doctors/doctors.service';
+import { UpdateAccountStatusDto } from '../doctors/dto/update-account-status.dto';
 import { AddTeamDoctorDto } from './dto/add-team-doctor.dto';
 import { UpdateAlliedOrganizationDto } from './dto/update-allied-organization.dto';
 import { UpdateMemberPermissionsDto } from './dto/update-member-permissions.dto';
@@ -35,6 +37,7 @@ export class OrganizationsController {
   constructor(
     private readonly organizations: OrganizationsService,
     private readonly billing: BillingService,
+    private readonly doctors: DoctorsService,
   ) {}
 
   @Get('organizations/me')
@@ -182,6 +185,17 @@ export class OrganizationsController {
   @RequirePermission('admin.companies')
   listCompanies() {
     return this.organizations.listCompanyRegistrationsForAdmin();
+  }
+
+  /** `doctorId` del dueño: deshabilitarlo bloquea también a su equipo. */
+  @Patch('admin/empresas/:doctorId/account-status')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('admin.companies')
+  updateCompanyAccountStatus(
+    @Param('doctorId') doctorId: string,
+    @Body() dto: UpdateAccountStatusDto,
+  ) {
+    return this.doctors.setAccountDisabled(doctorId, dto.disabled, dto.reason);
   }
 
   @Get('admin/referrals')

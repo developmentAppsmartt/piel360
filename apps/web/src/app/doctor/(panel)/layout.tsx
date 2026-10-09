@@ -3,8 +3,10 @@
 // src/proxy.ts, que intercepta /doctor/(panel)/* antes de llegar aquí.
 import { redirect } from "next/navigation";
 import { isDoctorVerificationActive, toPublicProviderPermissions } from "@piel360/shared";
+import { DepletedCreditsNotice } from "@/components/doctor/depleted-credits-notice";
+import { NoActivePlanNotice } from "@/components/doctor/no-active-plan-notice";
 import { PanelShell } from "@/components/layout/panel-shell";
-import { fetchUserPermissionsFromCookies } from "@/lib/server-auth-permissions";
+import { fetchSessionStateFromCookies } from "@/lib/server-auth-permissions";
 import { getSession } from "@/lib/session";
 import { buildUnifiedPanelNav } from "@/lib/unified-panel-nav";
 
@@ -16,19 +18,25 @@ export default async function DoctorPanelLayout({
   const session = await getSession();
   if (!session) redirect("/doctor/login");
 
-  const freshPermissions = await fetchUserPermissionsFromCookies();
+  const { permissions: freshPermissions, account } =
+    await fetchSessionStateFromCookies();
+  if (account?.disabled) redirect("/doctor/cuenta-deshabilitada");
+
   const permissions = toPublicProviderPermissions(
     freshPermissions ?? session.permissions ?? [],
   );
 
   const active = isDoctorVerificationActive(session.verificationStatus);
+  const planRestricted = active && Boolean(account?.planRestricted);
   const subtitle = !active
     ? "Verificación pendiente"
-    : session.empresaReferida
-      ? "Empresa referida · Referidos"
-      : session.empresa
-        ? "Empresa · Equipo"
-        : "Consulta individual";
+    : planRestricted
+      ? "Sin plan activo"
+      : session.empresaReferida
+        ? "Empresa referida · Referidos"
+        : session.empresa
+          ? "Empresa · Equipo"
+          : "Consulta individual";
 
   const navFeatures = {
     email: session.email,
@@ -39,6 +47,8 @@ export default async function DoctorPanelLayout({
     verificationStatus: session.verificationStatus,
     teamPermissions: session.teamPermissions,
     isOrgMember: session.isOrgMember,
+    organizationMemberRole: session.organizationMemberRole,
+    planRestricted,
   };
 
   return (
@@ -59,6 +69,18 @@ export default async function DoctorPanelLayout({
           gestionar <strong>planes</strong>,{" "}
           <strong>compras y facturación</strong> y tu <strong>cuenta</strong>.
         </div>
+      ) : null}
+      {planRestricted ? (
+        <NoActivePlanNotice
+          userId={session.sub}
+          expiredPlans={account?.expiredPlans ?? []}
+        />
+      ) : null}
+      {active && !planRestricted && account?.depletedPlans?.length ? (
+        <DepletedCreditsNotice
+          userId={session.sub}
+          depletedPlans={account.depletedPlans}
+        />
       ) : null}
       {children}
     </PanelShell>

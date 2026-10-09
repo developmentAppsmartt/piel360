@@ -5,6 +5,7 @@ import Link from "next/link";
 import { SESSION_REPLACED_MESSAGE, type Role } from "@piel360/shared";
 import { ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { loginAction, type AuthActionState } from "@/lib/actions/auth";
+import { useClearClientQueryCache } from "@/lib/clear-client-query-cache";
 import { googleOAuthRole } from "@/lib/google-auth";
 import { SESSION_REPLACED_REASON } from "@/lib/login-path";
 import { GoogleContinueButton } from "./google-continue-button";
@@ -24,8 +25,18 @@ export function LoginForm({
   registerHref?: string;
   showForgotPassword?: boolean;
 }) {
-  const boundAction = loginAction.bind(null, role);
-  const [state, formAction, isPending] = useActionState(boundAction, initialState);
+  const clearClientCache = useClearClientQueryCache();
+  const boundAction = async (
+    prevState: AuthActionState,
+    formData: FormData,
+  ) => {
+    clearClientCache();
+    return loginAction(role, prevState, formData);
+  };
+  const [state, formAction, isPending] = useActionState(
+    boundAction,
+    initialState,
+  );
   const [showPassword, setShowPassword] = useState(false);
   const oauthRole = googleOAuthRole(role);
   // Se lee del navegador (no con useSearchParams) para que las páginas de

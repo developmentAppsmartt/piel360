@@ -22,6 +22,7 @@ import { RequirePermission } from '../auth/permissions.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import type { JwtPayload } from '../auth/types';
 import { DoctorsService } from './doctors.service';
+import { UpdateAccountStatusDto } from './dto/update-account-status.dto';
 import { UpdateDoctorDto } from './dto/update-doctor.dto';
 import { UpdateDoctorVerificationDto } from './dto/update-doctor-verification.dto';
 import { UpdateDoctorAddressVerificationDto } from './dto/update-doctor-address-verification.dto';
@@ -122,6 +123,16 @@ export class DoctorsController {
   @RequirePermission('update_doctor')
   update(@Param('id') id: string, @Body() dto: UpdateDoctorDto) {
     return this.doctorsService.update(id, dto);
+  }
+
+  @Patch('admin/doctors/:id/account-status')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('update_doctor')
+  updateAccountStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateAccountStatusDto,
+  ) {
+    return this.doctorsService.setAccountDisabled(id, dto.disabled, dto.reason);
   }
 
   @Patch('admin/doctors/:id/verification')

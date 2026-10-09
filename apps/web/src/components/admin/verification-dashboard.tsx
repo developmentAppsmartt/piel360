@@ -61,22 +61,34 @@ const STATUS_LABELS: Record<string, string> = {
 
 function TypeBadge({ doctor }: { doctor: Doctor }) {
   const enterprise = isEnterpriseDoctor(doctor);
+  const alliedName = doctor.invitedByAlliedOrganization?.name?.trim();
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold",
-        enterprise
-          ? "bg-primary/10 text-primary"
-          : "bg-sky-50 text-sky-700",
-      )}
-    >
-      {enterprise ? (
-        <Building2 className="size-3" />
-      ) : (
-        <UserRound className="size-3" />
-      )}
-      {accountTypeLabel(doctor)}
-    </span>
+    <div className="flex min-w-0 flex-col items-start gap-1">
+      <span
+        className={cn(
+          "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+          enterprise
+            ? "bg-primary/10 text-primary"
+            : "bg-sky-50 text-sky-700",
+        )}
+      >
+        {enterprise ? (
+          <Building2 className="size-3" />
+        ) : (
+          <UserRound className="size-3" />
+        )}
+        {accountTypeLabel(doctor)}
+      </span>
+      {alliedName ? (
+        <span
+          className="max-w-[14rem] text-[11px] leading-snug text-muted-foreground"
+          title={`Invitado por ${alliedName}`}
+        >
+          Invitado por{" "}
+          <span className="font-medium text-foreground">{alliedName}</span>
+        </span>
+      ) : null}
+    </div>
   );
 }
 
@@ -91,9 +103,14 @@ function TypeBadge({ doctor }: { doctor: Doctor }) {
 function generalInfoRows(
   d: Doctor,
 ): readonly (readonly [string, string | null | undefined])[] {
+  const alliedInvite: (readonly [string, string | null | undefined])[] =
+    d.invitedByAlliedOrganization?.name
+      ? ([["Empresa aliada", d.invitedByAlliedOrganization.name]] as const)
+      : [];
   if (d.professionalKind === "labor") {
     return [
       ["Tipo de usuario", accountTypeLabel(d)],
+      ...alliedInvite,
       ["Perfil técnico", d.specialty],
       ["Institución educativa técnica", d.technicalInstitution],
       ["País", d.country],
@@ -103,6 +120,7 @@ function generalInfoRows(
   }
   return [
     ["Tipo de usuario", accountTypeLabel(d)],
+    ...alliedInvite,
     ["Especialidad", d.specialty],
     ["Registro médico", d.medicalRegistry],
     ["Entidad educativa pregrado", d.educationEntity],

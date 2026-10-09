@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { AppIcon } from './AppIcon';
 import { Icons } from './icons';
+import { useBranding } from '../context/BrandingContext';
 import {
   daysInMonthGridLocal,
   ymdLocal,
@@ -59,9 +60,11 @@ export function BirthDateField({
   placeholder = 'Toca para elegir en el calendario',
   placeholderColor = '#9CA3AF',
   disabled = false,
-  accentColor = '#1E5A9E',
+  accentColor: accentColorProp,
   textColor = '#1A1A1A',
 }: BirthDateFieldProps) {
+  const branding = useBranding();
+  const accentColor = accentColorProp ?? branding.colors.primary;
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState(() => parseIsoOrDefault(value));
   const todayYmd = useMemo(() => ymdLocal(new Date()), []);

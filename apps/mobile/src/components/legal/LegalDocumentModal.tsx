@@ -7,7 +7,7 @@ import {
   getLegalDocument,
   type LegalDocId,
 } from '../../data/legal/documents';
-import { ComplianceBadges } from './ComplianceBadges';
+// import { ComplianceBadges } from './ComplianceBadges';
 
 type LegalDocumentModalProps = {
   docId: LegalDocId | null;
@@ -23,8 +23,8 @@ export function LegalDocumentModal({
   const branding = useBranding();
   const insets = useSafeAreaInsets();
   const doc = docId ? getLegalDocument(docId) : null;
-  const primary = branding.colors.primary;
-  const primaryDark = branding.colors.primaryDark;
+  const titleColor = branding.colors.primaryText;
+  const textColor = branding.colors.secondaryTextOverride;
 
   return (
     <Modal
@@ -46,19 +46,19 @@ export function LegalDocumentModal({
         >
           <View style={styles.header}>
             <View style={styles.headerTextCol}>
-              <Text style={[styles.title, { color: primaryDark }]}>
+              <Text style={[styles.title, { color: titleColor }]}>
                 {doc.title}
               </Text>
-              <Text style={styles.updated}>
+              <Text style={[styles.updated, textColor ? { color: textColor } : null]}>
                 Última actualización: {doc.updatedAt}
               </Text>
             </View>
             <Pressable
-              style={[styles.closeBtn, { backgroundColor: `${primary}18` }]}
+              style={[styles.closeBtn, { backgroundColor: `${branding.colors.icon}18` }]}
               onPress={onClose}
               accessibilityLabel="Cerrar"
             >
-              <AppIcon icon={Icons.close} size={18} color={primary} />
+              <AppIcon icon={Icons.close} size={18} color={branding.colors.icon} />
             </Pressable>
           </View>
 
@@ -68,37 +68,42 @@ export function LegalDocumentModal({
             showsVerticalScrollIndicator
           >
             {doc.intro ? (
-              <Text style={styles.intro}>{doc.intro}</Text>
+              <Text style={[styles.intro, textColor ? { color: textColor } : null]}>{doc.intro}</Text>
             ) : null}
 
             {doc.sections.map((section) => (
               <View key={section.heading ?? section.paragraphs[0]} style={styles.section}>
                 {section.heading ? (
-                  <Text style={[styles.heading, { color: primaryDark }]}>
+                  <Text style={[styles.heading, { color: titleColor }]}>
                     {section.heading}
                   </Text>
                 ) : null}
                 {section.paragraphs.map((p) => (
-                  <Text key={p.slice(0, 48)} style={styles.paragraph}>
+                  <Text key={p.slice(0, 48)} style={[styles.paragraph, textColor ? { color: textColor } : null]}>
                     {p}
                   </Text>
                 ))}
               </View>
             ))}
 
+            {/* Oculto por temas legales: aún no se cuenta con estas certificaciones.
             <View style={styles.badgesBlock}>
-              <Text style={[styles.heading, { color: primaryDark }]}>
+              <Text style={[styles.heading, { color: titleColor }]}>
                 Cumplimiento normativo
               </Text>
               <ComplianceBadges variant="light" />
             </View>
+            */}
           </ScrollView>
 
           <Pressable
-            style={[styles.doneBtn, { backgroundColor: primary }]}
+            style={({ pressed }) => [
+              styles.doneBtn,
+              { backgroundColor: pressed ? branding.colors.buttonHover : branding.colors.button },
+            ]}
             onPress={onClose}
           >
-            <Text style={styles.doneBtnText}>Cerrar</Text>
+            <Text style={[styles.doneBtnText, { color: branding.colors.buttonText }]}>Cerrar</Text>
           </Pressable>
         </View>
       ) : null}
@@ -186,3 +191,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
 });
+

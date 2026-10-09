@@ -1,5 +1,15 @@
 import { getApiBaseUrl } from '../config/env';
-import { emitSessionEnded, SESSION_REPLACED } from './session-events';
+import {
+  OFFLINE_MESSAGE,
+  reportNetworkFailure,
+  reportNetworkSuccess,
+} from './network-status';
+import {
+  ACCOUNT_DISABLED,
+  emitAccountDisabled,
+  emitSessionEnded,
+  SESSION_REPLACED,
+} from './session-events';
 import { storageService } from './storage.service';
 
 export class ApiError extends Error {
@@ -108,7 +118,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   const send = async (): Promise<Response> => {
     try {
-      return await fetch(url, {
+      const res = await fetch(url, {
         method,
         headers,
         body:
@@ -118,12 +128,15 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
               ? (body as FormData)
               : JSON.stringify(body),
       });
+      reportNetworkSuccess();
+      return res;
     } catch (err) {
-      const detail = err instanceof Error ? err.message : String(err);
-      throw new ApiError(
-        `No se pudo conectar con ${baseUrl} (${detail}). Si usas un APK, recompílalo con EXPO_PUBLIC_API_URL de producción.`,
-        0,
-      );
+      if (__DEV__) {
+        const detail = err instanceof Error ? err.message : String(err);
+        console.log(`[api] sin conexión con ${baseUrl}: ${detail}`);
+      }
+      reportNetworkFailure();
+      throw new ApiError(OFFLINE_MESSAGE, 0);
     }
   };
 
@@ -155,6 +168,12 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     if (response.status === 401 && auth && !path.startsWith('/auth/')) {
       const code = (parsed as { code?: string } | null)?.code;
       emitSessionEnded(code === SESSION_REPLACED ? 'replaced' : 'expired');
+    }
+    if (
+      response.status === 403 &&
+      (parsed as { code?: string } | null)?.code === ACCOUNT_DISABLED
+    ) {
+      emitAccountDisabled();
     }
     throw new ApiError(
       messageFromBody(parsed, `Error ${response.status}`),

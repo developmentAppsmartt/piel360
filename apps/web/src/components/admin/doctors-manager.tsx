@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Building2, ChevronRight, Stethoscope, UserRound } from "lucide-react";
+import { Building2, ShieldCheck, Stethoscope, UserRound } from "lucide-react";
 import {
   ADMIN_PAGE_SIZES,
   AdminSearchInput,
@@ -11,7 +10,12 @@ import {
   UserAvatar,
   VerificationStatusBadge,
 } from "@/components/admin/admin-directory-ui";
-import { Button } from "@/components/ui/button";
+import {
+  AccountRowActions,
+  AccountStateBadge,
+  AccountStatusDialog,
+  type AccountStatusTarget,
+} from "@/components/admin/account-status-dialog";
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import {
   accountTypeLabel,
@@ -48,6 +52,7 @@ export function DoctorsManager() {
   const [tab, setTab] = useState<AccountFilter>("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<(typeof ADMIN_PAGE_SIZES)[number]>(10);
+  const [statusTarget, setStatusTarget] = useState<AccountStatusTarget | null>(null);
 
   const stats = useMemo(() => {
     const rows = doctors.data ?? [];
@@ -172,6 +177,7 @@ export function DoctorsManager() {
                     <th className="px-4 py-3 font-semibold">Especialidad</th>
                     <th className="px-4 py-3 font-semibold">Ubicación</th>
                     <th className="px-4 py-3 font-semibold">Verificación</th>
+                    <th className="px-4 py-3 font-semibold">Estado</th>
                     <th className="px-4 py-3 font-semibold">Registro</th>
                     <th className="px-4 py-3 text-right font-semibold">Acciones</th>
                   </tr>
@@ -179,7 +185,7 @@ export function DoctorsManager() {
                 <tbody>
                   {rows.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+                      <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
                         No hay profesionales en esta categoría.
                       </td>
                     </tr>
@@ -225,29 +231,35 @@ export function DoctorsManager() {
                           <td className="px-4 py-3">
                             <VerificationStatusBadge status={row.verificationStatus} />
                           </td>
+                          <td className="px-4 py-3">
+                            <AccountStateBadge
+                              active={!row.user.disabledAt}
+                              reason={row.user.disabledReason}
+                            />
+                          </td>
                           <td className="px-4 py-3 text-muted-foreground">
                             {formatAdminDate(row.createdAt)}
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                nativeButton={false}
-                                render={<Link href={`/admin/doctores/${row.id}`} />}
-                                variant="outline"
-                                size="sm"
-                              >
-                                Perfil
-                              </Button>
-                              <Button
-                                nativeButton={false}
-                                render={<Link href={`/admin/verificacion/${row.id}`} />}
-                                variant="ghost"
-                                size="sm"
-                              >
-                                Verificar
-                                <ChevronRight className="size-4" />
-                              </Button>
-                            </div>
+                            <AccountRowActions
+                              active={!row.user.disabledAt}
+                              editHref={`/admin/doctores/${row.id}`}
+                              extraLinks={[
+                                {
+                                  label: "Verificar",
+                                  href: `/admin/verificacion/${row.id}`,
+                                  icon: ShieldCheck,
+                                },
+                              ]}
+                              onToggle={() =>
+                                setStatusTarget({
+                                  doctorId: row.id,
+                                  name: fullName,
+                                  disabledAt: row.user.disabledAt ?? null,
+                                  disabledReason: row.user.disabledReason ?? null,
+                                })
+                              }
+                            />
                           </td>
                         </tr>
                       );
@@ -286,6 +298,14 @@ export function DoctorsManager() {
           </p>
         </div>
       </ModuleCard>
+
+      <AccountStatusDialog
+        scope="doctor"
+        target={statusTarget}
+        onOpenChange={(open) => {
+          if (!open) setStatusTarget(null);
+        }}
+      />
     </div>
   );
 }

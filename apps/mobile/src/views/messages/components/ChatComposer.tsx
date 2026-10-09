@@ -12,6 +12,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { AppIcon } from '../../../components/AppIcon';
 import { Icons } from '../../../components/icons';
 import type { ChatStyles } from '../styles/chat.styles';
+import { useBranding } from '../../../context/BrandingContext';
 
 export type PendingAttachment = {
   uri: string;
@@ -34,7 +35,7 @@ export function ChatComposer({
 }: ChatComposerProps) {
   const insets = useSafeAreaInsets();
   const [text, setText] = useState('');
-  const muted = styles.toolIcon.color as string;
+  const branding = useBranding();
   const onDark = styles.sendBtnText.color as string;
 
   const submit = () => {
@@ -118,19 +119,22 @@ export function ChatComposer({
             disabled={sending}
             accessibilityLabel="Adjuntar archivo"
           >
-            <AppIcon icon={Icons.paperclip} size={18} color={muted} />
+            <AppIcon icon={Icons.paperclip} size={18} color={branding.colors.iconMuted} />
           </Pressable>
           <Pressable
             onPress={() => void pickPdf()}
             disabled={sending}
             accessibilityLabel="Adjuntar PDF"
           >
-            <AppIcon icon={Icons.document} size={18} color={muted} />
+            <AppIcon icon={Icons.document} size={18} color={branding.colors.iconMuted} />
           </Pressable>
         </View>
       </View>
       <Pressable
-        style={styles.sendBtn}
+        style={({ pressed }) => [
+          styles.sendBtn,
+          pressed && { backgroundColor: branding.colors.buttonHover },
+        ]}
         onPress={submit}
         disabled={sending}
         accessibilityRole="button"

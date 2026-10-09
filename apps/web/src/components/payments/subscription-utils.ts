@@ -1,5 +1,54 @@
+import { toInternalProviderSlug } from "@piel360/shared";
 import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import type { Subscription } from "@/lib/queries/subscriptions";
+
+/** Valor cobrado: factura interna (incluye IVA) o, si no existe, precio del plan. */
+export function subscriptionAmount(sub: Subscription): number {
+  const value = Number(sub.invoice?.grossAmount ?? sub.plan.price);
+  return Number.isFinite(value) ? value : 0;
+}
+
+export function subscriptionPurchaseDate(sub: Subscription): string {
+  return sub.invoice?.createdAt ?? sub.createdAt;
+}
+
+export type PlanKind = "both" | "derm" | "aesthetic" | "fototipo" | "other";
+
+export function subscriptionPlanKind(sub: Subscription): PlanKind {
+  const limits = sub.plan.analysisLimits ?? {};
+  const derm = (limits.skiniver ?? 0) > 0;
+  const aesthetic = (limits.aesthetic ?? 0) > 0;
+  if (derm && aesthetic) return "both";
+  if (derm) return "derm";
+  if (aesthetic) return "aesthetic";
+  const slug = toInternalProviderSlug(sub.plan.provider.slug);
+  if (slug === "skiniver") return "derm";
+  if (slug === "youcam") return "aesthetic";
+  if (slug === "fitzpatrick") return "fototipo";
+  return "other";
+}
+
+export function subscriptionPlanSubtitle(sub: Subscription): string {
+  switch (subscriptionPlanKind(sub)) {
+    case "both":
+      return "Análisis estético + dermatológico";
+    case "derm":
+      return "Análisis dermatológico";
+    case "aesthetic":
+      return "Análisis estético";
+    case "fototipo":
+      return "Análisis de fototipo";
+    default:
+      return providerLabel(sub.plan.provider.slug, sub.plan.provider.name);
+  }
+}
+
+export function subscriptionPlanIncludes(sub: Subscription): string {
+  const description = sub.plan.description?.trim();
+  if (description) return description;
+  const features = (sub.plan.features ?? []).filter((f) => f.included).map((f) => f.label);
+  return features.length > 0 ? features.join(" · ") : subscriptionPlanSubtitle(sub);
+}
 
 export const SUBSCRIPTION_STATUS_LABELS: Record<Subscription["status"], string> = {
   active: "Activa",

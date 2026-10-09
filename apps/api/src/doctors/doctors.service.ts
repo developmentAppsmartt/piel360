@@ -54,9 +54,53 @@ export class DoctorsService {
           ],
         },
       },
-      include: { user: { select: { email: true, avatarKey: true } } },
+      include: {
+        user: {
+          select: {
+            email: true,
+            avatarKey: true,
+            disabledAt: true,
+            disabledReason: true,
+          },
+        },
+      },
       orderBy: { id: 'asc' },
     });
+  }
+
+  /**
+   * Deshabilita / rehabilita la cuenta (profesional o dueño de empresa). No
+   * cierra la sesión: al entrar solo verá la pantalla con el motivo.
+   */
+  async setAccountDisabled(id: string, disabled: boolean, reason?: string) {
+    if (!/^\d+$/.test(id)) {
+      throw new NotFoundException('Doctor no encontrado');
+    }
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { id: BigInt(id) },
+      select: { userId: true },
+    });
+    if (!doctor) throw new NotFoundException('Doctor no encontrado');
+
+    const trimmed = reason?.trim() ?? '';
+    if (disabled && !trimmed) {
+      throw new BadRequestException(
+        'Indica el motivo por el que se deshabilita la cuenta.',
+      );
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id: doctor.userId },
+      data: disabled
+        ? { disabledAt: new Date(), disabledReason: trimmed }
+        : { disabledAt: null, disabledReason: null },
+      select: { id: true, disabledAt: true, disabledReason: true },
+    });
+    return {
+      userId: user.id.toString(),
+      disabledAt: user.disabledAt?.toISOString() ?? null,
+      disabledReason: user.disabledReason,
+    };
   }
 
   /** Doctores pendientes de validación (cola del moderador). */
@@ -190,7 +234,9 @@ export class DoctorsService {
           : {}),
       },
       include: {
-        user: { select: { id: true, email: true, avatarKey: true, name: true } },
+        user: {
+          select: { id: true, email: true, avatarKey: true, name: true },
+        },
       },
     });
 
@@ -335,18 +381,17 @@ export class DoctorsService {
     });
     if (!existing) throw new NotFoundException('Doctor no encontrado');
 
-    const ext =
-      mime.includes('png')
-        ? 'png'
-        : mime.includes('webp')
-          ? 'webp'
-          : mime.includes('webm')
-            ? 'webm'
-            : mime.includes('quicktime')
-              ? 'mov'
-              : mime.startsWith('video/')
-                ? 'mp4'
-                : 'jpg';
+    const ext = mime.includes('png')
+      ? 'png'
+      : mime.includes('webp')
+        ? 'webp'
+        : mime.includes('webm')
+          ? 'webm'
+          : mime.includes('quicktime')
+            ? 'mov'
+            : mime.startsWith('video/')
+              ? 'mp4'
+              : 'jpg';
 
     const key = `doctors/${id}/address-evidence/${Date.now()}.${ext}`;
     await this.storage.upload(key, file.buffer, mime);
@@ -360,9 +405,7 @@ export class DoctorsService {
       where: { id: BigInt(id) },
       data: {
         addressVerificationEvidenceKey: key,
-        ...(promoteToReview
-          ? { addressVerificationStatus: 'in_review' }
-          : {}),
+        ...(promoteToReview ? { addressVerificationStatus: 'in_review' } : {}),
       },
       include: {
         user: { select: { email: true, avatarKey: true, name: true } },
@@ -394,8 +437,7 @@ export class DoctorsService {
     }
 
     const wasPhotoVerified =
-      (existing.addressVerificationStatus ?? '').toLowerCase() ===
-        'verified' &&
+      (existing.addressVerificationStatus ?? '').toLowerCase() === 'verified' &&
       (existing.addressVerificationMethod ?? '') === 'photo_evidence';
 
     const doctor = await this.prisma.doctor.update({
@@ -489,8 +531,7 @@ export class DoctorsService {
         'Las cuentas empresa se editan en Configuración → Información de la empresa.',
       );
     }
-    const { birthDate, firstName, lastName, phone, phoneTicket, ...rest } =
-      dto;
+    const { birthDate, firstName, lastName, phone, phoneTicket, ...rest } = dto;
 
     if (rest.docNumber !== undefined) {
       await assertDocumentNumberAvailable(this.prisma, rest.docNumber, {
@@ -503,10 +544,7 @@ export class DoctorsService {
       where: { id: BigInt(userId) },
       select: { phone: true, phoneVerifiedAt: true },
     });
-    const currentPhone = (user?.phone ?? doctor.phone ?? '').replace(
-      /\D/g,
-      '',
-    );
+    const currentPhone = (user?.phone ?? doctor.phone ?? '').replace(/\D/g, '');
     const needsPhoneVerification = !user?.phoneVerifiedAt;
 
     if (needsPhoneVerification) {
@@ -659,10 +697,7 @@ export class DoctorsService {
   private async loadOrganizationForUser(userId: bigint) {
     const org = await this.prisma.organization.findFirst({
       where: {
-        OR: [
-          { ownerUserId: userId },
-          { members: { some: { userId } } },
-        ],
+        OR: [{ ownerUserId: userId }, { members: { some: { userId } } }],
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -722,11 +757,62 @@ export class DoctorsService {
     },
   >(doctor: T) {
     const base = await this.withDocumentUrls(doctor);
+    const invitedByAlliedOrganization =
+      await this.loadInvitedByAlliedOrganization(doctor.userId, doctor);
     if (!this.isEnterpriseDoctor(doctor)) {
-      return { ...base, organization: null };
+      return {
+        ...base,
+        organization: null,
+        invitedByAlliedOrganization,
+      };
     }
     const organization = await this.loadOrganizationForUser(doctor.userId);
-    return { ...base, organization };
+    return { ...base, organization, invitedByAlliedOrganization };
+  }
+
+  /**
+   * Profesional (o empresa) que llegó por invitación de una empresa aliada:
+   * miembro del equipo, o referido por el enlace/código de la aliada.
+   * No se usa cuando el propio registro es la empresa aliada.
+   */
+  private async loadInvitedByAlliedOrganization(
+    userId: bigint,
+    doctor: { membershipType: string; empresaReferida: boolean },
+  ) {
+    const type = (doctor.membershipType ?? '').trim().toLowerCase();
+    if (type === 'empresa_aliada' || doctor.empresaReferida) {
+      return null;
+    }
+
+    const membership = await this.prisma.organizationMember.findFirst({
+      where: {
+        userId,
+        memberRole: 'member',
+        organization: { type: 'empresa_aliada' },
+      },
+      select: { organization: { select: { id: true, name: true } } },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (membership?.organization) {
+      return {
+        id: membership.organization.id.toString(),
+        name: membership.organization.name,
+      };
+    }
+
+    const referral = await this.prisma.referral.findFirst({
+      where: {
+        referredUserId: userId,
+        organization: { type: 'empresa_aliada' },
+      },
+      select: { organization: { select: { id: true, name: true } } },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (!referral?.organization) return null;
+    return {
+      id: referral.organization.id.toString(),
+      name: referral.organization.name,
+    };
   }
 
   private async withDocumentUrls<
@@ -856,10 +942,12 @@ export class DoctorsService {
       throw new BadRequestException('No se recibieron documentos');
     }
 
-    return this.prisma.doctor.update({
-      where: { id: doctor.id },
-      data,
-      include: { user: { select: { email: true, avatarKey: true } } },
-    }).then((d) => this.withDocumentUrls(d));
+    return this.prisma.doctor
+      .update({
+        where: { id: doctor.id },
+        data,
+        include: { user: { select: { email: true, avatarKey: true } } },
+      })
+      .then((d) => this.withDocumentUrls(d));
   }
 }

@@ -1,10 +1,6 @@
 import type { AppBranding } from '../../../../config/branding.defaults';
 import { StyleSheet } from 'react-native';
 import { appShadow } from '../../../../styles/shadow';
-import { AUTH_THEME } from '../../authTheme';
-
-const ACCENT = AUTH_THEME.accent;
-const ACCENT_VIOLET = AUTH_THEME.accentViolet;
 
 export function createLoginStyles(colors: AppBranding['colors']) {
   return StyleSheet.create({
@@ -36,7 +32,7 @@ export function createLoginStyles(colors: AppBranding['colors']) {
       fontWeight: '600',
       letterSpacing: 1.4,
       textTransform: 'uppercase',
-      color: 'rgba(255,255,255,0.72)',
+      color: colors.loginTextOverride ?? 'rgba(255,255,255,0.72)',
     },
     intro: {
       marginTop: 14,
@@ -44,16 +40,16 @@ export function createLoginStyles(colors: AppBranding['colors']) {
       textAlign: 'center',
       fontSize: 14,
       lineHeight: 21,
-      color: 'rgba(255,255,255,0.9)',
+      color: colors.loginTextOverride ?? 'rgba(255,255,255,0.9)',
       paddingHorizontal: 8,
     },
     introAccent: {
       fontWeight: '700',
-      color: ACCENT,
+      color: colors.loginAccent,
     },
     introViolet: {
       fontWeight: '700',
-      color: ACCENT_VIOLET,
+      color: colors.loginAccent,
     },
     methodStack: {
       gap: 12,
@@ -88,7 +84,7 @@ export function createLoginStyles(colors: AppBranding['colors']) {
     },
     dividerText: {
       fontSize: 12,
-      color: 'rgba(255,255,255,0.7)',
+      color: colors.loginTextOverride ?? 'rgba(255,255,255,0.7)',
     },
     iconField: {
       flexDirection: 'row',
@@ -107,7 +103,7 @@ export function createLoginStyles(colors: AppBranding['colors']) {
     iconFieldLabel: {
       fontSize: 10,
       fontWeight: '500',
-      color: '#64748B',
+      color: colors.secondaryTextOverride ?? '#64748B',
       marginBottom: 2,
     },
     iconFieldInput: {
@@ -133,12 +129,12 @@ export function createLoginStyles(colors: AppBranding['colors']) {
     },
     checkLabel: {
       flex: 1,
-      color: 'rgba(255,255,255,0.82)',
+      color: colors.loginTextOverride ?? 'rgba(255,255,255,0.82)',
       fontSize: 13,
       lineHeight: 18,
     },
     checkLink: {
-      color: ACCENT,
+      color: colors.links,
       fontWeight: '700',
       textDecorationLine: 'underline',
     },
@@ -169,7 +165,7 @@ export function createLoginStyles(colors: AppBranding['colors']) {
     featureText: {
       fontSize: 10,
       lineHeight: 14,
-      color: 'rgba(255,255,255,0.72)',
+      color: colors.loginTextOverride ?? 'rgba(255,255,255,0.72)',
     },
     error: {
       color: '#FECACA',
@@ -193,7 +189,7 @@ export function createLoginStyles(colors: AppBranding['colors']) {
       opacity: 0.65,
     },
     buttonText: {
-      color: colors.textOnDark,
+      color: colors.buttonGradientText,
       fontSize: 15,
       fontWeight: '700',
       letterSpacing: 0.2,
@@ -201,13 +197,25 @@ export function createLoginStyles(colors: AppBranding['colors']) {
     footer: {
       marginTop: 16,
       textAlign: 'center',
-      color: 'rgba(255,255,255,0.78)',
+      color: colors.loginTextOverride ?? 'rgba(255,255,255,0.78)',
       fontSize: 14,
     },
     link: {
-      color: ACCENT,
+      color: colors.links,
       fontWeight: '700',
       textDecorationLine: 'underline',
+    },
+    poweredBy: {
+      marginTop: 14,
+      textAlign: 'center',
+      color: colors.loginTextOverride ?? 'rgba(255,255,255,0.55)',
+      fontSize: 11,
+      fontWeight: '600',
+      letterSpacing: 1.2,
+    },
+    poweredByBrand: {
+      color: colors.loginAccent,
+      fontWeight: '800',
     },
     complianceBlock: {
       marginTop: 20,
@@ -222,14 +230,14 @@ export function createLoginStyles(colors: AppBranding['colors']) {
     },
     compliance: {
       textAlign: 'center',
-      color: 'rgba(255,255,255,0.55)',
+      color: colors.loginTextOverride ?? 'rgba(255,255,255,0.55)',
       fontSize: 10,
       letterSpacing: 0.2,
       fontWeight: '600',
     },
     backLink: {
       marginBottom: 14,
-      color: 'rgba(255,255,255,0.8)',
+      color: colors.loginTextOverride ?? 'rgba(255,255,255,0.8)',
       fontSize: 14,
       fontWeight: '600',
     },
@@ -238,7 +246,7 @@ export function createLoginStyles(colors: AppBranding['colors']) {
       marginBottom: 12,
     },
     label: {
-      color: 'rgba(255,255,255,0.78)',
+      color: colors.loginTextOverride ?? 'rgba(255,255,255,0.78)',
       fontSize: 13,
       marginBottom: 6,
       fontWeight: '500',
@@ -266,7 +274,7 @@ export function createLoginStyles(colors: AppBranding['colors']) {
       color: colors.text,
     },
     methodBtnPrimary: {
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
     },
     methodBtnSelected: {
       borderWidth: 2,
@@ -285,7 +293,7 @@ export function createLoginStyles(colors: AppBranding['colors']) {
     subtitle: {
       fontSize: 16,
       lineHeight: 22,
-      color: 'rgba(255,255,255,0.82)',
+      color: colors.loginTextOverride ?? 'rgba(255,255,255,0.82)',
       marginBottom: 28,
       maxWidth: 320,
     },

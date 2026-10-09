@@ -18,7 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useBranding } from '../../context/BrandingContext';
 import { useNotificationsOptional } from '../../context/NotificationsContext';
 import {
-  isAnalysisProviderSlug,
+  toAnalysisProviderSlug,
   type AnalysisProviderSlug,
 } from '../../data/analysisProviderLabel';
 import type { LegalDocId } from '../../data/legal/documents';
@@ -87,9 +87,8 @@ function resolveAnalysisSlug(row: {
   fitzpatrickTaskId?: string | null;
   providerSlug?: string | null;
 }): AnalysisProviderSlug {
-  if (row.providerSlug && isAnalysisProviderSlug(row.providerSlug)) {
-    return row.providerSlug;
-  }
+  const fromSlug = toAnalysisProviderSlug(row.providerSlug);
+  if (fromSlug) return fromSlug;
   if (row.youcamTaskId) return 'youcam';
   if (row.fitzpatrickTaskId) return 'fitzpatrick';
   return 'skiniver';
@@ -808,7 +807,7 @@ export function HomeView({
                 <AppIcon
                   icon={Icons.smile}
                   size={22}
-                  color={branding.colors.primary}
+                  color={branding.colors.icon}
                 />
               </View>
               <Text style={styles.linkLabel}>
@@ -817,7 +816,7 @@ export function HomeView({
               <AppIcon
                 icon={Icons.chevronRight}
                 size={20}
-                color={branding.colors.muted}
+                color={branding.colors.iconMuted}
               />
             </Pressable>
           ) : null}
@@ -833,14 +832,14 @@ export function HomeView({
                 <AppIcon
                   icon={Icons.prescription}
                   size={22}
-                  color={branding.colors.primary}
+                  color={branding.colors.icon}
                 />
               </View>
               <Text style={styles.linkLabel}>Enfermedades de la piel</Text>
               <AppIcon
                 icon={Icons.chevronRight}
                 size={20}
-                color={branding.colors.muted}
+                color={branding.colors.iconMuted}
               />
             </Pressable>
           ) : null}
@@ -861,7 +860,7 @@ export function HomeView({
               <AppIcon
                 icon={Icons.calendarClock}
                 size={16}
-                color={branding.colors.primary}
+                color={branding.colors.icon}
               />
               <Text style={styles.assignText}>Asignar Cita</Text>
             </Pressable>
@@ -936,7 +935,7 @@ export function HomeView({
                       <AppIcon
                         icon={Icons.skin}
                         size={22}
-                        color={branding.colors.primary}
+                        color={branding.colors.icon}
                       />
                     </View>
                     <AppIcon
@@ -955,7 +954,7 @@ export function HomeView({
                     <AppIcon
                       icon={Icons.chevronRight}
                       size={18}
-                      color={branding.colors.muted}
+                      color={branding.colors.iconMuted}
                     />
                   </Pressable>
                 );

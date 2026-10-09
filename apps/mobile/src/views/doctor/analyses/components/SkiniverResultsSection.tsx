@@ -164,6 +164,7 @@ function DiagnosisStatCard({
   onPress: () => void;
   styles: ReturnType<typeof createAnalysisDetailStyles>;
 }) {
+  const branding = useBranding();
   const prob = normalizedProb(item.prob);
   const color = RISK_COLORS[item.risk_level ?? ''] ?? RISK_COLORS.medium;
   const icdLabel = item.lesion_code?.trim()
@@ -189,7 +190,7 @@ function DiagnosisStatCard({
         ) : null}
       </View>
       <View style={styles.diagnosisChevronBtn}>
-        <AppIcon icon={Icons.chevronRight} size={18} color="#FFFFFF" />
+        <AppIcon icon={Icons.chevronRight} size={18} color={branding.colors.buttonText} />
       </View>
     </Pressable>
   );
@@ -444,7 +445,7 @@ export function SkiniverResultsSection({
           <AppIcon
             icon={Icons.back}
             size={18}
-            color={branding.colors.primary}
+            color={branding.colors.icon}
           />
           <Text style={styles.backToStatsText}>Estadísticas</Text>
         </Pressable>
@@ -467,7 +468,7 @@ export function SkiniverResultsSection({
           <AppIcon
             icon={Icons.calendarClock}
             size={22}
-            color={branding.colors.primary}
+            color={branding.colors.icon}
           />
           <View style={styles.infoRowBody}>
             <Text style={styles.infoRowValue}>
@@ -502,7 +503,7 @@ export function SkiniverResultsSection({
           <AppIcon
             icon={Icons.information}
             size={22}
-            color={branding.colors.primary}
+            color={branding.colors.icon}
           />
           <View style={styles.infoRowBody}>
             <Text style={styles.infoRowValue}>
@@ -517,7 +518,7 @@ export function SkiniverResultsSection({
             </Text>
           </View>
           <View style={styles.diagnosisChevronBtn}>
-            <AppIcon icon={Icons.chevronRight} size={16} color="#FFFFFF" />
+            <AppIcon icon={Icons.chevronRight} size={16} color={branding.colors.buttonText} />
           </View>
         </Pressable>
 
@@ -530,14 +531,14 @@ export function SkiniverResultsSection({
             <AppIcon
               icon={Icons.account}
               size={22}
-              color={branding.colors.primary}
+              color={branding.colors.icon}
             />
             <View style={styles.infoRowBody}>
               <Text style={styles.infoRowValue}>Region del Cuerpo</Text>
               <Text style={styles.diagnosisSub}>{bodyLabel}</Text>
             </View>
             <View style={styles.diagnosisChevronBtn}>
-              <AppIcon icon={Icons.chevronRight} size={16} color="#FFFFFF" />
+              <AppIcon icon={Icons.chevronRight} size={16} color={branding.colors.buttonText} />
             </View>
           </Pressable>
         ) : null}
@@ -559,7 +560,7 @@ export function SkiniverResultsSection({
               <AppIcon
                 icon={Icons.account}
                 size={20}
-                color={branding.colors.primary}
+                color={branding.colors.icon}
               />
               <View style={{ flex: 1, gap: 6 }}>
                 {conclusionLine ? (
@@ -654,15 +655,13 @@ export function SkiniverResultsSection({
                   footer, para no dejar dos botones de guardado en pantalla. */}
               {observationsMode === 'correct' ? (
                 <Pressable
-                  style={[
-                    styles.confirmPrimaryBtn,
-                    observationsSaving && styles.confirmBtnDisabled,
-                  ]}
+                  style={({ pressed }) => [styles.confirmPrimaryBtn,
+                    observationsSaving && styles.confirmBtnDisabled, pressed && { backgroundColor: branding.colors.buttonHover }]}
                   onPress={onSaveObservations}
                   disabled={observationsSaving}
                 >
                   {observationsSaving ? (
-                    <ActivityIndicator color={branding.colors.textOnDark} />
+                    <ActivityIndicator color={branding.colors.buttonText} />
                   ) : (
                     <Text style={styles.confirmPrimaryText}>
                       Guardar diagnóstico
@@ -715,7 +714,7 @@ export function SkiniverResultsSection({
                   <AppIcon
                     icon={Icons.close}
                     size={18}
-                    color={branding.colors.muted}
+                    color={branding.colors.iconMuted}
                   />
                 </Pressable>
               </View>
@@ -775,7 +774,7 @@ export function SkiniverResultsSection({
             />
           ))}
           <Pressable
-            style={styles.supportSelectBtn}
+            style={({ pressed }) => [styles.supportSelectBtn, pressed && { backgroundColor: branding.colors.buttonHover }]}
             onPress={() => list[0] && openDetail(list[0])}
             accessibilityRole="button"
             accessibilityLabel="Seleccionar de la lista"
@@ -783,7 +782,7 @@ export function SkiniverResultsSection({
             <Text style={styles.supportSelectBtnText}>
               Seleccionar de la lista
             </Text>
-            <AppIcon icon={Icons.chevronRight} size={18} color="#FFFFFF" />
+            <AppIcon icon={Icons.chevronRight} size={18} color={branding.colors.buttonText} />
           </Pressable>
         </>
       ) : (

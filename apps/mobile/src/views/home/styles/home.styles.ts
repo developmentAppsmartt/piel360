@@ -6,7 +6,7 @@ export function createHomeStyles(colors: AppBranding['colors']) {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: '#E8F4FC',
+      backgroundColor: colors.screenBackground ?? '#E8F4FC',
     },
     centered: {
       flex: 1,
@@ -85,7 +85,7 @@ export function createHomeStyles(colors: AppBranding['colors']) {
     welcomeSubtitle: {
       fontSize: 14,
       lineHeight: 20,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     profileRow: {
       flexDirection: 'row',
@@ -100,7 +100,7 @@ export function createHomeStyles(colors: AppBranding['colors']) {
       width: 72,
       height: 72,
       borderRadius: 36,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.icon,
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
@@ -131,7 +131,7 @@ export function createHomeStyles(colors: AppBranding['colors']) {
     },
     profileMeta: {
       fontSize: 13,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     linkCard: {
       flexDirection: 'row',
@@ -176,7 +176,7 @@ export function createHomeStyles(colors: AppBranding['colors']) {
     assignText: {
       fontSize: 13,
       fontWeight: '600',
-      color: colors.primary,
+      color: colors.primaryText,
     },
     historyFilterRow: {
       gap: 8,
@@ -193,8 +193,8 @@ export function createHomeStyles(colors: AppBranding['colors']) {
       borderColor: '#E5E7EB',
     },
     historyFilterChipOn: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
+      backgroundColor: colors.buttonHover,
+      borderColor: colors.buttonHover,
     },
     historyFilterChipText: {
       fontSize: 12,
@@ -202,7 +202,7 @@ export function createHomeStyles(colors: AppBranding['colors']) {
       color: colors.muted,
     },
     historyFilterChipTextOn: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
     },
     historyList: {
       backgroundColor: '#FFFFFF',
@@ -237,7 +237,7 @@ export function createHomeStyles(colors: AppBranding['colors']) {
     },
     emptyHistoryText: {
       fontSize: 14,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       textAlign: 'center',
       lineHeight: 20,
     },
@@ -252,7 +252,7 @@ export function createHomeStyles(colors: AppBranding['colors']) {
     },
     historyItemMeta: {
       fontSize: 12,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     // Consent modal
     modalBackdrop: {
@@ -288,19 +288,19 @@ export function createHomeStyles(colors: AppBranding['colors']) {
     modalBody: {
       fontSize: 14,
       lineHeight: 21,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       textAlign: 'center',
       marginBottom: 8,
     },
     modalButton: {
       alignSelf: 'stretch',
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       borderRadius: 14,
       paddingVertical: 14,
       alignItems: 'center',
     },
     modalButtonText: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
       fontSize: 16,
       fontWeight: '700',
     },
@@ -344,7 +344,7 @@ export function createHomeStyles(colors: AppBranding['colors']) {
     tipsStatLabel: {
       fontSize: 11,
       fontWeight: '600',
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       marginBottom: 4,
     },
     tipsStatValue: {
@@ -365,7 +365,7 @@ export function createHomeStyles(colors: AppBranding['colors']) {
       fontWeight: '800',
       letterSpacing: 0.4,
       textTransform: 'uppercase',
-      color: colors.primary,
+      color: colors.primaryText,
       marginBottom: 4,
     },
     tipsRuleTitle: {
@@ -377,7 +377,7 @@ export function createHomeStyles(colors: AppBranding['colors']) {
       marginTop: 6,
       fontSize: 13,
       lineHeight: 19,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     tipsSection: {
       gap: 8,
@@ -388,7 +388,7 @@ export function createHomeStyles(colors: AppBranding['colors']) {
     },
     tipsEmpty: {
       fontSize: 13,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       paddingVertical: 4,
     },
     tipsItemCard: {
@@ -406,7 +406,7 @@ export function createHomeStyles(colors: AppBranding['colors']) {
     tipsItemSub: {
       marginTop: 4,
       fontSize: 12,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       lineHeight: 17,
     },
     tipsStepsCount: {
@@ -443,12 +443,12 @@ export function createHomeStyles(colors: AppBranding['colors']) {
     tipsStepTitle: {
       fontSize: 13,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.secondaryText,
       lineHeight: 18,
     },
     tipsStepDetail: {
       fontSize: 12,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       lineHeight: 16,
     },
     tipsError: {

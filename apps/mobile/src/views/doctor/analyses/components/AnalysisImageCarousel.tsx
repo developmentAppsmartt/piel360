@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useBranding } from '../../../../context/BrandingContext';
 import { createAnalysisDetailStyles } from '../styles/analysisDetail.styles';
+import { AnalysisWatermark } from './AnalysisWatermark';
 
 export type CarouselImage = {
   label: string;
@@ -68,6 +69,7 @@ export function AnalysisImageCarousel({
             contentFit="contain"
           />
         )}
+        <AnalysisWatermark />
       </View>
 
       <Text style={styles.carouselLabel}>{current.label}</Text>

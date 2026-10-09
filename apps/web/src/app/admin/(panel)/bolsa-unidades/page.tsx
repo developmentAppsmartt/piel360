@@ -306,6 +306,170 @@ function perfectCorpMovementStatus(action: string, delta: number) {
   return "Activa" as const;
 }
 
+type MovementStatus = "Devolución" | "Activación" | "Consumo" | "Activa";
+
+type MovementRow = {
+  id: string;
+  unitType: "aesthetic" | "derm";
+  unitLabel: string;
+  rechargedAt: string;
+  sortAt: number;
+  quantity: number;
+  delta: number;
+  expiresAt: string;
+  addedBy: string;
+  status: MovementStatus;
+  source: "perfectcorp" | "skiniver";
+  actionLabel: string;
+  note: string | null;
+  addedByEmail: string | null;
+  targetId: string | null;
+  dstActions: string[];
+  rawKind: string | null;
+};
+
+function movementStatusBadgeClass(status: MovementStatus) {
+  if (status === "Consumo" || status === "Activación") {
+    return "bg-amber-100 text-amber-900 hover:bg-amber-100";
+  }
+  if (status === "Devolución") {
+    return "bg-sky-100 text-sky-900 hover:bg-sky-100";
+  }
+  return "bg-emerald-100 text-emerald-800 hover:bg-emerald-100";
+}
+
+function DetailField({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+        {label}
+      </p>
+      <div className="text-sm text-foreground">{children}</div>
+    </div>
+  );
+}
+
+function MovementDetailDialog({
+  movement,
+  pools,
+  open,
+  onOpenChange,
+}: {
+  movement: MovementRow | null;
+  pools: UnitPool[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  if (!movement) return null;
+  const pool =
+    pools.find((p) => p.id === movement.unitType) ?? pools[0] ?? EMPTY_AESTHETIC_POOL;
+  const signedQty =
+    movement.delta < 0
+      ? `−${formatUnits(movement.quantity)}`
+      : `+${formatUnits(movement.quantity)}`;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Detalle del movimiento</DialogTitle>
+          <DialogDescription>
+            Información registrada para este movimiento de la bolsa de unidades.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 px-3 py-3">
+            <PoolIcon pool={pool} />
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold">{movement.unitLabel}</p>
+              <p className="text-xs text-muted-foreground">
+                {movement.source === "perfectcorp" ? "Perfect Corp" : "Skiniver"}
+              </p>
+            </div>
+            <Badge className={movementStatusBadgeClass(movement.status)}>
+              {movement.status}
+            </Badge>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <DetailField label="Fecha">{movement.rechargedAt}</DetailField>
+            <DetailField label="Cantidad">
+              <span
+                className={cn(
+                  "font-semibold tabular-nums",
+                  movement.delta < 0 && "text-destructive",
+                )}
+              >
+                {signedQty}{" "}
+                <span className="font-normal text-muted-foreground">
+                  {pool.unitLabel}
+                </span>
+              </span>
+            </DetailField>
+            <DetailField label="Vencimiento">{movement.expiresAt}</DetailField>
+            <DetailField label="Acción">{movement.actionLabel}</DetailField>
+            <DetailField label="Origen">{movement.addedBy}</DetailField>
+            {movement.addedByEmail ? (
+              <DetailField label="Correo">{movement.addedByEmail}</DetailField>
+            ) : null}
+            {movement.rawKind ? (
+              <DetailField label="Tipo interno">
+                <span className="font-mono text-xs">{movement.rawKind}</span>
+              </DetailField>
+            ) : null}
+            {movement.targetId ? (
+              <DetailField label="Referencia / target">
+                <span className="font-mono text-xs break-all">{movement.targetId}</span>
+              </DetailField>
+            ) : null}
+          </div>
+
+          {movement.note ? (
+            <DetailField label="Nota">
+              <p className="rounded-lg border border-border bg-background px-3 py-2 whitespace-pre-wrap">
+                {movement.note}
+              </p>
+            </DetailField>
+          ) : null}
+
+          {movement.dstActions.length > 0 ? (
+            <DetailField label="Acciones Perfect Corp (dst)">
+              <ul className="flex flex-wrap gap-1.5">
+                {movement.dstActions.map((action) => (
+                  <li key={action}>
+                    <Badge variant="secondary" className="font-mono text-[11px]">
+                      {action}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            </DetailField>
+          ) : null}
+
+          <DetailField label="ID del movimiento">
+            <span className="font-mono text-xs break-all text-muted-foreground">
+              {movement.id}
+            </span>
+          </DetailField>
+        </div>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cerrar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function SkiniverRechargeDialog({
   open,
   onOpenChange,
@@ -443,6 +607,9 @@ export default function BolsaUnidadesPage() {
     "all",
   );
   const [skiniverRechargeOpen, setSkiniverRechargeOpen] = useState(false);
+  const [selectedMovement, setSelectedMovement] = useState<MovementRow | null>(
+    null,
+  );
   const perfectCorp = usePerfectCorpUnits();
   const skiniver = useSkiniverUnits();
 
@@ -476,43 +643,69 @@ export default function BolsaUnidadesPage() {
   const pools: UnitPool[] = [aestheticPool, dermPool];
   const estimate = perfectCorp.data?.featureCosts.estimatedPerAnalysis;
 
-  const recharges = useMemo(() => {
+  const recharges = useMemo((): MovementRow[] => {
     const liveHistory = perfectCorp.data?.history ?? [];
-    const liveRows = liveHistory
+    const liveRows: MovementRow[] = liveHistory
       .filter((h) => h.delta !== 0)
-      .map((h) => ({
-        id: `pc-${h.id}`,
-        unitType: "aesthetic" as const,
-        unitLabel: "Análisis estéticos / Fitzpatrick",
-        rechargedAt: h.timestamp
-          ? new Date(h.timestamp).toLocaleString("es-CO")
-          : "—",
-        sortAt: h.timestamp ? new Date(h.timestamp).getTime() : 0,
-        quantity: Math.abs(h.delta),
-        expiresAt: "—",
-        addedBy: h.note?.trim()
-          ? `${historyActionLabel(h.action)} · ${h.note.trim()}`
-          : historyActionLabel(h.action),
-        status: perfectCorpMovementStatus(h.action, h.delta),
-        delta: h.delta,
-      }));
+      .map((h) => {
+        const actionLabel = historyActionLabel(h.action);
+        return {
+          id: `pc-${h.id}`,
+          unitType: "aesthetic",
+          unitLabel: "Análisis estéticos / Fitzpatrick",
+          rechargedAt: h.timestamp
+            ? new Date(h.timestamp).toLocaleString("es-CO")
+            : "—",
+          sortAt: h.timestamp ? new Date(h.timestamp).getTime() : 0,
+          quantity: Math.abs(h.delta),
+          expiresAt: "—",
+          addedBy: h.note?.trim()
+            ? `${actionLabel} · ${h.note.trim()}`
+            : actionLabel,
+          status: perfectCorpMovementStatus(h.action, h.delta),
+          delta: h.delta,
+          source: "perfectcorp",
+          actionLabel,
+          note: h.note?.trim() || null,
+          addedByEmail: null,
+          targetId: h.targetId,
+          dstActions: h.dstActions ?? [],
+          rawKind: h.action,
+        };
+      });
 
-    const skiniverRows = (skiniver.data?.history ?? []).map((h) => ({
-      id: `sv-${h.id}`,
-      unitType: "derm" as const,
-      unitLabel: "Análisis dermatológico",
-      rechargedAt: new Date(h.createdAt).toLocaleString("es-CO"),
-      sortAt: new Date(h.createdAt).getTime(),
-      quantity: Math.abs(h.quantity),
-      expiresAt: h.expiresAt
-        ? new Date(h.expiresAt).toLocaleDateString("es-CO")
-        : "—",
-      addedBy: h.note?.trim()
-        ? `${h.addedBy} · ${h.note.trim()}`
-        : h.addedBy,
-      status: skiniverMovementStatus(h.kind, h.quantity),
-      delta: h.quantity,
-    }));
+    const skiniverRows: MovementRow[] = (skiniver.data?.history ?? []).map(
+      (h) => {
+        const actionLabel = h.kind
+          ? historyActionLabel(h.kind)
+          : h.quantity < 0
+            ? "Consumo"
+            : "Recarga";
+        return {
+          id: `sv-${h.id}`,
+          unitType: "derm",
+          unitLabel: "Análisis dermatológico",
+          rechargedAt: new Date(h.createdAt).toLocaleString("es-CO"),
+          sortAt: new Date(h.createdAt).getTime(),
+          quantity: Math.abs(h.quantity),
+          expiresAt: h.expiresAt
+            ? new Date(h.expiresAt).toLocaleDateString("es-CO")
+            : "—",
+          addedBy: h.note?.trim()
+            ? `${h.addedBy} · ${h.note.trim()}`
+            : h.addedBy,
+          status: skiniverMovementStatus(h.kind, h.quantity),
+          delta: h.quantity,
+          source: "skiniver",
+          actionLabel,
+          note: h.note?.trim() || null,
+          addedByEmail: h.addedByEmail,
+          targetId: null,
+          dstActions: [],
+          rawKind: h.kind ?? null,
+        };
+      },
+    );
 
     const all = [...liveRows, ...skiniverRows].sort(
       (a, b) => b.sortAt - a.sortAt,
@@ -812,13 +1005,7 @@ export default function BolsaUnidadesPage() {
                       <td className="px-4 py-3">{row.addedBy}</td>
                       <td className="px-4 py-3">
                         <Badge
-                          className={cn(
-                            row.status === "Consumo" || row.status === "Activación"
-                              ? "bg-amber-100 text-amber-900 hover:bg-amber-100"
-                              : row.status === "Devolución"
-                                ? "bg-sky-100 text-sky-900 hover:bg-sky-100"
-                                : "bg-emerald-100 text-emerald-800 hover:bg-emerald-100",
-                          )}
+                          className={cn(movementStatusBadgeClass(row.status))}
                         >
                           {row.status}
                         </Badge>
@@ -827,8 +1014,9 @@ export default function BolsaUnidadesPage() {
                         <div className="flex items-center justify-end gap-1">
                           <button
                             type="button"
-                            className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+                            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                             aria-label="Ver detalle"
+                            onClick={() => setSelectedMovement(row)}
                           >
                             <Eye className="size-4" />
                           </button>
@@ -898,6 +1086,14 @@ export default function BolsaUnidadesPage() {
       <SkiniverRechargeDialog
         open={skiniverRechargeOpen}
         onOpenChange={setSkiniverRechargeOpen}
+      />
+      <MovementDetailDialog
+        movement={selectedMovement}
+        pools={pools}
+        open={selectedMovement != null}
+        onOpenChange={(next) => {
+          if (!next) setSelectedMovement(null);
+        }}
       />
     </div>
   );

@@ -3,7 +3,9 @@ import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppIcon } from '../../../../components/AppIcon';
 import { Icons, type AppIconName } from '../../../../components/icons';
+import { useAuth } from '../../../../context/AuthContext';
 import { useBranding } from '../../../../context/BrandingContext';
+import { DEFAULT_BRANDING } from '../../../../config/branding.defaults';
 import {
   clinicalModulesService,
   type ClinicalSideModule,
@@ -45,7 +47,7 @@ const DOCTOR_MENU_BASE: MenuItem[] = [
   { id: 'perfil', label: 'Mi Perfil', icon: Icons.account },
   { id: 'config', label: 'Configuración del perfil', icon: Icons.settings },
   { id: 'idioma', label: 'Idioma diagnóstico dermatológico', icon: Icons.translate },
-  { id: 'suscripcion', label: 'Planes y suscripciones', icon: Icons.creditCard },
+  // { id: 'suscripcion', label: 'Planes y suscripciones', icon: Icons.creditCard },
   { id: 'pagos', label: 'Mis pagos', icon: Icons.file },
   { id: 'compartir', label: 'Compartir con colega', icon: Icons.share },
 ];
@@ -71,6 +73,17 @@ const PATIENT_MENU: MenuItem[] = [
   { id: 'salir', label: 'Salir', icon: Icons.logout },
 ];
 
+/** Únicos ítems del menú que toman los colores de la personalización. */
+const BRANDED_ITEMS: AccountMenuId[] = ['perfil', 'config'];
+
+/** Sin plan activo solo quedan cuenta, reportes y soporte. */
+const NO_PLAN_HIDDEN_ITEMS: AccountMenuId[] = [
+  'fototipo',
+  'edad_piel',
+  'compartir',
+  'premios',
+];
+
 type AccountDrawerProps = {
   visible: boolean;
   onClose: () => void;
@@ -86,12 +99,23 @@ export function AccountDrawer({
 }: AccountDrawerProps) {
   const insets = useSafeAreaInsets();
   const branding = useBranding();
+  const { icon, primaryText } = branding.colors;
+  const menuIconColor =
+    icon.toUpperCase() === DEFAULT_BRANDING.colors.icon.toUpperCase()
+      ? branding.colors.muted
+      : icon;
+  const brandedTextColor =
+    primaryText.toUpperCase() === DEFAULT_BRANDING.colors.primaryText.toUpperCase()
+      ? null
+      : primaryText;
   const styles = useMemo(
     () => createAccountDrawerStyles(branding.colors),
     [branding.colors],
   );
   const [securityOpen, setSecurityOpen] = useState(true);
   const [crmModules, setCrmModules] = useState<ClinicalSideModule[]>([]);
+  const { accountStatus } = useAuth();
+  const planRestricted = variant === 'doctor' && Boolean(accountStatus?.planRestricted);
 
   useEffect(() => {
     if (!visible || variant !== 'doctor') return;
@@ -121,6 +145,7 @@ export function AccountDrawer({
 
   const visibleItems = menu.filter((item) => {
     if (item.id === 'password') return securityOpen;
+    if (planRestricted && NO_PLAN_HIDDEN_ITEMS.includes(item.id)) return false;
     return true;
   });
 
@@ -139,20 +164,32 @@ export function AccountDrawer({
                     style={styles.item}
                     onPress={() => setSecurityOpen((v) => !v)}
                   >
-                    <AppIcon icon={item.icon} size={20} color={branding.colors.muted} />
+                    <AppIcon icon={item.icon} size={20} color={menuIconColor} />
                     <Text style={styles.itemLabel}>{item.label}</Text>
                     <Text style={styles.chevron}>{securityOpen ? '▾' : '▸'}</Text>
                   </Pressable>
                 );
               }
+              const branded = BRANDED_ITEMS.includes(item.id);
               return (
                 <Pressable
                   key={item.id}
                   style={[styles.item, item.nested && styles.itemNested]}
                   onPress={() => onSelect(item.id)}
                 >
-                  <AppIcon icon={item.icon} size={20} color={branding.colors.muted} />
-                  <Text style={styles.itemLabel}>{item.label}</Text>
+                  <AppIcon
+                    icon={item.icon}
+                    size={20}
+                    color={menuIconColor}
+                  />
+                  <Text
+                    style={[
+                      styles.itemLabel,
+                      branded && brandedTextColor ? { color: brandedTextColor } : null,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
                 </Pressable>
               );
             })}

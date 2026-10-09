@@ -20,7 +20,7 @@ import { useBranding } from '../../../../context/BrandingContext';
 import {
   analysisStatus,
   availableProvidersFromSubscriptions,
-  isAnalysisProviderSlug,
+  toAnalysisProviderSlug,
   type AnalysisProviderSlug,
 } from '../../../../data/analysisProviderLabel';
 import { ApiError } from '../../../../services/api.client';
@@ -194,9 +194,8 @@ function resolveAnalysisSlug(row: {
   fitzpatrickTaskId?: string | null;
   providerSlug?: string | null;
 }): AnalysisProviderSlug {
-  if (row.providerSlug && isAnalysisProviderSlug(row.providerSlug)) {
-    return row.providerSlug;
-  }
+  const fromSlug = toAnalysisProviderSlug(row.providerSlug);
+  if (fromSlug) return fromSlug;
   if (row.youcamTaskId) return 'youcam';
   if (row.fitzpatrickTaskId) return 'fitzpatrick';
   return 'skiniver';
@@ -629,7 +628,7 @@ export function PatientDetailView({
             onPress={onBack}
             accessibilityLabel="Volver"
           >
-            <AppIcon icon={Icons.back} size={22} color={muted} />
+            <AppIcon icon={Icons.back} size={22} color={branding.colors.iconMuted} />
           </Pressable>
           <Text style={styles.cardTitle}>Datos del paciente</Text>
           <Pressable
@@ -637,7 +636,7 @@ export function PatientDetailView({
             onPress={onBack}
             accessibilityLabel="Cerrar"
           >
-            <AppIcon icon={Icons.close} size={18} color={muted} />
+            <AppIcon icon={Icons.close} size={18} color={branding.colors.iconMuted} />
           </Pressable>
         </View>
 
@@ -685,14 +684,14 @@ export function PatientDetailView({
                       <AppIcon
                         icon={Icons.calendarDay}
                         size={14}
-                        color={primary}
+                        color={branding.colors.icon}
                       />
                       <Text style={styles.meta}>
                         Última actualización: {formatUpdate(patient.updatedAt)}
                       </Text>
                     </View>
                     <View style={styles.metaRow}>
-                      <AppIcon icon={Icons.account} size={14} color={primary} />
+                      <AppIcon icon={Icons.account} size={14} color={branding.colors.icon} />
                       <Text style={styles.meta}>
                         Edad: {ageLabel === '—' ? '—' : `${ageLabel} años`}
                       </Text>
@@ -734,7 +733,7 @@ export function PatientDetailView({
                     apptCountByDate={analysisCountByDate}
                     title="Buscar análisis por fecha"
                     placeholder="Buscar por fecha o rango"
-                    accentColor={primary}
+                    accentColor={branding.colors.icon}
                     textColor={branding.colors.text}
                     mutedColor={muted}
                     triggerStyle={styles.dateSearchWrap}
@@ -854,7 +853,7 @@ export function PatientDetailView({
 
                   <View style={styles.clinicalActions}>
                     <Pressable
-                      style={[styles.clinicalAction, styles.clinicalActionPrimary]}
+                      style={({ pressed }) => [styles.clinicalAction, styles.clinicalActionPrimary, pressed && { backgroundColor: branding.colors.buttonHover }]}
                       onPress={() => {
                         if (onOpenAgenda) {
                           onOpenAgenda();
@@ -869,7 +868,7 @@ export function PatientDetailView({
                       <AppIcon
                         icon={Icons.calendarDay}
                         size={16}
-                        color={onDark}
+                        color={branding.colors.buttonText}
                       />
                       <Text
                         style={styles.clinicalActionPrimaryText}
@@ -885,7 +884,7 @@ export function PatientDetailView({
                       ]}
                       onPress={() => setImageRequestOpen(true)}
                     >
-                      <AppIcon icon={Icons.image} size={16} color={primary} />
+                      <AppIcon icon={Icons.image} size={16} color={branding.colors.icon} />
                       <Text
                         style={styles.clinicalActionSecondaryText}
                         numberOfLines={1}
@@ -903,7 +902,7 @@ export function PatientDetailView({
                       style={styles.historyActionSecondary}
                       onPress={() => setRequestPickerOpen(true)}
                     >
-                      <AppIcon icon={Icons.camera} size={15} color={primary} />
+                      <AppIcon icon={Icons.camera} size={15} color={branding.colors.icon} />
                       <Text style={styles.historyActionSecondaryText}>
                         Solicitar análisis
                       </Text>
@@ -971,7 +970,7 @@ export function PatientDetailView({
                         <AppIcon
                           icon={Icons.calendarDay}
                           size={13}
-                          color={primary}
+                          color={branding.colors.icon}
                         />
                         <Text style={styles.stamp}>
                           {formatStamp(req.createdAt)}
@@ -1064,7 +1063,7 @@ export function PatientDetailView({
                       <AppIcon
                         icon={Icons.calendarDay}
                         size={13}
-                        color={primary}
+                        color={branding.colors.icon}
                       />
                       <Text style={styles.stamp}>
                         {formatStamp(analysis.createdAt)}
@@ -1074,7 +1073,7 @@ export function PatientDetailView({
                   <AppIcon
                     icon={Icons.chevronRight}
                     size={20}
-                    color={primary}
+                    color={branding.colors.icon}
                   />
                 </Pressable>
               );
@@ -1111,7 +1110,7 @@ export function PatientDetailView({
               disabled={sendingImage}
               onPress={() => void captureAndSendImage('camera')}
             >
-              <AppIcon icon={Icons.camera} size={20} color={primary} />
+              <AppIcon icon={Icons.camera} size={20} color={branding.colors.icon} />
               <Text style={styles.requestOptionText}>Tomar foto y enviar</Text>
             </Pressable>
             <Pressable
@@ -1119,7 +1118,7 @@ export function PatientDetailView({
               disabled={sendingImage}
               onPress={() => void captureAndSendImage('library')}
             >
-              <AppIcon icon={Icons.image} size={20} color={primary} />
+              <AppIcon icon={Icons.image} size={20} color={branding.colors.icon} />
               <Text style={styles.requestOptionText}>
                 Elegir de galería y enviar
               </Text>
@@ -1129,7 +1128,7 @@ export function PatientDetailView({
               disabled={sendingImage}
               onPress={() => void requestImageFromPatient()}
             >
-              <AppIcon icon={Icons.chat} size={20} color={primary} />
+              <AppIcon icon={Icons.chat} size={20} color={branding.colors.icon} />
               <Text style={styles.requestOptionText}>
                 Pedir imagen al paciente
               </Text>

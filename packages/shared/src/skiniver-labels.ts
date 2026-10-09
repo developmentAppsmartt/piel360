@@ -264,6 +264,7 @@ const CATEGORY_ENTRIES: [string, string[]][] = [
     [
       "benign formations",
       "benign neoplasms",
+      "benign lesions",
       "Доброкачественные новообразования",
     ],
   ],
@@ -320,6 +321,11 @@ const CATEGORY_ENTRIES: [string, string[]][] = [
   ["Eccema", ["eczema", "Экзема"]],
   ["Urticaria", ["urticaria", "hives", "Крапивница"]],
   ["Eritema", ["erythema", "Эритема"]],
+  ["Vitíligo", ["vitiligo", "Витилиго"]],
+  [
+    "Hidradenitis supurativa",
+    ["hidradenitis suppurativa", "Гидраденит"],
+  ],
 ];
 
 const CATEGORY_LABELS = new Map<string, string>(

@@ -46,6 +46,7 @@ import { SpecialtyAccessModule } from './specialty-access/specialty-access.modul
 import { ModeratorsModule } from './moderators/moderators.module';
 import { SpecialtiesModule } from './specialties/specialties.module';
 import { LaborTechnicianProfilesModule } from './labor-technician-profiles/labor-technician-profiles.module';
+import { BrandingModule } from './branding/branding.module';
 
 @Module({
   imports: [
@@ -107,6 +108,7 @@ import { LaborTechnicianProfilesModule } from './labor-technician-profiles/labor
     ModeratorsModule,
     SpecialtiesModule,
     LaborTechnicianProfilesModule,
+    BrandingModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

@@ -9,7 +9,7 @@ export function createDoctorPatientsStyles(colors: AppBranding['colors']) {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: '#F5F3FF',
+      backgroundColor: colors.screenBackground ?? '#F5F3FF',
     },
     header: {
       backgroundColor: colors.primary,
@@ -61,7 +61,7 @@ export function createDoctorPatientsStyles(colors: AppBranding['colors']) {
       justifyContent: 'center',
     },
     headerIcon: {
-      color: colors.textOnDark,
+      color: colors.iconOnHeader,
       fontSize: 18,
     },
     badge: {
@@ -108,21 +108,21 @@ export function createDoctorPatientsStyles(colors: AppBranding['colors']) {
     },
     newButton: {
       alignSelf: 'center',
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       borderRadius: 999,
       paddingHorizontal: 28,
       paddingVertical: 14,
       marginTop: 4,
     },
     newButtonText: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
       fontWeight: '700',
       fontSize: 15,
     },
     listTitle: {
       fontSize: 16,
       fontWeight: '700',
-      color: colors.primaryDark,
+      color: colors.primaryText,
       marginTop: 4,
     },
     list: {
@@ -142,7 +142,7 @@ export function createDoctorPatientsStyles(colors: AppBranding['colors']) {
       width: 44,
       height: 44,
       borderRadius: 22,
-      backgroundColor: soft(colors.primary),
+      backgroundColor: soft(colors.icon),
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
@@ -152,7 +152,7 @@ export function createDoctorPatientsStyles(colors: AppBranding['colors']) {
       height: '100%',
     },
     avatarText: {
-      color: colors.primary,
+      color: colors.icon,
       fontWeight: '700',
       fontSize: 14,
     },
@@ -168,19 +168,19 @@ export function createDoctorPatientsStyles(colors: AppBranding['colors']) {
     rowMeta: {
       marginTop: 2,
       fontSize: 12,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     rowAge: {
       fontSize: 15,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.secondaryText,
       marginRight: 6,
     },
     rowGo: {
       width: 32,
       height: 32,
       borderRadius: 16,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.icon,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -194,7 +194,7 @@ export function createDoctorPatientsStyles(colors: AppBranding['colors']) {
       alignItems: 'center',
     },
     emptyText: {
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       textAlign: 'center',
       fontSize: 14,
       lineHeight: 20,

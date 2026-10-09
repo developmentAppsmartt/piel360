@@ -2,6 +2,7 @@ import { Pressable, ScrollView, Text } from 'react-native';
 import { AppIcon } from '../../../components/AppIcon';
 import { Icons, type AppIconName } from '../../../components/icons';
 import type { ChatStyles } from '../styles/chat.styles';
+import { useBranding } from '../../../context/BrandingContext';
 
 export type ChatQuickActionId = 'cita' | 'receta' | 'resultado';
 
@@ -27,6 +28,7 @@ export function ChatQuickActions({
   onAction,
   visibleIds,
 }: ChatQuickActionsProps) {
+  const branding = useBranding();
   const onDark = styles.quickChipText.color as string;
   const actions = visibleIds
     ? ACTIONS.filter((a) => visibleIds.includes(a.id))
@@ -45,7 +47,10 @@ export function ChatQuickActions({
       {actions.map((action) => (
         <Pressable
           key={action.id}
-          style={styles.quickChip}
+          style={({ pressed }) => [
+            styles.quickChip,
+            pressed && { backgroundColor: branding.colors.buttonHover },
+          ]}
           onPress={() => onAction?.(action.id)}
         >
           <AppIcon icon={action.icon} size={14} color={onDark} />

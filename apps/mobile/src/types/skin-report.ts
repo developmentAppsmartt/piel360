@@ -2,6 +2,25 @@
 
 export type SkinReportBand = 'excelente' | 'bueno' | 'regular' | 'malo';
 
+/** Mismos cortes y colores que SKIN_REPORT_BANDS de shared. */
+const SKIN_REPORT_BAND_COLORS: Record<SkinReportBand, string> = {
+  excelente: '#22c55e',
+  bueno: '#84cc16',
+  regular: '#facc15',
+  malo: '#ef4444',
+};
+
+export function skinReportBand(score: number): SkinReportBand {
+  if (score >= 90) return 'excelente';
+  if (score >= 70) return 'bueno';
+  if (score >= 50) return 'regular';
+  return 'malo';
+}
+
+export function skinReportScoreColor(score: number): string {
+  return SKIN_REPORT_BAND_COLORS[skinReportBand(score)];
+}
+
 export type ReportDelta = {
   current: number | null;
   previous: number | null;
@@ -122,8 +141,38 @@ export type SkiniverTrendSeriesDef = {
   color: string;
 };
 
+/** Porción de una distribución (donut de categorías, barras por edad). */
+export type SkiniverCategorySlice = {
+  key: string;
+  label: string;
+  color: string;
+  count: number;
+  pct: number;
+};
+
+export type SkiniverTopDiagnosis = {
+  diagnosis: string;
+  icdCode: string | null;
+  count: number;
+  pct: number;
+};
+
+export type SkiniverAgeGenderRow = {
+  key: string;
+  label: string;
+  male: number;
+  female: number;
+  unknown: number;
+};
+
 export type SkiniverReport = {
   range: { from: string; to: string };
+  /** Diagnósticos con patología del periodo (denominador de donut y top 10). */
+  total?: number;
+  byCategory?: SkiniverCategorySlice[];
+  topDiagnoses?: SkiniverTopDiagnosis[];
+  byAgeGender?: SkiniverAgeGenderRow[];
+  ageDistribution?: SkiniverCategorySlice[];
   byClass: SkiniverMonthlySeriesPoint[];
   /** Condiciones concretas: Top 8 del periodo + "Otras" — no grupos. */
   byDisease: SkiniverMonthlySeriesPoint[];
@@ -143,12 +192,13 @@ export const SKINIVER_CLASS_SERIES = [
 ] as const;
 
 export const SKINIVER_AGE_SERIES = [
-  { key: '0-17', label: '0 - 17 años', color: '#22c55e' },
-  { key: '18-25', label: '18 - 25 años', color: '#3b82f6' },
-  { key: '26-35', label: '26 - 35 años', color: '#a855f7' },
-  { key: '36-45', label: '36 - 45 años', color: '#f97316' },
-  { key: '46-55', label: '46 - 55 años', color: '#ef4444' },
-  { key: '56+', label: '56+ años', color: '#94a3b8' },
+  { key: '0-12', label: '0 - 12 años', color: '#22c55e' },
+  { key: '13-20', label: '13 - 20 años', color: '#14b8a6' },
+  { key: '21-30', label: '21 - 30 años', color: '#3b82f6' },
+  { key: '31-40', label: '31 - 40 años', color: '#a855f7' },
+  { key: '41-50', label: '41 - 50 años', color: '#f97316' },
+  { key: '51-60', label: '51 - 60 años', color: '#ef4444' },
+  { key: '61+', label: '61+ años', color: '#94a3b8' },
 ] as const;
 
 export function rangeForDays(days: number): { from: string; to: string } {

@@ -90,7 +90,22 @@ export function serializeAdminPlan(
 
 export type UserSubscriptionRow = Prisma.SubscriptionGetPayload<{
   include: { plan: { include: { provider: true } } };
-}>;
+}> & {
+  invoice?: Pick<
+    Prisma.SubscriptionInvoiceGetPayload<object>,
+    'id' | 'grossAmount' | 'planBaseAmount' | 'ivaAmount' | 'currency' | 'createdAt'
+  > | null;
+};
+
+function serializePlanFeatures(value: Prisma.JsonValue) {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+    const label = typeof item.label === 'string' ? item.label.trim() : '';
+    if (!label) return [];
+    return [{ label, included: item.included !== false }];
+  });
+}
 
 export function serializeUserSubscription(
   row: UserSubscriptionRow,
@@ -103,11 +118,28 @@ export function serializeUserSubscription(
     endsAt: endsAt?.toISOString() ?? null,
     wompiTransactionId: row.wompiTransactionId,
     createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
     remainingCredits,
+    invoice: row.invoice
+      ? {
+          id: row.invoice.id.toString(),
+          grossAmount: row.invoice.grossAmount.toString(),
+          planBaseAmount: row.invoice.planBaseAmount.toString(),
+          ivaAmount: row.invoice.ivaAmount.toString(),
+          currency: row.invoice.currency,
+          createdAt: row.invoice.createdAt.toISOString(),
+        }
+      : null,
     plan: {
       id: row.plan.id.toString(),
       name: row.plan.name,
+      description: row.plan.description,
+      features: serializePlanFeatures(row.plan.features),
       analysisLimit: row.plan.analysisLimit,
+      analysisLimits:
+        row.plan.analysisLimits && typeof row.plan.analysisLimits === 'object'
+          ? (row.plan.analysisLimits as { skiniver?: number; aesthetic?: number })
+          : {},
       durationDays: row.plan.durationDays,
       price: row.plan.price.toString(),
       maxUsers: row.plan.maxUsers,

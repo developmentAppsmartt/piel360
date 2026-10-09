@@ -22,7 +22,7 @@ export function PlaceholderTabView({
       StyleSheet.create({
         container: {
           flex: 1,
-          backgroundColor: '#F3F4F6',
+          backgroundColor: branding.colors.screenBackground ?? '#F3F4F6',
         },
         body: {
           flex: 1,

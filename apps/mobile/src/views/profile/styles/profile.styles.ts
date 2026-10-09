@@ -18,7 +18,7 @@ export function createProfileStyles(colors: AppBranding['colors']) {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: '#F3F4F6',
+      backgroundColor: colors.screenBackground ?? '#F3F4F6',
     },
     headerBar: {
       backgroundColor: colors.primary,
@@ -40,7 +40,7 @@ export function createProfileStyles(colors: AppBranding['colors']) {
       fontWeight: '700',
     },
     headerIcon: {
-      color: colors.textOnDark,
+      color: colors.iconOnHeader,
       fontSize: 22,
       fontWeight: '600',
     },
@@ -61,7 +61,7 @@ export function createProfileStyles(colors: AppBranding['colors']) {
       width: 104,
       height: 104,
       borderRadius: 52,
-      backgroundColor: softPrimary(colors.primary),
+      backgroundColor: softPrimary(colors.icon),
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 8,
@@ -75,7 +75,7 @@ export function createProfileStyles(colors: AppBranding['colors']) {
       height: '100%',
     },
     avatarOverlay: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: 'rgba(0,0,0,0.35)',
       alignItems: 'center',
       justifyContent: 'center',
@@ -83,13 +83,13 @@ export function createProfileStyles(colors: AppBranding['colors']) {
     avatarHint: {
       fontSize: 12,
       fontWeight: '600',
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       marginBottom: 10,
     },
     avatarText: {
       fontSize: 34,
       fontWeight: '700',
-      color: colors.primary,
+      color: colors.icon,
     },
     displayName: {
       fontSize: 22,
@@ -100,13 +100,13 @@ export function createProfileStyles(colors: AppBranding['colors']) {
     subtitle: {
       marginTop: 4,
       fontSize: 15,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       textAlign: 'center',
     },
     secondarySubtitle: {
       marginTop: 2,
       fontSize: 14,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       textAlign: 'center',
     },
     sectionTitle: {
@@ -146,13 +146,13 @@ export function createProfileStyles(colors: AppBranding['colors']) {
     rowLabel: {
       flex: 1,
       fontSize: 16,
-      color: colors.text,
+      color: colors.secondaryText,
       fontWeight: '500',
     },
     rowValue: {
       maxWidth: '48%',
       fontSize: 14,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       textAlign: 'right',
     },
     chevron: {

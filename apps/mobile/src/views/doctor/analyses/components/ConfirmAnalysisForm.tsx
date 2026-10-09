@@ -118,15 +118,13 @@ export function ConfirmAnalysisForm({
         {error ? <Text style={styles.confirmError}>{error}</Text> : null}
         <View style={styles.confirmActions}>
           <Pressable
-            style={[
-              styles.confirmPrimaryBtn,
-              submitting && styles.confirmBtnDisabled,
-            ]}
+            style={({ pressed }) => [styles.confirmPrimaryBtn,
+              submitting && styles.confirmBtnDisabled, pressed && { backgroundColor: branding.colors.buttonHover }]}
             onPress={() => void handleSaveCorrection()}
             disabled={submitting}
           >
             {submitting ? (
-              <ActivityIndicator color={branding.colors.textOnDark} />
+              <ActivityIndicator color={branding.colors.buttonText} />
             ) : (
               <Text style={styles.confirmPrimaryText}>Guardar corrección</Text>
             )}
@@ -148,15 +146,13 @@ export function ConfirmAnalysisForm({
       {error ? <Text style={styles.confirmError}>{error}</Text> : null}
       <View style={styles.confirmActions}>
         <Pressable
-          style={[
-            styles.confirmPrimaryBtn,
-            submitting && styles.confirmBtnDisabled,
-          ]}
+          style={({ pressed }) => [styles.confirmPrimaryBtn,
+            submitting && styles.confirmBtnDisabled, pressed && { backgroundColor: branding.colors.buttonHover }]}
           onPress={() => void handleConfirm()}
           disabled={submitting}
         >
           {submitting ? (
-            <ActivityIndicator color={branding.colors.textOnDark} />
+            <ActivityIndicator color={branding.colors.buttonText} />
           ) : (
             <Text style={styles.confirmPrimaryText}>Confirmar resultado</Text>
           )}

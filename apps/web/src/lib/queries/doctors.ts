@@ -63,9 +63,14 @@ export interface Doctor {
   updatedAt: string;
   user: {
     email: string;
+    /** Solo en GET /admin/doctors. */
+    disabledAt?: string | null;
+    disabledReason?: string | null;
   };
   /** Presente en verificación admin cuando es cuenta empresa / aliada. */
   organization?: DoctorOrganization | null;
+  /** Empresa aliada que invitó al profesional (equipo o referido). */
+  invitedByAlliedOrganization?: { id: string; name: string } | null;
 }
 
 export type DoctorOrganization = {
@@ -225,6 +230,37 @@ export function useDoctor(id: string) {
     queryKey: ["admin", "doctors", id],
     queryFn: () => apiClientFetch<Doctor>(`/admin/doctors/${id}`),
     enabled: Boolean(id),
+  });
+}
+
+export type AccountStatusInput = {
+  doctorId: string;
+  disabled: boolean;
+  reason?: string;
+};
+
+export type AccountStatusResult = {
+  userId: string;
+  disabledAt: string | null;
+  disabledReason: string | null;
+};
+
+/** `scope: "empresa"` usa el endpoint con permiso `admin.companies`. */
+export function useSetAccountDisabled(scope: "doctor" | "empresa") {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ doctorId, ...body }: AccountStatusInput) =>
+      apiClientFetch<AccountStatusResult>(
+        scope === "empresa"
+          ? `/admin/empresas/${doctorId}/account-status`
+          : `/admin/doctors/${doctorId}/account-status`,
+        { method: "PATCH", body: JSON.stringify(body) },
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["admin", scope === "empresa" ? "empresas" : "doctors"],
+      });
+    },
   });
 }
 

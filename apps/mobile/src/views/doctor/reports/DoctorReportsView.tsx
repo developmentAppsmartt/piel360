@@ -30,12 +30,18 @@ import {
 import { DoctorHeader } from '../patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
 import {
+  AgeDistributionBars,
+  AgeGenderBars,
   CategoryRankingBars,
+  DistributionDonut,
   MultiSeriesTrendChart,
   ScoreDistributionDonut,
   ScoreTrendChart,
   SegmentBars,
+  TopDiagnosesTable,
+  TopProblemsList,
 } from './components/ReportCharts';
+import { SkiniverClinicalBrowser } from './components/SkiniverClinicalBrowser';
 import {
   createDoctorReportsStyles,
   type DoctorReportsStyles,
@@ -111,6 +117,10 @@ export function DoctorReportsView({
   const [skiniver, setSkiniver] = useState<SkiniverReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [openAnalysis, setOpenAnalysis] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -158,6 +168,22 @@ export function DoctorReportsView({
     tab === 'actividad' ||
     tab === 'clinico';
   const isDermatologicoTab = tab === 'dermatologico';
+
+  if (openAnalysis) {
+    // require diferido: AnalysisDetailView → NosologyPicker → AppModuleChrome
+    // importa esta vista, y un import estático cierra el ciclo.
+    const { AnalysisDetailView } =
+      require('../analyses/AnalysisDetailView') as typeof import('../analyses/AnalysisDetailView');
+    return (
+      <AnalysisDetailView
+        analysisId={openAnalysis.id}
+        patientName={openAnalysis.name || undefined}
+        onBack={() => setOpenAnalysis(null)}
+        onOpenMenu={() => setOpenAnalysis(null)}
+        onOpenMessages={onOpenMessages}
+      />
+    );
+  }
 
   return (
     <View style={styles.screen}>
@@ -267,7 +293,7 @@ export function DoctorReportsView({
               <AppIcon
                 icon={Icons.chartBar}
                 size={32}
-                color={branding.colors.muted}
+                color={branding.colors.iconMuted}
               />
               <Text style={styles.emptyTitle}>
                 Aún no hay datos en este periodo
@@ -330,6 +356,7 @@ export function DoctorReportsView({
             styles={styles}
             primary={primary}
             loading={loading && !skiniver}
+            onOpenAnalysis={(id, name) => setOpenAnalysis({ id, name })}
           />
         ) : null}
       </ScrollView>
@@ -647,18 +674,12 @@ function TopTab({
           );
         })}
       </View>
-      <CategoryRankingBars categories={rows} variant="needs" />
-      <View style={{ gap: 6, marginTop: 4 }}>
-        {rows.map((c) => (
-          <Text key={c.key} style={styles.categoryMeta}>
-            {c.label}: {c.patientsAffected}/{c.patients} afectados (
-            {c.affectedPct.toFixed(0)}%)
-            {c.trendDelta == null
-              ? ''
-              : ` · evol. ${c.trendDelta > 0 ? '+' : ''}${c.trendDelta.toFixed(1)}`}
-          </Text>
-        ))}
-      </View>
+      <TopProblemsList categories={rows} />
+      <Text style={styles.categoryMeta}>
+        “Pacientes afectados” son los que registraron un puntaje menor a 70 en
+        esa categoría durante el periodo. La evolución compara el primer y el
+        último mes con datos de la ventana de tendencia.
+      </Text>
     </View>
   );
 }
@@ -732,11 +753,13 @@ function DermatologicoTab({
   styles,
   primary,
   loading,
+  onOpenAnalysis,
 }: {
   report: SkiniverReport | null;
   styles: DoctorReportsStyles;
   primary: string;
   loading: boolean;
+  onOpenAnalysis: (analysisId: string, patientName: string) => void;
 }) {
   if (loading) {
     return (
@@ -756,20 +779,76 @@ function DermatologicoTab({
     );
   }
 
-  const toneSlices = report.bySkinTone.map((b) => ({
-    band: b.key as 'excelente' | 'bueno' | 'regular' | 'malo',
-    label: b.label,
-    color: b.color,
-    count: b.count,
-    pct: b.pct,
-  }));
+  const total = report.total ?? 0;
+  const byCategory = report.byCategory ?? [];
 
   return (
     <View style={{ gap: 14 }}>
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Diagnósticos por clase</Text>
+        <Text style={styles.cardTitle}>
+          Enfermedades de la piel por categorías
+        </Text>
         <Text style={styles.cardHint}>
-          Grupos de patología; cada uno reúne varias condiciones.
+          Distribución de diagnósticos por categoría, según la clasificación
+          que devuelve la IA.
+        </Text>
+        {total > 0 ? (
+          <DistributionDonut
+            slices={byCategory}
+            total={total}
+            centerHint="Total diagnósticos"
+          />
+        ) : (
+          <Text style={styles.emptyBody}>
+            No hay diagnósticos en el periodo seleccionado.
+          </Text>
+        )}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>
+          Top 10 de diagnósticos más recurrentes
+        </Text>
+        <Text style={styles.cardHint}>
+          Diagnósticos con mayor frecuencia en tus pacientes.
+        </Text>
+        <TopDiagnosesTable rows={report.topDiagnoses ?? []} />
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Enfermedades por edad y sexo</Text>
+        <Text style={styles.cardHint}>
+          Diagnósticos según rango de edad y género del paciente.
+        </Text>
+        <AgeGenderBars rows={report.byAgeGender ?? []} />
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Distribución de diagnósticos por edad</Text>
+        <Text style={styles.cardHint}>
+          Frecuencia de diagnósticos según rangos de edad.
+        </Text>
+        <AgeDistributionBars slices={report.ageDistribution ?? []} />
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>
+          Clínico: análisis imágenes dermatológica
+        </Text>
+        <Text style={styles.cardHint}>
+          Este análisis es asistido por IA y no reemplaza el criterio clínico
+          del profesional.
+        </Text>
+        <SkiniverClinicalBrowser primary={primary} onOpen={onOpenAnalysis} />
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>
+          No. de diagnósticos por clase por mes
+        </Text>
+        <Text style={styles.cardHint}>
+          Las clases son los grupos de patología; cada uno reúne varias
+          condiciones del catálogo de diagnósticos de la IA.
         </Text>
         <MultiSeriesTrendChart
           points={report.byClass}
@@ -778,9 +857,12 @@ function DermatologicoTab({
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Diagnósticos por enfermedad</Text>
+        <Text style={styles.cardTitle}>
+          No. de diagnósticos por enfermedad por mes
+        </Text>
         <Text style={styles.cardHint}>
-          Las 8 condiciones más frecuentes del periodo; el resto en «Otras».
+          Condiciones concretas diagnosticadas por la IA: las 8 más frecuentes
+          del periodo; el resto se agrupa en «Otras».
         </Text>
         <MultiSeriesTrendChart
           points={report.byDisease}
@@ -789,9 +871,12 @@ function DermatologicoTab({
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Diagnósticos por edades</Text>
+        <Text style={styles.cardTitle}>
+          No. de diagnósticos por edades x mes
+        </Text>
         <Text style={styles.cardHint}>
-          Según la fecha de nacimiento del paciente al momento del análisis.
+          Los diagnósticos por edad son calculados con la fecha de nacimiento
+          del paciente al momento del análisis.
         </Text>
         <MultiSeriesTrendChart
           points={report.byAge}
@@ -800,14 +885,17 @@ function DermatologicoTab({
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Diagnósticos por tono de piel</Text>
+        <Text style={styles.cardTitle}>
+          No. de diagnósticos por tonos de piel
+        </Text>
         <Text style={styles.cardHint}>
-          Clasificación según la escala Fitzpatrick del paciente.
+          La clasificación de tonos de piel se basa en la escala Fitzpatrick.
         </Text>
         {report.skinToneTotal > 0 ? (
-          <ScoreDistributionDonut
-            slices={toneSlices}
+          <DistributionDonut
+            slices={report.bySkinTone}
             total={report.skinToneTotal}
+            centerHint="Diagnósticos"
           />
         ) : (
           <Text style={styles.emptyBody}>
@@ -818,3 +906,4 @@ function DermatologicoTab({
     </View>
   );
 }
+

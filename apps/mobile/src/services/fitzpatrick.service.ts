@@ -1,5 +1,6 @@
 import { apiRequest } from './api.client';
 import { appendImageField } from './form-image';
+import { emitCreditsConsumed } from './session-events';
 
 export type CreateFitzpatrickAnalysisResult = {
   analysisId: string;
@@ -15,11 +16,11 @@ export const fitzpatrickService = {
     await appendImageField(form, 'image', input.imageUri);
     form.append('patientId', input.patientId);
 
-    return apiRequest<CreateFitzpatrickAnalysisResult>('/fitzpatrick/analyses', {
-      method: 'POST',
-      auth: true,
-      body: form,
-      formData: true,
-    });
+    const created = await apiRequest<CreateFitzpatrickAnalysisResult>(
+      '/fitzpatrick/analyses',
+      { method: 'POST', auth: true, body: form, formData: true },
+    );
+    emitCreditsConsumed();
+    return created;
   },
 };

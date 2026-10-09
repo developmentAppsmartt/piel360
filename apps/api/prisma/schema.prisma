@@ -36,6 +36,13 @@ model User {
   longitude          Decimal?  @db.Decimal(10, 7)
   /** Key S3 de la foto de perfil (URL firmada al leer). */
   avatarKey          String?   @map("avatar_key")
+  /**
+   * Cuenta deshabilitada por un administrador (profesional o empresa). Puede
+   * iniciar sesión, pero solo ve la pantalla con `disabledReason`. Si es el
+   * dueño de una organización, también bloquea a los miembros del equipo.
+   */
+  disabledAt         DateTime? @map("disabled_at")
+  disabledReason     String?   @map("disabled_reason") @db.Text
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
@@ -55,8 +62,60 @@ model User {
   subscriptionInvoices   SubscriptionInvoice[]
   alliedDispersals       SubscriptionInvoice[] @relation("AlliedDispersedBy")
   sessions               UserSession[]
+  branding               AccountBranding?
 
   @@map("users")
+}
+
+/**
+ * Identidad corporativa de un profesional o empresa (Configuración →
+ * Personalización). Pertenece al dueño de la cuenta: los miembros de su equipo
+ * y sus pacientes la heredan en la app móvil. Colores `null` = valor por
+ * defecto (DEFAULT_BRANDING_COLORS de shared).
+ */
+model AccountBranding {
+  id                 BigInt   @id @default(autoincrement())
+  userId             BigInt   @unique @map("user_id")
+  /** Se usa en la URL pública que lee el login móvil antes de iniciar sesión. */
+  publicId           String   @unique @default(uuid()) @map("public_id")
+  backgroundColor    String?  @map("background_color")
+  primaryColor       String?  @map("primary_color")
+  primaryTextColor   String?  @map("primary_text_color")
+  secondaryTextColor String?  @map("secondary_text_color")
+  iconColor          String?  @map("icon_color")
+  secondaryColor     String?  @map("secondary_color")
+  buttonColor        String?  @map("button_color")
+  gradientStartColor String?  @map("gradient_start_color")
+  gradientEndColor   String?  @map("gradient_end_color")
+  buttonHoverColor        String?  @map("button_hover_color")
+  gradientHoverStartColor String?  @map("gradient_hover_start_color")
+  gradientHoverEndColor   String?  @map("gradient_hover_end_color")
+  buttonTextColor    String?  @map("button_text_color")
+  gradientTextColor  String?  @map("gradient_text_color")
+  linkColor          String?  @map("link_color")
+  loginTextColor     String?  @map("login_text_color")
+  /** Keys S3; `null` = imagen por defecto del sistema. */
+  loginBackgroundKey String?  @map("login_background_key")
+  loginLogoKey       String?  @map("login_logo_key")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("account_brandings")
+}
+
+/// Rangos de puntuación del análisis estético (Configuración → Personalización).
+/// La hereda el equipo y los pacientes igual que la identidad corporativa.
+model AccountScoreConfig {
+  id          BigInt   @id @default(autoincrement())
+  userId      BigInt   @unique @map("user_id")
+  /// Por métrica: ajuste, rangos y textos (ver YoucamScoreConfig en @piel360/shared).
+  metrics     Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("account_score_configs")
 }
 
 /**

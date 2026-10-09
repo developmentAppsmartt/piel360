@@ -1,4 +1,5 @@
 // @@iconify-code-gen
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
@@ -6,6 +7,7 @@ import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppNoticeHost } from './src/components/notices/AppNoticeHost';
 import './src/components/notices/patchAlert';
+import { OfflineScreen } from './src/components/OfflineScreen';
 import { SplashIntro } from './src/components/SplashVideo';
 import { AuthProvider } from './src/context/AuthContext';
 import { BrandingProvider } from './src/context/BrandingContext';
@@ -13,10 +15,13 @@ import { NotificationsProvider } from './src/context/NotificationsContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
-SplashScreen.setOptions({ duration: 0, fade: false });
+if (Constants.executionEnvironment !== ExecutionEnvironment.StoreClient) {
+  SplashScreen.setOptions({ duration: 0, fade: false });
+}
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
 
   return (
     <SafeAreaProvider>
@@ -24,8 +29,11 @@ export default function App() {
         <BrandingProvider>
           <AuthProvider>
             <NotificationsProvider>
-              {!showSplash ? <RootNavigator /> : null}
+              {!showSplash ? <RootNavigator key={reloadKey} /> : null}
               {!showSplash ? <AppNoticeHost /> : null}
+              {!showSplash ? (
+                <OfflineScreen onReconnect={() => setReloadKey((k) => k + 1)} />
+              ) : null}
               <StatusBar style={showSplash ? 'dark' : 'auto'} />
               {showSplash ? (
                 <SplashIntro onFinish={() => setShowSplash(false)} />

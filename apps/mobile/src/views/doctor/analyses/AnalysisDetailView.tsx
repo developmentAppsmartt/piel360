@@ -3,12 +3,12 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  ScrollView,
   Text,
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { AppIcon } from '../../../components/AppIcon';
+import { KeyboardAwareScrollView } from '../../../components/KeyboardAwareScrollView';
 import { Icons } from '../../../components/icons';
 import { useAuth } from '../../../context/AuthContext';
 import { isClinicalPanelUser } from '../../../types/auth';
@@ -449,7 +449,7 @@ export function AnalysisDetailView({
             <AppIcon
               icon={Icons.back}
               size={22}
-              color={branding.colors.muted}
+              color={branding.colors.iconMuted}
             />
           </Pressable>
           <Text style={styles.cardTitle}>
@@ -465,7 +465,7 @@ export function AnalysisDetailView({
             <AppIcon
               icon={Icons.close}
               size={18}
-              color={branding.colors.muted}
+              color={branding.colors.iconMuted}
             />
           </Pressable>
         </View>
@@ -480,7 +480,7 @@ export function AnalysisDetailView({
             <Text style={styles.errorText}>{error}</Text>
           </View>
         ) : analysis ? (
-          <ScrollView
+          <KeyboardAwareScrollView
             style={styles.scroll}
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
@@ -490,11 +490,9 @@ export function AnalysisDetailView({
 
             {showShare ? (
               <Pressable
-                style={[
-                  styles.shareBtn,
+                style={({ pressed }) => [styles.shareBtn,
                   analysis.sharedWithPatient && styles.shareBtnShared,
-                  sharing && styles.shareBtnDisabled,
-                ]}
+                  sharing && styles.shareBtnDisabled, pressed && { backgroundColor: branding.colors.buttonHover }]}
                 onPress={
                   analysis.sharedWithPatient ? handleUnshare : handleShare
                 }
@@ -505,7 +503,7 @@ export function AnalysisDetailView({
                     color={
                       analysis.sharedWithPatient
                         ? branding.colors.success
-                        : branding.colors.textOnDark
+                        : branding.colors.buttonText
                     }
                   />
                 ) : (
@@ -520,7 +518,7 @@ export function AnalysisDetailView({
                       color={
                         analysis.sharedWithPatient
                           ? branding.colors.success
-                          : branding.colors.textOnDark
+                          : branding.colors.buttonText
                       }
                     />
                     <Text
@@ -634,7 +632,7 @@ export function AnalysisDetailView({
                 />
               )
             ) : null}
-          </ScrollView>
+          </KeyboardAwareScrollView>
         ) : null}
       </View>
     </View>

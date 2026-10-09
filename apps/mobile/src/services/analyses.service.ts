@@ -1,6 +1,7 @@
 import type { AnalysisDetail, PatientAnalysisSummary } from '../types/analysis';
 import { apiRequest } from './api.client';
 import { appendImageField } from './form-image';
+import { emitCreditsConsumed } from './session-events';
 
 export type ConfirmAnalysisInput = {
   isCorrected: boolean;
@@ -46,12 +47,14 @@ export const analysesService = {
     if (input.yCoord !== undefined) form.append('yCoord', String(input.yCoord));
     if (input.zCoord !== undefined) form.append('zCoord', String(input.zCoord));
 
-    return apiRequest<AnalysisDetail>('/analyses', {
+    const created = await apiRequest<AnalysisDetail>('/analyses', {
       method: 'POST',
       auth: true,
       body: form,
       formData: true,
     });
+    emitCreditsConsumed();
+    return created;
   },
 
   /** Doctor/admin: confirma o corrige el diagnóstico del análisis. */

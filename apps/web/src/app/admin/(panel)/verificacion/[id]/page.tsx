@@ -120,6 +120,12 @@ export default function VerificacionDoctorPage() {
         <h2 className="mb-2 text-sm font-semibold">Datos personales</h2>
         <dl>
           <Row label="Tipo" value={accountTypeLabel(d)} />
+          {d.invitedByAlliedOrganization?.name ? (
+            <Row
+              label="Empresa aliada"
+              value={d.invitedByAlliedOrganization.name}
+            />
+          ) : null}
           <Row label="Teléfono" value={d.phone} />
           <Row
             label="Documento"

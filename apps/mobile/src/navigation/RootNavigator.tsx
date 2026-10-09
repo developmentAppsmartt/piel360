@@ -1,5 +1,8 @@
 import { ActivityIndicator, View } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  type NavigationState,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { useBranding } from '../context/BrandingContext';
@@ -8,6 +11,7 @@ import { RegisterView } from '../views/auth/register/RegisterView';
 import { ForgotPasswordView } from '../views/auth/forgot-password/ForgotPasswordView';
 import { MainTabNavigator } from './MainTabNavigator';
 import { PhoneVerificationView } from '../views/auth/phone-verification/PhoneVerificationView';
+import { AccountDisabledView } from '../views/account/AccountDisabledView';
 
 export type AuthStackParamList = {
   Login: undefined;
@@ -46,9 +50,22 @@ function AppNavigator() {
   );
 }
 
+/**
+ * Estado de navegación guardado fuera del componente: al recuperar la
+ * conexión, App remonta el navegador (para recargar datos) y así el usuario
+ * vuelve a la misma pantalla. Se descarta si cambia la sesión.
+ */
+let persistedNavState: NavigationState | undefined;
+let persistedNavScope: string | null = null;
+
 export function RootNavigator() {
-  const { user, isLoading, needsPhoneVerification } = useAuth();
+  const { user, isLoading, needsPhoneVerification, accountStatus } = useAuth();
   const branding = useBranding();
+  const navScope = user
+    ? `${user.id}:${needsPhoneVerification ? 'phone' : 'app'}`
+    : 'auth';
+  const initialState =
+    persistedNavScope === navScope ? persistedNavState : undefined;
 
   if (isLoading) {
     return (
@@ -65,8 +82,18 @@ export function RootNavigator() {
     );
   }
 
+  if (user && accountStatus?.disabled) {
+    return <AccountDisabledView />;
+  }
+
   return (
-    <NavigationContainer>
+    <NavigationContainer
+      initialState={initialState}
+      onStateChange={(state) => {
+        persistedNavState = state;
+        persistedNavScope = navScope;
+      }}
+    >
       {user ? (
         needsPhoneVerification ? <PhoneVerificationView /> : <AppNavigator />
       ) : (

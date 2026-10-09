@@ -10,7 +10,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: soft(colors.primary, '18'),
+      backgroundColor: colors.screenBackground ?? soft(colors.primary, '18'),
     },
     card: {
       flex: 1,
@@ -58,7 +58,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     },
     stamp: {
       fontSize: 13,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       textAlign: 'center',
       marginBottom: 4,
     },
@@ -79,12 +79,12 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     heroValue: {
       fontSize: 32,
       fontWeight: '800',
-      color: colors.primary,
+      color: colors.primaryText,
     },
     heroLabel: {
       fontSize: 12,
       fontWeight: '600',
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       textAlign: 'center',
     },
     sectionTitle: {
@@ -117,11 +117,11 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     metricScore: {
       fontSize: 16,
       fontWeight: '800',
-      color: colors.primary,
+      color: colors.primaryText,
     },
     metricSub: {
       fontSize: 12,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     barTrack: {
       height: 6,
@@ -136,7 +136,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     },
     note: {
       fontSize: 13,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       lineHeight: 18,
       backgroundColor: '#F9FAFB',
       borderRadius: 12,
@@ -149,7 +149,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
       gap: 10,
     },
     loadingText: {
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       fontSize: 14,
     },
     errorBox: {
@@ -170,7 +170,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
       alignItems: 'center',
       justifyContent: 'center',
       gap: 8,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       borderRadius: 999,
       paddingVertical: 14,
       paddingHorizontal: 20,
@@ -184,7 +184,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
       borderColor: colors.success,
     },
     shareBtnText: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
       fontWeight: '700',
       fontSize: 15,
     },
@@ -230,7 +230,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     infoRowLabel: {
       fontSize: 12,
       fontWeight: '600',
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     infoRowValue: {
       fontSize: 14,
@@ -253,12 +253,12 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     descBody: {
       fontSize: 13,
       lineHeight: 20,
-      color: colors.text,
+      color: colors.secondaryText,
     },
     missingNote: {
       fontSize: 12,
       lineHeight: 18,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       fontStyle: 'italic',
     },
     observationsBox: {
@@ -276,7 +276,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     observationsText: {
       fontSize: 14,
       lineHeight: 20,
-      color: colors.text,
+      color: colors.secondaryText,
     },
     nosologyPickBtn: {
       borderRadius: 12,
@@ -290,7 +290,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     nosologyPickLabel: {
       fontSize: 11,
       fontWeight: '700',
-      color: colors.primary,
+      color: colors.primaryText,
     },
     nosologyPickValue: {
       fontSize: 14,
@@ -328,12 +328,12 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
       justifyContent: 'center',
       gap: 8,
       borderRadius: 14,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       paddingVertical: 14,
       paddingHorizontal: 16,
     },
     supportSelectBtnText: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
       fontSize: 15,
       fontWeight: '700',
     },
@@ -362,7 +362,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     },
     gaugeRisk: {
       fontSize: 14,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       marginTop: 2,
     },
     gaugeRiskStrong: {
@@ -395,7 +395,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
       width: 32,
       height: 32,
       borderRadius: 16,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -409,7 +409,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     backToStatsText: {
       fontSize: 14,
       fontWeight: '700',
-      color: colors.primary,
+      color: colors.primaryText,
     },
     diagnosisRing: {
       width: 52,
@@ -423,7 +423,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     diagnosisProb: {
       fontSize: 13,
       fontWeight: '800',
-      color: colors.primary,
+      color: colors.primaryText,
     },
     diagnosisBody: {
       flex: 1,
@@ -436,7 +436,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     },
     diagnosisSub: {
       fontSize: 12,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     carousel: {
       gap: 10,
@@ -461,7 +461,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
       textAlign: 'center',
       fontSize: 13,
       fontWeight: '600',
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     carouselDots: {
       flexDirection: 'row',
@@ -475,7 +475,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
       backgroundColor: '#D1D5DB',
     },
     carouselDotActive: {
-      backgroundColor: colors.primary,
+      backgroundColor: colors.buttonHover,
       width: 18,
     },
     carouselNav: {
@@ -496,7 +496,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     carouselNavText: {
       fontSize: 13,
       fontWeight: '700',
-      color: colors.primary,
+      color: colors.primaryText,
     },
     riskBanner: {
       flexDirection: 'row',
@@ -535,12 +535,12 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     metaText: {
       flex: 1,
       fontSize: 13,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       fontWeight: '600',
     },
     disclaimer: {
       fontSize: 12,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       lineHeight: 17,
       textAlign: 'center',
       marginTop: 4,
@@ -552,7 +552,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
       paddingHorizontal: 20,
     },
     storyModalDismiss: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
     },
     storyModalCard: {
       backgroundColor: '#FFFFFF',
@@ -595,7 +595,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     storyMeta: {
       paddingHorizontal: 16,
       fontSize: 13,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       marginTop: 6,
       marginBottom: 8,
     },
@@ -611,7 +611,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
       fontSize: 14,
       lineHeight: 21,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.secondaryText,
     },
     fitzBlock: {
       gap: 14,
@@ -624,11 +624,11 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     fitzSummaryLine: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.secondaryText,
     },
     fitzSummaryValue: {
       fontWeight: '500',
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     fitzPill: {
       alignSelf: 'flex-start',
@@ -648,7 +648,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
       borderRadius: 12,
       overflow: 'hidden',
       borderWidth: 2,
-      borderColor: soft(colors.primary, '55'),
+      borderColor: soft(colors.icon, '55'),
       backgroundColor: '#EEF0F3',
     },
     fitzViewerImage: {
@@ -668,7 +668,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     fitzEyebrow: {
       fontSize: 13,
       fontWeight: '600',
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     fitzSwatch: {
       width: 96,
@@ -686,7 +686,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     fitzLabel: {
       fontSize: 16,
       fontWeight: '600',
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     fitzReaction: {
       fontSize: 13,
@@ -702,7 +702,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     confirmStatus: {
       fontSize: 13,
       lineHeight: 19,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       fontWeight: '600',
     },
     confirmLabel: {
@@ -737,7 +737,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
     confirmPrimaryBtn: {
       flexGrow: 1,
       minWidth: '45%',
-      backgroundColor: colors.primary,
+      backgroundColor: colors.button,
       borderRadius: 12,
       paddingVertical: 14,
       paddingHorizontal: 14,
@@ -762,7 +762,7 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
       opacity: 0.6,
     },
     confirmPrimaryText: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
       fontSize: 14,
       fontWeight: '800',
     },

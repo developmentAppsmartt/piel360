@@ -32,7 +32,7 @@ export function AppNoticeHost() {
         borderRadius: 22,
         overflow: 'hidden' as const,
         borderWidth: 1,
-        borderColor: `${branding.colors.primary}22`,
+        borderColor: `${branding.colors.icon}22`,
         shadowColor: branding.colors.primaryDark,
         shadowOpacity: 0.18,
         shadowRadius: 24,
@@ -63,12 +63,12 @@ export function AppNoticeHost() {
         fontWeight: '700' as const,
         letterSpacing: 0.4,
         textTransform: 'uppercase' as const,
-        color: branding.colors.secondary,
+        color: branding.colors.primaryText,
       },
       title: {
         fontSize: 18,
         fontWeight: '800' as const,
-        color: branding.colors.primaryDark,
+        color: branding.colors.primaryText,
       },
       body: {
         paddingHorizontal: 20,
@@ -77,7 +77,7 @@ export function AppNoticeHost() {
       message: {
         fontSize: 15,
         lineHeight: 22,
-        color: branding.colors.muted,
+        color: branding.colors.secondaryTextOverride ?? branding.colors.muted,
       },
       divider: {
         height: 1,
@@ -120,7 +120,7 @@ export function AppNoticeHost() {
 
   const accent = destructive
     ? branding.colors.error
-    : branding.colors.primary;
+    : branding.colors.icon;
 
   return (
     <Modal
@@ -172,20 +172,27 @@ export function AppNoticeHost() {
                     ? 'transparent'
                     : isDestructive
                       ? branding.colors.error
-                      : branding.colors.primary;
+                      : branding.colors.button;
                   const color = cancel
-                    ? branding.colors.primary
-                    : branding.colors.textOnDark;
+                    ? branding.colors.primaryText
+                    : isDestructive
+                      ? branding.colors.textOnDark
+                      : branding.colors.buttonText;
                   return (
                     <Pressable
                       key={`${button.text}-${index}`}
-                      style={[
+                      style={({ pressed }) => [
                         styles.btn,
                         {
                           backgroundColor: bg,
                           borderWidth: cancel ? 1.5 : 0,
-                          borderColor: branding.colors.primary,
+                          borderColor: branding.colors.icon,
                         },
+                        pressed &&
+                          !cancel &&
+                          !isDestructive && {
+                            backgroundColor: branding.colors.buttonHover,
+                          },
                       ]}
                       onPress={() => close(button.onPress)}
                     >

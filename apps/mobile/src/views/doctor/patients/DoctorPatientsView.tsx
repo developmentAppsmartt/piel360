@@ -518,7 +518,7 @@ export function DoctorPatientsView({
             <AppIcon
               icon={Icons.search}
               size={20}
-              color={branding.colors.primary}
+              color={branding.colors.icon}
             />
             <TextInput
               style={styles.searchInput}
@@ -534,12 +534,12 @@ export function DoctorPatientsView({
             <AppIcon
               icon={Icons.settings}
               size={20}
-              color={branding.colors.muted}
+              color={branding.colors.iconMuted}
             />
           </View>
 
           <Pressable
-            style={styles.newButton}
+            style={({ pressed }) => [styles.newButton, pressed && { backgroundColor: branding.colors.buttonHover }]}
             onPress={() => {
               setCreating(true);
               onCreatingChange?.(true);

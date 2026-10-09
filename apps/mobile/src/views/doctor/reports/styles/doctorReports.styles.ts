@@ -1,4 +1,4 @@
-import type { AppBranding } from '../../../config/branding.defaults';
+import type { AppBranding } from '../../../../config/branding.defaults';
 import { StyleSheet } from 'react-native';
 import { appShadow } from '../../../../styles/shadow';
 
@@ -6,7 +6,7 @@ export function createDoctorReportsStyles(colors: AppBranding['colors']) {
   return StyleSheet.create({
     screen: {
       flex: 1,
-      backgroundColor: '#E8F4FC',
+      backgroundColor: colors.screenBackground ?? '#E8F4FC',
     },
     scrollContent: {
       padding: 16,
@@ -21,7 +21,7 @@ export function createDoctorReportsStyles(colors: AppBranding['colors']) {
     subtitle: {
       fontSize: 13,
       lineHeight: 19,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       marginTop: 4,
     },
     card: {
@@ -40,7 +40,7 @@ export function createDoctorReportsStyles(colors: AppBranding['colors']) {
     },
     cardHint: {
       fontSize: 12,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       lineHeight: 17,
     },
     filtersRow: {
@@ -57,8 +57,8 @@ export function createDoctorReportsStyles(colors: AppBranding['colors']) {
       paddingVertical: 8,
     },
     presetChipActive: {
-      borderColor: colors.primary,
-      backgroundColor: colors.primary,
+      borderColor: colors.buttonHover,
+      backgroundColor: colors.buttonHover,
     },
     presetChipText: {
       fontSize: 13,
@@ -66,7 +66,7 @@ export function createDoctorReportsStyles(colors: AppBranding['colors']) {
       color: colors.text,
     },
     presetChipTextActive: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
     },
     tabsWrap: {
       flexDirection: 'row',
@@ -98,8 +98,8 @@ export function createDoctorReportsStyles(colors: AppBranding['colors']) {
       paddingVertical: 8,
     },
     tabActive: {
-      borderColor: colors.primary,
-      backgroundColor: colors.primary,
+      borderColor: colors.buttonHover,
+      backgroundColor: colors.buttonHover,
     },
     tabText: {
       fontSize: 12,
@@ -107,7 +107,7 @@ export function createDoctorReportsStyles(colors: AppBranding['colors']) {
       color: colors.muted,
     },
     tabTextActive: {
-      color: colors.textOnDark,
+      color: colors.buttonText,
     },
     kpiGrid: {
       flexDirection: 'row',
@@ -127,7 +127,7 @@ export function createDoctorReportsStyles(colors: AppBranding['colors']) {
     kpiLabel: {
       fontSize: 11,
       fontWeight: '600',
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       lineHeight: 15,
     },
     kpiValue: {
@@ -142,7 +142,7 @@ export function createDoctorReportsStyles(colors: AppBranding['colors']) {
     },
     kpiHint: {
       fontSize: 10,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       marginTop: 2,
     },
     highlightBad: {
@@ -165,7 +165,7 @@ export function createDoctorReportsStyles(colors: AppBranding['colors']) {
     distLabel: {
       fontSize: 13,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.secondaryText,
     },
     distPct: {
       fontSize: 12,
@@ -210,7 +210,7 @@ export function createDoctorReportsStyles(colors: AppBranding['colors']) {
     trendLabel: {
       fontSize: 9,
       fontWeight: '600',
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       textAlign: 'center',
     },
     trendScore: {
@@ -231,7 +231,7 @@ export function createDoctorReportsStyles(colors: AppBranding['colors']) {
     },
     categoryMeta: {
       fontSize: 12,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     scoreBadge: {
       alignSelf: 'flex-start',
@@ -257,7 +257,7 @@ export function createDoctorReportsStyles(colors: AppBranding['colors']) {
     },
     emptyBody: {
       fontSize: 13,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       textAlign: 'center',
       lineHeight: 19,
       paddingHorizontal: 12,
@@ -275,7 +275,7 @@ export function createDoctorReportsStyles(colors: AppBranding['colors']) {
     },
     footerNote: {
       fontSize: 11,
-      color: colors.muted,
+      color: colors.secondaryTextOverride ?? colors.muted,
       lineHeight: 16,
     },
   });

@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { AppIcon } from '../../../../components/AppIcon';
 import { Icons } from '../../../../components/icons';
-import { ComplianceBadges } from '../../../../components/legal/ComplianceBadges';
+// import { ComplianceBadges } from '../../../../components/legal/ComplianceBadges';
 import { LegalDocumentModal } from '../../../../components/legal/LegalDocumentModal';
 import { useAuth } from '../../../../context/AuthContext';
 import { useBranding } from '../../../../context/BrandingContext';
@@ -16,7 +16,6 @@ import { ApiError } from '../../../../services/api.client';
 import { AuthConsent } from './AuthConsent';
 import { AuthGradientButton } from './AuthGradientButton';
 import { LoginIconField } from './LoginIconField';
-import { AUTH_THEME } from '../../authTheme';
 import { createLoginStyles } from '../styles/login.styles';
 
 type LoginFormProps = {
@@ -38,8 +37,12 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
   const [submitting, setSubmitting] = useState(false);
   const [legalDoc, setLegalDoc] = useState<LegalDocId | null>(null);
 
-  const primary = AUTH_THEME.purple;
+  const primary = branding.colors.primary;
   const onDark = branding.colors.textOnDark;
+  const featureIconColor =
+    branding.colors.iconMuted === branding.colors.icon
+      ? branding.colors.icon
+      : branding.colors.loginAccent;
 
   function isValidEmail(value: string): boolean {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -178,7 +181,7 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
             <AppIcon
               icon={showPassword ? Icons.eyeOff : Icons.eye}
               size={20}
-              color="#64748B"
+              color={branding.colors.iconMuted}
             />
           </Pressable>
         }
@@ -207,14 +210,14 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
 
       <View style={styles.featureRow}>
         <View style={[styles.featureCard, styles.featureCardBorder]}>
-          <AppIcon icon={Icons.clipboardCheck} size={20} color={AUTH_THEME.accent} />
+          <AppIcon icon={Icons.clipboardCheck} size={20} color={featureIconColor} />
           <Text style={styles.featureTitle}>Seguro y confiable</Text>
           <Text style={styles.featureText}>
             Tus datos están protegidos con los más altos estándares.
           </Text>
         </View>
         <View style={styles.featureCard}>
-          <AppIcon icon={Icons.heartPulse} size={20} color={AUTH_THEME.accent} />
+          <AppIcon icon={Icons.heartPulse} size={20} color={featureIconColor} />
           <Text style={styles.featureTitle}>Resultados medibles</Text>
           <Text style={styles.featureText}>
             Información precisa para decisiones más inteligentes.
@@ -237,6 +240,11 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
         </Text>
       </Text>
 
+      <Text style={styles.poweredBy}>
+        POWERED BY <Text style={styles.poweredByBrand}>PIEL360</Text>
+      </Text>
+
+      {/* Oculto por temas legales: aún no se cuenta con estas certificaciones.
       <View style={styles.complianceBlock}>
         <View style={styles.complianceRow}>
           <AppIcon icon={Icons.lock} size={12} color="rgba(255,255,255,0.55)" />
@@ -246,6 +254,7 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
         </View>
         <ComplianceBadges variant="dark" />
       </View>
+      */}
 
       <LegalDocumentModal
         docId={legalDoc}

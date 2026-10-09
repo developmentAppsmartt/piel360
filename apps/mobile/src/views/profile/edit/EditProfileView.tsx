@@ -1,11 +1,6 @@
 import { useMemo } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
+import { Text, View } from 'react-native';
+import { KeyboardAwareScrollView } from '../../../components/KeyboardAwareScrollView';
 import type { UpdatePatientInput } from '../../../services/patients.service';
 import type { PatientAnalysisSummary } from '../../../types/analysis';
 import type { PatientProfile } from '../../../types/patient';
@@ -48,37 +43,31 @@ export function EditProfileView({
         onBack={onBack}
         onOpenMessages={onOpenMessages}
       >
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        <KeyboardAwareScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          keyboardDismissMode="on-drag"
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={false}
         >
-          <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            nestedScrollEnabled
-            showsVerticalScrollIndicator={false}
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: '700',
+              color: branding.colors.text,
+              marginBottom: 12,
+            }}
           >
-            <Text
-              style={{
-                fontSize: 18,
-                fontWeight: '700',
-                color: branding.colors.text,
-                marginBottom: 12,
-              }}
-            >
-              {title}
-            </Text>
-            <EditProfileForm
-              patient={patient}
-              onSubmit={onSave}
-              emailEditable={emailEditable}
-              analyses={analyses}
-              requirePhoneOtp={requirePhoneOtp}
-            />
-          </ScrollView>
-        </KeyboardAvoidingView>
+            {title}
+          </Text>
+          <EditProfileForm
+            patient={patient}
+            onSubmit={onSave}
+            emailEditable={emailEditable}
+            analyses={analyses}
+            requirePhoneOtp={requirePhoneOtp}
+          />
+        </KeyboardAwareScrollView>
       </AppModuleChrome>
     </View>
   );

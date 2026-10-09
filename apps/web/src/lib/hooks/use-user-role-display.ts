@@ -17,9 +17,10 @@ export function useUserRoleDisplay(
 ) {
   const enrich = isClinicalPanelRole(role);
   const profile = useMyDoctorProfile(enrich);
+  const doctor = enrich ? profile.data : undefined;
 
   const label = resolveRoleDisplayLabel(role, {
-    specialty: profile.data?.specialty,
+    specialty: doctor?.specialty,
     empresa: options?.empresa,
   });
 
@@ -32,7 +33,7 @@ export function useUserRoleDisplay(
   return {
     label,
     scope,
-    specialty: profile.data?.specialty ?? null,
+    specialty: doctor?.specialty ?? null,
     loading: enrich && profile.isLoading,
   };
 }

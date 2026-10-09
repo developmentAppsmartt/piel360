@@ -85,6 +85,7 @@ const DIAGNOSIS_MAP: Record<string, { class: SkiniverDiagnosisClass }> = {
   "enfermedad de bowen": { class: "tumors" },
   // Cáncer de piel
   "carcinoma basocelular": { class: "tumors" },
+  "carcinoma de celulas basales": { class: "tumors" },
   "carcinoma de celulas escamosas": { class: "tumors" },
   melanoma: { class: "tumors" },
   "lentigo melanoma": { class: "tumors" },
@@ -138,23 +139,75 @@ const DIAGNOSIS_MAP: Record<string, { class: SkiniverDiagnosisClass }> = {
   dermatitis: { class: "inflammatory" },
   // Eccema / Urticaria / Eritema
   eccema: { class: "inflammatory" },
+  eczema: { class: "inflammatory" },
   "urticaria alergica": { class: "inflammatory" },
   urticaria: { class: "inflammatory" },
   "eritema centrifugo anular": { class: "inflammatory" },
 };
 
-/** `null` para "sin diagnóstico" o "Piel Sin Patología" — el caller decide
- * excluirlo (reportes de clase/enfermedad) o no (reportes demográficos). */
+/** La IA devuelve "sin patología" en varios idiomas, como diagnóstico y como
+ * categoría (`desease`): cualquiera de esas formas queda fuera de los conteos. */
+const NO_PATHOLOGY_KEYS = new Set(
+  [
+    SKINIVER_NO_PATHOLOGY_DIAGNOSIS,
+    "Sin patología",
+    "No pathologies",
+    "No pathology",
+    "Healthy skin",
+    "Нет патологий",
+  ].map(normalize),
+);
+
 export function isNoPathologyDiagnosis(aiDiagnosis: string | null | undefined): boolean {
   if (!aiDiagnosis) return false;
-  return normalize(aiDiagnosis) === normalize(SKINIVER_NO_PATHOLOGY_DIAGNOSIS);
+  return NO_PATHOLOGY_KEYS.has(normalize(aiDiagnosis));
 }
 
+export function isNoPathologyCategory(desease: string | null | undefined): boolean {
+  return isNoPathologyDiagnosis(desease);
+}
+
+/**
+ * Categoría de la IA (`desease`, ya traducida con skiniverCategoryLabel) →
+ * clase. Respaldo para diagnósticos que el mapa no reconoce por nombre: el
+ * modelo agrega diagnósticos y cambia su redacción, pero la categoría sigue
+ * diciendo a qué grupo pertenecen.
+ */
+const CATEGORY_CLASS: Record<string, SkiniverDiagnosisClass> = {
+  cancer: "tumors",
+  "lesiones benignas": "tumors",
+  "condiciones precancerosas": "tumors",
+  "infecciones por hongos": "infectious",
+  "enfermedades virales": "infectious",
+  "infecciones herpeticas": "infectious",
+  acne: "inflammatory",
+  dermatitis: "inflammatory",
+  eccema: "inflammatory",
+  urticaria: "inflammatory",
+  eritema: "inflammatory",
+  rosacea: "inflammatory",
+  "trastornos papuloescamosos": "inflammatory",
+  "hidradenitis supurativa": "annex",
+};
+
+/**
+ * `null` para "sin diagnóstico" o "sin patología" — el caller decide excluirlo.
+ * Busca por el nombre crudo, luego por el nombre traducido (`label`) y por
+ * último por la categoría traducida; solo si nada coincide cae en "other".
+ */
 export function classifyDiagnosisClass(
   aiDiagnosis: string | null | undefined,
+  options?: { label?: string | null; category?: string | null },
 ): SkiniverDiagnosisClass | null {
   if (!aiDiagnosis || isNoPathologyDiagnosis(aiDiagnosis)) return null;
-  return DIAGNOSIS_MAP[normalize(aiDiagnosis)]?.class ?? "other";
+  const byName =
+    DIAGNOSIS_MAP[normalize(aiDiagnosis)]?.class ??
+    (options?.label ? DIAGNOSIS_MAP[normalize(options.label)]?.class : undefined);
+  if (byName) return byName;
+  const byCategory = options?.category
+    ? CATEGORY_CLASS[normalize(options.category)]
+    : undefined;
+  return byCategory ?? "other";
 }
 
 // ─── Tono de piel (Fitzpatrick) ─────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { apiRequest } from './api.client';
 import { appendImageField } from './form-image';
+import { emitCreditsConsumed } from './session-events';
 
 export type CreateYoucamAnalysisResult = {
   analysisId: string;
@@ -16,11 +17,11 @@ export const youcamService = {
     form.append('patientId', input.patientId);
     if (input.bodyRegion) form.append('bodyRegion', input.bodyRegion);
 
-    return apiRequest<CreateYoucamAnalysisResult>('/youcam/analyses', {
-      method: 'POST',
-      auth: true,
-      body: form,
-      formData: true,
-    });
+    const created = await apiRequest<CreateYoucamAnalysisResult>(
+      '/youcam/analyses',
+      { method: 'POST', auth: true, body: form, formData: true },
+    );
+    emitCreditsConsumed();
+    return created;
   },
 };

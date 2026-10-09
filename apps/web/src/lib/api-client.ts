@@ -1,10 +1,12 @@
 "use client";
 
-import { SESSION_REPLACED } from "@piel360/shared";
+import { ACCOUNT_DISABLED, SESSION_REPLACED } from "@piel360/shared";
 import { ApiError } from "./api-error";
 import { loginPathForCurrentPanel } from "./login-path";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api";
+
+const ACCOUNT_DISABLED_PATH = "/doctor/cuenta-deshabilitada";
 
 /** Evita que varias queries que fallan casi al mismo tiempo (React Query)
  * disparen cada una su propio refresh — todas esperan la misma promesa. */
@@ -74,6 +76,16 @@ export async function apiClientFetch<T>(path: string, init?: RequestInit): Promi
   const body = await res.json().catch(() => null);
 
   if (!res.ok) {
+    // La cuenta se deshabilitó con la sesión abierta: el layout del panel no
+    // se vuelve a ejecutar en navegación cliente, así que se fuerza la recarga.
+    if (
+      res.status === 403 &&
+      body?.code === ACCOUNT_DISABLED &&
+      window.location.pathname.startsWith("/doctor/") &&
+      window.location.pathname !== ACCOUNT_DISABLED_PATH
+    ) {
+      window.location.href = ACCOUNT_DISABLED_PATH;
+    }
     const raw = body?.message;
     const message = Array.isArray(raw)
       ? raw.join(". ")

@@ -194,7 +194,7 @@ export function YoucamProgressView({
             <AppIcon
               icon={Icons.back}
               size={24}
-              color={branding.colors.muted}
+              color={branding.colors.iconMuted}
             />
           </Pressable>
           <Text style={styles.progressTitle}>Avance en la Salud de la Piel</Text>
@@ -207,7 +207,7 @@ export function YoucamProgressView({
             return (
               <Pressable
                 key={mode}
-                style={[styles.toggleBtn, on && styles.toggleBtnOn]}
+                style={({ pressed }) => [styles.toggleBtn, on && styles.toggleBtnOn, pressed && { backgroundColor: branding.colors.buttonHover }]}
                 onPress={() => setLayout(mode)}
               >
                 <Text style={[styles.toggleText, on && styles.toggleTextOn]}>
@@ -359,7 +359,7 @@ export function YoucamProgressView({
             <AppIcon
               icon={Icons.chevronRight}
               size={16}
-              color={branding.colors.primary}
+              color={branding.colors.icon}
             />
           </Pressable>
         </View>
@@ -369,7 +369,7 @@ export function YoucamProgressView({
             <View
               style={[
                 styles.legendDot,
-                { backgroundColor: branding.colors.primary },
+                { backgroundColor: branding.colors.icon },
               ]}
             />
             <Text style={styles.legendText}>Análisis actual</Text>
@@ -381,7 +381,7 @@ export function YoucamProgressView({
         </View>
 
         {loading ? (
-          <ActivityIndicator color={branding.colors.primary} />
+          <ActivityIndicator color={branding.colors.icon} />
         ) : (
           <ScrollView
             showsVerticalScrollIndicator={false}
@@ -428,7 +428,7 @@ export function YoucamProgressView({
                             styles.barFill,
                             {
                               width: `${current ?? 0}%`,
-                              backgroundColor: branding.colors.primary,
+                              backgroundColor: branding.colors.icon,
                             },
                           ]}
                         />
@@ -476,7 +476,7 @@ export function YoucamProgressView({
                               styles.colBarFill,
                               {
                                 height: `${Math.max(4, current)}%`,
-                                backgroundColor: branding.colors.primary,
+                                backgroundColor: branding.colors.icon,
                               },
                             ]}
                           />

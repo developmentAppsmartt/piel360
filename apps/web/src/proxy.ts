@@ -4,10 +4,13 @@ import {
   canAccessAdminPanel,
   canAccessClinicalPanel,
   canAccessPatientPanel,
+  clinicalPathAllowedWithoutPlan,
   isClinicalPanelRole,
   isDoctorVerificationActive,
+  isOwnerOnlyClinicalPath,
   SESSION_REPLACED,
   teamPermissionAllowsNavHref,
+  type AccountStatus,
   type PrimaryPanel,
   type Role,
   type TeamMemberPermission,
@@ -21,6 +24,8 @@ type Panel = (typeof PANELS)[number];
 
 /** Unica ruta de paciente que queda viva en web: explica que se entra por la app. */
 const PATIENT_APP_PATH = "/patient";
+
+const ACCOUNT_DISABLED_PATH = "/doctor/cuenta-deshabilitada";
 
 const PUBLIC_PATHS: Record<Panel, string[]> = {
   doctor: [
@@ -60,6 +65,7 @@ interface SessionPayload {
   permissions?: string[];
   teamPermissions?: TeamMemberPermission[] | null;
   isOrgMember?: boolean;
+  organizationMemberRole?: "owner" | "member" | null;
   surveyCompletedAt?: string | null;
   verificationStatus?: string;
 }
@@ -92,7 +98,8 @@ function monitorPathAllowed(pathname: string): boolean {
 function clinicalPathAllowedWhilePending(pathname: string): boolean {
   if (
     pathname.startsWith("/doctor/configuracion/equipos") ||
-    pathname.startsWith("/doctor/configuracion/referidos")
+    pathname.startsWith("/doctor/configuracion/referidos") ||
+    pathname.startsWith("/doctor/configuracion/personalizacion")
   ) {
     return false;
   }
@@ -106,7 +113,11 @@ function clinicalPathAllowedWhilePending(pathname: string): boolean {
  * forma de detectarlo en el proxy. */
 async function getFreshPermissions(
   token: string | undefined,
-): Promise<{ permissions?: string[]; sessionEnded?: boolean }> {
+): Promise<{
+  permissions?: string[];
+  sessionEnded?: boolean;
+  account?: AccountStatus;
+}> {
   if (!token) return {};
   try {
     const apiUrl =
@@ -122,8 +133,11 @@ async function getFreshPermissions(
       return { sessionEnded: body?.code === SESSION_REPLACED };
     }
     if (!res.ok) return {};
-    const data = (await res.json()) as { permissions?: string[] };
-    return { permissions: data.permissions };
+    const data = (await res.json()) as {
+      permissions?: string[];
+      account?: AccountStatus;
+    };
+    return { permissions: data.permissions, account: data.account };
   } catch {
     return {};
   }
@@ -188,6 +202,25 @@ export async function proxy(request: NextRequest) {
       ? (fresh.permissions ?? session.permissions)
       : session.permissions;
 
+  if (panel === "doctor") {
+    const onDisabledPage = pathname === ACCOUNT_DISABLED_PATH;
+    if (fresh.account?.disabled && !onDisabledPage) {
+      return NextResponse.redirect(new URL(ACCOUNT_DISABLED_PATH, request.url));
+    }
+    if (onDisabledPage) {
+      return fresh.account && !fresh.account.disabled
+        ? NextResponse.redirect(new URL("/doctor/home", request.url))
+        : NextResponse.next();
+    }
+    if (
+      fresh.account?.planRestricted &&
+      isClinicalSession(session) &&
+      !clinicalPathAllowedWithoutPlan(pathname)
+    ) {
+      return NextResponse.redirect(new URL("/doctor/home", request.url));
+    }
+  }
+
   // Aquí vivía el gate de encuesta obligatoria del paciente. Con el panel
   // cerrado `panel` ya no puede valer "patient" y TypeScript rechaza la
   // comparación, así que se retira en vez de silenciarla con un cast: al
@@ -216,6 +249,14 @@ export async function proxy(request: NextRequest) {
     !clinicalRouteAllowed(pathname, permissions)
   ) {
     return NextResponse.redirect(new URL("/doctor/home", request.url));
+  }
+
+  if (
+    panel === "doctor" &&
+    session.organizationMemberRole === "member" &&
+    isOwnerOnlyClinicalPath(pathname)
+  ) {
+    return NextResponse.redirect(new URL("/doctor/configuracion", request.url));
   }
 
   if (

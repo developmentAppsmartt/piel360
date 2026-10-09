@@ -17,6 +17,7 @@ import { Icons, type AppIconName } from '../../../components/icons';
 import { LegalDocumentModal } from '../../../components/legal/LegalDocumentModal';
 import { HomeRemindersStack } from '../../../components/notifications/HomeRemindersStack';
 import { useAuth } from '../../../context/AuthContext';
+import { DEFAULT_BRANDING } from '../../../config/branding.defaults';
 import { useBranding } from '../../../context/BrandingContext';
 import {
   useNotificationsOptional,
@@ -311,9 +312,6 @@ export function DoctorHomeView({
 
   const welcomeName = doctorDisplayName || doctorTitleFallback(user?.name);
   const primary = branding.colors.primary;
-  const primaryDark = branding.colors.primaryDark;
-  const secondary = branding.colors.secondary;
-
   const dermatologicoCount = useMemo(
     () =>
       analyses.filter((a) => !a.youcamTaskId && !a.fitzpatrickTaskId).length,
@@ -458,7 +456,7 @@ export function DoctorHomeView({
       value: String(patients.length),
       label: 'Pacientes',
       icon: Icons.accountGroup,
-      iconColor: primary,
+      iconColor: DEFAULT_BRANDING.colors.primary,
       onPress: onOpenPatients,
     },
     {
@@ -484,7 +482,7 @@ export function DoctorHomeView({
       label: 'Nuevas Citas',
       hint: `${appointmentsConfirmed} conf. · ${appointmentsPending} pend.`,
       icon: Icons.calendarPlus,
-      iconColor: primaryDark,
+      iconColor: DEFAULT_BRANDING.colors.primaryDark,
       onPress: onOpenAgenda,
     },
     {
@@ -696,11 +694,8 @@ export function DoctorHomeView({
             )}
           </Pressable>
           <View style={styles.welcomeTextWrap}>
-            <Text style={styles.welcomeLabel}>Bienvenido,</Text>
             <View style={styles.welcomeNameRow}>
-              <Text style={styles.welcomeName} numberOfLines={1}>
-                {welcomeName}
-              </Text>
+              <Text style={styles.welcomeLabel}>Bienvenido,</Text>
               <Pressable
                 style={styles.inviteBtn}
                 onPress={() => setInviteOpen(true)}
@@ -710,10 +705,13 @@ export function DoctorHomeView({
                 <AppIcon
                   icon={Icons.share}
                   size={18}
-                  color={branding.colors.primary}
+                  color={branding.colors.icon}
                 />
               </Pressable>
             </View>
+            <Text style={styles.welcomeName} numberOfLines={1}>
+              {welcomeName}
+            </Text>
             {!loading && pendingCount > 0 ? (
               <Text style={styles.pendingHint}>
                 {pendingCount} análisis pendiente{pendingCount === 1 ? '' : 's'}{' '}
@@ -721,6 +719,14 @@ export function DoctorHomeView({
               </Text>
             ) : null}
           </View>
+          {branding.companyLogoImage ? (
+            <Image
+              source={branding.companyLogoImage}
+              style={styles.companyLogo}
+              resizeMode="contain"
+              accessibilityLabel="Logo de la empresa"
+            />
+          ) : null}
         </View>
 
         <HomeRemindersStack
@@ -774,48 +780,60 @@ export function DoctorHomeView({
                 onPress={onOpenPatients}
                 accessibilityLabel="Mis Pacientes"
               >
-                <LinearGradient
-                  colors={[primaryDark, secondary]}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  style={styles.actionBtnInner}
-                >
-                  <AppIcon
-                    icon={Icons.accountGroup}
-                    size={20}
-                    color={branding.colors.textOnDark}
-                  />
-                  <Text style={styles.actionBtnText}>Mis Pacientes</Text>
-                  <AppIcon
-                    icon={Icons.chevronRight}
-                    size={18}
-                    color={branding.colors.textOnDark}
-                  />
-                </LinearGradient>
+                {({ pressed }) => (
+                  <LinearGradient
+                    colors={[
+                      ...(pressed
+                        ? branding.colors.buttonGradientHover
+                        : branding.colors.buttonGradient),
+                    ]}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                    style={styles.actionBtnInner}
+                  >
+                    <AppIcon
+                      icon={Icons.accountGroup}
+                      size={20}
+                      color={branding.colors.buttonGradientText}
+                    />
+                    <Text style={styles.actionBtnText}>Mis Pacientes</Text>
+                    <AppIcon
+                      icon={Icons.chevronRight}
+                      size={18}
+                      color={branding.colors.buttonGradientText}
+                    />
+                  </LinearGradient>
+                )}
               </Pressable>
               <Pressable
                 style={styles.actionBtn}
                 onPress={() => setShowingStats(true)}
                 accessibilityLabel="Estadísticas"
               >
-                <LinearGradient
-                  colors={[secondary, '#7C3AED']}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  style={styles.actionBtnInner}
-                >
-                  <AppIcon
-                    icon={Icons.chartBar}
-                    size={20}
-                    color={branding.colors.textOnDark}
-                  />
-                  <Text style={styles.actionBtnText}>Estadísticas</Text>
-                  <AppIcon
-                    icon={Icons.chevronRight}
-                    size={18}
-                    color={branding.colors.textOnDark}
-                  />
-                </LinearGradient>
+                {({ pressed }) => (
+                  <LinearGradient
+                    colors={[
+                      ...(pressed
+                        ? branding.colors.buttonGradientHover
+                        : branding.colors.buttonGradient),
+                    ]}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                    style={styles.actionBtnInner}
+                  >
+                    <AppIcon
+                      icon={Icons.chartBar}
+                      size={20}
+                      color={branding.colors.buttonGradientText}
+                    />
+                    <Text style={styles.actionBtnText}>Estadísticas</Text>
+                    <AppIcon
+                      icon={Icons.chevronRight}
+                      size={18}
+                      color={branding.colors.buttonGradientText}
+                    />
+                  </LinearGradient>
+                )}
               </Pressable>
             </View>
 
@@ -965,7 +983,7 @@ export function DoctorHomeView({
                           <AppIcon
                             icon={Icons.chevronRight}
                             size={18}
-                            color={branding.colors.muted}
+                            color={branding.colors.iconMuted}
                           />
                         </Pressable>
                       );
