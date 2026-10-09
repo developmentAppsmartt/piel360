@@ -113,7 +113,7 @@ async function crearProfesional(
         create: {
           firstName: nombre,
           lastName: apellido,
-          specialty: 'Dermatología',
+          specialty: 'Dermatólogo',
           professionalKind: 'specialty',
           membershipType: membership,
           empresa: membership !== 'solo_doctor',

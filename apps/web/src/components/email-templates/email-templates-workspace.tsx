@@ -46,13 +46,15 @@ const EMPTY_BODY_HTML = `<p style="margin:0 0 12px;font-size:16px;">Hola {nombre
 type EditorTab = "edit" | "variables";
 type PreviewMode = "desktop" | "mobile";
 
-/** Los 3 eventos reales que disparan un envío hoy (ver report-email.service,
- * appointment-email.service, patient-invite.service en la API) — el doctor
- * elige cuál está viendo/editando en vez de navegar una lista plana. */
+/** Los 4 eventos reales que disparan un envío hoy (ver report-email.service,
+ * appointment-email.service, patient-invite.service y team-invite-email.service
+ * en la API) — el doctor elige cuál está viendo/editando en vez de navegar una
+ * lista plana. */
 const EVENT_KIND_IDS = [
   "appointment_scheduled",
   "report_ready",
   "patient_invitation",
+  "team_member_invitation",
 ] as const;
 
 // Mismas claves que usa el envío real (ver `SYSTEM_EMAIL_VARIABLES` en

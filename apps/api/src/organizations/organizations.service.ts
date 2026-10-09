@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -22,6 +23,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { DoctorsService } from '../doctors/doctors.service';
 import { isEnterpriseDoctor } from '../doctors/doctor-account.util';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
+import { TeamInviteEmailService } from './team-invite-email.service';
 import { StorageService } from '../storage/storage.service';
 import type { AddTeamDoctorDto } from './dto/add-team-doctor.dto';
 import type { UpdateAlliedOrganizationDto } from './dto/update-allied-organization.dto';
@@ -47,12 +49,15 @@ function toCoord(value: Prisma.Decimal | number | null | undefined) {
 
 @Injectable()
 export class OrganizationsService {
+  private readonly logger = new Logger(OrganizationsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly doctors: DoctorsService,
     private readonly storage: StorageService,
     private readonly specialtyAccess: SpecialtyAccessService,
     private readonly config: ConfigService,
+    private readonly teamInviteEmail: TeamInviteEmailService,
   ) {}
 
   private async signDoc(key: string | null | undefined) {
@@ -488,6 +493,20 @@ export class OrganizationsService {
     }
 
     const member = user.organizationMembers[0];
+
+    // La invitación lleva la clave temporal, así que el dueño tiene que saber
+    // si salió: si no, cree que el miembro ya la recibió. El alta no se
+    // deshace por un correo — el usuario ya existe y el asiento ya se gastó.
+    const invitationEmailSent = await this.sendTeamInvite({
+      ownerUserId,
+      org,
+      firstName: dto.firstName.trim(),
+      lastName: dto.lastName.trim(),
+      email,
+      temporaryPassword: dto.password,
+      professionalRole: specialty,
+    });
+
     return {
       id: member.id.toString(),
       memberRole: member.memberRole,
@@ -497,7 +516,50 @@ export class OrganizationsService {
       specialty: user.doctor?.specialty ?? null,
       professionalKind: user.doctor?.professionalKind ?? null,
       permissions: parsePermissions(member.permissions),
+      invitationEmailSent,
     };
+  }
+
+  /** La plantilla que se usa es la del DUEÑO (es su equipo y su configuración
+   * de correos), no la del invitado, que acaba de nacer sin nada. */
+  private async sendTeamInvite(input: {
+    ownerUserId: string;
+    org: { id: bigint; name: string; ownerUserId: bigint; businessEmail: string | null };
+    firstName: string;
+    lastName: string;
+    email: string;
+    temporaryPassword: string;
+    professionalRole: string;
+  }): Promise<boolean> {
+    try {
+      const ownerDoctor = await this.doctors.requireDoctorByUserId(
+        input.ownerUserId,
+      );
+      let supportEmail = input.org.businessEmail?.trim();
+      if (!supportEmail) {
+        const owner = await this.prisma.user.findUnique({
+          where: { id: input.org.ownerUserId },
+          select: { email: true },
+        });
+        supportEmail = owner?.email ?? '';
+      }
+
+      return await this.teamInviteEmail.sendInvite({
+        ownerDoctorId: ownerDoctor.id,
+        organizationName: input.org.name,
+        supportEmail,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        email: input.email,
+        temporaryPassword: input.temporaryPassword,
+        professionalRole: input.professionalRole,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Miembro ${input.email} creado, pero falló la invitación: ${String(error)}`,
+      );
+      return false;
+    }
   }
 
   async updateMemberPermissions(
