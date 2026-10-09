@@ -47,8 +47,9 @@ type EditorTab = "edit" | "variables";
 type PreviewMode = "desktop" | "mobile";
 
 /** Los eventos del panel clínico que disparan un envío hoy (ver
- * report-email.service, appointment-email.service, patient-invite.service y
- * team-invite-email.service en la API) — el doctor elige cuál está
+ * report-email.service, appointment-email.service, patient-invite.service
+ * —que manda los dos del alta de paciente— y team-invite-email.service en la
+ * API) — el doctor elige cuál está
  * viendo/editando en vez de navegar una lista plana.
  *
  * El panel admin monta este mismo editor con los eventos de moderación
@@ -56,6 +57,7 @@ type PreviewMode = "desktop" | "mobile";
 const DOCTOR_EVENT_KIND_IDS = [
   "appointment_scheduled",
   "report_ready",
+  "patient_account_created",
   "patient_invitation",
   "team_member_invitation",
 ] as const;

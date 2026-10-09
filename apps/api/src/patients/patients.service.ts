@@ -20,6 +20,7 @@ import { combinePhoneDigits } from '../common/phone.util';
 import { AuthService } from '../auth/auth.service';
 import { DoctorsService } from '../doctors/doctors.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PatientInviteService } from './patient-invite.service';
 import { OrgContextService } from '../organizations/org-context.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -55,6 +56,7 @@ export class PatientsService {
     private readonly storage: StorageService,
     private readonly authService: AuthService,
     private readonly notifications: NotificationsService,
+    private readonly patientInvite: PatientInviteService,
   ) {}
 
   /** Perfil del paciente autenticado (por userId). No depende del role del JWT. */
@@ -203,12 +205,16 @@ export class PatientsService {
 
   async create(dto: CreatePatientDto, currentUser: JwtPayload) {
     let doctorId: bigint | undefined;
+    // El catálogo de plantillas es de la empresa, no del miembro: con el
+    // doctorId del miembro se perdía el texto que configuró el dueño.
+    let catalogDoctorId: bigint | null = null;
     if (isDoctorPanelRole(currentUser.role)) {
       const scope = await this.orgContext.assertTeamPermissionForUser(
         currentUser.sub,
         'patients',
       );
       doctorId = scope.doctorId;
+      catalogDoctorId = scope.catalogDoctorId;
     } else if (currentUser.role !== 'superadmin') {
       throw new ForbiddenException(
         'Solo doctores o administradores pueden crear pacientes',
@@ -286,7 +292,11 @@ export class PatientsService {
           });
         }
 
-        return user.patient!;
+        return this.withWelcomeEmail(user.patient!, {
+          doctorId,
+          catalogDoctorId,
+          temporaryPassword: password,
+        });
       } catch (err) {
         if (
           err instanceof Prisma.PrismaClientKnownRequestError &&
@@ -300,7 +310,7 @@ export class PatientsService {
       }
     }
 
-    return this.prisma.patient.create({
+    const patient = await this.prisma.patient.create({
       data: {
         ...rest,
         email: emailNorm ?? null,
@@ -310,6 +320,41 @@ export class PatientsService {
           : {}),
       },
     });
+    return this.withWelcomeEmail(patient, { doctorId, catalogDoctorId });
+  }
+
+  /** El correo de bienvenida del alta. Si no sale, el alta se mantiene y el
+   * panel lo avisa: el paciente ya existe. */
+  private async withWelcomeEmail<
+    T extends { email: string | null; firstName: string; lastName: string },
+  >(
+    patient: T,
+    ctx: {
+      doctorId?: bigint;
+      catalogDoctorId: bigint | null;
+      temporaryPassword?: string;
+    },
+  ): Promise<T & { welcomeEmailSent: boolean }> {
+    if (!patient.email) {
+      return { ...patient, welcomeEmailSent: false };
+    }
+
+    const doctor = ctx.doctorId
+      ? await this.prisma.doctor.findUnique({
+          where: { id: ctx.doctorId },
+          select: { user: { select: { name: true } } },
+        })
+      : null;
+
+    const welcomeEmailSent = await this.patientInvite.sendOnCreate({
+      catalogDoctorId: ctx.catalogDoctorId,
+      to: patient.email,
+      firstName: patient.firstName,
+      lastName: patient.lastName,
+      clinicName: doctor?.user.name?.trim() || 'Piel360',
+      temporaryPassword: ctx.temporaryPassword,
+    });
+    return { ...patient, welcomeEmailSent };
   }
 
   async update(id: string, dto: UpdatePatientDto, currentUser: JwtPayload) {

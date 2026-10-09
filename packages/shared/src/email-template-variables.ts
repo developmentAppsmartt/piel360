@@ -39,7 +39,7 @@ export const SYSTEM_EMAIL_VARIABLES: SystemEmailVariable[] = [
   // Invitación a un miembro del equipo.
   {
     key: "{clave_temporal}",
-    description: "Clave temporal del miembro invitado",
+    description: "Clave del acceso recién creado (miembro del equipo o paciente)",
     sampleValue: "Temp1234*",
   },
   {
@@ -73,6 +73,13 @@ export const SYSTEM_EMAIL_VARIABLES: SystemEmailVariable[] = [
   {
     key: "{url_plataforma}",
     description: "Link para ingresar a Piel360",
+    sampleValue: "#",
+  },
+  // Paciente: su acceso es solo por la app, así que no hay link de login que
+  // darle; esta página explica cómo entrar desde el móvil.
+  {
+    key: "{url_app}",
+    description: "Link a la página que explica cómo entrar desde la app",
     sampleValue: "#",
   },
 ];
