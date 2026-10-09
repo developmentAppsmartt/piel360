@@ -19,6 +19,8 @@ const SCRIM_COLORS = [
 
 const SCRIM_LOCATIONS = [0, 0.48, 1] as const;
 
+const NO_SCRIM: [string, string, string] = ['transparent', 'transparent', 'transparent'];
+
 const noPointer = { pointerEvents: 'none' as const };
 
 export function AuthBackground({ children }: AuthBackgroundProps) {
@@ -67,10 +69,12 @@ export function AuthBackground({ children }: AuthBackgroundProps) {
               style={[styles.heroFill, noPointer]}
               resizeMode="cover"
             />
-            <LinearGradient
-              colors={['rgba(14, 26, 56, 0.15)', 'rgba(0, 0, 0, 0.35)']}
-              style={[StyleSheet.absoluteFill, noPointer]}
-            />
+            {branding.loginOverlay ? (
+              <LinearGradient
+                colors={['rgba(14, 26, 56, 0.15)', 'rgba(0, 0, 0, 0.35)']}
+                style={[StyleSheet.absoluteFill, noPointer]}
+              />
+            ) : null}
           </View>
         </View>
       </View>
@@ -93,7 +97,7 @@ export function AuthBackground({ children }: AuthBackgroundProps) {
         resizeMode="cover"
       />
       <LinearGradient
-        colors={[...SCRIM_COLORS]}
+        colors={branding.loginOverlay ? [...SCRIM_COLORS] : NO_SCRIM}
         locations={[...SCRIM_LOCATIONS]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0.35 }}

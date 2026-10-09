@@ -709,15 +709,6 @@ export function DoctorHomeView({
                 />
               </Pressable>
             </View>
-            <Text style={styles.welcomeName} numberOfLines={1}>
-              {welcomeName}
-            </Text>
-            {!loading && pendingCount > 0 ? (
-              <Text style={styles.pendingHint}>
-                {pendingCount} análisis pendiente{pendingCount === 1 ? '' : 's'}{' '}
-                de confirmar
-              </Text>
-            ) : null}
           </View>
           {branding.companyLogoImage ? (
             <Image
@@ -726,6 +717,17 @@ export function DoctorHomeView({
               resizeMode="contain"
               accessibilityLabel="Logo de la empresa"
             />
+          ) : null}
+        </View>
+        <View style={styles.welcomeInfo}>
+          <Text style={styles.welcomeName} numberOfLines={1}>
+            {welcomeName}
+          </Text>
+          {!loading && pendingCount > 0 ? (
+            <Text style={styles.pendingHint}>
+              {pendingCount} análisis pendiente{pendingCount === 1 ? '' : 's'}{' '}
+              de confirmar
+            </Text>
           ) : null}
         </View>
 

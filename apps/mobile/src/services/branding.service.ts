@@ -31,6 +31,7 @@ export type RemoteBranding = {
   };
   loginBackgroundUrl: string | null;
   loginLogoUrl: string | null;
+  loginOverlay?: boolean;
 };
 
 /**
@@ -138,6 +139,7 @@ export function toAppBranding(remote: RemoteBranding | null): AppBranding {
       ? { uri: remote.loginLogoUrl }
       : DEFAULT_BRANDING.loginLogoImage,
     companyLogoImage: remote.loginLogoUrl ? { uri: remote.loginLogoUrl } : null,
+    loginOverlay: remote.loginOverlay ?? true,
   };
 }
 

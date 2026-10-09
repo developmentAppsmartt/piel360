@@ -97,6 +97,8 @@ model AccountBranding {
   /** Keys S3; `null` = imagen por defecto del sistema. */
   loginBackgroundKey String?  @map("login_background_key")
   loginLogoKey       String?  @map("login_logo_key")
+  /// Degradado oscuro del login sobre la imagen de fondo.
+  loginOverlay       Boolean  @default(true) @map("login_overlay")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 

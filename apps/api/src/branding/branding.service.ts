@@ -119,7 +119,8 @@ export class BrandingService {
     dto: UpdateBrandingDto,
   ): Promise<AccountBranding> {
     await this.assertCanManage(user);
-    const data: Partial<Record<string, string | null>> = {};
+    const data: Partial<Record<string, string | boolean | null>> = {};
+    if (dto.loginOverlay !== undefined) data.loginOverlay = dto.loginOverlay;
     for (const [key, column] of Object.entries(COLOR_COLUMNS) as [
       BrandingColorKey,
       string,
@@ -282,6 +283,7 @@ export class BrandingService {
       },
       loginBackgroundUrl: await this.signOrNull(row.loginBackgroundKey),
       loginLogoUrl: await this.signOrNull(row.loginLogoKey),
+      loginOverlay: row.loginOverlay,
     };
   }
 
