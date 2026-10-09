@@ -17,7 +17,9 @@ export function LoginPageShell({
   accountPrompt,
 }: {
   title: string;
-  description: string;
+  /** Opcional: en Recuperar contraseña el texto deja de aplicar cuando ya se
+   * está escribiendo la nueva clave. */
+  description?: ReactNode;
   icon: LucideIcon;
   children: ReactNode;
   footer?: ReactNode;
@@ -59,7 +61,9 @@ export function LoginPageShell({
               </div>
             </div>
             <h1 className="mt-4 text-[1.65rem] font-bold tracking-tight text-[#0f3d73]">{title}</h1>
-            <p className="mt-2 max-w-[320px] text-sm leading-relaxed text-slate-500">{description}</p>
+            {description ? (
+              <p className="mt-2 max-w-[320px] text-sm leading-relaxed text-slate-500">{description}</p>
+            ) : null}
           </div>
 
           <div className="mt-6">{children}</div>
