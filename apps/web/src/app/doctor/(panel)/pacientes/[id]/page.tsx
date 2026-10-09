@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ModuleCard } from "@/components/ui/module-card";
@@ -19,6 +19,8 @@ import {
 export default function PacienteDetallePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  // Lo pone la pantalla de alta: ahí no se podía avisar porque redirige aquí.
+  const correoFallido = useSearchParams().get("correo") === "fallo";
   const patient = usePatient(id);
   const analyses = usePatientAnalyses(id);
   const doctorProfile = useMyDoctorProfile();
@@ -50,6 +52,13 @@ export default function PacienteDetallePage() {
 
   return (
     <PatientProfileShell patient={p} panel="doctor">
+      {correoFallido ? (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          El paciente quedó creado, pero no se pudo enviar el correo de
+          bienvenida. Avísale por otro medio
+          {p.userId ? " y pásale su clave de acceso" : ""}.
+        </p>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"

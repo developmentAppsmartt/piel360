@@ -6,6 +6,7 @@ export const EMAIL_TEMPLATE_KIND_LABELS: Record<string, string> = {
   report_ready: 'Obtener informe',
   appointment_scheduled: 'Cita agendada',
   patient_invitation: 'Invitación de paciente',
+  patient_account_created: 'Paciente creado con cuenta',
   team_member_invitation: 'Invitación a miembro del equipo',
   doctor_verification_approved: 'Registro aprobado',
   doctor_verification_changes_requested: 'Registro — ajustes solicitados',
@@ -19,7 +20,7 @@ export interface EmailTemplateDefault {
 }
 
 /**
- * Contenido por defecto de los 7 eventos que sí disparan un envío real hoy
+ * Contenido por defecto de los 8 eventos que sí disparan un envío real hoy
  * (ver ReportEmailService/AppointmentEmailService/PatientInviteService/
  * TeamInviteEmailService/VerificationEmailService) — una sola fuente de verdad para que el backend (al
  * enviar, si el doctor no configuró nada) y el frontend
@@ -122,11 +123,28 @@ export const EMAIL_TEMPLATE_DEFAULTS: Record<string, EmailTemplateDefault> = {
 <p style="margin:0 0 14px;">Desde la plataforma puedes gestionar tus pacientes, hacer análisis de piel y seguir sus resultados.</p>
 <p style="margin:0;">¡Bienvenido a PIEL360! Si tienes dudas, escribe a <strong>{correo_soporte}</strong>.</p>`,
   },
+  // Alta de un paciente: con cuenta creada por el profesional, o sin ella.
+  patient_account_created: {
+    subject: 'Tu cuenta en Piel360 ya está creada',
+    bodyHtml: `<p style="margin:0 0 14px;">Hola, <strong>{nombre} {apellido}</strong>:</p>
+<p style="margin:0 0 14px;"><strong>{clinic_name}</strong> te creó una cuenta en PIEL360 para hacer seguimiento a la salud de tu piel.</p>
+<p style="margin:0 0 8px;font-weight:bold;">Tus datos de acceso</p>
+<p style="margin:0 0 14px;">Correo electrónico: <strong>{email}</strong><br />Clave: <strong>{clave_temporal}</strong></p>
+<p style="margin:0 0 20px;">Por seguridad, cámbiala en cuanto entres.</p>
+<p style="margin:0 0 14px;">PIEL360 se usa desde la aplicación móvil: descárgala, entra con esos datos y ahí verás tus análisis, tu historial y tus citas.</p>
+<p style="text-align:center;margin:24px 0;">
+  <a href="{url_app}" style="display:inline-block;background:#1e5a9e;color:#ffffff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;">Cómo entrar a la app</a>
+</p>
+<p style="margin:0;">Si no esperabas este correo, respóndele a <strong>{clinic_name}</strong>.</p>`,
+  },
   patient_invitation: {
     subject: 'Te invitamos a Piel360',
-    bodyHtml: `<p>Hola {nombre},</p>
-<p>{clinic_name} te invitó a usar Piel360 para dar seguimiento a la salud de tu piel.</p>
-<p>Descarga la app y regístrate con este correo (<strong>{email}</strong>) para empezar.</p>
-<p>— {clinic_name}</p>`,
+    bodyHtml: `<p style="margin:0 0 14px;">Hola, <strong>{nombre} {apellido}</strong>:</p>
+<p style="margin:0 0 14px;"><strong>{clinic_name}</strong> te invitó a usar PIEL360 para dar seguimiento a la salud de tu piel.</p>
+<p style="margin:0 0 14px;">PIEL360 se usa desde la aplicación móvil: descárgala y regístrate con este correo (<strong>{email}</strong>) para empezar.</p>
+<p style="text-align:center;margin:24px 0;">
+  <a href="{url_app}" style="display:inline-block;background:#1e5a9e;color:#ffffff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;">Cómo entrar a la app</a>
+</p>
+<p style="margin:0;">— {clinic_name}</p>`,
   },
 };

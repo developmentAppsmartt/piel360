@@ -30,7 +30,13 @@ export default function NuevoPacientePage() {
         onCancel={() => router.push("/doctor/pacientes")}
         onSubmit={async (input) => {
           const patient = await createPatient.mutateAsync(input);
-          router.push(`/doctor/pacientes/${patient.id}`);
+          // Esta pantalla desaparece al redirigir, así que el aviso de que el
+          // correo no salió viaja en la URL y lo pinta el detalle.
+          router.push(
+            `/doctor/pacientes/${patient.id}${
+              patient.welcomeEmailSent === false ? "?correo=fallo" : ""
+            }`,
+          );
         }}
       />
     </div>

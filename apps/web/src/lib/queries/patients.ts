@@ -9,6 +9,9 @@ import type { YouCamAnalysisError } from "@/lib/queries/analyses";
 // backend serializa BigInt a string (apps/api/src/common/bigint-json.polyfill.ts).
 export interface Patient {
   id: string;
+  /** Solo en la respuesta de POST /patients: si el correo de bienvenida salió
+   * (ver PatientInviteService en la API). */
+  welcomeEmailSent?: boolean;
   /** null = sin cuenta vinculada todavía (paciente creado por el doctor sin
    * login, o no registrado aún) — determina si el botón "Invitar" aplica. */
   userId?: string | null;
