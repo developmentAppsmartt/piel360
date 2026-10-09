@@ -40,6 +40,9 @@ export interface Doctor {
   verificationStatus: string;
   verificationNote?: string | null;
   verificationNoteAt?: string | null;
+  /** Solo en la respuesta de PATCH …/verification: si el correo con la
+   * decisión llegó a salir (ver VerificationEmailService en la API). */
+  verificationEmailSent?: boolean;
   membershipType?: string | null;
   empresa?: boolean;
   empresaReferida?: boolean;

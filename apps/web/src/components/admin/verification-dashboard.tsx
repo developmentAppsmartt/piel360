@@ -273,7 +273,9 @@ function DetailPanel({
 }: {
   doctorId: string;
   onClose: () => void;
-  onDone: () => void;
+  /** Al decidir, la lista se refresca y este panel se remonta con otro
+   * profesional: por eso el aviso del correo lo pinta el tablero y no aquí. */
+  onDone: (result: { emailSent: boolean }) => void;
 }) {
   const doctor = useDoctor(doctorId);
   const verify = useUpdateDoctorVerification(doctorId);
@@ -383,11 +385,16 @@ function DetailPanel({
       setError("Escribe una observación para solicitar ajustes.");
       return;
     }
+    if (status === "rejected" && !note.trim()) {
+      setError("Escribe el motivo del rechazo: se le envía al profesional.");
+      return;
+    }
     try {
-      await verify.mutateAsync({
+      const updated = await verify.mutateAsync({
         status,
         note: note.trim() || undefined,
       });
+
       setMessage(
         status === "active"
           ? isEnt
@@ -400,7 +407,7 @@ function DetailPanel({
               : "Se solicitaron ajustes. El usuario verá la observación en su perfil.",
       );
       setNote("");
-      onDone();
+      onDone({ emailSent: updated.verificationEmailSent !== false });
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -862,7 +869,7 @@ function DetailPanel({
         {canDecide ? (
           <section>
             <h3 className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              Observaciones {rejected ? "(recomendadas)" : "(opcional)"}
+              Observaciones
             </h3>
             <textarea
               value={note}
@@ -879,7 +886,7 @@ function DetailPanel({
               className="min-h-24 w-full resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
             />
             <p className="mt-1 text-right text-xs text-muted-foreground">
-              {note.length}/500 · Obligatoria al solicitar ajustes
+              {note.length}/500 · Obligatoria al rechazar o solicitar ajustes
             </p>
           </section>
         ) : null}
@@ -904,7 +911,7 @@ function DetailPanel({
               type="button"
               variant="outline"
               className="border-destructive/40 text-destructive hover:bg-destructive/10"
-              disabled={verify.isPending}
+              disabled={verify.isPending || !note.trim()}
               onClick={() => void decide("rejected")}
             >
               Rechazar
@@ -953,6 +960,7 @@ export function VerificationDashboard({
   const selectedDoctorQuery = useDoctor(selectedId ?? "");
   const [search, setSearch] = useState("");
   const [specialtyFilter, setSpecialtyFilter] = useState("all");
+  const [emailWarning, setEmailWarning] = useState<string | null>(null);
 
   const doctors = list.data ?? [];
 
@@ -1026,6 +1034,12 @@ export function VerificationDashboard({
           </p>
         </div>
       </div>
+
+      {emailWarning ? (
+        <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {emailWarning}
+        </p>
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {(
@@ -1251,8 +1265,13 @@ export function VerificationDashboard({
           <DetailPanel
             doctorId={selectedId}
             onClose={() => setSelectedId(null)}
-            onDone={() => {
+            onDone={({ emailSent }) => {
               // Mantener panel abierto; la lista se refresca sola.
+              setEmailWarning(
+                emailSent
+                  ? null
+                  : "La decisión quedó guardada, pero no se pudo enviar el correo al profesional. Avísale por otro medio.",
+              );
             }}
           />
         ) : null}

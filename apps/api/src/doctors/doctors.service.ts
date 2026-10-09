@@ -7,12 +7,15 @@ import {
 import { toPublicProviderSlugs } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
-import { MailService } from '../mail/mail.service';
 import type { UpdateDoctorDto } from './dto/update-doctor.dto';
 import type { UpdateDoctorAddressVerificationDto } from './dto/update-doctor-address-verification.dto';
 import { AuthService } from '../auth/auth.service';
 import { assertDocumentNumberAvailable } from '../common/document-number.util';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
+import {
+  VerificationEmailService,
+  type VerificationDecision,
+} from './verification-email.service';
 
 const DOC_MIME = new Set([
   'application/pdf',
@@ -26,9 +29,9 @@ export class DoctorsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
-    private readonly mail: MailService,
     private readonly specialtyAccess: SpecialtyAccessService,
     private readonly authService: AuthService,
+    private readonly verificationEmail: VerificationEmailService,
   ) {}
 
   /** Resuelve el `Doctor.id` a partir del `sub` (User.id) del JWT — usado
@@ -185,9 +188,13 @@ export class DoctorsService {
     }
     const trimmed = note?.trim() || null;
 
-    if (status === 'in_review' && !trimmed) {
+    // También al rechazar: el correo lleva el motivo, y uno vacío deja al
+    // profesional sin saber qué corregir.
+    if ((status === 'in_review' || status === 'rejected') && !trimmed) {
       throw new BadRequestException(
-        'Incluye una observación para que el profesional sepa qué corregir.',
+        status === 'rejected'
+          ? 'Incluye el motivo del rechazo: se le envía al profesional.'
+          : 'Incluye una observación para que el profesional sepa qué corregir.',
       );
     }
 
@@ -252,43 +259,32 @@ export class DoctorsService {
       });
     }
 
-    if (
-      (status === 'in_review' || status === 'rejected') &&
-      trimmed &&
-      doctor.user?.email
-    ) {
-      const subject =
-        status === 'in_review'
-          ? 'Piel360 — Se solicitaron ajustes a tu cuenta'
-          : 'Piel360 — Tu solicitud de verificación fue rechazada';
-      const heading =
-        status === 'in_review'
-          ? 'Necesitamos que revises tu perfil'
-          : 'Tu solicitud fue rechazada';
-      const cta =
-        status === 'in_review'
-          ? 'Entra a tu perfil en Piel360, corrige lo indicado y guarda los cambios para que el equipo vuelva a revisar.'
-          : 'Puedes corregir tu información y contactar soporte si consideras que hubo un error.';
+    // Aprobar tampoco avisaba: el profesional quedaba habilitado sin enterarse.
+    const decision: VerificationDecision | null = approved
+      ? 'approved'
+      : status === 'rejected'
+        ? 'rejected'
+        : status === 'in_review'
+          ? 'in_review'
+          : null;
 
-      void this.mail
-        .send({
-          to: doctor.user.email,
-          subject,
-          html: `
-            <p>Hola ${doctor.firstName || doctor.user.name || ''},</p>
-            <p><strong>${heading}</strong></p>
-            <p>Observación del equipo de verificación:</p>
-            <blockquote style="border-left:3px solid #1e5a9e;padding-left:12px;color:#334155;">
-              ${trimmed.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
-            </blockquote>
-            <p>${cta}</p>
-            <p>— Equipo Piel360</p>
-          `,
-        })
-        .catch(() => undefined);
-    }
+    const verificationEmailSent =
+      decision && doctor.user?.email
+        ? await this.verificationEmail.send({
+            decision,
+            to: doctor.user.email,
+            firstName: doctor.firstName || doctor.user.name || '',
+            lastName: doctor.lastName ?? '',
+            professionalRole: doctor.specialty?.trim() || 'Profesional',
+            clinicName: await this.organizationNameForEmail(doctor),
+            note: trimmed ?? '',
+          })
+        : false;
 
-    return this.withVerificationPayload(doctor);
+    return {
+      ...(await this.withVerificationPayload(doctor)),
+      verificationEmailSent,
+    };
   }
 
   async updateAddressVerification(
@@ -692,6 +688,28 @@ export class DoctorsService {
       doctor.empresa ||
       doctor.empresaReferida
     );
+  }
+
+  /** Solo el nombre: `loadOrganizationForUser` firma los tres documentos en
+   * S3, y para un correo eso es pagar tres llamadas por nada. */
+  private async organizationNameForEmail(doctor: {
+    userId: bigint;
+    membershipType: string;
+    empresa: boolean;
+    empresaReferida: boolean;
+  }): Promise<string> {
+    if (!this.isEnterpriseDoctor(doctor)) return 'Piel360';
+    const org = await this.prisma.organization.findFirst({
+      where: {
+        OR: [
+          { ownerUserId: doctor.userId },
+          { members: { some: { userId: doctor.userId } } },
+        ],
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { name: true },
+    });
+    return org?.name?.trim() || 'Piel360';
   }
 
   private async loadOrganizationForUser(userId: bigint) {

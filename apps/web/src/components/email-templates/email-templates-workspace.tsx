@@ -46,11 +46,14 @@ const EMPTY_BODY_HTML = `<p style="margin:0 0 12px;font-size:16px;">Hola {nombre
 type EditorTab = "edit" | "variables";
 type PreviewMode = "desktop" | "mobile";
 
-/** Los 4 eventos reales que disparan un envío hoy (ver report-email.service,
- * appointment-email.service, patient-invite.service y team-invite-email.service
- * en la API) — el doctor elige cuál está viendo/editando en vez de navegar una
- * lista plana. */
-const EVENT_KIND_IDS = [
+/** Los eventos del panel clínico que disparan un envío hoy (ver
+ * report-email.service, appointment-email.service, patient-invite.service y
+ * team-invite-email.service en la API) — el doctor elige cuál está
+ * viendo/editando en vez de navegar una lista plana.
+ *
+ * El panel admin monta este mismo editor con los eventos de moderación
+ * (`apps/web/src/app/admin/(panel)/plantillas-correo`). */
+const DOCTOR_EVENT_KIND_IDS = [
   "appointment_scheduled",
   "report_ready",
   "patient_invitation",
@@ -320,7 +323,11 @@ function VariableManager({
   );
 }
 
-export function EmailTemplatesWorkspace() {
+export function EmailTemplatesWorkspace({
+  eventKinds = DOCTOR_EVENT_KIND_IDS,
+}: {
+  eventKinds?: readonly string[];
+} = {}) {
   const { data: templates, isLoading } = useEmailTemplates();
   const { data: meta } = useEmailTemplateMeta();
   const createMutation = useCreateEmailTemplate();
@@ -328,7 +335,7 @@ export function EmailTemplatesWorkspace() {
   const deleteMutation = useDeleteEmailTemplate();
 
   const [mode, setMode] = useState<"event" | "custom">("event");
-  const [activeKind, setActiveKind] = useState<string>(EVENT_KIND_IDS[0]);
+  const [activeKind, setActiveKind] = useState<string>(eventKinds[0]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<EditorTab>("edit");
   const [previewMode, setPreviewMode] = useState<PreviewMode>("desktop");
@@ -682,7 +689,7 @@ export function EmailTemplatesWorkspace() {
           Eventos que envían correo automáticamente
         </p>
         <div className="flex flex-wrap gap-2">
-          {EVENT_KIND_IDS.map((kindId) => {
+          {eventKinds.map((kindId) => {
             const label = meta?.kinds.find((k) => k.id === kindId)?.label ?? kindId;
             const active = mode === "event" && activeKind === kindId;
             return (
@@ -729,7 +736,7 @@ export function EmailTemplatesWorkspace() {
         </p>
         {(() => {
           const customTemplates = (templates ?? []).filter(
-            (tpl) => !(EVENT_KIND_IDS as readonly string[]).includes(tpl.kind),
+            (tpl) => !eventKinds.includes(tpl.kind),
           );
           return isLoading ? (
           <p className="text-sm text-muted-foreground">Cargando…</p>
