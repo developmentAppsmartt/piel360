@@ -1,6 +1,7 @@
 "use client";
 
 import Script from "next/script";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -40,17 +41,22 @@ export function WompiCheckoutButton({
   label = "Suscribirse",
   className,
   style,
+  successHref,
 }: {
   planId: string;
   label?: string;
   className?: string;
   style?: React.CSSProperties;
+  /** A dónde llevar al usuario cuando el pago queda confirmado. Sin esto se
+   * queda en la pantalla de planes, que es lo que necesita el paciente. */
+  successHref?: string;
 }) {
   const [sdkReady, setSdkReady] = useState(false);
   const [activeSubscriptionId, setActiveSubscriptionId] = useState<string | null>(null);
   const [attempts, setAttempts] = useState(0);
   const checkout = useCreateWompiCheckout();
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const polling = useQuery({
     queryKey: ["wompi-poll", activeSubscriptionId],
@@ -80,10 +86,15 @@ export function WompiCheckoutButton({
   // refresca el resto de la página (plan picker, resumen) una vez el polling
   // confirma la activación real.
   useEffect(() => {
-    if (resolved) {
-      queryClient.invalidateQueries({ queryKey: ["me", "subscriptions"] });
+    if (!resolved) return;
+    queryClient.invalidateQueries({ queryKey: ["me", "subscriptions"] });
+    // Solo cuando el pago salió bien: un rechazo deja la suscripción en
+    // "cancelled" (ver activateFromWompi), y sacar al usuario de la pantalla
+    // le escondería que no se cobró.
+    if (successHref && matched?.status === "active") {
+      router.push(successHref);
     }
-  }, [resolved, queryClient]);
+  }, [resolved, matched?.status, successHref, queryClient, router]);
 
   async function handleClick() {
     if (!sdkReady || !window.WidgetCheckout) return;
