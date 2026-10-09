@@ -415,7 +415,10 @@ export function MainTabNavigator() {
         <View
           style={[
             styles.tabBar,
-            { paddingBottom: Math.max(insets.bottom, 10) },
+            {
+              paddingBottom: Math.max(insets.bottom, 10),
+              backgroundColor: branding.colors.menuBackground,
+            },
           ]}
         >
           {tabs.map((tab) => {

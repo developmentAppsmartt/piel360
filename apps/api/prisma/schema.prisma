@@ -79,6 +79,7 @@ model AccountBranding {
   /** Se usa en la URL pública que lee el login móvil antes de iniciar sesión. */
   publicId           String   @unique @default(uuid()) @map("public_id")
   backgroundColor    String?  @map("background_color")
+  menuBackgroundColor String? @map("menu_background_color")
   primaryColor       String?  @map("primary_color")
   primaryTextColor   String?  @map("primary_text_color")
   secondaryTextColor String?  @map("secondary_text_color")

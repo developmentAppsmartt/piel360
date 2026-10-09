@@ -90,6 +90,8 @@ export const BRANDING_PALETTES: readonly BrandingPalette[] = [
 export type BrandingColors = {
   /** Fondo de las vistas de la app. */
   background: string;
+  /** Fondo del menú inferior de módulos (Inicio, Pacientes, Agenda…). */
+  menuBackground: string;
   /** Header, fondos y acentos que hoy usan el azul del sistema en mobile. */
   primary: string;
   /** Títulos y valores destacados. */
@@ -124,6 +126,7 @@ export type BrandingColorKey = keyof BrandingColors;
 
 export const DEFAULT_BRANDING_COLORS: BrandingColors = {
   background: "#F5F6FA",
+  menuBackground: "#FFFFFF",
   primary: "#1E5A9E",
   primaryText: "#1E5A9E",
   secondaryText: "#1A1A1A",
@@ -176,7 +179,12 @@ export function isAllowedBrandingColor(
   key?: BrandingColorKey,
 ): boolean {
   const value = hex.trim().toUpperCase();
-  if (key === "background" && ALLOWED_BACKGROUND.has(value)) return true;
+  if (
+    (key === "background" || key === "menuBackground") &&
+    ALLOWED_BACKGROUND.has(value)
+  ) {
+    return true;
+  }
   return (
     ALLOWED.has(value) ||
     (key !== undefined && TEXT_KEYS.includes(key) && ALLOWED_TEXT.has(value))

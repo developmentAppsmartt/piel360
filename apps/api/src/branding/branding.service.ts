@@ -51,6 +51,7 @@ const COLOR_COLUMNS: Record<
     | 'gradientTextColor'
     | 'linkColor'
     | 'loginTextColor'
+    | 'menuBackgroundColor'
   >
 > = {
   background: 'backgroundColor',
@@ -69,6 +70,7 @@ const COLOR_COLUMNS: Record<
   gradientText: 'gradientTextColor',
   link: 'linkColor',
   loginText: 'loginTextColor',
+  menuBackground: 'menuBackgroundColor',
 };
 
 export type BrandingImageKind = 'login-background' | 'login-logo';
@@ -280,6 +282,8 @@ export class BrandingService {
           row.gradientTextColor ?? DEFAULT_BRANDING_COLORS.gradientText,
         link: row.linkColor ?? DEFAULT_BRANDING_COLORS.link,
         loginText: row.loginTextColor ?? DEFAULT_BRANDING_COLORS.loginText,
+        menuBackground:
+          row.menuBackgroundColor ?? DEFAULT_BRANDING_COLORS.menuBackground,
       },
       loginBackgroundUrl: await this.signOrNull(row.loginBackgroundKey),
       loginLogoUrl: await this.signOrNull(row.loginLogoKey),
