@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Eye, EyeOff } from "lucide-react";
 import { isStrongPassword, PASSWORD_STRENGTH_MESSAGE } from "@piel360/shared";
 import { Field, inputClass } from "@/components/auth/auth-form-primitives";
 import { PasswordRequirements } from "@/components/ui/password-requirements";
@@ -12,19 +12,47 @@ import {
   verifyPasswordResetOtpAction,
 } from "@/lib/actions/forgot-password";
 
-type Step = "email" | "otp" | "password" | "done";
+export type ForgotPasswordStep = "email" | "otp" | "password" | "done";
 
 const buttonClass =
   "inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#5b4fd4] via-[#1e5a9e] to-[#3b82c4] text-sm font-semibold text-white shadow-md transition-opacity hover:opacity-95 disabled:opacity-60";
 
-export function ForgotPasswordForm() {
-  const [step, setStep] = useState<Step>("email");
+/** El paso lo controla la página: la descripción de la maqueta ("te enviaremos
+ * un código") ya no aplica cuando se está escribiendo la nueva contraseña. */
+function PasswordVisibilityToggle({
+  visible,
+  onToggle,
+}: {
+  visible: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="absolute top-0 right-3 flex h-11 items-center text-slate-400 hover:text-slate-600"
+      aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+    >
+      {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+    </button>
+  );
+}
+
+export function ForgotPasswordForm({
+  step,
+  onStepChange: setStep,
+}: {
+  step: ForgotPasswordStep;
+  onStepChange: (step: ForgotPasswordStep) => void;
+}) {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [resetToken, setResetToken] = useState("");
   const [password, setPassword] = useState("");
   const [passwordFocused, setPasswordFocused] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
 
@@ -101,8 +129,8 @@ export function ForgotPasswordForm() {
         <Field label="Nueva contraseña" required>
           <div className="relative">
             <input
-              type="password"
-              className={inputClass}
+              type={showPassword ? "text" : "password"}
+              className={`${inputClass} pr-11`}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onFocus={() => setPasswordFocused(true)}
@@ -111,21 +139,31 @@ export function ForgotPasswordForm() {
               autoComplete="new-password"
               placeholder="Crea una contraseña segura"
             />
+            <PasswordVisibilityToggle
+              visible={showPassword}
+              onToggle={() => setShowPassword((value) => !value)}
+            />
             {passwordFocused && password ? (
               <PasswordRequirements password={password} />
             ) : null}
           </div>
         </Field>
         <Field label="Confirmar contraseña" required>
-          <input
-            type="password"
-            className={inputClass}
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            minLength={8}
-            autoComplete="new-password"
-            placeholder="Repite la contraseña"
-          />
+          <div className="relative">
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              className={`${inputClass} pr-11`}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              minLength={8}
+              autoComplete="new-password"
+              placeholder="Repite la contraseña"
+            />
+            <PasswordVisibilityToggle
+              visible={showConfirmPassword}
+              onToggle={() => setShowConfirmPassword((value) => !value)}
+            />
+          </div>
         </Field>
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
         <button

@@ -124,8 +124,8 @@ export function SkiniverReportView({
           No. de diagnósticos por clase por mes
         </ModuleCardTitle>
         <ModuleCardDescription>
-          Las clases son los grupos de patología; cada uno reúne varias
-          condiciones del catálogo de diagnósticos de la IA.
+          Las clases son los grupos de patología: cada una reúne las categorías
+          de diagnóstico que devuelve la IA.
         </ModuleCardDescription>
         <div className="mt-4">
           <MultiSeriesTrendChart points={report.byClass} series={CLASS_SERIES} />

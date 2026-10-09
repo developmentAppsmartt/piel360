@@ -32,7 +32,10 @@ export class MailService {
 
   constructor(private readonly config: ConfigService) {}
 
-  async send({ to, subject, html }: SendMailInput): Promise<void> {
+  /** `false` = no salió (sin API key o Brevo rechazó). Lo necesita quien tiene
+   * que avisar al usuario, como la invitación a un miembro del equipo, que
+   * lleva la clave temporal: si no llega, el dueño tiene que pasarla a mano. */
+  async send({ to, subject, html }: SendMailInput): Promise<boolean> {
     const apiKey = this.config.get<string>('BREVO_API_KEY');
     const from = parseFromAddress(
       this.config.get<string>('MAIL_FROM') ?? 'Piel360 <no-reply@piel360.com>',
@@ -42,7 +45,7 @@ export class MailService {
       this.logger.warn(
         `BREVO_API_KEY no configurado — email a ${to} no enviado (asunto: ${subject})`,
       );
-      return;
+      return false;
     }
 
     const frontendUrl = this.config.getOrThrow<string>('FRONTEND_URL');
@@ -66,6 +69,9 @@ export class MailService {
     if (!response.ok) {
       const body = await response.text();
       this.logger.error(`Brevo respondió ${response.status}: ${body}`);
+      return false;
     }
+
+    return true;
   }
 }

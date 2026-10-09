@@ -162,6 +162,11 @@ export function DoctorEquipoView() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
 
+  // `invitationEmailSent` llega en false cuando el correo con la clave
+  // temporal no salió (ver OrganizationsService.addDoctor): el miembro existe
+  // igual, pero el dueño tiene que pasarle los datos a mano.
+  const [inviteWarning, setInviteWarning] = useState<string | null>(null);
+
   const addMutation = useMutation({
     mutationFn: (input: {
       firstName: string;
@@ -172,13 +177,18 @@ export function DoctorEquipoView() {
       professionalKind?: "specialty" | "labor";
       permissions?: TeamMemberPermission[];
     }) =>
-      apiClientFetch<OrgMember>("/organizations/me/members", {
-        method: "POST",
-        body: JSON.stringify(input),
-      }),
-    onSuccess: () => {
+      apiClientFetch<OrgMember & { invitationEmailSent?: boolean }>(
+        "/organizations/me/members",
+        { method: "POST", body: JSON.stringify(input) },
+      ),
+    onSuccess: (created) => {
       void qc.invalidateQueries({ queryKey: ["organizations", "me"] });
       setPanel("closed");
+      setInviteWarning(
+        created.invitationEmailSent === false
+          ? `${created.email} quedó creado, pero no se pudo enviar el correo de invitación. Pásale tú la clave temporal que acabas de definir y el enlace para entrar.`
+          : null,
+      );
     },
   });
 
@@ -297,6 +307,7 @@ export function DoctorEquipoView() {
 
   function openAddPanel() {
     setEditingMember(null);
+    setInviteWarning(null);
     setPanel("add");
   }
 
@@ -328,6 +339,11 @@ export function DoctorEquipoView() {
             {pending ? (
               <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                 Tu membresía está pendiente de activación.
+              </p>
+            ) : null}
+            {inviteWarning ? (
+              <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                {inviteWarning}
               </p>
             ) : null}
           </div>

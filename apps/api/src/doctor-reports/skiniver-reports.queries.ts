@@ -50,6 +50,23 @@ function baseJoin(
  * packages/shared/src/skiniver-diagnosis-taxonomy.ts. */
 const NO_PATHOLOGY = 'Piel Sin Patología';
 
+/**
+ * El universo de los reportes de "qué se encontró": un análisis con
+ * diagnóstico de patología. Está en un solo sitio porque las tres queries que
+ * lo usan (mensual, top y categoría) tienen que contar exactamente las mismas
+ * filas: cuando cada una filtraba a su manera, el total salía de un universo y
+ * los porcentajes de otro, y pasaban del 100%.
+ *
+ * No se filtra por `desease`: un análisis con enfermedad y sin categoría sigue
+ * siendo un hallazgo, y el donut lo muestra como "Sin categoría".
+ */
+function pathologyFilter(): Prisma.Sql {
+  return Prisma.sql`
+      AND a.ai_diagnosis IS NOT NULL
+      AND a.ai_diagnosis <> ${NO_PATHOLOGY}
+  `;
+}
+
 /** Rangos de SKINIVER_AGE_BUCKETS, calculados a la fecha del análisis:
  * `Analysis.chronologicalAgeYears` solo se llena para YouCam. */
 function ageBucketCase(): Prisma.Sql {
@@ -69,14 +86,18 @@ function ageBucketCase(): Prisma.Sql {
 export interface SkiniverDiagnosisRow {
   period: string;
   ai_diagnosis: string | null;
-  /** `desease` de la IA: respaldo de la clase cuando el nombre no se reconoce. */
+  /** `desease` de la IA: de aquí sale la clase. */
   category: string | null;
+  /** Id del clasificador (`2A_acne_vulgaris`): la identidad del diagnóstico,
+   * que no cambia con el idioma del nombre visible. */
+  class_raw: string | null;
   count: number;
 }
 
 /**
- * Diagnóstico crudo (`ai_diagnosis`, top-1 de Skiniver) por mes. Alimenta dos
- * gráficos: el de clases (agrupado con classifyDiagnosisClass, en
+ * Diagnóstico crudo (`ai_diagnosis`, top-1 de Skiniver) por mes, con su
+ * categoría y su id de clasificador. Alimenta dos gráficos: el de clases
+ * (agrupado con classifyDiagnosisClass, en
  * packages/shared/src/skiniver-diagnosis-taxonomy.ts) y el de condiciones
  * concretas (Top 8, armado en skiniver-report.service.ts). Ambos se resuelven
  * en TS y no en SQL, para no duplicar esas tablas de mapeo en dos lenguajes.
@@ -91,10 +112,11 @@ export function skiniverMonthlyDiagnosesQuery(
       to_char(date_trunc('month', a.created_at), 'YYYY-MM') AS period,
       a.ai_diagnosis                                        AS ai_diagnosis,
       a.ai_raw_response->>'desease'                         AS category,
+      a.ai_raw_response->>'class_raw'                       AS class_raw,
       COUNT(*)::int                                         AS count
     ${baseJoin(doctorIds, from, toExclusive)}
-      AND a.ai_diagnosis IS NOT NULL
-    GROUP BY 1, 2, 3
+      ${pathologyFilter()}
+    GROUP BY 1, 2, 3, 4
   `;
 }
 
@@ -149,9 +171,7 @@ export function skiniverCategoryQuery(
       a.ai_raw_response->>'desease' AS category,
       COUNT(*)::int                 AS count
     ${baseJoin(doctorIds, from, toExclusive)}
-      AND a.ai_raw_response->>'desease' IS NOT NULL
-      AND a.ai_raw_response->>'desease' <> ${NO_PATHOLOGY}
-      AND COALESCE(a.ai_diagnosis, '') <> ${NO_PATHOLOGY}
+      ${pathologyFilter()}
     GROUP BY 1
     ORDER BY 2 DESC
   `;
@@ -160,6 +180,7 @@ export function skiniverCategoryQuery(
 export interface SkiniverTopDiagnosisRow {
   diagnosis: string;
   icd_code: string | null;
+  class_raw: string | null;
   count: number;
 }
 
@@ -176,12 +197,12 @@ export function skiniverTopDiagnosesQuery(
     SELECT
       a.ai_diagnosis                              AS diagnosis,
       MAX(a.ai_raw_response->>'lesion_code')      AS icd_code,
+      MAX(a.ai_raw_response->>'class_raw')        AS class_raw,
       COUNT(*)::int                               AS count
     ${baseJoin(doctorIds, from, toExclusive)}
-      AND a.ai_diagnosis IS NOT NULL
-      AND a.ai_diagnosis <> ${NO_PATHOLOGY}
+      ${pathologyFilter()}
     GROUP BY 1
-    ORDER BY 3 DESC, 1 ASC
+    ORDER BY 4 DESC, 1 ASC
   `;
 }
 

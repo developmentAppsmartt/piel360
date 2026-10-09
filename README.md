@@ -14,6 +14,7 @@ Plataforma de gestión y diagnóstico dermatológico asistido por IA. Este repos
 - [Estructura del monorepo](#estructura-del-monorepo)
 - [Requisitos previos](#requisitos-previos)
 - [Cómo levantar el proyecto](#cómo-levantar-el-proyecto)
+- [Cuentas de prueba locales](#cuentas-de-prueba-locales)
 - [Variables de entorno](#variables-de-entorno)
 - [Comandos por app](#comandos-por-app)
 - [Particularidades importantes](#particularidades-importantes-leer-antes-de-tocar-dependencias)
@@ -140,6 +141,51 @@ pnpm --filter @piel360/mobile run start      # Expo Dev Server (QR para Expo Go)
 pnpm turbo run build     # compila shared, api y web
 pnpm turbo run lint       # eslint en todas las apps
 ```
+
+## Cuentas de prueba locales
+
+### Empresa con equipo y planes adquiridos
+
+Casi todo lo que se rompe en producción depende de un **equipo**: el alcance de
+pacientes y reportes, el desglose del consumo por profesional y los permisos de
+miembro. Montar eso a mano cada vez cuesta más que mantener un seed, así que hay
+uno:
+
+```bash
+cd apps/api
+pnpm run seed:empresa-demo              # crea la cuenta (borra y recrea: es idempotente)
+pnpm run seed:empresa-demo -- clean     # la borra
+```
+
+Contraseña de las tres cuentas: **`Piel360Demo!2026`**
+
+| Cuenta | Entra por | Rol en el equipo |
+|---|---|---|
+| `empresa.demo@piel360.local` | `/doctor/login/empresa` | **dueño** — ve todo el equipo y puede filtrar por profesional |
+| `ana.gomez@piel360.local` | `/doctor/login` | miembro con **todos** los permisos |
+| `luis.perez@piel360.local` | `/doctor/login` | miembro **sin facturación** — Consumo y Facturación le responden 403 |
+
+Lo que trae sembrado:
+
+- Organización `Dermacenter Demo S.A.S.` (tipo `empresa`, 3 de 5 asientos).
+- **Cuatro planes adquiridos**, uno por cada estado del hub de facturación:
+  Skiniver activo con 45 créditos, YouCam activo y agotado, Fototipo cancelado y
+  un Skiniver pendiente. Los tres cobrados llevan su factura interna.
+- 3 pacientes (2 de Ana, 1 de Luis) con fecha de nacimiento, sexo y fototipo,
+  para que los reportes demográficos no salgan vacíos.
+- 5 análisis dermatológicos repartidos entre los dos miembros y 1 estético, con
+  sus `subscription_usages`, en fechas distintas y en dos meses.
+
+Dos cosas que conviene saber:
+
+- Las imágenes de los análisis apuntan a claves de S3 que no existen: los
+  listados y los datos funcionan, las miniaturas no cargan.
+- El plan de YouCam se agota con **un** análisis de `quantity = 50`, en vez de
+  sembrar 50 filas. Es el mismo campo que usa el API al descontar créditos.
+
+> Solo para la base local. Estas credenciales están acá a propósito, y por eso
+> los correos terminan en `.local`: no son direcciones reales y la cuenta no
+> existe en ningún entorno desplegado.
 
 ## Variables de entorno
 

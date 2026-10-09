@@ -9,6 +9,7 @@ import {
   Stethoscope,
 } from "lucide-react";
 import { UnitRing } from "@/components/admin/unit-ring";
+import { PatientsProfessionalFilter } from "@/components/patients/patients-table";
 import { Button } from "@/components/ui/button";
 import {
   ModuleCard,
@@ -20,6 +21,7 @@ import type {
   DailyConsumptionPoint,
   DailyConsumptionRow,
 } from "@/lib/queries/analysis-consumption";
+import type { OrgTeamMember } from "@/lib/queries/organizations";
 import { cn } from "@/lib/utils";
 
 export type ConsumptionRangePreset = "day" | "month" | "custom";
@@ -305,6 +307,10 @@ export function AnalysisConsumptionView({
   subscriptionEndsAt,
   subtitle = "Consulta el consumo detallado de análisis de piel estéticos y análisis de imágenes dermatológicas.",
   headerExtra,
+  members = [],
+  showProfessionalFilter = false,
+  professionalUserId = "all",
+  onProfessionalChange,
   range,
   onRangeChange,
   dayDate,
@@ -323,6 +329,10 @@ export function AnalysisConsumptionView({
   subscriptionEndsAt: string | null;
   subtitle?: string;
   headerExtra?: React.ReactNode;
+  members?: OrgTeamMember[];
+  showProfessionalFilter?: boolean;
+  professionalUserId?: string;
+  onProfessionalChange?: (userId: string) => void;
   range: ConsumptionRangePreset;
   onRangeChange: (range: ConsumptionRangePreset) => void;
   dayDate: string;
@@ -424,6 +434,14 @@ export function AnalysisConsumptionView({
           </>
         ) : null}
 
+        {showProfessionalFilter && onProfessionalChange ? (
+          <PatientsProfessionalFilter
+            members={members}
+            value={professionalUserId}
+            onChange={onProfessionalChange}
+          />
+        ) : null}
+
         {isRefreshing ? (
           <p className="pb-2 text-xs text-muted-foreground">Actualizando…</p>
         ) : null}
@@ -500,7 +518,10 @@ export function AnalysisConsumptionView({
                 </tr>
               ) : (
                 rows.map((r) => (
-                  <tr key={r.date} className="border-t border-border hover:bg-muted/20">
+                  <tr
+                    key={`${r.date}|${r.professionalUserId ?? "none"}`}
+                    className="border-t border-border hover:bg-muted/20"
+                  >
                     <td className="px-4 py-3 font-medium">{r.date}</td>
                     <td className="px-4 py-3 tabular-nums text-primary">{r.aesthetic}</td>
                     <td className="px-4 py-3 tabular-nums text-chart-2">{r.derm}</td>
@@ -527,7 +548,9 @@ export function AnalysisConsumptionView({
           <span>
             {rows.length === 0
               ? "Sin resultados"
-              : `Mostrando 1 a ${rows.length} de ${rows.length} días`}
+              : `Mostrando ${rows.length} ${
+                  rows.length === 1 ? "registro" : "registros"
+                }`}
           </span>
         </div>
       </ModuleCard>

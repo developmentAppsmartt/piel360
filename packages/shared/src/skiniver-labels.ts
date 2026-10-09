@@ -340,3 +340,27 @@ export function skiniverCategoryLabel(desease?: string | null): string {
   if (!text) return "";
   return CATEGORY_LABELS.get(normalizeLabelKey(text)) ?? text;
 }
+
+/**
+ * Los dos predicados de abajo existen porque las funciones de etiqueta
+ * devuelven el texto de entrada cuando no reconocen nada: con ellas no se
+ * puede distinguir "lo reconocí" de "lo dejé pasar", y el reporte necesita
+ * saberlo para no graficar una categoría como si fuera una enfermedad.
+ *
+ * Ojo con el orden al usarlos: "Dermatitis" y "Eccema" son a la vez
+ * diagnóstico del atlas y categoría, así que primero hay que preguntar si es
+ * un diagnóstico conocido.
+ */
+export function isSkiniverDiagnosisName(
+  value?: string | null,
+  classRaw?: string | null,
+): boolean {
+  if (classRaw?.trim() && DIAGNOSIS_LABELS.has(diagnosisKey(classRaw))) return true;
+  const text = value?.trim();
+  return !!text && DIAGNOSIS_LABELS.has(diagnosisKey(text));
+}
+
+export function isSkiniverCategoryName(value?: string | null): boolean {
+  const text = value?.trim();
+  return !!text && CATEGORY_LABELS.has(normalizeLabelKey(text));
+}
