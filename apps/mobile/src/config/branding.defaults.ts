@@ -60,6 +60,8 @@ export type AppBranding = {
   loginLogoImage: ImageSourcePropType;
   /** Logo de la empresa o profesional; solo si lo subió en el CRM. */
   companyLogoImage: ImageSourcePropType | null;
+  /** Degradado oscuro del login sobre la imagen de fondo (se puede quitar en el CRM). */
+  loginOverlay: boolean;
   /** Logo completo (pantallas de marca); no se personaliza. */
   logoImage: ImageSourcePropType;
   /** Logo horizontal blanco para headers de la app. */
@@ -101,6 +103,7 @@ export const DEFAULT_BRANDING: AppBranding = {
   loginHeroImage: require('../../assets/login.png'),
   loginLogoImage: DEFAULT_LOGO,
   companyLogoImage: null,
+  loginOverlay: true,
   logoImage: DEFAULT_LOGO,
   headerLogoImage: require('../../assets/logo-headers.png'),
 };

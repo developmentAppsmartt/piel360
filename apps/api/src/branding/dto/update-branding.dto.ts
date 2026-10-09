@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsOptional,
   IsString,
   Matches,
@@ -113,4 +114,8 @@ export class UpdateBrandingDto {
   @ValidateNested()
   @Type(() => BrandingColorsDto)
   colors?: BrandingColorsDto;
+
+  @IsOptional()
+  @IsBoolean()
+  loginOverlay?: boolean;
 }

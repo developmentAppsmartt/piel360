@@ -191,6 +191,8 @@ export type AccountBranding = {
   /** `null` = imagen por defecto del sistema. */
   loginBackgroundUrl: string | null;
   loginLogoUrl: string | null;
+  /** Degradado oscuro del login sobre la imagen de fondo. */
+  loginOverlay: boolean;
 };
 
 export const DEFAULT_ACCOUNT_BRANDING: AccountBranding = {
@@ -198,4 +200,5 @@ export const DEFAULT_ACCOUNT_BRANDING: AccountBranding = {
   colors: DEFAULT_BRANDING_COLORS,
   loginBackgroundUrl: null,
   loginLogoUrl: null,
+  loginOverlay: true,
 };

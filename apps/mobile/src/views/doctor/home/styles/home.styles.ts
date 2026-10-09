@@ -34,6 +34,9 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
       flex: 1,
       minWidth: 0,
     },
+    welcomeInfo: {
+      marginTop: -8,
+    },
     avatar: {
       width: 64,
       height: 64,

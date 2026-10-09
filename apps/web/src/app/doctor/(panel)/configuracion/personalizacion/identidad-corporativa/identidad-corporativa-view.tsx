@@ -34,7 +34,7 @@ import {
   type BrandingImageKind,
   useMyBranding,
   useRemoveBrandingImage,
-  useUpdateBrandingColors,
+  useUpdateBranding,
   useUploadBrandingImage,
 } from "@/lib/queries/branding";
 
@@ -273,6 +273,7 @@ function ImagePicker({
   title,
   description,
   examples,
+  footer,
   recommended,
   src,
   isCustom,
@@ -283,6 +284,7 @@ function ImagePicker({
   title: string;
   description: string;
   examples?: ReactNode;
+  footer?: ReactNode;
   /** Tamaño recomendado; avisa (sin bloquear) si la imagen elegida se aleja mucho. */
   recommended: { width: number; height: number };
   src: string;
@@ -370,6 +372,7 @@ function ImagePicker({
       </div>
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
       {warning ? <p className="text-xs text-amber-600">{warning}</p> : null}
+      {footer}
       <p className="text-[11px] text-muted-foreground">
         Tamaño recomendado: {recommended.width} × {recommended.height} px · JPG, PNG o WebP · máx. 5 MB
       </p>
@@ -381,10 +384,12 @@ function LoginPreview({
   colors,
   background,
   logo,
+  overlay,
 }: {
   colors: BrandingColors;
   background: string;
   logo: string;
+  overlay: boolean;
 }) {
   const customized = (key: BrandingColorKey) =>
     (colors[key] ?? "").toUpperCase() !== DEFAULT_BRANDING_COLORS[key].toUpperCase();
@@ -400,13 +405,15 @@ function LoginPreview({
         alt=""
         className="absolute inset-0 h-full w-full object-cover"
       />
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "linear-gradient(110deg, rgba(26,43,94,0.88) 0%, rgba(14,26,56,0.62) 48%, rgba(0,0,0,0.28) 100%)",
-        }}
-      />
+      {overlay ? (
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(110deg, rgba(26,43,94,0.88) 0%, rgba(14,26,56,0.62) 48%, rgba(0,0,0,0.28) 100%)",
+          }}
+        />
+      ) : null}
       <div className="relative flex h-full flex-col px-4 pb-4 pt-7 text-white">
         <img src={logo} alt="Logo" className="mx-auto h-14 w-auto object-contain" />
         <p className="mt-3 text-center text-[10px] leading-snug" style={{ color: text(0.9) }}>
@@ -547,7 +554,7 @@ function AppPreview({ colors }: { colors: BrandingColors }) {
 
 export function IdentidadCorporativaView() {
   const branding = useMyBranding();
-  const updateColors = useUpdateBrandingColors();
+  const updateBranding = useUpdateBranding();
   const uploadImage = useUploadBrandingImage();
   const removeImage = useRemoveBrandingImage();
 
@@ -556,6 +563,7 @@ export function IdentidadCorporativaView() {
   const [activeField, setActiveField] = useState<BrandingColorKey>("primary");
   const [background, setBackground] = useState<PendingImage>(null);
   const [logo, setLogo] = useState<PendingImage>(null);
+  const [overlay, setOverlay] = useState(true);
   const [previewMode, setPreviewMode] = useState<"login" | "app">("login");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -569,6 +577,11 @@ export function IdentidadCorporativaView() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza el formulario con lo guardado
     if (savedColors) setColors(savedColors);
   }, [savedColors]);
+  const savedOverlay = saved?.loginOverlay ?? true;
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza el formulario con lo guardado
+    setOverlay(savedOverlay);
+  }, [savedOverlay]);
 
   useEffect(() => () => revokePreview(background), [background]);
   useEffect(() => () => revokePreview(logo), [logo]);
@@ -593,8 +606,9 @@ export function IdentidadCorporativaView() {
     () =>
       Boolean(background) ||
       Boolean(logo) ||
+      overlay !== savedOverlay ||
       (savedColors ? !sameColors(colors, savedColors) : false),
-    [background, logo, colors, savedColors],
+    [background, logo, overlay, savedOverlay, colors, savedColors],
   );
 
   const setColor = (key: BrandingColorKey, hex: string) => {
@@ -621,6 +635,7 @@ export function IdentidadCorporativaView() {
   const discard = () => {
     setMessage(null);
     if (savedColors) setColors(savedColors);
+    setOverlay(savedOverlay);
     setBackground(null);
     setLogo(null);
   };
@@ -629,8 +644,12 @@ export function IdentidadCorporativaView() {
     setSaving(true);
     setMessage(null);
     try {
-      if (savedColors && !sameColors(colors, savedColors)) {
-        await updateColors.mutateAsync(colors);
+      const colorsChanged = savedColors && !sameColors(colors, savedColors);
+      if (colorsChanged || overlay !== savedOverlay) {
+        await updateBranding.mutateAsync({
+          ...(colorsChanged ? { colors } : {}),
+          loginOverlay: overlay,
+        });
       }
       for (const [kind, pending] of [
         ["login-background", background],
@@ -912,6 +931,23 @@ export function IdentidadCorporativaView() {
                 fit="cover"
                 onPick={(file) => pickImage("login-background", file)}
                 onReset={() => resetImage("login-background")}
+                footer={
+                  <label className="flex cursor-pointer items-start gap-2 text-xs text-foreground/80">
+                    <input
+                      type="checkbox"
+                      checked={!overlay}
+                      onChange={(e) => {
+                        setMessage(null);
+                        setOverlay(!e.target.checked);
+                      }}
+                      className="mt-0.5 size-4 accent-primary"
+                    />
+                    <span>
+                      Quitar el degradado oscuro sobre la foto. Úsalo si tu imagen ya
+                      deja leer bien los textos del login.
+                    </span>
+                  </label>
+                }
               />
               <ImagePicker
                 title="Logo del login"
@@ -963,6 +999,7 @@ export function IdentidadCorporativaView() {
                 colors={colors}
                 background={backgroundImage.src}
                 logo={logoImage.src}
+                overlay={overlay}
               />
             ) : (
               <AppPreview colors={colors} />
