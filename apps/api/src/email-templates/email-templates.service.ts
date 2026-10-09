@@ -8,6 +8,7 @@ import {
 import { randomUUID } from 'crypto';
 import { extname } from 'path';
 import { SYSTEM_EMAIL_VARIABLES } from '@piel360/shared';
+import type { JwtPayload } from '../auth/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrgContextService } from '../organizations/org-context.service';
 import { StorageService } from '../storage/storage.service';
@@ -24,7 +25,7 @@ import {
 
 type TemplateRow = {
   id: bigint;
-  doctorId: bigint;
+  doctorId: bigint | null;
   kind: string;
   name: string;
   subject: string;
@@ -71,9 +72,17 @@ export class EmailTemplatesService {
     private readonly storage: StorageService,
   ) {}
 
-  private async catalogDoctorId(userId: string) {
+  /**
+   * De quién son las plantillas que ve este usuario.
+   *
+   * `null` = plataforma: las de moderación del registro no pertenecen a nadie
+   * y un moderador ni siquiera tiene ficha de doctor, así que antes el módulo
+   * entero le respondía «El usuario no tiene un perfil de doctor».
+   */
+  private async scopeDoctorId(user: JwtPayload): Promise<bigint | null> {
+    if (user.role === 'superadmin' || user.role === 'monitor') return null;
     const ctx = await this.orgContext.assertTeamPermissionForUser(
-      userId,
+      user.sub,
       'billing',
     );
     return ctx.catalogDoctorId;
@@ -82,7 +91,7 @@ export class EmailTemplatesService {
   private serialize(row: TemplateRow) {
     return {
       id: row.id.toString(),
-      doctorId: row.doctorId.toString(),
+      doctorId: row.doctorId?.toString() ?? null,
       kind: row.kind,
       kindLabel: EMAIL_TEMPLATE_KIND_LABELS[row.kind] ?? row.name,
       name: row.name,
@@ -97,7 +106,7 @@ export class EmailTemplatesService {
 
   private serializeVariable(row: {
     id: bigint;
-    doctorId: bigint;
+    doctorId: bigint | null;
     key: string;
     description: string;
     sampleValue: string | null;
@@ -106,7 +115,7 @@ export class EmailTemplatesService {
   }) {
     return {
       id: row.id.toString(),
-      doctorId: row.doctorId.toString(),
+      doctorId: row.doctorId?.toString() ?? null,
       key: row.key,
       description: row.description,
       sampleValue: row.sampleValue,
@@ -116,7 +125,7 @@ export class EmailTemplatesService {
     };
   }
 
-  private async ensureOwner(id: bigint, doctorId: bigint) {
+  private async ensureOwner(id: bigint, doctorId: bigint | null) {
     const row = await this.prisma.emailTemplate.findUnique({ where: { id } });
     if (!row) throw new NotFoundException('Plantilla no encontrada');
     if (row.doctorId !== doctorId) {
@@ -125,7 +134,7 @@ export class EmailTemplatesService {
     return row;
   }
 
-  private async ensureVariableOwner(id: bigint, doctorId: bigint) {
+  private async ensureVariableOwner(id: bigint, doctorId: bigint | null) {
     const row = await this.prisma.emailTemplateVariable.findUnique({
       where: { id },
     });
@@ -136,7 +145,7 @@ export class EmailTemplatesService {
     return row;
   }
 
-  private async listMergedVariables(doctorId: bigint) {
+  private async listMergedVariables(doctorId: bigint | null) {
     const custom = await this.prisma.emailTemplateVariable.findMany({
       where: { doctorId },
       orderBy: [{ key: 'asc' }],
@@ -160,8 +169,8 @@ export class EmailTemplatesService {
     ];
   }
 
-  async meta(userId: string) {
-    const doctorId = await this.catalogDoctorId(userId);
+  async meta(user: JwtPayload) {
+    const doctorId = await this.scopeDoctorId(user);
     return {
       kinds: Object.entries(EMAIL_TEMPLATE_KIND_LABELS).map(([id, label]) => ({
         id,
@@ -186,19 +195,21 @@ export class EmailTemplatesService {
     };
   }
 
-  async listVariables(userId: string) {
-    const doctorId = await this.catalogDoctorId(userId);
+  async listVariables(user: JwtPayload) {
+    const doctorId = await this.scopeDoctorId(user);
     return this.listMergedVariables(doctorId);
   }
 
-  async createVariable(userId: string, dto: CreateEmailTemplateVariableDto) {
-    const doctorId = await this.catalogDoctorId(userId);
+  async createVariable(user: JwtPayload, dto: CreateEmailTemplateVariableDto) {
+    const doctorId = await this.scopeDoctorId(user);
     const key = normalizeVariableKey(dto.key);
     if (SYSTEM_EMAIL_VARIABLES.some((v) => v.key === key)) {
       throw new ConflictException(`«${key}» es una variable del sistema — no se puede redefinir`);
     }
-    const existing = await this.prisma.emailTemplateVariable.findUnique({
-      where: { doctorId_key: { doctorId, key } },
+    // findFirst y no findUnique: el índice `(doctor_id, key)` no sirve de
+    // nada cuando `doctor_id` es NULL, porque en Postgres dos NULL no chocan.
+    const existing = await this.prisma.emailTemplateVariable.findFirst({
+      where: { doctorId, key },
     });
     if (existing) {
       throw new ConflictException(`Ya existe la variable «${key}»`);
@@ -216,11 +227,11 @@ export class EmailTemplatesService {
   }
 
   async updateVariable(
-    userId: string,
+    user: JwtPayload,
     id: string,
     dto: UpdateEmailTemplateVariableDto,
   ) {
-    const doctorId = await this.catalogDoctorId(userId);
+    const doctorId = await this.scopeDoctorId(user);
     await this.ensureVariableOwner(BigInt(id), doctorId);
 
     let nextKey: string | undefined;
@@ -253,8 +264,8 @@ export class EmailTemplatesService {
     return this.serializeVariable(row);
   }
 
-  async deleteVariable(userId: string, id: string) {
-    const doctorId = await this.catalogDoctorId(userId);
+  async deleteVariable(user: JwtPayload, id: string) {
+    const doctorId = await this.scopeDoctorId(user);
     await this.ensureVariableOwner(BigInt(id), doctorId);
     await this.prisma.emailTemplateVariable.delete({
       where: { id: BigInt(id) },
@@ -262,8 +273,8 @@ export class EmailTemplatesService {
     return { ok: true };
   }
 
-  async list(userId: string) {
-    const doctorId = await this.catalogDoctorId(userId);
+  async list(user: JwtPayload) {
+    const doctorId = await this.scopeDoctorId(user);
     const rows = await this.prisma.emailTemplate.findMany({
       where: { doctorId },
       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
@@ -271,14 +282,14 @@ export class EmailTemplatesService {
     return rows.map((row) => this.serialize(row));
   }
 
-  async getOne(userId: string, id: string) {
-    const doctorId = await this.catalogDoctorId(userId);
+  async getOne(user: JwtPayload, id: string) {
+    const doctorId = await this.scopeDoctorId(user);
     const row = await this.ensureOwner(BigInt(id), doctorId);
     return this.serialize(row);
   }
 
-  async create(userId: string, dto: CreateEmailTemplateDto) {
-    const doctorId = await this.catalogDoctorId(userId);
+  async create(user: JwtPayload, dto: CreateEmailTemplateDto) {
+    const doctorId = await this.scopeDoctorId(user);
     const name = dto.name.trim();
     const kindBase = slugifyKind(dto.kind?.trim() || name);
     // Los kinds reservados (welcome/plan_acquired/report_ready) se guardan
@@ -306,8 +317,8 @@ export class EmailTemplatesService {
     return this.serialize(row);
   }
 
-  async update(userId: string, id: string, dto: UpdateEmailTemplateDto) {
-    const doctorId = await this.catalogDoctorId(userId);
+  async update(user: JwtPayload, id: string, dto: UpdateEmailTemplateDto) {
+    const doctorId = await this.scopeDoctorId(user);
     await this.ensureOwner(BigInt(id), doctorId);
 
     const row = await this.prisma.emailTemplate.update({
@@ -325,8 +336,8 @@ export class EmailTemplatesService {
     return this.serialize(row);
   }
 
-  async remove(userId: string, id: string) {
-    const doctorId = await this.catalogDoctorId(userId);
+  async remove(user: JwtPayload, id: string) {
+    const doctorId = await this.scopeDoctorId(user);
     await this.ensureOwner(BigInt(id), doctorId);
     await this.prisma.emailTemplate.delete({ where: { id: BigInt(id) } });
     return { ok: true };
@@ -336,7 +347,8 @@ export class EmailTemplatesService {
    * para un doctor — usada por ReportEmailService/AppointmentEmailService/
    * PatientInviteService al enviar. `null` si el doctor no configuró ninguna
    * (el llamador debe tener un default propio, ver EMAIL_TEMPLATE_DEFAULTS). */
-  async findActiveByKind(doctorId: bigint, kind: string) {
+  /** `doctorId: null` = la plantilla de plataforma (moderación). */
+  async findActiveByKind(doctorId: bigint | null, kind: string) {
     const row = await this.prisma.emailTemplate.findFirst({
       where: { doctorId, kind, isActive: true },
       orderBy: [{ updatedAt: 'desc' }],
@@ -348,8 +360,8 @@ export class EmailTemplatesService {
    * la plantilla real del doctor si existe, o una "virtual" (sin `id`, con el
    * contenido default de EMAIL_TEMPLATE_DEFAULTS) para que el editor tenga
    * algo que mostrar y el doctor pueda partir de ahí. */
-  async getByKindOrDefault(userId: string, kind: string) {
-    const doctorId = await this.catalogDoctorId(userId);
+  async getByKindOrDefault(user: JwtPayload, kind: string) {
+    const doctorId = await this.scopeDoctorId(user);
     const existing = await this.findActiveByKind(doctorId, kind);
     if (existing) return { ...existing, isDefault: false as const };
 
@@ -359,7 +371,7 @@ export class EmailTemplatesService {
     }
     return {
       id: null as string | null,
-      doctorId: doctorId.toString(),
+      doctorId: doctorId?.toString() ?? null,
       kind,
       kindLabel: EMAIL_TEMPLATE_KIND_LABELS[kind] ?? kind,
       name: EMAIL_TEMPLATE_KIND_LABELS[kind] ?? kind,
@@ -373,7 +385,7 @@ export class EmailTemplatesService {
     };
   }
 
-  async uploadBanner(userId: string, file: Express.Multer.File | undefined) {
+  async uploadBanner(user: JwtPayload, file: Express.Multer.File | undefined) {
     if (!file?.buffer?.length) {
       throw new BadRequestException('Falta la imagen del banner');
     }
@@ -381,12 +393,12 @@ export class EmailTemplatesService {
       throw new BadRequestException('El archivo debe ser una imagen');
     }
 
-    const doctorId = await this.catalogDoctorId(userId);
+    const doctorId = await this.scopeDoctorId(user);
     const ext =
       extname(file.originalname).replace('.', '').toLowerCase() ||
       file.mimetype.split('/')[1] ||
       'jpg';
-    const key = `email-templates/${doctorId}/banners/${randomUUID()}.${ext}`;
+    const key = `email-templates/${doctorId ?? 'plataforma'}/banners/${randomUUID()}.${ext}`;
     await this.storage.upload(key, file.buffer, file.mimetype);
     // Máx. 7 días (límite SigV4). La vista previa usa esta URL; el envío
     // real debería regenerar la firma o servir por CDN público.

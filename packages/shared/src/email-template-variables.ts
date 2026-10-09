@@ -44,18 +44,36 @@ export const SYSTEM_EMAIL_VARIABLES: SystemEmailVariable[] = [
   },
   {
     key: "{url_registro}",
-    description: "Link para que el invitado entre y complete su registro",
+    description: "Link para entrar y completar o corregir el registro",
     sampleValue: "#",
   },
   {
     key: "{rol_profesional}",
-    description: "Especialidad o perfil técnico del invitado",
+    description: "Especialidad o perfil técnico del profesional",
     sampleValue: "Dermatólogo",
   },
   {
     key: "{correo_soporte}",
-    description: "Correo de contacto de la empresa que invita",
+    description: "Correo de contacto para dudas (empresa o soporte de Piel360)",
     sampleValue: "contacto@clinica.com",
+  },
+  // Moderación del registro (rechazado / ajustes / aprobado). El motivo del
+  // rechazo y la solicitud de ajustes son el mismo dato —la observación que
+  // escribe el moderador—, así que comparten variable.
+  {
+    key: "{observacion}",
+    description: "Observación del moderador: motivo del rechazo o ajuste pedido",
+    sampleValue: "La copia del documento de identidad no es legible.",
+  },
+  {
+    key: "{fecha_revision}",
+    description: "Fecha en que el equipo revisó el registro",
+    sampleValue: "9 de octubre de 2026",
+  },
+  {
+    key: "{url_plataforma}",
+    description: "Link para ingresar a Piel360",
+    sampleValue: "#",
   },
 ];
 

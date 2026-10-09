@@ -222,6 +222,14 @@ export const ADMIN_COMPONENTS: readonly AdminComponentDef[] = [
     sortOrder: 170,
   },
   {
+    slug: "admin.email_templates",
+    label: "Plantillas de correo",
+    href: "/admin/plantillas-correo",
+    sortOrder: 175,
+    description:
+      "Correos que la plataforma envía al moderar un registro (rechazo, ajustes y aprobación).",
+  },
+  {
     slug: "admin.notifications",
     label: "Notificaciones",
     href: "/admin/notificaciones",

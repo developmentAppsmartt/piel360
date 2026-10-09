@@ -10,6 +10,7 @@ import {
   HelpCircle,
   Home,
   Layers,
+  Mail,
   Map,
   Package,
   Receipt,
@@ -232,6 +233,12 @@ export const adminNav: NavItem[] = [
     href: "/admin/auditoria",
     icon: Shield,
     permissionsAny: adminNavPermission("admin.audit"),
+  },
+  {
+    label: "Plantillas de correo",
+    href: "/admin/plantillas-correo",
+    icon: Mail,
+    permissionsAny: adminNavPermission("admin.email_templates"),
   },
   {
     label: "Notificaciones",

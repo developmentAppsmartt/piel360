@@ -273,7 +273,7 @@ Trampas ya conocidas (todas costaron un intento fallido):
 
 ## Estado actual (actualizar cuando cambie)
 
-- Rama de trabajo: `fix/general-fixes-2`.
+- Rama de trabajo: `feature/correos-moderacion`.
 - Pendiente de despliegue: reconstruir la imagen del API (cambió
   `packages/shared`) y confirmar con `npx prisma migrate status` que producción
   está al día.

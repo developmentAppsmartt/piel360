@@ -1257,7 +1257,8 @@ model FitzpatrickRule {
 /** Plantillas de correo del profesional/empresa (bienvenida, planes, informes…). */
 model EmailTemplate {
   id        BigInt   @id @default(autoincrement())
-  doctorId  BigInt   @map("doctor_id")
+  /** NULL = plantilla de plataforma (moderación): superadmin y moderador. */
+  doctorId  BigInt?  @map("doctor_id")
   /** welcome | plan_acquired | report_ready | custom */
   kind      String
   name      String
@@ -1268,7 +1269,7 @@ model EmailTemplate {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  doctor Doctor? @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
   @@index([doctorId])
   @@map("email_templates")
@@ -1277,7 +1278,8 @@ model EmailTemplate {
 /** Variables personalizadas de plantillas de correo (además de las del sistema). */
 model EmailTemplateVariable {
   id          BigInt   @id @default(autoincrement())
-  doctorId    BigInt   @map("doctor_id")
+  /** NULL = variable de plataforma, igual que en EmailTemplate. */
+  doctorId    BigInt?  @map("doctor_id")
   /** Token insertable, p. ej. {promo_code} */
   key         String
   description String
@@ -1285,7 +1287,7 @@ model EmailTemplateVariable {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  doctor Doctor? @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
   @@unique([doctorId, key])
   @@index([doctorId])
