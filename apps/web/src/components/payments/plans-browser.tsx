@@ -74,10 +74,12 @@ function PlanPricingCard({
   plan,
   isEmpresa,
   featured = false,
+  successHref,
 }: {
   plan: Plan;
   isEmpresa: boolean;
   featured?: boolean;
+  successHref?: string;
 }) {
   const header = resolvePlanHeaderColor(plan.headerColor);
   const accent = header.hex;
@@ -212,6 +214,7 @@ function PlanPricingCard({
           {canPurchase ? (
             <WompiCheckoutButton
               planId={plan.id}
+              successHref={successHref}
               label={featured ? `Elegir ${plan.name}` : "Seleccionar plan"}
               className="h-11 w-full rounded-full font-semibold text-white shadow-none hover:opacity-90"
               style={{ backgroundColor: accent }}
@@ -232,10 +235,14 @@ export function PlansBrowser({
   hideActiveSection = false,
   showTeamFeatures,
   planTypeFilter,
+  successHref,
 }: {
   hideActiveSection?: boolean;
   showTeamFeatures?: boolean;
   planTypeFilter?: "individual" | "business";
+  /** Pantalla a la que ir tras un pago confirmado — la fija quien monta el
+   * catálogo, porque el paciente y el profesional no van al mismo sitio. */
+  successHref?: string;
 }) {
   const plans = usePlans();
   const subscriptions = useMySubscriptions();
@@ -357,6 +364,7 @@ export function PlansBrowser({
               key={plan.id}
               plan={plan}
               isEmpresa={isEmpresa}
+              successHref={successHref}
               featured={index === 1 && filtered.length >= 3}
             />
           ))}

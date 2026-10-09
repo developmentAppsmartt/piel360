@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ScoreGuideDialog } from "@/components/treatments/score-guide-dialog";
 import {
   useDeleteTreatment,
   useTreatments,
@@ -99,10 +100,13 @@ export function TreatmentsListTab({
             ? "Configura tratamientos por categoría, condicionados por puntaje."
             : "Configura grupos de productos sugeridos automáticamente por puntaje."}
         </p>
-        <Button nativeButton={false} render={<Link href={`${basePath}/nueva`} />}>
-          <PlusIcon className="mr-2 size-4" />
-          {kind === "treatment" ? "Nuevo tratamiento" : "Nuevo grupo sugerido"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <ScoreGuideDialog kind={kind} />
+          <Button nativeButton={false} render={<Link href={`${basePath}/nueva`} />}>
+            <PlusIcon className="mr-2 size-4" />
+            {kind === "treatment" ? "Nuevo tratamiento" : "Nuevo grupo sugerido"}
+          </Button>
+        </div>
       </div>
 
       {isLoading && <p className="text-sm text-muted-foreground">Cargando...</p>}

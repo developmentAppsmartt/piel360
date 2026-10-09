@@ -32,6 +32,7 @@ export function DoctorPlansHub() {
       <PlansBrowser
         hideActiveSection
         showTeamFeatures={isEmpresa}
+        successHref="/doctor/facturacion"
         planTypeFilter={
           doctorProfile.isSuccess ? (isEmpresa ? "business" : "individual") : undefined
         }
