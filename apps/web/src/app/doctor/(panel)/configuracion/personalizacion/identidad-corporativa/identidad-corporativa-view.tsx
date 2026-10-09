@@ -15,7 +15,11 @@ import {
   Smartphone,
   Upload,
   UserRound,
+  Users,
   X,
+  Home,
+  CalendarDays,
+  MessageSquare,
 } from "lucide-react";
 import {
   BRANDING_BACKGROUND_COLORS,
@@ -56,6 +60,12 @@ const COLOR_FIELDS: ColorField[] = [
     key: "background",
     label: "Color de fondo",
     description: "Fondo de las vistas de la app (inicio, pacientes, agenda, mensajes…).",
+    baseOptions: BRANDING_BACKGROUND_COLORS,
+  },
+  {
+    key: "menuBackground",
+    label: "Fondo del menú inferior",
+    description: "Barra de módulos de la parte inferior (Inicio, Pacientes, Agenda, Chat, Perfil).",
     baseOptions: BRANDING_BACKGROUND_COLORS,
   },
   {
@@ -500,6 +510,10 @@ function LoginPreview({
 }
 
 function AppPreview({ colors }: { colors: BrandingColors }) {
+  const menuActive =
+    colors.secondary.toUpperCase() !== DEFAULT_BRANDING_COLORS.secondary.toUpperCase()
+      ? colors.secondary
+      : colors.icon;
   return (
     <div
       className="relative mx-auto flex aspect-[9/19] w-full max-w-[290px] flex-col overflow-hidden rounded-[2.2rem] border-[7px] border-slate-900 shadow-xl"
@@ -547,6 +561,30 @@ function AppPreview({ colors }: { colors: BrandingColors }) {
         >
           Botón con degradado
         </div>
+      </div>
+      <div
+        className="flex items-end justify-around border-t border-slate-200 px-1 pb-3 pt-1.5"
+        style={{ backgroundColor: colors.menuBackground }}
+      >
+        {(
+          [
+            [Home, "Inicio"],
+            [Users, "Pacientes"],
+            [CalendarDays, "Agenda"],
+            [MessageSquare, "Chat"],
+            [UserRound, "Perfil"],
+          ] as const
+        ).map(([Icon, label], index) => {
+          const color = index === 0 ? menuActive : "#9CA3AF";
+          return (
+            <div key={label} className="flex flex-col items-center gap-0.5">
+              <Icon className="size-3.5" style={{ color }} aria-hidden />
+              <span className="text-[7px] font-semibold" style={{ color }}>
+                {label}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

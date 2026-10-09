@@ -16,6 +16,8 @@ export type AppBranding = {
     screenBackground: string | null;
     /** Letra del login y del registro que no es título; solo si la empresa la personalizó. */
     loginTextOverride: string | null;
+    /** Fondo del menú inferior de módulos. */
+    menuBackground: string;
     primary: string;
     primaryDark: string;
     /** Títulos y valores destacados (azul o negro). */
@@ -80,6 +82,7 @@ export const DEFAULT_BRANDING: AppBranding = {
     secondaryText: '#1A1A1A',
     secondaryTextOverride: null,
     loginTextOverride: null,
+    menuBackground: '#FFFFFF',
     icon: '#1E5A9E',
     iconMuted: '#6B7280',
     iconOnHeader: '#FFFFFF',

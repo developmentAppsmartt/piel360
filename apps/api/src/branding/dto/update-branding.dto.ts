@@ -107,6 +107,12 @@ export class BrandingColorsDto {
   @IsString()
   @Matches(HEX)
   loginText?: string | null;
+
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsString()
+  @Matches(HEX)
+  menuBackground?: string | null;
 }
 
 export class UpdateBrandingDto {
