@@ -73,8 +73,13 @@ async function enrichAnalysisPatient(
   let birthDate = detail.patient?.birthDate ?? null;
   let gender = detail.patient?.gender ?? null;
 
-  try {
-    const profile = await patientsService.getById(detail.patientId);
+  const [profileResult, historyResult] = await Promise.allSettled([
+    patientsService.getById(detail.patientId),
+    patientsService.listAnalyses(detail.patientId),
+  ]);
+
+  if (profileResult.status === 'fulfilled') {
+    const profile = profileResult.value;
     firstName = profile.firstName;
     lastName = profile.lastName;
     gender = profile.gender ?? gender;
@@ -82,12 +87,10 @@ async function enrichAnalysisPatient(
     // Perfil solo como respaldo; el confirmado manda.
     fitzpatrickType = profile.fitzpatrickType ?? null;
     birthDate = profile.birthDate ?? birthDate;
-  } catch {
-    // Si falla el perfil, seguimos con historial.
   }
 
-  try {
-    const history = await patientsService.listAnalyses(detail.patientId);
+  if (historyResult.status === 'fulfilled') {
+    const history = historyResult.value;
     const latestConfirmed = [...history]
       .filter((a) => !!a.fitzpatrickTaskId && a.isConfirmed === true)
       .sort(
@@ -107,8 +110,6 @@ async function enrichAnalysisPatient(
         fitzpatrickType = scale;
       }
     }
-  } catch {
-    // Sin historial Fitzpatrick disponible.
   }
 
   return {
@@ -201,8 +202,18 @@ export function AnalysisDetailView({
       setError(null);
       try {
         const detail = await analysesService.getById(analysisId);
+        if (cancelled) return;
+        // Se muestra ya; los datos del paciente (fototipo, edad…) llegan después.
+        setAnalysis(detail);
+        setLoading(false);
         const enriched = await enrichAnalysisPatient(detail);
-        if (!cancelled) setAnalysis(enriched);
+        if (!cancelled) {
+          setAnalysis((current) =>
+            current && current.id === enriched.id
+              ? { ...current, patient: enriched.patient }
+              : current,
+          );
+        }
       } catch (err) {
         if (!cancelled) {
           setError(

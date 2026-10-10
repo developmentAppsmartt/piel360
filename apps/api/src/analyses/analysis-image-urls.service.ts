@@ -10,7 +10,9 @@ import {
   type SkiniverRiskGuidance,
   type YouCamResults,
 } from '@piel360/shared';
+import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { buildImagePreview, previewKeyFor } from './image-preview.util';
 import { youcamMaskKey } from '../youcam/mask-key.util';
 
 /** Extraído de AnalysesService — lo reutiliza también PatientsService
@@ -25,11 +27,17 @@ import { youcamMaskKey } from '../youcam/mask-key.util';
 export class AnalysisImageUrlsService {
   private readonly logger = new Logger(AnalysisImageUrlsService.name);
 
-  constructor(private readonly storage: StorageService) {}
+  private readonly previewsInFlight = new Set<string>();
+
+  constructor(
+    private readonly storage: StorageService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   async withImageUrls<
     T extends {
       imagePath: string;
+      imagePreviewPath?: string | null;
       coloredS3Url: string | null;
       maskedS3Url: string | null;
       youcamTaskId: string | null;
@@ -50,7 +58,7 @@ export class AnalysisImageUrlsService {
 
     const [imageUrl, signedColoredUrl, signedMaskedUrl, masks] =
       await Promise.all([
-        this.signIfPresent(analysis.imagePath),
+        this.signIfPresent(analysis.imagePreviewPath ?? analysis.imagePath),
         this.signIfPresent(analysis.coloredS3Url),
         this.signIfPresent(analysis.maskedS3Url),
         this.signYoucamMasks(analysis),
@@ -62,6 +70,13 @@ export class AnalysisImageUrlsService {
     // el placeholder 'youcam' de siempre, imageUrl es un link muerto que el
     // frontend no debe intentar mostrar.
     const hasOriginalPhoto = analysis.imagePath !== 'youcam';
+    if (
+      analysis.youcamTaskId &&
+      hasOriginalPhoto &&
+      !analysis.imagePreviewPath
+    ) {
+      void this.createPreview(analysis.id, analysis.imagePath);
+    }
     const skiniverDiagnosis = prediction
       ? this.buildSkiniverDiagnosis(prediction, analysis.aiProbability)
       : null;
@@ -196,6 +211,34 @@ export class AnalysisImageUrlsService {
     return signed.filter(
       (m): m is { type: string; region?: string; url: string } => m !== null,
     );
+  }
+
+  /** Análisis anteriores a la versión liviana: se genera en segundo plano la primera vez. */
+  private async createPreview(id: bigint, imagePath: string): Promise<void> {
+    const key = id.toString();
+    if (this.previewsInFlight.has(key)) return;
+    this.previewsInFlight.add(key);
+    try {
+      const original = await this.storage.downloadToBuffer(
+        await this.storage.getSignedUrl(imagePath),
+      );
+      const previewKey = previewKeyFor(imagePath);
+      await this.storage.upload(
+        previewKey,
+        await buildImagePreview(original),
+        'image/jpeg',
+      );
+      await this.prisma.analysis.update({
+        where: { id },
+        data: { imagePreviewPath: previewKey },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo generar la vista liviana del análisis ${key}: ${String(error)}`,
+      );
+    } finally {
+      this.previewsInFlight.delete(key);
+    }
   }
 
   private async signIfPresent(key: string | null): Promise<string | null> {

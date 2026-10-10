@@ -442,6 +442,8 @@ model Analysis {
   userId          BigInt?   @map("user_id")
   providerId      BigInt?   @map("provider_id")
   imagePath       String    @map("image_path")
+  /// Versión liviana de la foto para mostrar en la app (ver image-preview.util.ts).
+  imagePreviewPath String?  @map("image_preview_path")
   coloredS3Url    String?   @map("colored_s3_url")
   maskedS3Url     String?   @map("masked_s3_url")
   bodyRegion      String?   @map("body_region")

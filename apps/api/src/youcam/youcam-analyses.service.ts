@@ -8,6 +8,10 @@ import {
 import type { Queue } from 'bullmq';
 import { imageSize } from 'image-size';
 import sharp from 'sharp';
+import {
+  buildImagePreview,
+  previewKeyFor,
+} from '../analyses/image-preview.util';
 import type { JwtPayload } from '../auth/types';
 import { PatientsService } from '../patients/patients.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -193,9 +197,16 @@ export class YoucamAnalysesService {
       // a partir de esa misma versión — si no, quedarían desalineadas al
       // superponerlas en el frontend.
       await this.storage.upload(originalKey, uploadBuffer, 'image/jpeg');
+      const previewKey = previewKeyFor(originalKey);
+      const imagePreviewPath = await buildImagePreview(uploadBuffer)
+        .then((preview) =>
+          this.storage.upload(previewKey, preview, 'image/jpeg'),
+        )
+        .then(() => previewKey)
+        .catch(() => null);
       await this.prisma.analysis.update({
         where: { id: analysis.id },
-        data: { imagePath: originalKey },
+        data: { imagePath: originalKey, imagePreviewPath },
       });
     } catch (error) {
       // No bloquear la creación por una falla de storage — mismo criterio
