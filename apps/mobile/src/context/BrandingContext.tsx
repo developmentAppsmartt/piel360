@@ -17,6 +17,7 @@ import {
   toAppBranding,
   type RemoteBranding,
 } from '../services/branding.service';
+import { ImagePreloader } from '../lib/image-cache';
 
 const BrandingContext = createContext<AppBranding>(DEFAULT_BRANDING);
 const BrandingSyncContext = createContext<() => Promise<void>>(async () => {});
@@ -55,10 +56,21 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const branding = useMemo(() => toAppBranding(remote), [remote]);
+  // Se guardan en el teléfono apenas se conocen, para que el login no espere la descarga.
+  const brandImages = useMemo(
+    () =>
+      [remote?.loginBackgroundUrl, remote?.loginLogoUrl].filter(
+        (uri): uri is string => !!uri,
+      ),
+    [remote?.loginBackgroundUrl, remote?.loginLogoUrl],
+  );
 
   return (
     <BrandingSyncContext.Provider value={syncForSession}>
-      <BrandingContext.Provider value={branding}>{children}</BrandingContext.Provider>
+      <BrandingContext.Provider value={branding}>
+        {children}
+        <ImagePreloader uris={brandImages} />
+      </BrandingContext.Provider>
     </BrandingSyncContext.Provider>
   );
 }

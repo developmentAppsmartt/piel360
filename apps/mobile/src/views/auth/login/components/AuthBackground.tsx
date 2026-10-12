@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { DEFAULT_BRANDING } from '../../../../config/branding.defaults';
-import { Image, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Image } from 'expo-image';
+import { cachedImageSource } from '../../../../lib/image-cache';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useBranding } from '../../../../context/BrandingContext';
 import { useDeviceLayout } from '../../../../styles/deviceLayout';
@@ -29,7 +31,12 @@ export function AuthBackground({ children }: AuthBackgroundProps) {
   const custom = branding.loginHeroImage;
   const customUri = typeof custom === 'object' && 'uri' in custom ? custom.uri : null;
   const showingCustom = Boolean(customUri) && customUri !== failedUri;
-  const heroSource = customUri && !showingCustom ? DEFAULT_BRANDING.loginHeroImage : custom;
+  const heroSource =
+    customUri && !showingCustom
+      ? DEFAULT_BRANDING.loginHeroImage
+      : customUri
+        ? cachedImageSource(customUri)
+        : custom;
   const onHeroError = () => {
     if (customUri) setFailedUri(customUri);
   };
@@ -66,8 +73,12 @@ export function AuthBackground({ children }: AuthBackgroundProps) {
             <Image
               source={heroSource}
               onError={onHeroError}
-              style={[styles.heroFill, noPointer]}
-              resizeMode="cover"
+              pointerEvents="none"
+              style={styles.heroFill}
+              contentFit="cover"
+              cachePolicy="disk"
+              priority="high"
+              transition={0}
             />
             {branding.loginOverlay ? (
               <LinearGradient
@@ -93,8 +104,12 @@ export function AuthBackground({ children }: AuthBackgroundProps) {
       <Image
         source={heroSource}
         onError={onHeroError}
-        style={[styles.heroImage, { width: heroWidth }, noPointer]}
-        resizeMode="cover"
+        pointerEvents="none"
+        style={[styles.heroImage, { width: heroWidth }]}
+        contentFit="cover"
+        cachePolicy="disk"
+        priority="high"
+        transition={0}
       />
       <LinearGradient
         colors={branding.loginOverlay ? [...SCRIM_COLORS] : NO_SCRIM}
