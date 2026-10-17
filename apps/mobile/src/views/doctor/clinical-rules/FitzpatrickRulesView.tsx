@@ -16,7 +16,10 @@ import {
   type FitzpatrickRecommended,
   type FitzpatrickRule,
 } from '../../../services/fitzpatrick-rules.service';
-import { FITZPATRICK_SCALES } from '../../../data/fitzpatrickLabels';
+import {
+  FITZPATRICK_SCALES,
+  FITZPATRICK_TYPES,
+} from '../../../data/fitzpatrickLabels';
 import { DoctorHeader } from '../patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
 import {
@@ -178,23 +181,33 @@ export function FitzpatrickRulesView({
             <Text style={styles.cardBody}>
               Elige un fototipo y prueba qué regla y recomendaciones aplica.
             </Text>
-            <View style={styles.chipRow}>
+            <View style={styles.fotoGrid}>
               {FITZPATRICK_SCALES.map((s) => {
                 const active = scale === s;
+                const type = FITZPATRICK_TYPES[s];
                 return (
                   <Pressable
                     key={s}
                     onPress={() => setScale(s)}
-                    style={[styles.chip, active && styles.chipActive]}
+                    style={[styles.fotoCard, active && styles.fotoCardActive]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={`Fototipo ${s}, ${type.label}`}
                   >
-                    <Text
+                    <View
                       style={[
-                        styles.chipText,
-                        active && styles.chipTextActive,
+                        styles.fotoSwatch,
+                        { backgroundColor: type.colorHex },
                       ]}
-                    >
-                      {s}
-                    </Text>
+                    />
+                    <View style={styles.fotoCardText}>
+                      <Text style={styles.fotoCardTitle} numberOfLines={1}>
+                        Fototipo {s}
+                      </Text>
+                      <Text style={styles.fotoCardSubtitle} numberOfLines={1}>
+                        {type.label}
+                      </Text>
+                    </View>
                   </Pressable>
                 );
               })}

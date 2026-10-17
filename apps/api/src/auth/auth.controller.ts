@@ -17,6 +17,10 @@ import type { Request, Response } from 'express';
 import { AccountStatusService } from './account-status.service';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './current-user.decorator';
+import {
+  SendChangePasswordOtpDto,
+  VerifyChangePasswordOtpDto,
+} from './dto/change-password-otp.dto';
 import { ConfirmPhoneVerificationDto } from './dto/confirm-phone-verification.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
@@ -148,6 +152,29 @@ export class AuthController {
     @Body() dto: ConfirmPhoneVerificationDto,
   ) {
     return this.authService.confirmPhoneVerification(user.sub, dto);
+  }
+
+  /** OTP de cambio de contraseña (sesión activa). El token queda atado al usuario. */
+  @Post('me/password/otp/send')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  sendChangePasswordOtp(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: SendChangePasswordOtpDto,
+  ) {
+    return this.authService.sendChangePasswordOtp(user.sub, dto);
+  }
+
+  @Post('me/password/otp/verify')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  verifyChangePasswordOtp(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: VerifyChangePasswordOtpDto,
+  ) {
+    return this.authService.verifyChangePasswordOtp(user.sub, dto);
   }
 
   @Post('otp/phone/verify')

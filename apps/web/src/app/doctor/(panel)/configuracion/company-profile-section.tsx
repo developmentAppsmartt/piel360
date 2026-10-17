@@ -196,6 +196,7 @@ export const CompanyProfileSection = forwardRef<CompanyProfileHandle>(
           address: query.data.address,
           lat: toCoord(query.data.lat),
           lng: toCoord(query.data.lng),
+          country: query.data.country,
         });
       }
     }, [query.data, locationPicker.hydrate]);
@@ -260,7 +261,7 @@ export const CompanyProfileSection = forwardRef<CompanyProfileHandle>(
             locationPicker.address.trim() ||
             locationPicker.addressQuery.trim() ||
             undefined,
-          country: "CO",
+          country: locationPicker.country.trim() || undefined,
           lat: locationPicker.location.lat,
           lng: locationPicker.location.lng,
           businessEmail: form.businessEmail.trim() || undefined,

@@ -11,10 +11,10 @@ export const TEAM_PERMISSION_CLINICAL_MODULES: Record<
   patients: ["clinical.patients", "clinical.agenda"],
   analyses: ["clinical.analyses"],
   products: ["clinical.products"],
-  /** Rutinas + reglas por edad de piel (catálogo compartido del owner). */
-  routines: ["clinical.routines", "clinical.skin_age_rules"],
-  /** Tratamientos también abre rutinas/reglas (mismo hub clínico). */
-  treatments: ["clinical.routines", "clinical.skin_age_rules"],
+  routines: ["clinical.routines"],
+  treatments: ["clinical.routines"],
+  skin_age_rules: ["clinical.skin_age_rules"],
+  fitzpatrick_rules: ["clinical.fitzpatrick_rules"],
   billing: [
     "clinical.plans",
     "clinical.billing",
@@ -86,12 +86,14 @@ export function teamPermissionAllowsNavHref(
   if (href.startsWith("/doctor/productos")) {
     return teamPermissions?.includes("products") ?? false;
   }
-  if (href.startsWith("/doctor/reglas-edad-piel")) {
-    return (
-      (teamPermissions?.includes("routines") ||
-        teamPermissions?.includes("treatments")) ??
-      false
-    );
+  if (
+    href.startsWith("/doctor/reglas-edad-piel") ||
+    href.startsWith("/doctor/rutinas/reglas-edad-piel")
+  ) {
+    return teamPermissions?.includes("skin_age_rules") ?? false;
+  }
+  if (href.startsWith("/doctor/reglas-fototipo")) {
+    return teamPermissions?.includes("fitzpatrick_rules") ?? false;
   }
   if (href.startsWith("/doctor/rutinas")) {
     return (

@@ -45,6 +45,7 @@ export function RegisterView({ navigation }: Props) {
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { isTablet, isLandscape } = useDeviceLayout();
+  const logoHeight = isTablet ? (isLandscape ? 160 : 200) : 120;
   const scrollMinHeight =
     isTablet && isLandscape
       ? Math.max(height - insets.top - insets.bottom, 480)
@@ -71,7 +72,7 @@ export function RegisterView({ navigation }: Props) {
             {!isCard ? (
               <>
                 <View style={styles.logoWrap}>
-                  <BrandLogo variant="login" height={120} style={styles.logo} />
+                  <BrandLogo variant="login" height={logoHeight} style={styles.logo} />
                 </View>
                 <Text style={styles.subtitle}>
                   Registro de paciente. Completa los pasos para crear tu cuenta.

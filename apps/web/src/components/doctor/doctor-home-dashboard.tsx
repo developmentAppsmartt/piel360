@@ -5,7 +5,7 @@ import { DashboardCredits } from "@/components/doctor/dashboard-credits";
 import { DashboardRecentActivity } from "@/components/doctor/dashboard-recent-activity";
 import { DashboardStats } from "@/components/doctor/dashboard-stats";
 import type { AnalysisListItem } from "@/lib/queries/analyses";
-import type { Doctor } from "@/lib/queries/doctors";
+import { isEnterpriseDoctor, type Doctor } from "@/lib/queries/doctors";
 import type { Patient } from "@/lib/queries/patients";
 import type { Subscription } from "@/lib/queries/subscriptions";
 import { formatClinicalGreeting } from "@/lib/user-role-display";
@@ -39,7 +39,10 @@ export function DoctorHomeDashboard({
     "doctor",
     profile.firstName,
     profile.lastName,
-    { specialty: profile.specialty },
+    {
+      specialty: profile.specialty,
+      empresa: isEnterpriseDoctor(profile),
+    },
   );
 
   return (

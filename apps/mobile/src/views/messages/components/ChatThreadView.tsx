@@ -28,6 +28,70 @@ type ChatThreadViewProps = {
   onQuickAction?: (id: ChatQuickActionId) => void;
 };
 
+/** URL sin firma: el polling renueva la query y hacía parpadear las fotos. */
+function stableMediaKey(url?: string | null): string {
+  if (!url) return '';
+  const q = url.indexOf('?');
+  return q < 0 ? url : url.slice(0, q);
+}
+
+function mergeConversation(
+  prev: Conversation | null,
+  next: Conversation,
+): Conversation {
+  if (!prev || prev.id !== next.id) return next;
+  if (prev.messages.length !== next.messages.length) {
+    return preserveAttachmentUrls(prev, next);
+  }
+  const sameShape = prev.messages.every((m, i) => {
+    const n = next.messages[i]!;
+    return (
+      m.id === n.id &&
+      (m.text ?? '') === (n.text ?? '') &&
+      stableMediaKey(m.attachment?.url) === stableMediaKey(n.attachment?.url) &&
+      (m.attachment?.kind ?? '') === (n.attachment?.kind ?? '')
+    );
+  });
+  if (
+    sameShape &&
+    prev.unreadCount === next.unreadCount &&
+    prev.preview === next.preview &&
+    prev.timeLabel === next.timeLabel
+  ) {
+    return prev;
+  }
+  return preserveAttachmentUrls(prev, next);
+}
+
+/** Reutiliza la URI anterior si el archivo es el mismo (evita remount de Image). */
+function preserveAttachmentUrls(
+  prev: Conversation,
+  next: Conversation,
+): Conversation {
+  const prevById = new Map(prev.messages.map((m) => [m.id, m]));
+  return {
+    ...next,
+    messages: next.messages.map((msg) => {
+      const old = prevById.get(msg.id);
+      const oldUrl = old?.attachment?.url;
+      const newUrl = msg.attachment?.url;
+      if (
+        old?.attachment &&
+        msg.attachment &&
+        oldUrl &&
+        newUrl &&
+        stableMediaKey(oldUrl) === stableMediaKey(newUrl)
+      ) {
+        return {
+          ...msg,
+          attachment: { ...msg.attachment, url: oldUrl },
+        };
+      }
+      return msg;
+    }),
+  };
+}
+
 export function ChatThreadView({
   conversationId,
   onBack,
@@ -51,9 +115,11 @@ export function ChatThreadView({
 
   const load = useCallback(async () => {
     const next = await messagesService.getConversation(conversationId);
-    setConversation(next);
     if (next) {
+      setConversation((prev) => mergeConversation(prev, next));
       void messagesService.markRead(conversationId);
+    } else {
+      setConversation(null);
     }
   }, [conversationId]);
 

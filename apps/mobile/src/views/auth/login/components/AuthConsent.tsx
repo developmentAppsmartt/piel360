@@ -1,15 +1,27 @@
+import type { MutableRefObject } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { AppIcon } from '../../../../components/AppIcon';
 import { Icons } from '../../../../components/icons';
+import {
+  RecaptchaCheckbox,
+  type RecaptchaCheckboxHandle,
+} from '../../../../components/RecaptchaCheckbox';
 import type { LoginStyles } from '../styles/login.styles';
 
 type AuthConsentProps = {
   styles: LoginStyles;
   primaryColor: string;
   onDark: string;
-  captchaChecked: boolean;
+  captchaEnabled?: boolean;
+  captchaSiteKey: string;
+  captchaBaseUrl: string;
+  /** Cambia para forzar remount del widget tras error/expiración. */
+  captchaResetKey?: string | number;
+  captchaRef?: MutableRefObject<RecaptchaCheckboxHandle | null>;
+  onCaptchaVerify: (token: string) => void;
+  onCaptchaExpire: () => void;
+  captchaVerified?: boolean;
   termsChecked: boolean;
-  onToggleCaptcha: () => void;
   onToggleTerms: () => void;
   onOpenTerms?: () => void;
   onOpenPrivacy?: () => void;
@@ -20,9 +32,15 @@ export function AuthConsent({
   styles,
   primaryColor,
   onDark,
-  captchaChecked,
+  captchaEnabled = true,
+  captchaSiteKey,
+  captchaBaseUrl,
+  captchaResetKey = 0,
+  captchaRef,
+  onCaptchaVerify,
+  onCaptchaExpire,
+  captchaVerified,
   termsChecked,
-  onToggleCaptcha,
   onToggleTerms,
   onOpenTerms,
   onOpenPrivacy,
@@ -30,20 +48,19 @@ export function AuthConsent({
 }: AuthConsentProps) {
   return (
     <View style={styles.consentBlock}>
-      <Pressable
-        style={styles.checkRow}
-        onPress={onToggleCaptcha}
-        disabled={disabled}
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: captchaChecked }}
-      >
-        <AppIcon
-          icon={captchaChecked ? Icons.checkboxOn : Icons.checkboxOff}
-          size={22}
-          color={captchaChecked ? primaryColor : onDark}
+      {captchaEnabled ? (
+        <RecaptchaCheckbox
+          key={captchaResetKey}
+          handleRef={captchaRef}
+          siteKey={captchaSiteKey}
+          baseUrl={captchaBaseUrl}
+          onVerify={onCaptchaVerify}
+          onExpire={onCaptchaExpire}
+          verified={captchaVerified}
+          disabled={disabled}
+          languageCode="es"
         />
-        <Text style={styles.checkLabel}>No soy un robot</Text>
-      </Pressable>
+      ) : null}
 
       <View style={styles.checkRow}>
         <Pressable

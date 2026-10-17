@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -44,6 +44,11 @@ type ChangePasswordFlowProps = {
   initialEmail?: string;
   initialPhoneDigits?: string | null;
   title?: string;
+  /**
+   * `account`: sesión activa — OTP y reset van al usuario logueado
+   * (y pueden actualizar el celular). `forgot`: recuperación pública.
+   */
+  mode?: 'forgot' | 'account';
 };
 
 export function ChangePasswordFlow({
@@ -52,6 +57,7 @@ export function ChangePasswordFlow({
   initialEmail = '',
   initialPhoneDigits = null,
   title = 'Recuperar contraseña',
+  mode = 'forgot',
 }: ChangePasswordFlowProps) {
   const branding = useBranding();
   const { logout } = useAuth();
@@ -72,6 +78,8 @@ export function ChangePasswordFlow({
   });
   const [otp, setOtp] = useState('');
   const [resetToken, setResetToken] = useState<string | null>(null);
+  const [phoneTicket, setPhoneTicket] = useState<string | null>(null);
+  const isAccount = mode === 'account';
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -83,6 +91,28 @@ export function ChangePasswordFlow({
   const onDark = branding.colors.textOnDark;
   const text = branding.colors.text;
   const passwordUnlocked = Boolean(resetToken);
+
+  // Prefill celular desde /auth/me si el padre no lo pasó (p. ej. Home paciente).
+  useEffect(() => {
+    if (!isAccount || initialPhoneDigits) return;
+    let cancelled = false;
+    void authService
+      .meDetails()
+      .then((me) => {
+        if (cancelled || !me.phone) return;
+        const digits = me.phone.replace(/\D/g, '');
+        if (digits.startsWith('57') && digits.length >= 12) {
+          setAreaCode('57');
+          setPhone(digits.slice(2));
+        } else if (digits.length >= 10) {
+          setPhone(digits);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [isAccount, initialPhoneDigits]);
 
   function goBack() {
     setError(null);
@@ -121,7 +151,14 @@ export function ChangePasswordFlow({
 
     setSubmitting(true);
     try {
-      if (channel === 'email') {
+      if (isAccount) {
+        await authService.sendChangePasswordOtp(
+          channel,
+          channel === 'phone'
+            ? combinePhoneDigits(areaCode, phone)
+            : undefined,
+        );
+      } else if (channel === 'email') {
         await authService.sendOtp(email.trim().toLowerCase(), 'reset');
       } else {
         await authService.sendPhoneOtp(
@@ -131,6 +168,7 @@ export function ChangePasswordFlow({
       }
       setOtp('');
       setResetToken(null);
+      setPhoneTicket(null);
       setPassword('');
       setConfirm('');
       setStep('otp');
@@ -154,7 +192,18 @@ export function ChangePasswordFlow({
     setSubmitting(true);
     try {
       let token: string | undefined;
-      if (channel === 'email') {
+      let nextPhoneTicket: string | undefined;
+      if (isAccount) {
+        const res = await authService.verifyChangePasswordOtp(
+          channel,
+          otp,
+          channel === 'phone'
+            ? combinePhoneDigits(areaCode, phone)
+            : undefined,
+        );
+        token = res.token;
+        nextPhoneTicket = res.phoneTicket;
+      } else if (channel === 'email') {
         const res = await authService.verifyOtp(
           email.trim().toLowerCase(),
           'reset',
@@ -173,6 +222,7 @@ export function ChangePasswordFlow({
         throw new Error('Sin token de recuperación');
       }
       setResetToken(token);
+      setPhoneTicket(nextPhoneTicket ?? null);
       setStep('password');
     } catch (err) {
       setError(
@@ -203,6 +253,17 @@ export function ChangePasswordFlow({
     setSubmitting(true);
     try {
       await authService.resetPassword(resetToken, password);
+      // La clave ya quedó; el celular se sincroniza después (CRM lee patients.*).
+      if (isAccount && phoneTicket && channel === 'phone') {
+        try {
+          await authService.confirmPhoneVerification(
+            combinePhoneDigits(areaCode, phone),
+            phoneTicket,
+          );
+        } catch {
+          // No tumbar el éxito del cambio de contraseña.
+        }
+      }
       setResult('success');
     } catch (err) {
       setError(
@@ -375,12 +436,16 @@ export function ChangePasswordFlow({
                       autoComplete="email"
                       placeholder="tu@email.com"
                       placeholderTextColor="#9CA3AF"
-                      editable={!submitting}
+                      editable={!submitting && !(isAccount && Boolean(initialEmail))}
                     />
                   </View>
                 ) : (
                   <View style={styles.field}>
-                    <Text style={styles.label}>Celular</Text>
+                    <Text style={styles.label}>
+                      {isAccount
+                        ? 'Celular (actual o nuevo)'
+                        : 'Celular'}
+                    </Text>
                     <PhoneSplitInputs
                       prefix={areaCode}
                       national={phone}
@@ -502,7 +567,11 @@ export function ChangePasswordFlow({
         visible={result === 'success'}
         variant="success"
         title="Contraseña actualizada"
-        message="Tu sesión se cerró. Inicia sesión de nuevo con tu nueva contraseña."
+        message={
+          isAccount && phoneTicket
+            ? 'Contraseña y celular actualizados. Tu sesión se cerró; inicia sesión con la nueva contraseña.'
+            : 'Tu sesión se cerró. Inicia sesión de nuevo con tu nueva contraseña.'
+        }
         buttonLabel="Ir a iniciar sesión"
         colors={branding.colors}
         onAction={() => {
@@ -526,6 +595,7 @@ export function ChangePasswordFlow({
           setStep('channel');
           setOtp('');
           setResetToken(null);
+          setPhoneTicket(null);
           setPassword('');
           setConfirm('');
         }}

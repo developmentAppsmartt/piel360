@@ -40,7 +40,7 @@ export function NosologyPicker({
     () => createNosologiesStyles(branding.colors),
     [branding.colors],
   );
-  const onDark = branding.colors.textOnDark;
+  const onIcon = branding.colors.buttonText;
 
   const [categories, setCategories] = useState<NosologyCategory[]>([]);
   const [query, setQuery] = useState('');
@@ -109,7 +109,7 @@ export function NosologyPicker({
           styles={styles}
           value={query}
           onChange={setQuery}
-          primaryColor={branding.colors.primary}
+          primaryColor={branding.colors.icon}
         />
 
         {!activeCategory ? (
@@ -128,7 +128,7 @@ export function NosologyPicker({
               <NosologyCategoryRow
                 styles={styles}
                 label={item.name}
-                onDark={onDark}
+                onDark={onIcon}
                 onPress={() => {
                   setActiveCategoryId(item.id);
                   setSelectedItemId(null);
