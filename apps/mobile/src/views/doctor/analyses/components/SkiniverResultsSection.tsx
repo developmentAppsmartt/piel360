@@ -155,12 +155,91 @@ function DonutProb({
   );
 }
 
+function sameCandidate(
+  a: SkiniverDiagnosisCandidate | null | undefined,
+  b: SkiniverDiagnosisCandidate | null | undefined,
+): boolean {
+  if (!a || !b) return false;
+  if (a.class_raw && b.class_raw) return a.class_raw === b.class_raw;
+  return a.class === b.class && Number(a.prob) === Number(b.prob);
+}
+
+function findIcdForDiagnosis(
+  items: SkiniverDiagnosisCandidate[],
+  diagnosis: string,
+): string | null {
+  const needle = diagnosis.trim().toLowerCase();
+  if (!needle) return null;
+  const match = items.find((item) => {
+    const label = skiniverDiagnosisLabel(item.class, item.class_raw)
+      .trim()
+      .toLowerCase();
+    const raw = String(item.class ?? '')
+      .trim()
+      .toLowerCase();
+    return label === needle || raw === needle;
+  });
+  return match?.lesion_code?.trim() || null;
+}
+
+function ProfessionalOutcomeCard({
+  kind,
+  title,
+  icd,
+  styles,
+}: {
+  kind: 'selected' | 'corrected';
+  title: string;
+  icd: string | null;
+  styles: ReturnType<typeof createAnalysisDetailStyles>;
+}) {
+  const branding = useBranding();
+  const corrected = kind === 'corrected';
+  const iconColor = branding.colors.icon;
+  const onIcon = branding.colors.buttonText;
+  return (
+    <View
+      style={[
+        styles.professionalOutcomeCard,
+        corrected && styles.professionalOutcomeCardCorrected,
+      ]}
+      accessibilityRole="text"
+    >
+      <View style={styles.professionalOutcomeIcon}>
+        <AppIcon
+          icon={corrected ? Icons.edit : Icons.clipboardCheck}
+          size={22}
+          color={iconColor}
+        />
+      </View>
+      <View style={styles.professionalOutcomeBody}>
+        <Text style={styles.professionalOutcomeEyebrow}>
+          {corrected
+            ? 'Diagnóstico corregido por el profesional'
+            : 'Diagnóstico seleccionado por el profesional'}
+        </Text>
+        <Text style={styles.professionalOutcomeTitle} numberOfLines={2}>
+          {title}
+        </Text>
+        {icd ? (
+          <Text style={styles.professionalOutcomeMeta}>Código ICD: {icd}</Text>
+        ) : null}
+      </View>
+      <View style={styles.professionalOutcomeCheck}>
+        <AppIcon icon={Icons.check} size={18} color={onIcon} />
+      </View>
+    </View>
+  );
+}
+
 function DiagnosisStatCard({
   item,
+  selected,
   onPress,
   styles,
 }: {
   item: SkiniverDiagnosisCandidate;
+  selected?: boolean;
   onPress: () => void;
   styles: ReturnType<typeof createAnalysisDetailStyles>;
 }) {
@@ -172,27 +251,45 @@ function DiagnosisStatCard({
     : null;
 
   return (
-    <Pressable style={styles.diagnosisCard} onPress={onPress}>
-      <DonutProb prob={prob} color={color} />
-      <View style={styles.diagnosisBody}>
-        <Text style={styles.diagnosisTitle} numberOfLines={2}>
-          {skiniverDiagnosisLabel(item.class, item.class_raw)}
-        </Text>
-        {item.desease ? (
-          <Text style={styles.diagnosisSub} numberOfLines={1}>
-            {skiniverCategoryLabel(item.desease)}
+    <View style={styles.diagnosisCardWrap}>
+      {selected ? (
+        <View style={styles.diagnosisSelectedBadge}>
+          <Text style={styles.diagnosisSelectedBadgeText}>
+            Diagnóstico seleccionado
           </Text>
-        ) : null}
-        {icdLabel ? (
-          <Text style={styles.diagnosisSub} numberOfLines={1}>
-            {icdLabel}
+        </View>
+      ) : null}
+      <Pressable
+        style={[styles.diagnosisCard, selected && styles.diagnosisCardSelected]}
+        onPress={onPress}
+        accessibilityState={{ selected: Boolean(selected) }}
+        accessibilityRole="button"
+      >
+        <DonutProb prob={prob} color={color} />
+        <View style={styles.diagnosisBody}>
+          <Text style={styles.diagnosisTitle} numberOfLines={2}>
+            {skiniverDiagnosisLabel(item.class, item.class_raw)}
           </Text>
-        ) : null}
-      </View>
-      <View style={styles.diagnosisChevronBtn}>
-        <AppIcon icon={Icons.chevronRight} size={18} color={branding.colors.buttonText} />
-      </View>
-    </Pressable>
+          {item.desease ? (
+            <Text style={styles.diagnosisSub} numberOfLines={1}>
+              {skiniverCategoryLabel(item.desease)}
+            </Text>
+          ) : null}
+          {icdLabel ? (
+            <Text style={styles.diagnosisSub} numberOfLines={1}>
+              {icdLabel}
+            </Text>
+          ) : null}
+        </View>
+        <View style={styles.diagnosisChevronBtn}>
+          <AppIcon
+            icon={selected ? Icons.check : Icons.chevronRight}
+            size={18}
+            color={branding.colors.buttonText}
+          />
+        </View>
+      </Pressable>
+    </View>
   );
 }
 
@@ -207,6 +304,18 @@ type SkiniverResultsSectionProps = {
   onSelectedCandidateChange?: (
     candidate: SkiniverDiagnosisCandidate | null,
   ) => void;
+  /**
+   * Si true, tocar un diagnóstico de la lista lo selecciona (profesional).
+   * Si false, abre el detalle directo (p. ej. paciente).
+   */
+  selectionEnabled?: boolean;
+  /**
+   * Tarjeta de diagnóstico seleccionado/corregido: solo profesional.
+   * El paciente no la ve aunque el análisis esté compartido.
+   */
+  showProfessionalOutcome?: boolean;
+  /** Acciones bajo la lista (Confirmar / Corregir) cuando hay selección. */
+  listFooter?: ReactNode;
   /**
    * `readonly` — muestra las notas guardadas (sin permiso de edicion, o ya
    * confirmado). `confirm` — solo el campo de notas: quien guarda es el boton
@@ -230,6 +339,9 @@ export function SkiniverResultsSection({
   onViewChange,
   selectedCandidate: selectedCandidateProp,
   onSelectedCandidateChange,
+  selectionEnabled = false,
+  showProfessionalOutcome = false,
+  listFooter,
   observationsMode = 'readonly',
   observationsValue = '',
   onObservationsChange,
@@ -345,9 +457,11 @@ export function SkiniverResultsSection({
     active?.lesion_code ||
     (isPrimaryDiagnosis ? rootCode : undefined);
 
-  function openDetail(item: SkiniverDiagnosisCandidate) {
+  function snapshotCandidate(
+    item: SkiniverDiagnosisCandidate,
+  ): SkiniverDiagnosisCandidate {
     // Congelar campos de ESTA clase (evaluación propia, no la del top-1).
-    const snapshot: SkiniverDiagnosisCandidate = {
+    return {
       class: String(item.class ?? '').trim(),
       class_raw: item.class_raw,
       prob: Number(item.prob) || 0,
@@ -362,13 +476,32 @@ export function SkiniverResultsSection({
       treatment: item.treatment,
       advice: item.advice,
     };
-    setSelectedCandidate(snapshot);
+  }
+
+  function selectCandidate(item: SkiniverDiagnosisCandidate) {
+    setSelectedCandidate(snapshotCandidate(item));
+  }
+
+  function openDetail(item: SkiniverDiagnosisCandidate) {
+    setSelectedCandidate(snapshotCandidate(item));
     setView('detail');
+  }
+
+  function handleStatCardPress(item: SkiniverDiagnosisCandidate) {
+    if (!selectionEnabled) {
+      openDetail(item);
+      return;
+    }
+    // Ya seleccionado → ver detalle (notas / atlas). Si no, solo seleccionar.
+    if (sameCandidate(selectedCandidate, item)) {
+      openDetail(item);
+      return;
+    }
+    selectCandidate(item);
   }
 
   function backToStats() {
     setView('stats');
-    setSelectedCandidate(null);
   }
 
   function atlasUrlFor(item: SkiniverDiagnosisCandidate): string | null {
@@ -753,6 +886,30 @@ export function SkiniverResultsSection({
     );
   }
 
+  const professionalDiagnosis = (() => {
+    if (!showProfessionalOutcome) return null;
+    // Tras confirmar/corregir: diagnóstico del registro.
+    if (analysis.isConfirmed && analysis.finalDiagnosis?.trim()) {
+      return {
+        kind: analysis.isCorrected ? ('corrected' as const) : ('selected' as const),
+        title: analysis.finalDiagnosis.trim(),
+        icd: findIcdForDiagnosis(list, analysis.finalDiagnosis.trim()),
+      };
+    }
+    // Antes de confirmar: preview de la selección en curso.
+    if (selectedCandidate?.class?.trim()) {
+      return {
+        kind: 'selected' as const,
+        title: skiniverDiagnosisLabel(
+          selectedCandidate.class,
+          selectedCandidate.class_raw,
+        ),
+        icd: selectedCandidate.lesion_code?.trim() || null,
+      };
+    }
+    return null;
+  })();
+
   return (
     <View style={styles.skiniverBlock}>
       <Text style={styles.resultHeroTitle}>Resultado Piel 360 AI</Text>
@@ -760,30 +917,47 @@ export function SkiniverResultsSection({
       <Text style={styles.gaugeSectionTitle}>Indicador de riesgo general</Text>
       <SkiniverRiskGauge percent={gaugePercent} riskLabel={String(riskLabel)} />
 
+      {professionalDiagnosis ? (
+        <ProfessionalOutcomeCard
+          kind={professionalDiagnosis.kind}
+          title={professionalDiagnosis.title}
+          icd={professionalDiagnosis.icd}
+          styles={styles}
+        />
+      ) : null}
+
       {list.length > 0 ? (
         <>
           <Text style={styles.supportTitle}>
-            Elija una opción de los diagnósticos de apoyo
+            {analysis.isConfirmed
+              ? 'Diagnósticos de apoyo de la IA'
+              : 'Elija una opción de los diagnósticos de apoyo'}
           </Text>
           {list.map((item, index) => (
             <DiagnosisStatCard
               key={`${item.class}-${item.class_raw ?? index}-${index}`}
               item={item}
+              selected={
+                selectionEnabled && sameCandidate(selectedCandidate, item)
+              }
               styles={styles}
-              onPress={() => openDetail(item)}
+              onPress={() => handleStatCardPress(item)}
             />
           ))}
-          <Pressable
-            style={({ pressed }) => [styles.supportSelectBtn, pressed && { backgroundColor: branding.colors.buttonHover }]}
-            onPress={() => list[0] && openDetail(list[0])}
-            accessibilityRole="button"
-            accessibilityLabel="Seleccionar de la lista"
-          >
-            <Text style={styles.supportSelectBtnText}>
-              Seleccionar de la lista
-            </Text>
-            <AppIcon icon={Icons.chevronRight} size={18} color={branding.colors.buttonText} />
-          </Pressable>
+          {selectionEnabled ? (
+            selectedCandidate ? (
+              listFooter
+            ) : (
+              <Text style={styles.supportSelectHint}>
+                Toca un diagnóstico para seleccionarlo como resultado del
+                registro
+              </Text>
+            )
+          ) : (
+            // Paciente u otros sin permiso: sin «Seleccionar de la lista»;
+            // el detalle se abre tocando cada tarjeta.
+            listFooter
+          )}
         </>
       ) : (
         <Text style={styles.note}>No hay diagnósticos disponibles.</Text>

@@ -264,7 +264,6 @@ export function DoctorProfileForm() {
             birthDate: displayForm.birthDate || undefined,
             specialty: displayForm.specialty || undefined,
             medicalRegistry: displayForm.medicalRegistry.trim() || undefined,
-            licenseNumber: displayForm.licenseNumber.trim() || undefined,
             educationEntity: displayForm.educationEntity.trim() || undefined,
             graduationInstitution:
               displayForm.graduationInstitution.trim() || undefined,
@@ -523,13 +522,6 @@ export function DoctorProfileForm() {
             className={inputClass}
             value={displayForm.medicalRegistry}
             onChange={(e) => set("medicalRegistry", e.target.value)}
-          />
-        </Field>
-        <Field label="Número de licencia">
-          <input
-            className={inputClass}
-            value={displayForm.licenseNumber}
-            onChange={(e) => set("licenseNumber", e.target.value)}
           />
         </Field>
         {/* Mismos campos y etiquetas que el registro, y cada uno con su salida

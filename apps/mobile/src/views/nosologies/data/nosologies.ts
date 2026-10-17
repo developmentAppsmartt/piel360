@@ -1,105 +1,161 @@
 import type { NosologyCategory } from '../../../types/nosology';
 
 /**
- * Catálogo estático de nosologías (UI).
- * Después se podrá alimentar desde enciclopedia / Skiniver.
+ * Catálogo de nosologías (clases = categorías, enfermedades = ítems).
+ * Origen: Skiniver `GET /get_disease_classes?lang=es` (no se consulta en runtime).
+ * Actualizado desde la respuesta del API de Skiniver.
  */
 export const NOSOLOGY_CATEGORIES: NosologyCategory[] = [
   {
-    id: 'piel-sin-patologia',
-    name: 'Piel Sin Patología',
+    id: "piel-sin-patologia",
+    name: "Piel Sin Patología",
     items: [
-      { id: 'piel-normal', name: 'Piel normal' },
-      { id: 'variante-fisiologica', name: 'Variante fisiológica' },
+      { id: "1B_skin", name: "Piel Sin Patología" },
     ],
   },
   {
-    id: 'lesiones-benignas',
-    name: 'Lesiones benignas',
+    id: "lesiones-benignas",
+    name: "Lesiones benignas",
     items: [
-      { id: 'nevo', name: 'Nevo melanocítico' },
-      { id: 'queratosis-seborreica', name: 'Queratosis seborreica' },
-      { id: 'fibroma', name: 'Fibroma blando' },
-      { id: 'hemangioma', name: 'Hemangioma' },
+      { id: "1B_acral_nevus", name: "Nevus acral" },
+      { id: "1B_benign_nevus", name: "Nevus benigno" },
+      { id: "1B_dermatofibroma", name: "Dermatofibroma" },
+      { id: "1B_halo_nevus", name: "Halo nevo" },
+      { id: "1B_hemangioma", name: "Hemangioma" },
+      { id: "1B_papiloma_nevus", name: "Nevus papilomatoso" },
+      { id: "1B_pyogenic_granuloma", name: "Granuloma piógeno" },
+      { id: "1B_spitz_nevus", name: "Nevo de Spitz" },
+      { id: "2P_blue_nevus", name: "Nevus azul" },
+      { id: "2P_lentigo", name: "Lentigo" },
+      { id: "2P_seborrheic_keratosis", name: "Queratosis seborreica" },
+      { id: "3V_papiloma", name: "Papiloma" },
     ],
   },
   {
-    id: 'precancerosas',
-    name: 'Condiciones precancerosas',
+    id: "acne",
+    name: "Acné",
     items: [
-      { id: 'queratoacantoma', name: 'Queratoacantoma' },
-      { id: 'bowen', name: 'Enfermedad de Bowen' },
-      { id: 'queratosis-actinica', name: 'Queratosis actínica' },
+      { id: "2A_acne_cystic", name: "Acné quístico" },
+      { id: "2A_acne_pustular", name: "Acné pustuloso" },
+      { id: "2A_acne_vulgaris", name: "Acné común" },
+      { id: "2A_comedone_closed", name: "Comedón Cerrado" },
+      { id: "2A_comedone_open", name: "Comedón Abierto" },
+      { id: "2A_milium", name: "Milio" },
+      { id: "2A_rosacea", name: "Rosácea" },
     ],
   },
   {
-    id: 'cancer',
-    name: 'Cáncer',
+    id: "infecciones-por-hongos",
+    name: "Infecciones por hongos",
     items: [
-      { id: 'bcc', name: 'Carcinoma de células basales' },
-      { id: 'scc', name: 'Carcinoma de células escamosas' },
-      { id: 'melanoma', name: 'Melanoma' },
-      { id: 'lentigo-melanoma', name: 'Lentigo-melanoma' },
+      { id: "2G_onychomycosis", name: "onicomicosis" },
+      { id: "2G_pityriasis_versicolor", name: "Pitiriasis versicolor" },
+      { id: "2G_skin_mycosis", name: "Micosis de la piel" },
+      { id: "2G_trichomycosis", name: "tricomicosis" },
     ],
   },
   {
-    id: 'hongos',
-    name: 'Infecciones por hongos',
+    id: "condiciones-precancerosas",
+    name: "Condiciones precancerosas",
     items: [
-      { id: 'tinea-corporis', name: 'Tiña corporis' },
-      { id: 'candidiasis', name: 'Candidiasis cutánea' },
-      { id: 'onicomicosis', name: 'Onicomicosis' },
+      { id: "2P_actinic_keratosis", name: "Queratosis actínica" },
+      { id: "2P_dysplastic_nevus", name: "Nevus displásico" },
     ],
   },
   {
-    id: 'papuloescamosos',
-    name: 'Trastornos papuloescamosos',
+    id: "cancer",
+    name: "Cáncer",
     items: [
-      { id: 'psoriasis', name: 'Psoriasis' },
-      { id: 'liquen-plano', name: 'Liquen plano' },
-      { id: 'pitiriasis', name: 'Pitiriasis rosada' },
+      { id: "2P_bouen", name: "Enfermedad de Bowen" },
+      { id: "2P_keratoakantoma", name: "Queratoacantoma" },
+      { id: "3C_basal_cell_carcinoma", name: "Carcinoma de células basales" },
+      { id: "3C_lentigo_melanoma", name: "Lentigo-melanoma" },
+      { id: "3C_melanoma", name: "Melanoma" },
+      { id: "3C_squamous_cell_carcinoma", name: "Carcinoma de células escamosas" },
     ],
   },
   {
-    id: 'dermatitis',
-    name: 'Dermatitis',
+    id: "trastornos-papuloescamosos",
+    name: "Trastornos papuloescamosos",
     items: [
-      { id: 'dermatitis-atopica', name: 'Dermatitis atópica' },
-      { id: 'dermatitis-contacto', name: 'Dermatitis de contacto' },
-      { id: 'dermatitis-seborreica', name: 'Dermatitis seborreica' },
+      { id: "2PS_lichen_planus", name: "Liquen plano" },
+      { id: "2PS_linear_lichen", name: "Liquen lineal" },
+      { id: "2PS_pink_lichen", name: "Liquen rosa" },
+      { id: "2PS_psoriasis_pustular", name: "Psoriasis pustulosa" },
+      { id: "2PS_psoriasis_vulgar", name: "Psoriasis vulgar" },
+      { id: "2PS_red_hair_lichen", name: "Pitiriasis Rubra Pilaris Devergie" },
+      { id: "2PS_shining_versicolor", name: "Versicolor brillante" },
     ],
   },
   {
-    id: 'virales',
-    name: 'Enfermedades Virales',
+    id: "dermatitis",
+    name: "Dermatitis",
     items: [
-      { id: 'verrugas', name: 'Verrugas víricas' },
-      { id: 'molusco', name: 'Molusco contagioso' },
+      { id: "2PS_seborrheic_dermatitis", name: "Dermatitis seborreica" },
+      { id: "4D_atopic_dermatitis", name: "Dermatitis atópica" },
+      { id: "4D_dermatitis", name: "Dermatitis" },
     ],
   },
   {
-    id: 'herpesvirus',
-    name: 'Infecciones por herpesvirus',
+    id: "infecciones-por-herpesvirus",
+    name: "Infecciones por herpesvirus",
     items: [
-      { id: 'herpes-simple', name: 'Herpes simple' },
-      { id: 'herpes-zoster', name: 'Herpes zóster' },
+      { id: "3V_herpes_genitalis", name: "herpes genital" },
+      { id: "3V_herpes_simplex", name: "Herpes Simple" },
+      { id: "3V_herpes_varicella_zoster", name: "Varicela Zoster" },
+      { id: "3V_herpes_zoster", name: "Infección de herpes" },
     ],
   },
   {
-    id: 'acne',
-    name: 'Acné',
+    id: "enfermedades-virales",
+    name: "Enfermedades Virales",
     items: [
-      { id: 'acne-vulgar', name: 'Acné vulgar' },
-      { id: 'acne-quistico', name: 'Acné quístico' },
-      { id: 'rosacea', name: 'Rosácea' },
+      { id: "3V_molluscum_contagiosum", name: "Molusco contagioso" },
+      { id: "3V_wart_plane", name: "Avión de verrugas" },
+      { id: "3V_wart_plantar", name: "verruga plantar" },
+      { id: "3V_wart_vulgaris", name: "verruga vulgar" },
     ],
   },
   {
-    id: 'eczema',
-    name: 'Eczema',
+    id: "eczema",
+    name: "Eczema",
     items: [
-      { id: 'eczema-numular', name: 'Eczema numular' },
-      { id: 'eczema-disidrotico', name: 'Eczema dishidrótico' },
+      { id: "4E_eczema", name: "Eczema" },
+    ],
+  },
+  {
+    id: "eritema-anular-centrifugo",
+    name: "Eritema anular centrífugo",
+    items: [
+      { id: "4HE_erythema", name: "Eritema anular centrífugo" },
+    ],
+  },
+  {
+    id: "urticaria-alergica",
+    name: "Urticaria alérgica",
+    items: [
+      { id: "4HE_hives", name: "Urticaria alérgica" },
+    ],
+  },
+  {
+    id: "lesiones-benignas-2",
+    name: "Lesiones benignas",
+    items: [
+      { id: "1B_nails", name: "Uñas Sin Patología" },
+    ],
+  },
+  {
+    id: "hidradenitis-supurativa",
+    name: "Hidradenitis supurativa",
+    items: [
+      { id: "4HE_hidradenitis", name: "Hidradenitis supurativa" },
+    ],
+  },
+  {
+    id: "vitiligo",
+    name: "Vitíligo",
+    items: [
+      { id: "4HE_vitiligo", name: "Vitíligo" },
     ],
   },
 ];

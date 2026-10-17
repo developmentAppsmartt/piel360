@@ -72,8 +72,10 @@ export function formatClinicalGreeting(
   options?: { specialty?: string | null; empresa?: boolean },
 ): string {
   const fullName = `${firstName} ${lastName}`.trim();
+  // Empresas: solo el nombre (sin «Profesional» / «Empresa»).
+  if (role === "empresa" || options?.empresa) return fullName;
   const roleLabel = resolveRoleDisplayLabel(role, options);
-  if (isClinicalPanelRole(role) || role === "empresa") {
+  if (isClinicalPanelRole(role)) {
     return `${roleLabel} ${fullName}`.trim();
   }
   return fullName;

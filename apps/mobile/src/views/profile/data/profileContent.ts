@@ -238,29 +238,27 @@ function buildDoctorSections(doctor?: DoctorProfile | null): ProfileSectionConfi
       rows: [
         {
           id: 'specialty',
-          label: 'Especialidad',
+          label: 'Especialidad o perfil profesional',
           value: orEmpty(doctor?.specialty),
           kind: 'nav',
         },
         {
           id: 'medical_registry',
-          label: 'Registro médico',
+          label: 'Registro profesional',
           value: orEmpty(doctor?.medicalRegistry),
           kind: 'nav',
           icon: 'doc',
         },
         {
-          id: 'license',
-          label: 'Licencia',
-          value: orEmpty(doctor?.licenseNumber),
-          kind: 'nav',
-          icon: 'doc',
-        },
-        {
           id: 'education',
-          label: 'Formación',
+          label:
+            doctor?.professionalKind === 'labor'
+              ? 'Institución educativa técnica'
+              : 'Entidad educativa',
           value: orEmpty(
-            doctor?.graduationInstitution || doctor?.educationEntity,
+            doctor?.professionalKind === 'labor'
+              ? doctor?.technicalInstitution
+              : doctor?.educationEntity || doctor?.graduationInstitution,
           ),
           kind: 'nav',
         },
@@ -546,10 +544,7 @@ export function buildProfileContent({
     const displayName = doctor
       ? doctorDisplayName(doctor, userName)
       : userName.replace(/^dr\.?\s+/i, '').trim() || userName;
-    const registry =
-      doctor?.licenseNumber?.trim() ||
-      doctor?.medicalRegistry?.trim() ||
-      null;
+    const registry = doctor?.medicalRegistry?.trim() || null;
 
     return {
       displayName,
@@ -558,8 +553,8 @@ export function buildProfileContent({
           ? 'Profesional'
           : orEmpty(doctor?.specialty),
       secondarySubtitle: registry
-        ? `Licencia / registro: ${registry}`
-        : 'Sin licencia registrada',
+        ? `Registro profesional: ${registry}`
+        : 'Sin registro profesional',
       avatarInitials: initialsFromName(
         `${doctor?.firstName ?? ''} ${doctor?.lastName ?? ''}`.trim() ||
           userName,

@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { CalendarDateField } from '../../../components/CalendarDateField';
 import { useBranding } from '../../../context/BrandingContext';
 import { ApiError } from '../../../services/api.client';
 import {
@@ -187,15 +188,19 @@ export function SkinAgeRulesView({
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Simulador</Text>
             <Text style={styles.cardBody}>
-              Fecha de nacimiento (AAAA-MM-DD) y edad de piel estimada.
+              Fecha de nacimiento y edad de piel estimada.
             </Text>
-            <TextInput
-              value={birthDate}
-              onChangeText={setBirthDate}
-              placeholder="1987-03-15"
-              placeholderTextColor="#9CA3AF"
-              style={styles.input}
-              autoCapitalize="none"
+            <CalendarDateField
+              value={birthDate || null}
+              onChange={(date) => setBirthDate(date ?? '')}
+              title="Fecha de nacimiento"
+              placeholder="Toca para elegir en el calendario"
+              allowFuture={false}
+              accentColor={branding.colors.icon}
+              textColor={branding.colors.text}
+              mutedColor="#9CA3AF"
+              triggerStyle={styles.input}
+              accessibilityLabel="Fecha de nacimiento"
             />
             <TextInput
               value={skinAgeYears}

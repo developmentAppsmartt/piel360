@@ -8,6 +8,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { GoogleStrategy } from './google.strategy';
 import { JwtStrategy } from './jwt.strategy';
+import { RecaptchaService } from './recaptcha.service';
 
 @Module({
   imports: [
@@ -21,7 +22,13 @@ import { JwtStrategy } from './jwt.strategy';
       }),
     }),
   ],
-  providers: [AuthService, AccountStatusService, JwtStrategy, GoogleStrategy],
+  providers: [
+    AuthService,
+    AccountStatusService,
+    RecaptchaService,
+    JwtStrategy,
+    GoogleStrategy,
+  ],
   controllers: [AuthController],
   exports: [AuthService, AccountStatusService],
 })

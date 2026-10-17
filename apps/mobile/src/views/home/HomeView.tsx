@@ -674,8 +674,8 @@ export function HomeView({
     return (
       <ChangePasswordFlow
         title="Cambiar contraseña"
+        mode="account"
         initialEmail={user?.email ?? ''}
-        initialPhoneDigits={null}
         onBack={() => setOverlay(null)}
         onSuccess={() => setOverlay(null)}
       />

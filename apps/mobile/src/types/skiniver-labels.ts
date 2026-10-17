@@ -237,8 +237,26 @@ const DIAGNOSES: { es: string; keys: string[] }[] = [
   },
   // Eritema
   {
-    es: "Eritema centrífugo anular",
-    keys: ["erythema annulare", "erythema annulare centrifugum"],
+    es: "Eritema anular centrífugo",
+    keys: [
+      "erythema",
+      "erythema annulare",
+      "erythema annulare centrifugum",
+      "eritema anular centrifugo",
+    ],
+  },
+  {
+    es: "Piel Sin Patología",
+    keys: ["skin", "no pathologies", "no pathology", "healthy skin"],
+  },
+  {
+    es: "Uñas Sin Patología",
+    keys: ["nails", "healthy nails", "unas sin patologia"],
+  },
+  { es: "Vitíligo", keys: ["vitiligo"] },
+  {
+    es: "Hidradenitis supurativa",
+    keys: ["hidradenitis", "hidradenitis suppurativa"],
   },
 ];
 

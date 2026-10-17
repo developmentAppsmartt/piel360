@@ -14,6 +14,9 @@ const MARKETING = [
   require('../../assets/splash-2.png'),
 ] as const;
 
+/** Proporción ancho/alto de splash-1 y splash-2 (≈ 772×1380). */
+const IMAGE_ASPECT = 0.56;
+
 const HOLD_MS = 2_800;
 const FADE_MS = 450;
 const SAFETY_MS = HOLD_MS * 2 + FADE_MS * 6 + 2_000;
@@ -107,14 +110,25 @@ export function SplashIntro({ onFinish }: SplashIntroProps) {
 
   const w = Math.max(width, 1);
   const h = Math.max(height, 1);
+  // En tablet 'cover' recorta el logo y los textos del póster: se muestra
+  // completo y los lados se rellenan con la misma imagen desenfocada.
+  const fitWhole = w / h > IMAGE_ASPECT * 1.1;
 
   return (
     <View style={styles.container} onLayout={onRootLayout}>
       <Animated.View style={[styles.imageWrap, { opacity }]}>
+        {fitWhole ? (
+          <Image
+            source={MARKETING[index]!}
+            style={[styles.backdrop, { width: w, height: h }]}
+            resizeMode="cover"
+            blurRadius={30}
+          />
+        ) : null}
         <Image
           source={MARKETING[index]!}
           style={{ width: w, height: h }}
-          resizeMode="cover"
+          resizeMode={fitWhole ? 'contain' : 'cover'}
           accessibilityLabel="Piel 360 — presentación"
           accessibilityIgnoresInvertColors
         />
@@ -135,5 +149,10 @@ const styles = StyleSheet.create({
   },
   imageWrap: {
     ...StyleSheet.absoluteFill,
+  },
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
   },
 });

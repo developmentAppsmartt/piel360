@@ -1,22 +1,32 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   Text,
   View,
 } from 'react-native';
 import { AppIcon } from '../../../../components/AppIcon';
 import { Icons } from '../../../../components/icons';
+import type { RecaptchaCheckboxHandle } from '../../../../components/RecaptchaCheckbox';
 // import { ComplianceBadges } from '../../../../components/legal/ComplianceBadges';
 import { LegalDocumentModal } from '../../../../components/legal/LegalDocumentModal';
+import {
+  RECAPTCHA_BASE_URL,
+  RECAPTCHA_ENABLED,
+  RECAPTCHA_SITE_KEY,
+} from '../../../../config/recaptcha';
 import { useAuth } from '../../../../context/AuthContext';
 import { useBranding } from '../../../../context/BrandingContext';
 import type { LegalDocId } from '../../../../data/legal/documents';
 import { ApiError } from '../../../../services/api.client';
+import { useDeviceLayout } from '../../../../styles/deviceLayout';
 import { AuthConsent } from './AuthConsent';
 import { AuthGradientButton } from './AuthGradientButton';
 import { LoginIconField } from './LoginIconField';
 import { createLoginStyles } from '../styles/login.styles';
+
+const POWERED_BY_LOGO = require('../../../../../assets/logo-piel360-report.png');
 
 type LoginFormProps = {
   onGoRegister: () => void;
@@ -26,10 +36,33 @@ type LoginFormProps = {
 export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) {
   const { login, loginWithGoogle } = useAuth();
   const branding = useBranding();
+  const { isTablet, isLandscape } = useDeviceLayout();
   const styles = useMemo(() => createLoginStyles(branding.colors), [branding.colors]);
+  const poweredByLogoSize = isTablet
+    ? isLandscape
+      ? { width: 168, height: 62 }
+      : { width: 200, height: 74 }
+    : { width: 132, height: 48 };
+  const poweredByLabelSize = isTablet ? (isLandscape ? 14 : 16) : 13;
 
-  const [captcha, setCaptcha] = useState(false);
+  const captchaRef = useRef<RecaptchaCheckboxHandle>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [terms, setTerms] = useState(false);
+
+  function clearCaptcha() {
+    setCaptchaToken(null);
+    setCaptchaResetKey((k) => k + 1);
+  }
+
+  async function resolveCaptchaToken(): Promise<string | null> {
+    const fresh = (await captchaRef.current?.getToken())?.trim() ?? '';
+    if (fresh) {
+      setCaptchaToken(fresh);
+      return fresh;
+    }
+    return captchaToken?.trim() || null;
+  }
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -67,8 +100,8 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
 
   async function onSubmitSignIn() {
     setError(null);
-    if (!captcha || !terms) {
-      setError('Marca “No soy un robot” y acepta los términos.');
+    if (!terms) {
+      setError('Debes aceptar los Términos y Condiciones.');
       return;
     }
     const emailTrimmed = email.trim();
@@ -87,11 +120,22 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
 
     setSubmitting(true);
     try {
+      let captchaToken: string | undefined;
+      if (RECAPTCHA_ENABLED) {
+        const token = await resolveCaptchaToken();
+        if (!token) {
+          setError('Marca la casilla “No soy un robot” para continuar.');
+          return;
+        }
+        captchaToken = token;
+      }
       await login({
         email: emailTrimmed.toLowerCase(),
         password,
+        captchaToken,
       });
     } catch (err) {
+      clearCaptcha();
       setError(loginErrorMessage(err));
     } finally {
       setSubmitting(false);
@@ -100,8 +144,15 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
 
   async function onGoogleSignIn() {
     setError(null);
-    if (!captcha || !terms) {
-      setError('Marca “No soy un robot” y acepta los términos.');
+    if (RECAPTCHA_ENABLED) {
+      const token = await resolveCaptchaToken();
+      if (!token) {
+        setError('Marca la casilla “No soy un robot” para continuar.');
+        return;
+      }
+    }
+    if (!terms) {
+      setError('Debes aceptar los Términos y Condiciones.');
       return;
     }
     setSubmitting(true);
@@ -111,6 +162,7 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
       if (err instanceof ApiError && err.status === 499) {
         return;
       }
+      clearCaptcha();
       setError(
         err instanceof ApiError
           ? err.message
@@ -197,9 +249,15 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
         styles={styles}
         primaryColor={primary}
         onDark={onDark}
-        captchaChecked={captcha}
+        captchaEnabled={RECAPTCHA_ENABLED}
+        captchaSiteKey={RECAPTCHA_SITE_KEY}
+        captchaBaseUrl={RECAPTCHA_BASE_URL}
+        captchaResetKey={captchaResetKey}
+        captchaRef={captchaRef}
+        onCaptchaVerify={setCaptchaToken}
+        onCaptchaExpire={clearCaptcha}
+        captchaVerified={Boolean(captchaToken)}
         termsChecked={terms}
-        onToggleCaptcha={() => setCaptcha((v) => !v)}
         onToggleTerms={() => setTerms((v) => !v)}
         onOpenTerms={() => setLegalDoc('terms')}
         onOpenPrivacy={() => setLegalDoc('privacy')}
@@ -207,23 +265,6 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
       />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <View style={styles.featureRow}>
-        <View style={[styles.featureCard, styles.featureCardBorder]}>
-          <AppIcon icon={Icons.clipboardCheck} size={20} color={featureIconColor} />
-          <Text style={styles.featureTitle}>Seguro y confiable</Text>
-          <Text style={styles.featureText}>
-            Tus datos están protegidos con los más altos estándares.
-          </Text>
-        </View>
-        <View style={styles.featureCard}>
-          <AppIcon icon={Icons.heartPulse} size={20} color={featureIconColor} />
-          <Text style={styles.featureTitle}>Resultados medibles</Text>
-          <Text style={styles.featureText}>
-            Información precisa para decisiones más inteligentes.
-          </Text>
-        </View>
-      </View>
 
       <AuthGradientButton
         label="Iniciar sesión"
@@ -233,6 +274,23 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
         styles={styles}
       />
 
+      <View style={styles.featureRow}>
+        <View style={[styles.featureCard, styles.featureCardBorder]}>
+          <AppIcon icon={Icons.clipboardCheck} size={18} color={featureIconColor} />
+          <Text style={styles.featureTitle}>Seguro y confiable</Text>
+          <Text style={styles.featureText}>
+            Tus datos están protegidos con los más altos estándares.
+          </Text>
+        </View>
+        <View style={styles.featureCard}>
+          <AppIcon icon={Icons.heartPulse} size={18} color={featureIconColor} />
+          <Text style={styles.featureTitle}>Resultados medibles</Text>
+          <Text style={styles.featureText}>
+            Información precisa para decisiones más inteligentes.
+          </Text>
+        </View>
+      </View>
+
       <Text style={styles.footer}>
         ¿No tienes una cuenta?{' '}
         <Text style={styles.link} onPress={onGoRegister}>
@@ -240,9 +298,17 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
         </Text>
       </Text>
 
-      <Text style={styles.poweredBy}>
-        POWERED BY <Text style={styles.poweredByBrand}>PIEL360</Text>
-      </Text>
+      <View style={styles.poweredBy} accessibilityRole="text">
+        <Text style={[styles.poweredByLabel, { fontSize: poweredByLabelSize }]}>
+          POWERED BY
+        </Text>
+        <Image
+          source={POWERED_BY_LOGO}
+          style={[styles.poweredByLogo, poweredByLogoSize]}
+          resizeMode="contain"
+          accessibilityLabel="Piel 360"
+        />
+      </View>
 
       {/* Oculto por temas legales: aún no se cuenta con estas certificaciones.
       <View style={styles.complianceBlock}>

@@ -101,6 +101,8 @@ export const TEAM_MEMBER_PERMISSIONS = [
   "products",
   "routines",
   "treatments",
+  "skin_age_rules",
+  "fitzpatrick_rules",
   "billing",
   "reports",
 ] as const;
@@ -115,6 +117,8 @@ export const TEAM_MEMBER_PERMISSION_LABELS: Record<
   products: "Productos",
   routines: "Rutinas",
   treatments: "Tratamientos",
+  skin_age_rules: "Reglas por edad de piel",
+  fitzpatrick_rules: "Reglas por fototipo",
   billing: "Compras y facturación",
   reports: "Reportes",
 };

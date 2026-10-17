@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { LocateFixed, Search } from "lucide-react";
+import { countryCodeFromNominatim } from "@/lib/nominatim-address";
 import type { LatLng } from "./types";
 
 const LocationPickerMap = dynamic(
@@ -27,6 +28,7 @@ type GeocodeResult = {
     village?: string;
     municipality?: string;
     state?: string;
+    country?: string;
     country_code?: string;
     postcode?: string;
   };
@@ -191,7 +193,7 @@ export function AddressLocationPicker({
         url.searchParams.set("format", "json");
         url.searchParams.set("addressdetails", "1");
         url.searchParams.set("limit", "5");
-        url.searchParams.set("countrycodes", "co");
+        // Sin countrycodes: el profesional puede estar en CO, EC, etc.
         const res = await fetch(url.toString(), {
           signal: controller.signal,
           headers: { Accept: "application/json" },
@@ -243,9 +245,11 @@ export function AddressLocationPicker({
           departmentFromNominatim(data.address, data.display_name) ??
           value.department ??
           "",
-        country: data.address?.country_code
-          ? data.address.country_code.toUpperCase()
-          : (value.country ?? "CO"),
+        country: countryCodeFromNominatim(
+          data.address,
+          data.display_name,
+          value.country,
+        ),
         zip: zipFromNominatim(data.address, data.display_name) ?? "",
       });
     } catch {
@@ -268,9 +272,11 @@ export function AddressLocationPicker({
       city: cityFromNominatim(item.address, item.display_name) ?? "",
       department:
         departmentFromNominatim(item.address, item.display_name) ?? "",
-      country: item.address?.country_code
-        ? item.address.country_code.toUpperCase()
-        : (value.country ?? "CO"),
+      country: countryCodeFromNominatim(
+        item.address,
+        item.display_name,
+        value.country,
+      ),
       zip: zipFromNominatim(item.address, item.display_name) ?? "",
     });
   }
