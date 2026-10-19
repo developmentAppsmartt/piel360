@@ -12,11 +12,7 @@ import { AppIcon } from '../../../../components/AppIcon';
 import { Icons } from '../../../../components/icons';
 import { LocationPicker } from '../../../../components/maps/LocationPicker';
 import { BirthDateField } from '../../../../components/BirthDateField';
-import {
-  RECAPTCHA_BASE_URL,
-  RECAPTCHA_ENABLED,
-  RECAPTCHA_SITE_KEY,
-} from '../../../../config/recaptcha';
+import { isRecaptchaNativeReady } from '../../../../config/recaptcha';
 import { useAuth } from '../../../../context/AuthContext';
 import { useBranding } from '../../../../context/BrandingContext';
 import {
@@ -31,6 +27,10 @@ import {
 } from '../../../../data/surveyQuestions';
 import { ApiError } from '../../../../services/api.client';
 import { patientsService } from '../../../../services/patients.service';
+import {
+  getRecaptchaToken,
+  isRecaptchaSdkLinked,
+} from '../../../../services/recaptcha-native.service';
 import { EmailOtpSection } from '../../../../components/auth/EmailOtpSection';
 import { PhoneOtpSection } from '../../../../components/auth/PhoneOtpSection';
 import {
@@ -81,8 +81,6 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [terms, setTerms] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -122,7 +120,7 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
     setStep(next);
   }
 
-  function goCredentialsNext() {
+  async function goCredentialsNext() {
     setError(null);
     if (!email.trim() || !password) {
       setError('Completa email y contraseña.');
@@ -132,10 +130,6 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
       setError(PASSWORD_STRENGTH_MESSAGE);
       return;
     }
-    if (RECAPTCHA_ENABLED && !captchaToken) {
-      setError('Marca la casilla “No soy un robot” para continuar.');
-      return;
-    }
     if (!terms) {
       setError('Debes aceptar los Términos y Condiciones.');
       return;
@@ -143,6 +137,32 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
     if (!emailTicket) {
       setError('Verifica tu correo con el código que te enviamos.');
       return;
+    }
+    if (isRecaptchaNativeReady()) {
+      try {
+        if (__DEV__ && !isRecaptchaSdkLinked()) {
+          console.warn(
+            '[recaptcha] SDK no enlazado: registro sin captcha en desarrollo.',
+          );
+        } else {
+          const token = (await getRecaptchaToken('REGISTER')).trim();
+          if (!token) {
+            setError('No se pudo verificar reCAPTCHA. Inténtalo de nuevo.');
+            return;
+          }
+        }
+      } catch (captchaErr) {
+        if (__DEV__ && !isRecaptchaSdkLinked()) {
+          console.warn('[recaptcha]', captchaErr);
+        } else {
+          setError(
+            captchaErr instanceof Error
+              ? captchaErr.message
+              : 'No se pudo verificar reCAPTCHA. Inténtalo de nuevo.',
+          );
+          return;
+        }
+      }
     }
     goTo('profile');
   }
@@ -344,16 +364,6 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
           styles={consentStyles}
           primaryColor={primary}
           onDark={onDark}
-          captchaEnabled={RECAPTCHA_ENABLED}
-          captchaSiteKey={RECAPTCHA_SITE_KEY}
-          captchaBaseUrl={RECAPTCHA_BASE_URL}
-          captchaResetKey={captchaResetKey}
-          onCaptchaVerify={setCaptchaToken}
-          onCaptchaExpire={() => {
-            setCaptchaToken(null);
-            setCaptchaResetKey((k) => k + 1);
-          }}
-          captchaVerified={Boolean(captchaToken)}
           termsChecked={terms}
           onToggleTerms={() => setTerms((v) => !v)}
           onOpenTerms={() => setLegalDoc('terms')}

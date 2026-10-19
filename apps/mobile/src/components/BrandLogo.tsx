@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Image, type ImageStyle, type StyleProp } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
+import { DEFAULT_BRANDING } from '../config/branding.defaults';
 import { useBranding } from '../context/BrandingContext';
 
 /** Proporción inicio.png (660×554) — pantallas de marca. */
@@ -27,25 +29,57 @@ export function BrandLogo({
   const isHeader = variant === 'header';
   const resolvedHeight = height ?? (isHeader ? 40 : 56);
   const aspect = isHeader ? HEADER_ASPECT : FULL_ASPECT;
+  const boxStyle = [
+    { height: resolvedHeight, width: resolvedHeight * aspect },
+    style,
+  ];
 
-  let source = isHeader ? branding.headerLogoImage : branding.logoImage;
   if (variant === 'login') {
     const custom = branding.loginLogoImage;
-    const uri = typeof custom === 'object' && 'uri' in custom ? custom.uri : null;
-    source = uri && uri === failedUri ? branding.logoImage : custom;
+    const uri =
+      typeof custom === 'object' && custom && 'uri' in custom
+        ? String(custom.uri ?? '')
+        : '';
+    const useRemote = Boolean(uri) && uri !== failedUri;
+
+    if (useRemote) {
+      return (
+        <ExpoImage
+          source={{ uri }}
+          onError={() => setFailedUri(uri)}
+          accessibilityLabel={branding.appName}
+          contentFit="contain"
+          cachePolicy="disk"
+          style={boxStyle}
+        />
+      );
+    }
+
+    return (
+      <Image
+        source={DEFAULT_BRANDING.logoImage}
+        accessibilityLabel={branding.appName}
+        resizeMode="contain"
+        style={boxStyle}
+      />
+    );
   }
+
+  const source = isHeader ? branding.headerLogoImage : branding.logoImage;
 
   return (
     <Image
       source={source}
       onError={() => {
         const uri =
-          typeof source === 'object' && source && 'uri' in source ? source.uri : null;
+          typeof source === 'object' && source && 'uri' in source
+            ? source.uri
+            : null;
         if (uri) setFailedUri(uri);
       }}
       accessibilityLabel={branding.appName}
       resizeMode="contain"
-      style={[{ height: resolvedHeight, width: resolvedHeight * aspect }, style]}
+      style={boxStyle}
     />
   );
 }

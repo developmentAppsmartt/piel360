@@ -1,3 +1,4 @@
+import { isRecaptchaNativeReady } from '../config/recaptcha';
 import type {
   AccountStatus,
   AuthResult,
@@ -18,12 +19,17 @@ export type OtpPurpose = 'register' | 'reset';
 export const authService = {
   async login(payload: LoginPayload): Promise<AuthResult> {
     const { email, password, captchaToken } = payload;
+    // Solo con SDK nativo activo; prod antigua rechaza captchaToken en el DTO.
+    const token =
+      isRecaptchaNativeReady() && captchaToken?.trim()
+        ? captchaToken.trim()
+        : undefined;
     const result = await apiRequest<AuthResult>('/auth/login', {
       method: 'POST',
       body: {
         email,
         password,
-        ...(captchaToken ? { captchaToken } : {}),
+        ...(token ? { captchaToken: token } : {}),
       },
     });
     const allowed = assertMobileLoginAllowed(result);

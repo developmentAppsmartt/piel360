@@ -50,6 +50,14 @@ export default {
   },
   plugins: [
     './plugins/with-skin-analysis',
+    './plugins/with-recaptcha-android',
+    [
+      'expo-build-properties',
+      {
+        // Requerido por @google-cloud/recaptcha-enterprise-react-native (iOS).
+        ios: { useFrameworks: 'static' },
+      },
+    ],
     'expo-secure-store',
     'expo-image',
     'expo-web-browser',
@@ -57,9 +65,14 @@ export default {
     [
       'expo-splash-screen',
       {
-        // Solo fondo blanco: el icono nativo (Android 12 / iOS) quedaba
-        // recortado arriba de la status bar. El branding va en SplashIntro.
+        // Fondo blanco + imagen requerida por Android 12 (SplashScreen API).
+        // Sin `image`, el prebuild referencia @drawable/splashscreen_logo y falla el link.
+        // El branding real va en SplashIntro (JS).
         backgroundColor: '#FFFFFF',
+        image: './assets/splash-icon.png',
+        android: {
+          imageWidth: 1,
+        },
       },
     ],
     [
