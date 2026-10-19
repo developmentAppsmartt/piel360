@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
   type StyleProp,
   type TextStyle,
   type ViewStyle,
@@ -47,6 +48,10 @@ type CalendarDateFieldProps = {
   /** Si true, no deja elegir días bloqueados. Default false. */
   disableBlockedDays?: boolean;
 };
+
+const SHEET_MAX_WIDTH = 420;
+/** Alto aproximado de título, ayuda, mes, leyenda, días de la semana y botones. */
+const SHEET_CHROME_HEIGHT = 300;
 
 const DAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
@@ -95,6 +100,13 @@ export function CalendarDateField({
   disableBlockedDays = false,
 }: CalendarDateFieldProps) {
   const branding = useBranding();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  // Los días son cuadrados: sin tope, en tablet (sobre todo horizontal) el mes no cabe.
+  const sheetWidth = Math.min(
+    screenWidth - 40,
+    SHEET_MAX_WIDTH,
+    Math.max(280, (screenHeight - SHEET_CHROME_HEIGHT) * (7 / 6) + 32),
+  );
   const accentColor = accentColorProp ?? branding.colors.primary;
   const rangeMode = typeof onChangeRange === 'function';
   const [open, setOpen] = useState(false);
@@ -207,7 +219,10 @@ export function CalendarDateField({
         onRequestClose={() => setOpen(false)}
       >
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+          <Pressable
+            style={[styles.sheet, { width: sheetWidth }]}
+            onPress={(e) => e.stopPropagation()}
+          >
             <Text style={[styles.sheetTitle, { color: textColor }]}>{title}</Text>
             {rangeMode ? (
               <Text style={styles.hint}>
@@ -412,6 +427,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
   },
   sheet: {

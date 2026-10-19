@@ -60,9 +60,12 @@ const SKIN_ANALYSIS_OPTIONS: SkinAnalysisOption[] = [
   },
 ];
 
-function PreviewPlaceholder() {
+function PreviewImage({ src, alt }: { src: string; alt: string }) {
   return (
-    <div className="aspect-[16/10] w-full rounded-xl border border-border/80 bg-white" />
+    <div className="flex aspect-[16/10] w-full items-center justify-center overflow-hidden rounded-xl border border-border/80 bg-[#f3f8fc]">
+      {/* eslint-disable-next-line @next/next/no-img-element -- asset estático en /public */}
+      <img src={src} alt={alt} className="h-full w-full object-contain" />
+    </div>
   );
 }
 
@@ -116,7 +119,10 @@ export function PersonalizacionView() {
       </div>
 
       <section className="grid gap-6 rounded-2xl border border-border/80 bg-card p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] lg:grid-cols-[minmax(0,320px)_1fr]">
-        <PreviewPlaceholder />
+        <PreviewImage
+          src="/personaliza-identidad-corporativa.png"
+          alt="Personaliza tu identidad corporativa"
+        />
         <div className="flex flex-col gap-4">
           <div className="flex items-start gap-3">
             <StepNumber value={1} />
@@ -137,7 +143,10 @@ export function PersonalizacionView() {
       </section>
 
       <section className="grid gap-6 rounded-2xl border border-border/80 bg-card p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] lg:grid-cols-[minmax(0,320px)_1fr]">
-        <PreviewPlaceholder />
+        <PreviewImage
+          src="/personalizacion-condiciones-piel.png"
+          alt="Personalización de condiciones de piel"
+        />
         <div className="flex min-w-0 flex-col gap-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-start gap-3">

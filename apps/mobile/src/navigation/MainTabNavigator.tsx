@@ -425,17 +425,13 @@ export function MainTabNavigator() {
             const active = tab.key === activeTab;
             const isCenter = 'center' in tab && tab.center;
             const lockedCenter = isCenter && !isDoctor && !analysisUnlocked;
-            const color = lockedCenter
-              ? '#C4C4C4'
-              : isCenter
-                ? activeColor
-                : active
-                  ? activeColor
-                  : inactiveColor;
+            // Mismo criterio de color que Inicio (activo / inactivo); sin
+            // círculo primario que dejaba el ícono ilegible.
+            const color = active ? activeColor : inactiveColor;
             return (
               <Pressable
                 key={tab.key}
-                style={[styles.tabItem, isCenter && styles.tabItemCenter]}
+                style={styles.tabItem}
                 onPress={() =>
                   isDoctor
                     ? onDoctorTabPress(tab.key)
@@ -448,28 +444,9 @@ export function MainTabNavigator() {
                 }}
                 accessibilityLabel={tab.label}
               >
-                <View
-                  style={
-                    isCenter
-                      ? [
-                          styles.centerIconWrap,
-                          {
-                            backgroundColor: lockedCenter
-                              ? '#D1D5DB'
-                              : branding.colors.primary,
-                          },
-                        ]
-                      : styles.tabIconWrap
-                  }
-                >
-                  <AppIcon
-                    icon={tab.icon}
-                    size={isCenter ? 26 : 22}
-                    color={isCenter ? branding.colors.textOnDark : color}
-                  />
-                  {!isCenter &&
-                  tab.key === 'agenda' &&
-                  agendaBadgeCount > 0 ? (
+                <View style={styles.tabIconWrap}>
+                  <AppIcon icon={tab.icon} size={22} color={color} />
+                  {tab.key === 'agenda' && agendaBadgeCount > 0 ? (
                     <View style={styles.tabBadge}>
                       <Text style={styles.tabBadgeText}>
                         {agendaBadgeCount > 9 ? '9+' : String(agendaBadgeCount)}
@@ -519,9 +496,6 @@ const styles = StyleSheet.create({
     gap: 2,
     minHeight: 48,
   },
-  tabItemCenter: {
-    marginTop: -18,
-  },
   tabIconWrap: {
     position: 'relative',
     alignItems: 'center',
@@ -545,14 +519,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 9,
     fontWeight: '800',
-  },
-  centerIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
   },
   tabLabel: {
     fontSize: 11,

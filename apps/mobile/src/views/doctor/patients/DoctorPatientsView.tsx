@@ -209,6 +209,7 @@ export function DoctorPatientsView({
     return (
       <ChangePasswordFlow
         title="Cambiar contraseña"
+        mode="account"
         initialEmail={user?.email ?? ''}
         onBack={() => setShowingPassword(false)}
         onSuccess={() => setShowingPassword(false)}

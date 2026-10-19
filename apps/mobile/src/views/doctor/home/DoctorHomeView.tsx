@@ -42,6 +42,7 @@ import {
 } from '../../../types/notifications';
 import type { PatientProfile } from '../../../types/patient';
 import { patientDisplayName } from '../../../types/patient';
+import { useDeviceLayout } from '../../../styles/deviceLayout';
 import { resolveMediaUrl } from '../../../utils/mediaUrl';
 import { SupportChatView } from '../../support/SupportChatView';
 import { ChangePasswordFlow } from '../../auth/forgot-password/ForgotPasswordView';
@@ -213,6 +214,13 @@ export function DoctorHomeView({
   const branding = useBranding();
   const { user, logout } = useAuth();
   const notifications = useNotificationsOptional();
+  const { isTablet, isLandscape } = useDeviceLayout();
+  // En tablet 10″ el logo de empresa se ve pequeño a 96×56.
+  const companyLogoSize = isTablet
+    ? isLandscape
+      ? { width: 148, height: 86 }
+      : { width: 168, height: 98 }
+    : undefined;
   const styles = useMemo(
     () => createDoctorHomeStyles(branding.colors),
     [branding.colors],
@@ -502,6 +510,7 @@ export function DoctorHomeView({
     return (
       <ChangePasswordFlow
         title="Cambiar contraseña"
+        mode="account"
         initialEmail={user?.email ?? ''}
         onBack={() => setShowingPassword(false)}
         onSuccess={() => setShowingPassword(false)}
@@ -713,7 +722,7 @@ export function DoctorHomeView({
           {branding.companyLogoImage ? (
             <Image
               source={branding.companyLogoImage}
-              style={styles.companyLogo}
+              style={[styles.companyLogo, companyLogoSize]}
               resizeMode="contain"
               accessibilityLabel="Logo de la empresa"
             />

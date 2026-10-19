@@ -78,7 +78,6 @@ const DOCTOR_EDITABLE = new Set([
   'city',
   'specialty',
   'medical_registry',
-  'license',
   'education',
 ]);
 
@@ -349,6 +348,7 @@ export function ProfileView({ onBack, onOpenMessages }: ProfileViewProps) {
     return (
       <ChangePasswordFlow
         title="Cambiar contraseña"
+        mode="account"
         initialEmail={user?.email ?? ''}
         initialPhoneDigits={accountPhone}
         onBack={() => setPasswordOpen(false)}

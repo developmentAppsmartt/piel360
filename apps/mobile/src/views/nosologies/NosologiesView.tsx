@@ -86,7 +86,7 @@ export function NosologiesView({
     }
   }, [activeCategoryId]);
 
-  const onDark = branding.colors.textOnDark;
+  const onIcon = branding.colors.buttonText;
 
   const handleMenuSelect = (id: string) => {
     setMenuOpen(false);
@@ -124,6 +124,7 @@ export function NosologiesView({
     return (
       <ChangePasswordFlow
         title="Cambiar contraseña"
+        mode="account"
         initialEmail={user?.email ?? ''}
         onBack={() => setShowingPassword(false)}
         onSuccess={() => setShowingPassword(false)}
@@ -230,7 +231,7 @@ export function NosologiesView({
           styles={styles}
           value={query}
           onChange={setQuery}
-          primaryColor={branding.colors.primary}
+          primaryColor={branding.colors.icon}
         />
 
         {!activeCategory ? (
@@ -247,7 +248,7 @@ export function NosologiesView({
               <NosologyCategoryRow
                 styles={styles}
                 label={item.name}
-                onDark={onDark}
+                onDark={onIcon}
                 onPress={() => {
                   setActiveCategoryId(item.id);
                   setSelectedItemId(null);

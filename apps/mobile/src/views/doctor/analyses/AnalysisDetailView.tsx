@@ -24,6 +24,7 @@ import type {
   SkiniverDiagnosisCandidate,
   YoucamRawResponse,
 } from '../../../types/analysis';
+import { skiniverDiagnosisLabel } from '../../../types/skiniver-labels';
 import { FITZPATRICK_SCALES } from '../../../data/fitzpatrickLabels';
 import { ANALYSIS_PROVIDER_STATIC_LABELS } from '../../../data/analysisProviderLabel';
 import { DoctorHeader } from '../patients/components/DoctorHeader';
@@ -192,7 +193,6 @@ export function AnalysisDetailView({
 
   function handleSkiniverViewChange(next: 'stats' | 'detail') {
     setSkiniverView(next);
-    if (next === 'stats') setSkiniverSelected(null);
   }
 
   useEffect(() => {
@@ -328,18 +328,34 @@ export function AnalysisDetailView({
     setNosologyPickerOpen(true);
   }
 
-  /** Confirmar sin corregir: se conserva el diagnostico de la IA, pero las
-   * observaciones del medico son obligatorias igual que al corregir. */
+  /** Confirma el diagnóstico seleccionado de la lista (o el de la IA). */
   async function handleSkiniverConfirm(input: ConfirmAnalysisInput) {
+    if (!skiniverSelected) {
+      Alert.alert(
+        'Selecciona un diagnóstico',
+        'Elige uno de los diagnósticos de apoyo antes de confirmar.',
+      );
+      return;
+    }
     const notes = skiniverNotes.trim();
     if (!notes) {
+      setSkiniverView('detail');
       Alert.alert(
         'Faltan las observaciones',
         'Describe el diagnóstico en observaciones antes de confirmar.',
       );
       return;
     }
-    await handleConfirm({ ...input, doctorNotes: notes });
+    const selectedLabel = skiniverDiagnosisLabel(
+      skiniverSelected.class,
+      skiniverSelected.class_raw,
+    );
+    await handleConfirm({
+      ...input,
+      doctorNotes: notes,
+      // El elegido en la lista queda como diagnóstico del registro.
+      finalDiagnosis: selectedLabel || skiniverSelected.class,
+    });
   }
 
   async function handleSaveSkiniverNotes() {
@@ -582,6 +598,8 @@ export function AnalysisDetailView({
                 onViewChange={handleSkiniverViewChange}
                 selectedCandidate={skiniverSelected}
                 onSelectedCandidateChange={setSkiniverSelected}
+                selectionEnabled={Boolean(canConfirm && !analysis.isConfirmed)}
+                showProfessionalOutcome={Boolean(canManage)}
                 observationsMode={skiniverObservationsMode}
                 observationsValue={skiniverNotes}
                 onObservationsChange={setSkiniverNotes}
@@ -589,6 +607,38 @@ export function AnalysisDetailView({
                 observationsSaving={correcting}
                 selectedNosology={selectedNosology}
                 onPickNosology={() => setNosologyPickerOpen(true)}
+                listFooter={
+                  canConfirm && !analysis.isConfirmed ? (
+                    <ConfirmAnalysisForm
+                      aiDiagnosis={
+                        skiniverSelected
+                          ? skiniverDiagnosisLabel(
+                              skiniverSelected.class,
+                              skiniverSelected.class_raw,
+                            )
+                          : analysis.aiDiagnosis
+                      }
+                      onSubmit={handleSkiniverConfirm}
+                      correctMode="nosology"
+                      onCorrectPress={openSkiniverCorrection}
+                    />
+                  ) : canConfirm && analysis.isConfirmed ? (
+                    <View style={{ gap: 8, marginTop: 8 }}>
+                      <Text style={styles.confirmStatus}>
+                        Análisis{' '}
+                        {analysis.isCorrected ? 'corregido' : 'confirmado'}
+                        {analysis.finalDiagnosis
+                          ? `: ${analysis.finalDiagnosis}`
+                          : '.'}
+                      </Text>
+                      <Pressable onPress={openSkiniverCorrection}>
+                        <Text style={styles.confirmOutlineText}>
+                          Editar observaciones
+                        </Text>
+                      </Pressable>
+                    </View>
+                  ) : null
+                }
                 detailFooter={
                   canConfirm ? (
                     skiniverNotesOpen ? (
@@ -615,7 +665,14 @@ export function AnalysisDetailView({
                       </View>
                     ) : (
                       <ConfirmAnalysisForm
-                        aiDiagnosis={analysis.aiDiagnosis}
+                        aiDiagnosis={
+                          skiniverSelected
+                            ? skiniverDiagnosisLabel(
+                                skiniverSelected.class,
+                                skiniverSelected.class_raw,
+                              )
+                            : analysis.aiDiagnosis
+                        }
                         onSubmit={handleSkiniverConfirm}
                         correctMode="nosology"
                         onCorrectPress={openSkiniverCorrection}

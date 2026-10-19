@@ -69,10 +69,7 @@ export class FitzpatrickRulesService {
   private async catalogDoctorId(userId: string) {
     const ctx = await this.orgContext.resolve(userId);
     if (ctx.isOrgMember && !ctx.isOrgOwner) {
-      const allowed =
-        ctx.teamPermissions.includes('routines') ||
-        ctx.teamPermissions.includes('treatments');
-      if (!allowed) {
+      if (!ctx.teamPermissions.includes('fitzpatrick_rules')) {
         throw new ForbiddenException(
           'No tienes permiso para acceder a este módulo del equipo',
         );

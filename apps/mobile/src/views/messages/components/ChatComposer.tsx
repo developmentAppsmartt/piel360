@@ -115,18 +115,30 @@ export function ChatComposer({
         />
         <View style={styles.composerTools}>
           <Pressable
+            style={styles.composerToolBtn}
             onPress={openAttachMenu}
             disabled={sending}
             accessibilityLabel="Adjuntar archivo"
+            hitSlop={4}
           >
-            <AppIcon icon={Icons.paperclip} size={18} color={branding.colors.iconMuted} />
+            <AppIcon
+              icon={Icons.paperclip}
+              size={24}
+              color={branding.colors.iconMuted}
+            />
           </Pressable>
           <Pressable
+            style={styles.composerToolBtn}
             onPress={() => void pickPdf()}
             disabled={sending}
             accessibilityLabel="Adjuntar PDF"
+            hitSlop={4}
           >
-            <AppIcon icon={Icons.document} size={18} color={branding.colors.iconMuted} />
+            <AppIcon
+              icon={Icons.document}
+              size={24}
+              color={branding.colors.iconMuted}
+            />
           </Pressable>
         </View>
       </View>

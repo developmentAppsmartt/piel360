@@ -12,6 +12,11 @@ import { AppIcon } from '../../../../components/AppIcon';
 import { Icons } from '../../../../components/icons';
 import { LocationPicker } from '../../../../components/maps/LocationPicker';
 import { BirthDateField } from '../../../../components/BirthDateField';
+import {
+  RECAPTCHA_BASE_URL,
+  RECAPTCHA_ENABLED,
+  RECAPTCHA_SITE_KEY,
+} from '../../../../config/recaptcha';
 import { useAuth } from '../../../../context/AuthContext';
 import { useBranding } from '../../../../context/BrandingContext';
 import {
@@ -76,7 +81,8 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [captcha, setCaptcha] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [terms, setTerms] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -126,8 +132,12 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
       setError(PASSWORD_STRENGTH_MESSAGE);
       return;
     }
-    if (!captcha || !terms) {
-      setError('Marca “No soy un robot” y acepta los términos.');
+    if (RECAPTCHA_ENABLED && !captchaToken) {
+      setError('Marca la casilla “No soy un robot” para continuar.');
+      return;
+    }
+    if (!terms) {
+      setError('Debes aceptar los Términos y Condiciones.');
       return;
     }
     if (!emailTicket) {
@@ -334,9 +344,17 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
           styles={consentStyles}
           primaryColor={primary}
           onDark={onDark}
-          captchaChecked={captcha}
+          captchaEnabled={RECAPTCHA_ENABLED}
+          captchaSiteKey={RECAPTCHA_SITE_KEY}
+          captchaBaseUrl={RECAPTCHA_BASE_URL}
+          captchaResetKey={captchaResetKey}
+          onCaptchaVerify={setCaptchaToken}
+          onCaptchaExpire={() => {
+            setCaptchaToken(null);
+            setCaptchaResetKey((k) => k + 1);
+          }}
+          captchaVerified={Boolean(captchaToken)}
           termsChecked={terms}
-          onToggleCaptcha={() => setCaptcha((v) => !v)}
           onToggleTerms={() => setTerms((v) => !v)}
           onOpenTerms={() => setLegalDoc('terms')}
           onOpenPrivacy={() => setLegalDoc('privacy')}
