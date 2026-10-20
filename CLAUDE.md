@@ -211,17 +211,28 @@ lado del túnel, así que **no choca con el Postgres local**, que sigue en el
 quieres fijarlo, en la pestaña SSH hay *Local port* (p. ej. `55432`). Con un
 túnel a mano sí hay que cambiarlo: `ssh -L 55432:localhost:5432 root@...`.
 
-Dos cosas que conviene dejar hechas:
+Conviene dejar un **usuario de solo lectura** para mirar producción
+(`GRANT SELECT` sobre `public` + `ALTER DEFAULT PRIVILEGES`): un `UPDATE` sin
+`WHERE` desde un cliente gráfico no se deshace.
 
-- **Un usuario de solo lectura** para mirar producción (`GRANT SELECT` sobre
-  `public` + `ALTER DEFAULT PRIVILEGES`). Un `UPDATE` sin `WHERE` desde un
-  cliente gráfico no se deshace.
-- **Las credenciales de producción NO van en `apps/api/.env`.** Ese archivo lo
-  leen los seeds y las pruebas de extremo a extremo, que **borran filas**: el
-  día que `DATABASE_URL` apunte a producción, el siguiente `pnpm run seed:*`
-  se lleva datos reales por delante. Los `POSTGRES_*` de ese archivo no los lee
-  nada en local (solo `docker-compose.yml`, que corre en el VPS con su propio
-  `.env.production`). Guárdalas en el gestor de contraseñas de DBeaver.
+#### Tres archivos de entorno, uno por sitio
+
+| Archivo | Dónde vive | Quién lo lee |
+|---|---|---|
+| `apps/api/.env` | tu máquina | el API, Prisma, los seeds y las pruebas. Su `DATABASE_URL` apunta **siempre** a la base local |
+| `apps/api/.env.produccion` | tu máquina | **nada**: es la referencia de las credenciales de producción para conectarse con DBeaver o `psql` por el túnel |
+| `/opt/piel360/.env.production` | el VPS | `docker compose --env-file`, que levanta el stack |
+
+Los dos locales están fuera de git (`.env` en `apps/api/.gitignore`, `.env.*`
+en el de la raíz). `ConfigModule.forRoot()` carga **solo `.env`**, así que
+`.env.produccion` es inerte: existe para consultarlo, no para que algo lo
+cargue.
+
+**La regla que no se salta nadie: `DATABASE_URL` en `apps/api/.env` apunta a
+la base local y punto.** Ese archivo lo leen los seeds y las pruebas de extremo
+a extremo, que **borran filas**; el día que apunte a producción, el siguiente
+`pnpm run seed:empresa-demo` se lleva datos reales por delante. Para hablar con
+producción se usa el túnel, nunca el entorno del API.
 
 ---
 
