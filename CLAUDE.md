@@ -172,6 +172,57 @@ docker compose exec postgres psql -U piel360 -d piel360
 docker compose exec postgres pg_dump -U piel360 piel360 > backup_$(date +%Y%m%d).sql
 ```
 
+#### Conectar DBeaver a la base de producción
+
+`docker-compose.yml` **no publica el puerto de Postgres** a propósito: la base
+solo existe dentro de la red de Docker, así que ni el propio host del VPS la
+alcanza por `localhost`. Para mirarla desde un cliente se publica **solo en la
+interfaz local del VPS** y se llega por un túnel SSH.
+
+En el VPS hay un `/opt/piel360/docker-compose.override.yml` que Compose lee
+solo. **No está en el repo**, así que sobrevive a los `git pull` — y por eso
+`git status` en `/opt/piel360` lo muestra como *untracked*: es esperado, no es
+un cambio local que haya que revisar.
+
+```yaml
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+```
+
+Si hay que recrearlo: `docker compose --env-file .env.production up -d postgres`
+(unos segundos sin base, el API reconecta solo; el volumen `pgdata` no se toca).
+Comprueba que no quedó abierto a internet — `ss -tlnp | grep 5432` tiene que
+decir `127.0.0.1:5432`, nunca `0.0.0.0:5432`.
+
+En DBeaver, conexión PostgreSQL:
+
+| Pestaña | Campo | Valor |
+|---|---|---|
+| Main | Host / Port | `localhost` / `5432` |
+| Main | Database / User | los de `/opt/piel360/.env.production` |
+| SSH | Use SSH Tunnel | sí |
+| SSH | Host / Port / User | `195.35.32.212` / `22` / `root` |
+
+**El `localhost:5432` de la pestaña Main se resuelve dentro del VPS**, al otro
+lado del túnel, así que **no choca con el Postgres local**, que sigue en el
+5432 de tu máquina. DBeaver abre su propio puerto local para el túnel; si
+quieres fijarlo, en la pestaña SSH hay *Local port* (p. ej. `55432`). Con un
+túnel a mano sí hay que cambiarlo: `ssh -L 55432:localhost:5432 root@...`.
+
+Dos cosas que conviene dejar hechas:
+
+- **Un usuario de solo lectura** para mirar producción (`GRANT SELECT` sobre
+  `public` + `ALTER DEFAULT PRIVILEGES`). Un `UPDATE` sin `WHERE` desde un
+  cliente gráfico no se deshace.
+- **Las credenciales de producción NO van en `apps/api/.env`.** Ese archivo lo
+  leen los seeds y las pruebas de extremo a extremo, que **borran filas**: el
+  día que `DATABASE_URL` apunte a producción, el siguiente `pnpm run seed:*`
+  se lleva datos reales por delante. Los `POSTGRES_*` de ese archivo no los lee
+  nada en local (solo `docker-compose.yml`, que corre en el VPS con su propio
+  `.env.production`). Guárdalas en el gestor de contraseñas de DBeaver.
+
 ---
 
 ## Desarrollo local
