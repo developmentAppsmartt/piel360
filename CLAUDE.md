@@ -211,9 +211,18 @@ lado del túnel, así que **no choca con el Postgres local**, que sigue en el
 quieres fijarlo, en la pestaña SSH hay *Local port* (p. ej. `55432`). Con un
 túnel a mano sí hay que cambiarlo: `ssh -L 55432:localhost:5432 root@...`.
 
-Conviene dejar un **usuario de solo lectura** para mirar producción
-(`GRANT SELECT` sobre `public` + `ALTER DEFAULT PRIVILEGES`): un `UPDATE` sin
-`WHERE` desde un cliente gráfico no se deshace.
+Para mirar producción se usa **`piel360_ro`**, un usuario de solo lectura
+(`GRANT SELECT` sobre `public` + `ALTER DEFAULT PRIVILEGES`, y
+`ALTER ROLE … SET default_transaction_read_only = on`, que hace fallar
+cualquier escritura aunque alguien le conceda permisos por error). Su clave
+está en `apps/api/.env.produccion`. Las del dueño (`piel360`) se guardan solo
+para emergencias: un `UPDATE` sin `WHERE` desde un cliente gráfico no se
+deshace.
+
+El `ALTER DEFAULT PRIVILEGES` solo cubre las tablas que cree **el rol que
+ejecutó la sentencia** — en producción, `piel360`, que es el `POSTGRES_USER`
+del contenedor y quien corre las migraciones. Si algún día migraran con otro
+rol, las tablas nuevas no serían visibles y habría que repetir el `GRANT`.
 
 #### Tres archivos de entorno, uno por sitio
 
