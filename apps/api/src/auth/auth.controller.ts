@@ -82,8 +82,12 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
-  login(@Body() dto: LoginDto, @Headers('x-client') clientHeader?: string) {
-    return this.authService.login(dto, authClient(clientHeader));
+  login(
+    @Body() dto: LoginDto,
+    @Headers('x-client') clientHeader?: string,
+    @Headers('x-device-platform') devicePlatform?: string,
+  ) {
+    return this.authService.login(dto, authClient(clientHeader), devicePlatform);
   }
 
   /** Canjea el refresh token por un access token nuevo. Sin JwtAuthGuard a

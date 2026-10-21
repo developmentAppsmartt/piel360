@@ -196,6 +196,7 @@ export function SkinAgeRulesView({
               title="Fecha de nacimiento"
               placeholder="Toca para elegir en el calendario"
               allowFuture={false}
+              yearSelectable
               accentColor={branding.colors.icon}
               textColor={branding.colors.text}
               mutedColor="#9CA3AF"

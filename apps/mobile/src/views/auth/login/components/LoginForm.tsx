@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -8,18 +8,17 @@ import {
 } from 'react-native';
 import { AppIcon } from '../../../../components/AppIcon';
 import { Icons } from '../../../../components/icons';
-import type { RecaptchaCheckboxHandle } from '../../../../components/RecaptchaCheckbox';
 // import { ComplianceBadges } from '../../../../components/legal/ComplianceBadges';
 import { LegalDocumentModal } from '../../../../components/legal/LegalDocumentModal';
-import {
-  RECAPTCHA_BASE_URL,
-  RECAPTCHA_ENABLED,
-  RECAPTCHA_SITE_KEY,
-} from '../../../../config/recaptcha';
+import { isRecaptchaNativeReady } from '../../../../config/recaptcha';
 import { useAuth } from '../../../../context/AuthContext';
 import { useBranding } from '../../../../context/BrandingContext';
 import type { LegalDocId } from '../../../../data/legal/documents';
 import { ApiError } from '../../../../services/api.client';
+import {
+  getRecaptchaToken,
+  isRecaptchaSdkLinked,
+} from '../../../../services/recaptcha-native.service';
 import { useDeviceLayout } from '../../../../styles/deviceLayout';
 import { AuthConsent } from './AuthConsent';
 import { AuthGradientButton } from './AuthGradientButton';
@@ -45,23 +44,18 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
     : { width: 132, height: 48 };
   const poweredByLabelSize = isTablet ? (isLandscape ? 14 : 16) : 13;
 
-  const captchaRef = useRef<RecaptchaCheckboxHandle>(null);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [terms, setTerms] = useState(false);
 
-  function clearCaptcha() {
-    setCaptchaToken(null);
-    setCaptchaResetKey((k) => k + 1);
-  }
-
-  async function resolveCaptchaToken(): Promise<string | null> {
-    const fresh = (await captchaRef.current?.getToken())?.trim() ?? '';
-    if (fresh) {
-      setCaptchaToken(fresh);
-      return fresh;
+  async function resolveCaptchaToken(): Promise<string> {
+    if (!isRecaptchaNativeReady()) return '';
+    // En Expo Go / Metro sin native module el SDK no existe.
+    if (__DEV__ && !isRecaptchaSdkLinked()) {
+      console.warn(
+        '[recaptcha] SDK no enlazado: login sin captcha en desarrollo. Usa expo run:android.',
+      );
+      return '';
     }
-    return captchaToken?.trim() || null;
+    return (await getRecaptchaToken('LOGIN')).trim();
   }
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -121,21 +115,34 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
     setSubmitting(true);
     try {
       let captchaToken: string | undefined;
-      if (RECAPTCHA_ENABLED) {
-        const token = await resolveCaptchaToken();
-        if (!token) {
-          setError('Marca la casilla “No soy un robot” para continuar.');
-          return;
+      if (isRecaptchaNativeReady()) {
+        try {
+          const token = await resolveCaptchaToken();
+          if (token) captchaToken = token;
+          else if (!__DEV__ || isRecaptchaSdkLinked()) {
+            setError('No se pudo verificar reCAPTCHA. Inténtalo de nuevo.');
+            return;
+          }
+        } catch (captchaErr) {
+          const detail =
+            captchaErr instanceof Error
+              ? captchaErr.message
+              : 'No se pudo verificar reCAPTCHA.';
+          // Dev sin build nativo: no bloquear login.
+          if (__DEV__ && !isRecaptchaSdkLinked()) {
+            console.warn('[recaptcha]', detail);
+          } else {
+            setError(detail);
+            return;
+          }
         }
-        captchaToken = token;
       }
       await login({
         email: emailTrimmed.toLowerCase(),
         password,
-        captchaToken,
+        ...(captchaToken ? { captchaToken } : {}),
       });
     } catch (err) {
-      clearCaptcha();
       setError(loginErrorMessage(err));
     } finally {
       setSubmitting(false);
@@ -144,13 +151,6 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
 
   async function onGoogleSignIn() {
     setError(null);
-    if (RECAPTCHA_ENABLED) {
-      const token = await resolveCaptchaToken();
-      if (!token) {
-        setError('Marca la casilla “No soy un robot” para continuar.');
-        return;
-      }
-    }
     if (!terms) {
       setError('Debes aceptar los Términos y Condiciones.');
       return;
@@ -162,7 +162,6 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
       if (err instanceof ApiError && err.status === 499) {
         return;
       }
-      clearCaptcha();
       setError(
         err instanceof ApiError
           ? err.message
@@ -249,14 +248,6 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
         styles={styles}
         primaryColor={primary}
         onDark={onDark}
-        captchaEnabled={RECAPTCHA_ENABLED}
-        captchaSiteKey={RECAPTCHA_SITE_KEY}
-        captchaBaseUrl={RECAPTCHA_BASE_URL}
-        captchaResetKey={captchaResetKey}
-        captchaRef={captchaRef}
-        onCaptchaVerify={setCaptchaToken}
-        onCaptchaExpire={clearCaptcha}
-        captchaVerified={Boolean(captchaToken)}
         termsChecked={terms}
         onToggleTerms={() => setTerms((v) => !v)}
         onOpenTerms={() => setLegalDoc('terms')}

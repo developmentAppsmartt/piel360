@@ -610,9 +610,15 @@ export class AuthService implements OnModuleDestroy {
   async login(
     dto: LoginDto,
     client: 'mobile' | 'web' = 'web',
+    devicePlatform?: string,
   ): Promise<AuthResult> {
     if (client === 'mobile' && this.recaptcha.isEnabled()) {
-      await this.recaptcha.assertValid(dto.captchaToken, { required: true });
+      await this.recaptcha.assertValid(dto.captchaToken, {
+        required: true,
+        // SDK móvil: RecaptchaAction.LOGIN → "login"
+        action: 'login',
+        platform: devicePlatform,
+      });
     }
 
     const email = dto.email.trim().toLowerCase();

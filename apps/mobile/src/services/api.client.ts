@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { getApiBaseUrl } from '../config/env';
 import {
   OFFLINE_MESSAGE,
@@ -112,6 +113,10 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   // El backend usa X-Client para saber qué cupo de sesión ocupa el login
   // (los profesionales tienen uno web y otro móvil).
   headers['X-Client'] = 'mobile';
+  // Site key de CreateAssessment (Android vs iOS).
+  if (Platform.OS === 'ios' || Platform.OS === 'android') {
+    headers['X-Device-Platform'] = Platform.OS;
+  }
 
   const baseUrl = getApiBaseUrl();
   const url = `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;

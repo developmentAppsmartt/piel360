@@ -5,6 +5,7 @@ import { BrandLogo } from '../../../../components/BrandLogo';
 import { Icons } from '../../../../components/icons';
 import { useBranding } from '../../../../context/BrandingContext';
 import { useNotificationsOptional } from '../../../../context/NotificationsContext';
+import { useDeviceLayout } from '../../../../styles/deviceLayout';
 import type { DoctorPatientsStyles } from '../styles/patients.styles';
 
 type DoctorHeaderProps = {
@@ -47,6 +48,8 @@ export function DoctorHeader({
 }: DoctorHeaderProps) {
   const insets = useSafeAreaInsets();
   const branding = useBranding();
+  const { isTablet } = useDeviceLayout();
+  const logoHeight = isTablet ? 68 : 44;
   const onDark = styles.headerIcon.color as string;
   const notifications = useNotificationsOptional();
   const badgeCount =
@@ -67,7 +70,15 @@ export function DoctorHeader({
             <AppIcon icon={Icons.back} size={24} color={onDark} />
           </Pressable>
         ) : null}
-        <BrandLogo variant="header" height={44} style={[styles.headerLogo, { tintColor: branding.colors.iconOnHeader }]} />
+        <BrandLogo
+          variant="header"
+          height={logoHeight}
+          style={[
+            styles.headerLogo,
+            isTablet && { maxHeight: 72, maxWidth: 240 },
+            { tintColor: branding.colors.iconOnHeader },
+          ]}
+        />
       </View>
       <View style={styles.headerActions}>
         <Pressable

@@ -215,6 +215,8 @@ export function DoctorHomeView({
   const { user, logout } = useAuth();
   const notifications = useNotificationsOptional();
   const { isTablet, isLandscape } = useDeviceLayout();
+  const welcomeLabelSize = isTablet ? 24 : undefined;
+  const shareIconSize = isTablet ? 28 : 18;
   // En tablet 10″ el logo de empresa se ve pequeño a 96×56.
   const companyLogoSize = isTablet
     ? isLandscape
@@ -704,16 +706,26 @@ export function DoctorHomeView({
           </Pressable>
           <View style={styles.welcomeTextWrap}>
             <View style={styles.welcomeNameRow}>
-              <Text style={styles.welcomeLabel}>Bienvenido,</Text>
+              <Text
+                style={[
+                  styles.welcomeLabel,
+                  welcomeLabelSize != null && { fontSize: welcomeLabelSize },
+                ]}
+              >
+                Bienvenido,
+              </Text>
               <Pressable
-                style={styles.inviteBtn}
+                style={[
+                  styles.inviteBtn,
+                  isTablet && { width: 52, height: 52, borderRadius: 26 },
+                ]}
                 onPress={() => setInviteOpen(true)}
                 accessibilityLabel="Invitar a un colega"
                 hitSlop={6}
               >
                 <AppIcon
                   icon={Icons.share}
-                  size={18}
+                  size={shareIconSize}
                   color={branding.colors.icon}
                 />
               </Pressable>

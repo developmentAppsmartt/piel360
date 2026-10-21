@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
+import { join } from 'path';
 import './common/bigint-json.polyfill';
 import { AppModule } from './app.module';
 
@@ -23,11 +24,22 @@ async function bootstrap() {
   app.useBodyParser('urlencoded', { limit: '5mb', extended: true });
 
   app.use(cookieParser());
+  // Bridge del captcha móvil (fuera de /api): Google exige un origen HTTP real.
+  // process.cwd() = apps/api tanto en start:dev como en el contenedor.
+  app.useStaticAssets(join(process.cwd(), 'public'), {
+    prefix: '/',
+    index: false,
+  });
   // Los webhooks quedan fuera de /api: deben coincidir exactamente con las
   // URLs ya registradas en los dashboards de Wompi/YouCam
   // (`/webhooks/wompi`, `/webhooks/youcam` — mismo patrón que Laravel).
   app.setGlobalPrefix('api', {
-    exclude: ['health', 'webhooks/wompi', 'webhooks/youcam'],
+    exclude: [
+      'health',
+      'webhooks/wompi',
+      'webhooks/youcam',
+      'recaptcha-bridge.html',
+    ],
   });
 
   // Web usa FRONTEND_URL. RN/Expo a menudo no envían Origin; en dev
