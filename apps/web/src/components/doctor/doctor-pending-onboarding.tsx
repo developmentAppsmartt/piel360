@@ -26,26 +26,6 @@ function StepBadge({ n }: { n: number }) {
   );
 }
 
-/** Espacio reservado para assets (QR, badges de tiendas). */
-function AssetPlaceholder({
-  className,
-  label,
-}: {
-  className?: string;
-  label: string;
-}) {
-  return (
-    <div
-      aria-hidden
-      className={cn(
-        "rounded-lg border-2 border-dashed border-zinc-200 bg-zinc-50/80",
-        className,
-      )}
-      title={label}
-    />
-  );
-}
-
 export function DoctorPendingOnboarding({
   profile,
   org,
@@ -113,15 +93,17 @@ export function DoctorPendingOnboarding({
             </div>
           </div>
 
-          <div className="mt-5 flex flex-1 flex-col items-center justify-center gap-4 sm:flex-row sm:items-stretch">
-            <AssetPlaceholder
-              label="Código QR"
-              className="size-32 shrink-0 sm:size-36"
+          <div className="mt-5 flex flex-1 flex-nowrap items-center justify-center gap-3">
+            <img
+              src="/qrtemporal.png"
+              alt="Código QR temporal para descargar la app PIEL360 en Android"
+              className="h-32 w-auto shrink-0"
             />
-            <div className="flex w-full max-w-[180px] flex-col justify-center gap-3">
-              <AssetPlaceholder label="App Store" className="h-12 w-full" />
-              <AssetPlaceholder label="Google Play" className="h-12 w-full" />
-            </div>
+            <img
+              src="/descarga-android.png"
+              alt="Descarga la app PIEL360 para Android"
+              className="h-11 w-auto max-w-[8.5rem] shrink object-contain"
+            />
           </div>
 
           <div className="mt-5 rounded-xl border border-sky-100 bg-sky-50/80 px-4 py-3">
