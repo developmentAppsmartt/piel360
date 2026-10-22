@@ -68,7 +68,7 @@ const RISK_TEXT_ALIASES = new Map<string, RiskLevel>(
  * Etiqueta de riesgo en español. `riskLevel` (independiente del idioma) manda
  * sobre el texto; el texto solo se usa cuando el nivel no viene.
  */
-export function skiniverRiskLabel(
+export function analisisDermaPiel360RiskLabel(
   risk?: string | null,
   riskLevel?: string | null,
 ): string {
@@ -262,7 +262,7 @@ for (const entry of DIAGNOSES) {
  * del clasificador y no cambia con el idioma; el nombre visible solo se usa
  * como respaldo. Si no se reconoce ninguno, se devuelve el nombre recibido.
  */
-export function skiniverDiagnosisLabel(
+export function analisisDermaPiel360DiagnosisLabel(
   value?: string | null,
   classRaw?: string | null,
 ): string {
@@ -355,7 +355,7 @@ const CATEGORY_LABELS = new Map<string, string>(
 );
 
 /** Categoría (`desease`) en español; pasa de largo lo que no reconoce. */
-export function skiniverCategoryLabel(desease?: string | null): string {
+export function analisisDermaPiel360CategoryLabel(desease?: string | null): string {
   const text = desease?.trim();
   if (!text) return "";
   return CATEGORY_LABELS.get(normalizeLabelKey(text)) ?? text;
@@ -371,7 +371,7 @@ export function skiniverCategoryLabel(desease?: string | null): string {
  * diagnóstico del atlas y categoría, así que primero hay que preguntar si es
  * un diagnóstico conocido.
  */
-export function isSkiniverDiagnosisName(
+export function isAnalisisDermaPiel360DiagnosisName(
   value?: string | null,
   classRaw?: string | null,
 ): boolean {
@@ -380,7 +380,7 @@ export function isSkiniverDiagnosisName(
   return !!text && DIAGNOSIS_LABELS.has(diagnosisKey(text));
 }
 
-export function isSkiniverCategoryName(value?: string | null): boolean {
+export function isAnalisisDermaPiel360CategoryName(value?: string | null): boolean {
   const text = value?.trim();
   return !!text && CATEGORY_LABELS.has(normalizeLabelKey(text));
 }

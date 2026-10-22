@@ -30,9 +30,9 @@ import {
   ModuleMetric,
 } from "@/components/ui/module-card";
 import {
-  usePerfectCorpUnits,
-  useSkiniverUnits,
-  useCreateSkiniverRecharge,
+  useAnalisisPiel360Units,
+  useAnalisisDermaPiel360Units,
+  useCreateAnalisisDermaPiel360Recharge,
 } from "@/lib/queries/admin-bolsa-units";
 import { PoolCreditsAlert } from "@/components/admin/pool-credits-alert";
 import { ApiError } from "@/lib/api-error";
@@ -292,14 +292,14 @@ function historyActionLabel(action: string) {
   return map[action] ?? action.replaceAll("_", " ");
 }
 
-function skiniverMovementStatus(kind: string | undefined, quantity: number) {
+function analisisDermaPiel360MovementStatus(kind: string | undefined, quantity: number) {
   if (kind === "subscription_return") return "Devolución" as const;
   if (kind === "subscription_reserve") return "Activación" as const;
   if (quantity < 0) return "Consumo" as const;
   return "Activa" as const;
 }
 
-function perfectCorpMovementStatus(action: string, delta: number) {
+function analisisPiel360MovementStatus(action: string, delta: number) {
   if (action === "subscription_return") return "Devolución" as const;
   if (action === "subscription_reserve") return "Activación" as const;
   if (delta < 0) return "Consumo" as const;
@@ -319,7 +319,7 @@ type MovementRow = {
   expiresAt: string;
   addedBy: string;
   status: MovementStatus;
-  source: "perfectcorp" | "skiniver";
+  source: "analisispiel360" | "analisisdermapiel360";
   actionLabel: string;
   note: string | null;
   addedByEmail: string | null;
@@ -390,7 +390,7 @@ function MovementDetailDialog({
             <div className="min-w-0 flex-1">
               <p className="font-semibold">{movement.unitLabel}</p>
               <p className="text-xs text-muted-foreground">
-                {movement.source === "perfectcorp" ? "Perfect Corp" : "Skiniver"}
+                {movement.source === "analisispiel360" ? "Estético" : "Dermatológico"}
               </p>
             </div>
             <Badge className={movementStatusBadgeClass(movement.status)}>
@@ -440,7 +440,7 @@ function MovementDetailDialog({
           ) : null}
 
           {movement.dstActions.length > 0 ? (
-            <DetailField label="Acciones Perfect Corp (dst)">
+            <DetailField label="Acciones del proveedor (dst)">
               <ul className="flex flex-wrap gap-1.5">
                 {movement.dstActions.map((action) => (
                   <li key={action}>
@@ -470,7 +470,7 @@ function MovementDetailDialog({
   );
 }
 
-function SkiniverRechargeDialog({
+function AnalisisDermaPiel360RechargeDialog({
   open,
   onOpenChange,
 }: {
@@ -481,7 +481,7 @@ function SkiniverRechargeDialog({
   const [expiresAt, setExpiresAt] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const recharge = useCreateSkiniverRecharge();
+  const recharge = useCreateAnalisisDermaPiel360Recharge();
 
   const reset = () => {
     setQuantity("");
@@ -500,7 +500,7 @@ function SkiniverRechargeDialog({
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Recargar créditos Skiniver</DialogTitle>
+          <DialogTitle>Recargar créditos dermatológicos</DialogTitle>
           <DialogDescription>
             Registra una compra o renovación de créditos dermatológicos. El
             saldo disponible se calcula como recargas activas menos análisis
@@ -538,13 +538,13 @@ function SkiniverRechargeDialog({
         >
           <div className="space-y-1.5">
             <label
-              htmlFor="skiniver-quantity"
+              htmlFor="analisisdermapiel360-quantity"
               className="text-sm font-medium"
             >
               Cantidad de créditos
             </label>
             <input
-              id="skiniver-quantity"
+              id="analisisdermapiel360-quantity"
               type="number"
               min={1}
               step={1}
@@ -556,11 +556,11 @@ function SkiniverRechargeDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="skiniver-expires" className="text-sm font-medium">
+            <label htmlFor="analisisdermapiel360-expires" className="text-sm font-medium">
               Vencimiento (opcional)
             </label>
             <input
-              id="skiniver-expires"
+              id="analisisdermapiel360-expires"
               type="date"
               value={expiresAt}
               onChange={(e) => setExpiresAt(e.target.value)}
@@ -568,15 +568,15 @@ function SkiniverRechargeDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="skiniver-note" className="text-sm font-medium">
+            <label htmlFor="analisisdermapiel360-note" className="text-sm font-medium">
               Nota / referencia (opcional)
             </label>
             <textarea
-              id="skiniver-note"
+              id="analisisdermapiel360-note"
               value={note}
               onChange={(e) => setNote(e.target.value.slice(0, 500))}
               rows={3}
-              placeholder="Factura, orden de compra, contacto Skiniver…"
+              placeholder="Factura, orden de compra, contacto del proveedor…"
               className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
@@ -606,45 +606,45 @@ export default function BolsaUnidadesPage() {
   const [typeFilter, setTypeFilter] = useState<"all" | "aesthetic" | "derm">(
     "all",
   );
-  const [skiniverRechargeOpen, setSkiniverRechargeOpen] = useState(false);
+  const [analisisDermaPiel360RechargeOpen, setAnalisisDermaPiel360RechargeOpen] = useState(false);
   const [selectedMovement, setSelectedMovement] = useState<MovementRow | null>(
     null,
   );
-  const perfectCorp = usePerfectCorpUnits();
-  const skiniver = useSkiniverUnits();
+  const analisisPiel360Pool = useAnalisisPiel360Units();
+  const analisisdermapiel360 = useAnalisisDermaPiel360Units();
 
-  const dermPool: UnitPool = skiniver.data?.pool
+  const dermPool: UnitPool = analisisdermapiel360.data?.pool
     ? {
         id: "derm",
-        name: skiniver.data.pool.name,
+        name: analisisdermapiel360.data.pool.name,
         accent: "derm",
-        available: skiniver.data.pool.available,
-        total: skiniver.data.pool.total,
-        used: skiniver.data.pool.used,
-        reserved: skiniver.data.pool.reserved,
-        expiringSoon: skiniver.data.pool.expiringSoon,
+        available: analisisdermapiel360.data.pool.available,
+        total: analisisdermapiel360.data.pool.total,
+        used: analisisdermapiel360.data.pool.used,
+        reserved: analisisdermapiel360.data.pool.reserved,
+        expiringSoon: analisisdermapiel360.data.pool.expiringSoon,
         unitLabel: "créditos",
       }
     : EMPTY_DERM_POOL;
-  const aestheticPool: UnitPool = perfectCorp.data?.pool
+  const aestheticPool: UnitPool = analisisPiel360Pool.data?.pool
     ? {
         id: "aesthetic",
-        name: perfectCorp.data.pool.name,
+        name: analisisPiel360Pool.data.pool.name,
         accent: "aesthetic",
-        available: perfectCorp.data.pool.available,
-        total: perfectCorp.data.pool.total,
-        used: perfectCorp.data.pool.used,
-        reserved: perfectCorp.data.pool.reserved,
-        expiringSoon: perfectCorp.data.pool.expiringSoon,
+        available: analisisPiel360Pool.data.pool.available,
+        total: analisisPiel360Pool.data.pool.total,
+        used: analisisPiel360Pool.data.pool.used,
+        reserved: analisisPiel360Pool.data.pool.reserved,
+        expiringSoon: analisisPiel360Pool.data.pool.expiringSoon,
         unitLabel: "unidades",
       }
     : EMPTY_AESTHETIC_POOL;
 
   const pools: UnitPool[] = [aestheticPool, dermPool];
-  const estimate = perfectCorp.data?.featureCosts.estimatedPerAnalysis;
+  const estimate = analisisPiel360Pool.data?.featureCosts.estimatedPerAnalysis;
 
   const recharges = useMemo((): MovementRow[] => {
-    const liveHistory = perfectCorp.data?.history ?? [];
+    const liveHistory = analisisPiel360Pool.data?.history ?? [];
     const liveRows: MovementRow[] = liveHistory
       .filter((h) => h.delta !== 0)
       .map((h) => {
@@ -662,9 +662,9 @@ export default function BolsaUnidadesPage() {
           addedBy: h.note?.trim()
             ? `${actionLabel} · ${h.note.trim()}`
             : actionLabel,
-          status: perfectCorpMovementStatus(h.action, h.delta),
+          status: analisisPiel360MovementStatus(h.action, h.delta),
           delta: h.delta,
-          source: "perfectcorp",
+          source: "analisispiel360",
           actionLabel,
           note: h.note?.trim() || null,
           addedByEmail: null,
@@ -674,7 +674,7 @@ export default function BolsaUnidadesPage() {
         };
       });
 
-    const skiniverRows: MovementRow[] = (skiniver.data?.history ?? []).map(
+    const analisisDermaPiel360Rows: MovementRow[] = (analisisdermapiel360.data?.history ?? []).map(
       (h) => {
         const actionLabel = h.kind
           ? historyActionLabel(h.kind)
@@ -694,9 +694,9 @@ export default function BolsaUnidadesPage() {
           addedBy: h.note?.trim()
             ? `${h.addedBy} · ${h.note.trim()}`
             : h.addedBy,
-          status: skiniverMovementStatus(h.kind, h.quantity),
+          status: analisisDermaPiel360MovementStatus(h.kind, h.quantity),
           delta: h.quantity,
-          source: "skiniver",
+          source: "analisisdermapiel360",
           actionLabel,
           note: h.note?.trim() || null,
           addedByEmail: h.addedByEmail,
@@ -707,19 +707,19 @@ export default function BolsaUnidadesPage() {
       },
     );
 
-    const all = [...liveRows, ...skiniverRows].sort(
+    const all = [...liveRows, ...analisisDermaPiel360Rows].sort(
       (a, b) => b.sortAt - a.sortAt,
     );
     if (typeFilter === "all") return all;
     return all.filter((r) => r.unitType === typeFilter);
-  }, [perfectCorp.data?.history, skiniver.data?.history, typeFilter]);
+  }, [analisisPiel360Pool.data?.history, analisisdermapiel360.data?.history, typeFilter]);
 
   const movementsLoading =
     typeFilter === "all"
-      ? perfectCorp.isLoading || skiniver.isLoading
+      ? analisisPiel360Pool.isLoading || analisisdermapiel360.isLoading
       : typeFilter === "aesthetic"
-        ? perfectCorp.isLoading
-        : skiniver.isLoading;
+        ? analisisPiel360Pool.isLoading
+        : analisisdermapiel360.isLoading;
 
   return (
     <div className="space-y-6">
@@ -743,29 +743,29 @@ export default function BolsaUnidadesPage() {
             variant="outline"
             size="sm"
             className="gap-1.5"
-            disabled={perfectCorp.isFetching}
-            onClick={() => void perfectCorp.refetch()}
+            disabled={analisisPiel360Pool.isFetching}
+            onClick={() => void analisisPiel360Pool.refetch()}
           >
             <RefreshCw
               className={cn(
                 "size-4",
-                perfectCorp.isFetching && "animate-spin",
+                analisisPiel360Pool.isFetching && "animate-spin",
               )}
             />
-            Actualizar Perfect Corp
+            Actualizar Estético
           </Button>
           <Button
             type="button"
             variant="outline"
             size="sm"
             className="gap-1.5"
-            disabled={skiniver.isFetching}
-            onClick={() => void skiniver.refetch()}
+            disabled={analisisdermapiel360.isFetching}
+            onClick={() => void analisisdermapiel360.refetch()}
           >
             <RefreshCw
-              className={cn("size-4", skiniver.isFetching && "animate-spin")}
+              className={cn("size-4", analisisdermapiel360.isFetching && "animate-spin")}
             />
-            Actualizar Skiniver
+            Actualizar Dermatológico
           </Button>
           <Button type="button" variant="outline" size="sm">
             Historial de recargas
@@ -774,41 +774,29 @@ export default function BolsaUnidadesPage() {
             type="button"
             size="sm"
             className="gap-1.5"
-            onClick={() => setSkiniverRechargeOpen(true)}
+            onClick={() => setAnalisisDermaPiel360RechargeOpen(true)}
           >
             <Plus className="size-4" />
-            Recargar Skiniver
+            Recargar Dermatológico
           </Button>
-          <a
-            href="https://yce.perfectcorp.com/ai-api/api-pricing"
-            target="_blank"
-            rel="noreferrer"
-            className={cn(
-              "inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-primary px-2.5 text-sm font-medium text-primary-foreground",
-              "hover:bg-primary/80",
-            )}
-          >
-            <Plus className="size-4" />
-            Recargar en Perfect Corp
-          </a>
         </div>
       </div>
 
-      {perfectCorp.isError ? (
+      {analisisPiel360Pool.isError ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          No se pudo consultar el saldo Perfect Corp (
-          {perfectCorp.error instanceof Error
-            ? perfectCorp.error.message
+          No se pudo consultar el saldo Estético (
+          {analisisPiel360Pool.error instanceof Error
+            ? analisisPiel360Pool.error.message
             : "error desconocido"}
           ).
         </div>
       ) : null}
 
-      {skiniver.isError ? (
+      {analisisdermapiel360.isError ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          No se pudo consultar la bolsa Skiniver (
-          {skiniver.error instanceof Error
-            ? skiniver.error.message
+          No se pudo consultar la bolsa Dermatológica (
+          {analisisdermapiel360.error instanceof Error
+            ? analisisdermapiel360.error.message
             : "error desconocido"}
           ).
         </div>
@@ -817,24 +805,24 @@ export default function BolsaUnidadesPage() {
       {estimate ? (
         <ModuleCard className="p-4">
           <ModuleCardTitle className="text-sm">
-            Costo por análisis (Perfect Corp)
+            Costo por análisis (Estético)
           </ModuleCardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
             Fuente:{" "}
             {estimate.source === "api"
               ? "GET /s2s/v2.0/credit/feature-cost"
               : "tarifas documentadas (fallback)"}
-            {perfectCorp.data?.fetchedAt
-              ? ` · actualizado ${new Date(perfectCorp.data.fetchedAt).toLocaleString("es-CO")}`
+            {analisisPiel360Pool.data?.fetchedAt
+              ? ` · actualizado ${new Date(analisisPiel360Pool.data.fetchedAt).toLocaleString("es-CO")}`
               : null}
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <div className="rounded-xl border border-border/80 bg-muted/20 px-3 py-3">
               <p className="text-xs text-muted-foreground">
-                AI Skin Analysis HD ({estimate.youcamConcerns} concerns)
+                AI Skin Analysis HD ({estimate.concerns} concerns)
               </p>
               <p className="mt-1 text-lg font-semibold tabular-nums">
-                {formatUnits(estimate.youcamHdUnits)}{" "}
+                {formatUnits(estimate.hdUnits)}{" "}
                 <span className="text-sm font-medium text-muted-foreground">
                   u.
                 </span>
@@ -882,15 +870,15 @@ export default function BolsaUnidadesPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <UnitPoolCard
               pool={aestheticPool}
-              live={Boolean(perfectCorp.data)}
-              liveLabel="Perfect Corp"
-              loading={perfectCorp.isLoading && !perfectCorp.data}
+              live={Boolean(analisisPiel360Pool.data)}
+              liveLabel="Estético"
+              loading={analisisPiel360Pool.isLoading && !analisisPiel360Pool.data}
             />
             <UnitPoolCard
               pool={dermPool}
-              live={Boolean(skiniver.data)}
-              liveLabel="Skiniver"
-              loading={skiniver.isLoading && !skiniver.data}
+              live={Boolean(analisisdermapiel360.data)}
+              liveLabel="Dermatológico"
+              loading={analisisdermapiel360.isLoading && !analisisdermapiel360.data}
             />
           </div>
 
@@ -920,7 +908,7 @@ export default function BolsaUnidadesPage() {
                   className="gap-1.5 text-muted-foreground"
                 >
                   <CalendarDays className="size-4" />
-                  Historial Perfect Corp
+                  Historial Estético
                 </Button>
                 <Button
                   type="button"
@@ -1047,13 +1035,13 @@ export default function BolsaUnidadesPage() {
             <ModuleCardTitle className="text-sm">
               Distribución de unidades
             </ModuleCardTitle>
-            {perfectCorp.data || skiniver.data ? (
+            {analisisPiel360Pool.data || analisisdermapiel360.data ? (
               <div className="mt-4">
                 <DistributionDonut pools={pools} />
               </div>
             ) : (
               <p className="mt-4 text-sm text-muted-foreground">
-                {perfectCorp.isLoading || skiniver.isLoading
+                {analisisPiel360Pool.isLoading || analisisdermapiel360.isLoading
                   ? "Cargando saldos…"
                   : "Sin datos de saldo disponibles."}
               </p>
@@ -1066,12 +1054,11 @@ export default function BolsaUnidadesPage() {
         <p className="flex gap-2">
           <Info className="mt-0.5 size-4 shrink-0 text-sky-600 dark:text-sky-300" />
           <span>
-            Estético y Fitzpatrick comparten la bolsa Perfect Corp (
-            `GET /s2s/v1.0/client/credit`); la recarga se hace en su portal.
-            Dermatológico (Skiniver) se registra aquí con &quot;Recargar
-            Skiniver&quot;: el saldo es recargas activas menos análisis
-            dermatológicos consumidos en la plataforma. Para ampliar el plan con
-            Skiniver contacta{" "}
+            Estético y Fototipo comparten la misma bolsa; la recarga se hace
+            en el portal del proveedor. La bolsa Dermatológica se registra aquí
+            con &quot;Recargar Dermatológico&quot;: el saldo es recargas activas
+            menos análisis dermatológicos consumidos en la plataforma. Para
+            ampliar el plan dermatológico contacta{" "}
             <a
               href="mailto:info@skinive.com"
               className="font-medium underline underline-offset-2"
@@ -1083,9 +1070,9 @@ export default function BolsaUnidadesPage() {
         </p>
       </div>
 
-      <SkiniverRechargeDialog
-        open={skiniverRechargeOpen}
-        onOpenChange={setSkiniverRechargeOpen}
+      <AnalisisDermaPiel360RechargeDialog
+        open={analisisDermaPiel360RechargeOpen}
+        onOpenChange={setAnalisisDermaPiel360RechargeOpen}
       />
       <MovementDetailDialog
         movement={selectedMovement}

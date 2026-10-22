@@ -12,8 +12,7 @@ import { ApiError } from "@/lib/api-error";
 import { usePatient, usePatientAnalyses } from "@/lib/queries/patients";
 import { useMyDoctorProfile } from "@/lib/queries/doctors";
 import {
-  PROVIDER_PUBLIC_ALIASES,
-  providerSlugMatches,
+  PUBLIC_ANALYSIS_PROVIDER_SLUGS,
 } from "@piel360/shared";
 
 export default function PacienteDetallePage() {
@@ -25,12 +24,10 @@ export default function PacienteDetallePage() {
   const analyses = usePatientAnalyses(id);
   const doctorProfile = useMyDoctorProfile();
 
-  const allowedProviders = doctorProfile.data?.allowedProviderSlugs ?? [
-    PROVIDER_PUBLIC_ALIASES.skiniver,
-    PROVIDER_PUBLIC_ALIASES.youcam,
-    "fitzpatrick",
-  ];
-  const allows = (slug: string) => providerSlugMatches(slug, allowedProviders);
+  // El API ya manda los slugs públicos, así que basta comparar.
+  const allowedProviders: readonly string[] =
+    doctorProfile.data?.allowedProviderSlugs ?? PUBLIC_ANALYSIS_PROVIDER_SLUGS;
+  const allows = (slug: string) => allowedProviders.includes(slug);
 
   const authError =
     (patient.error instanceof ApiError && patient.error.status === 401) ||
@@ -67,16 +64,16 @@ export default function PacienteDetallePage() {
         >
           Editar
         </Button>
-        {allows("skiniver") ? (
+        {allows("analisisdermapiel360") ? (
           <Button
             variant="outline"
             nativeButton={false}
             render={<Link href={`/doctor/pacientes/${p.id}/nuevo-analisis`} />}
           >
-            {ANALYSIS_PROVIDER_STATIC_LABELS.skiniver}
+            {ANALYSIS_PROVIDER_STATIC_LABELS.analisisdermapiel360}
           </Button>
         ) : null}
-        {allows("youcam") ? (
+        {allows("analisispiel360") ? (
           <Button
             variant="outline"
             nativeButton={false}
@@ -86,7 +83,7 @@ export default function PacienteDetallePage() {
               />
             }
           >
-            {ANALYSIS_PROVIDER_STATIC_LABELS.youcam}
+            {ANALYSIS_PROVIDER_STATIC_LABELS.analisispiel360}
           </Button>
         ) : null}
         {allows("fitzpatrick") ? (

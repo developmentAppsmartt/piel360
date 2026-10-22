@@ -172,6 +172,77 @@ docker compose exec postgres psql -U piel360 -d piel360
 docker compose exec postgres pg_dump -U piel360 piel360 > backup_$(date +%Y%m%d).sql
 ```
 
+#### Conectar DBeaver a la base de producción
+
+`docker-compose.yml` **no publica el puerto de Postgres** a propósito: la base
+solo existe dentro de la red de Docker, así que ni el propio host del VPS la
+alcanza por `localhost`. Para mirarla desde un cliente se publica **solo en la
+interfaz local del VPS** y se llega por un túnel SSH.
+
+En el VPS hay un `/opt/piel360/docker-compose.override.yml` que Compose lee
+solo. **No está en el repo**, así que sobrevive a los `git pull` — y por eso
+`git status` en `/opt/piel360` lo muestra como *untracked*: es esperado, no es
+un cambio local que haya que revisar.
+
+```yaml
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+```
+
+Si hay que recrearlo: `docker compose --env-file .env.production up -d postgres`
+(unos segundos sin base, el API reconecta solo; el volumen `pgdata` no se toca).
+Comprueba que no quedó abierto a internet — `ss -tlnp | grep 5432` tiene que
+decir `127.0.0.1:5432`, nunca `0.0.0.0:5432`.
+
+En DBeaver, conexión PostgreSQL:
+
+| Pestaña | Campo | Valor |
+|---|---|---|
+| Main | Host / Port | `localhost` / `5432` |
+| Main | Database / User | los de `/opt/piel360/.env.production` |
+| SSH | Use SSH Tunnel | sí |
+| SSH | Host / Port / User | `195.35.32.212` / `22` / `root` |
+
+**El `localhost:5432` de la pestaña Main se resuelve dentro del VPS**, al otro
+lado del túnel, así que **no choca con el Postgres local**, que sigue en el
+5432 de tu máquina. DBeaver abre su propio puerto local para el túnel; si
+quieres fijarlo, en la pestaña SSH hay *Local port* (p. ej. `55432`). Con un
+túnel a mano sí hay que cambiarlo: `ssh -L 55432:localhost:5432 root@...`.
+
+Para mirar producción se usa **`piel360_ro`**, un usuario de solo lectura
+(`GRANT SELECT` sobre `public` + `ALTER DEFAULT PRIVILEGES`, y
+`ALTER ROLE … SET default_transaction_read_only = on`, que hace fallar
+cualquier escritura aunque alguien le conceda permisos por error). Su clave
+está en `apps/api/.env.produccion`. Las del dueño (`piel360`) se guardan solo
+para emergencias: un `UPDATE` sin `WHERE` desde un cliente gráfico no se
+deshace.
+
+El `ALTER DEFAULT PRIVILEGES` solo cubre las tablas que cree **el rol que
+ejecutó la sentencia** — en producción, `piel360`, que es el `POSTGRES_USER`
+del contenedor y quien corre las migraciones. Si algún día migraran con otro
+rol, las tablas nuevas no serían visibles y habría que repetir el `GRANT`.
+
+#### Tres archivos de entorno, uno por sitio
+
+| Archivo | Dónde vive | Quién lo lee |
+|---|---|---|
+| `apps/api/.env` | tu máquina | el API, Prisma, los seeds y las pruebas. Su `DATABASE_URL` apunta **siempre** a la base local |
+| `apps/api/.env.produccion` | tu máquina | **nada**: es la referencia de las credenciales de producción para conectarse con DBeaver o `psql` por el túnel |
+| `/opt/piel360/.env.production` | el VPS | `docker compose --env-file`, que levanta el stack |
+
+Los dos locales están fuera de git (`.env` en `apps/api/.gitignore`, `.env.*`
+en el de la raíz). `ConfigModule.forRoot()` carga **solo `.env`**, así que
+`.env.produccion` es inerte: existe para consultarlo, no para que algo lo
+cargue.
+
+**La regla que no se salta nadie: `DATABASE_URL` en `apps/api/.env` apunta a
+la base local y punto.** Ese archivo lo leen los seeds y las pruebas de extremo
+a extremo, que **borran filas**; el día que apunte a producción, el siguiente
+`pnpm run seed:empresa-demo` se lleva datos reales por delante. Para hablar con
+producción se usa el túnel, nunca el entorno del API.
+
 ---
 
 ## Desarrollo local
@@ -244,7 +315,106 @@ Trampas ya conocidas (todas costaron un intento fallido):
 - Los pacientes **solo entran desde la app móvil**; el panel de paciente del web
   está bloqueado en el proxy.
 
-### Skiniver (análisis dermatológico)
+### Nombres de proveedor: qué slug es qué
+
+**Las palabras `youcam`, `perfectcorp`, `perfect corp` y `skiniver` no pueden
+aparecer en nada que descargue el navegador** — ni en un chunk, ni en una URL
+del Network, ni en una clave de JSON, ni en pantalla. En el servidor sí: el
+código del API no se descarga, y la base guarda los slugs internos.
+
+| Interno (invisible) | Slug público | Qué es para el usuario |
+|---|---|---|
+| `skiniver` | `analisisdermapiel360` | Análisis Dermatológico Piel 360 |
+| `youcam` | `analisispiel360` | Análisis Estético Piel 360 |
+| `perfectcorp` (bolsa) | `analisispiel360` | bolsa Estética (estético + fototipo) |
+| `fitzpatrick` | `fitzpatrick` | Análisis de Fototipo Piel 360 |
+
+`fitzpatrick` **no se enmascara**: es una escala médica publicada, no un
+proveedor. `perfectcorp` comparte slug público con `youcam` porque Perfect Corp
+es el dueño de YouCam; la vuelta atrás sí es distinta, y por eso hay dos mapas
+(`PROVIDER_PUBLIC_ALIASES` y `POOL_PUBLIC_ALIASES`).
+
+Dónde vive cada pieza:
+
+- `packages/shared/src/public-provider-slugs.ts` — **el único vocabulario que
+  puede llegar al navegador**. Está separado a propósito: basta con que el web
+  importe una función del otro módulo para que el bundler se traiga sus tablas
+  internas y los nombres acaben en un chunk.
+- `packages/shared/src/provider-public-alias.ts` — los mapas interno ↔ público
+  y los helpers de enmascarado. **Solo lo usa el API** (y `proxy.ts`, que corre
+  en el servidor).
+- `apps/web/src/lib/analysis-provider-label.ts` — las etiquetas que se pintan.
+
+La regla al añadir código:
+
+- **El API enmascara al serializar**, nunca el navegador. Si una respuesta nueva
+  lleva un slug o una clave de proveedor, pásala por `toPublicProviderSlug`,
+  `toPublicPoolSlug` o `toPublicProviderKeys`. `toPublicPlanProviders` ya cubre
+  los planes (slug, `name`, `analysisLimits`, `apiCosts`, `poolProvider`).
+- **Y desenmascara al escribir**: el panel manda slugs públicos y las columnas
+  guardan los internos (`toInternalProviderKeys`). Ojo con el `ValidationPipe`:
+  una clave que no esté en el DTO devuelve **400**, así que los DTOs declaran la
+  clave pública.
+- Los **nombres de archivo no importan** (`youcam-report-view.tsx` sigue
+  llamándose así): el build no publica source maps, comprobado. Lo que sí
+  sobrevive a la minificación son los **símbolos exportados** y los literales.
+- El **JWT guarda los permisos internos** porque los guards del API comparan
+  contra ellos. `proxy.ts` los normaliza con `toPublicProviderPermissions` en el
+  único punto por donde entran al web.
+
+Dos excepciones, a propósito:
+
+- **`POST /webhooks/youcam` no se toca**: esa URL está registrada en el
+  dashboard del proveedor y cambiarla rompe la integración. No la ve el
+  navegador.
+- Las variables de entorno del API (`YOUCAM_*`, `SKINIVER_*`) y los nombres de
+  columna (`youcam_task_id`) se quedan. El campo de Prisma se llama
+  `analisisPiel360TaskId` con `@map("youcam_task_id")`, así que **la columna y
+  los índices no cambiaron y no hubo migración**.
+
+Lo que se sacó del panel y se anota aquí para no perderlo:
+
+- Tarifario del proveedor estético: `https://yce.perfectcorp.com/ai-api/api-pricing`
+  (estaba como botón «Recargar en Perfect Corp» en Bolsa de unidades).
+- El contacto del proveedor dermatológico sigue en pantalla como
+  `info@skinive.com`: no contiene ninguna de las palabras prohibidas.
+
+Cómo comprobarlo — **no se razona, se ejecuta**:
+
+```bash
+pnpm turbo run build
+pnpm run check:proveedores   # recorre .next/static y el HTML/RSC servido
+```
+
+Antes de este trabajo daba 886 ocurrencias en 51 chunks; tiene que dar 0. El
+grep estático no ve lo que el API responde en caliente: para eso hay un guion
+de puppeteer que recorre el panel apuntando cada URL y cada cuerpo de respuesta.
+
+**El atlas trae el `<head>` del proveedor**: los artículos se guardan
+scrapeados, y el HTML incluía su JSON-LD y sus `<meta>` —con su marca y sus
+redes— además de meter el `<script>` de un tercero en nuestra página. El
+scraper ya los quita (`REMOVE_SELECTORS` en `encyclopedia.service.ts`), pero
+**eso solo afecta a lo que se baje a partir de ahora**: las filas que ya están
+guardadas siguen igual hasta que se vuelvan a scrapear. Para limpiarlas se
+fuerza el sync, que es idempotente y no toca SQL:
+
+```bash
+curl -X POST https://<api>/api/encyclopedia/sync -H "Authorization: Bearer <token>"
+```
+
+Requiere el permiso `update_encyclopedia_entry`. Si no, se limpian solas en el
+`@Cron` mensual. **No se arregla con una migración**: reescribir el HTML a
+golpe de `regexp_replace` se llevó por delante el cuerpo de los 46 artículos en
+local —en Postgres, si el primer cuantificador de la expresión es greedy, toda
+la expresión lo es, así que `<script[^>]*>.*?</script>` borra desde el primer
+`<script>` hasta el último—.
+
+**Nombres en los datos**: `plans.name` no se enmascara —lo escribe el negocio—
+así que un plan llamado «Skiniver Básico» se pinta tal cual. Los seeds ya usan
+«Dermatológico Básico» / «Estético Básico»; **en producción hay que revisarlo a
+mano** con `select id, name from plans where name ~* 'skiniver|youcam|perfect'`.
+
+### Análisis dermatológico (el proveedor interno `skiniver`)
 
 - `/predict` recibe `lang` desde `users.diagnostic_language`, pero **solo traduce
   `description`**: `risk`, `class` y `desease` llegan siempre en el idioma
@@ -277,3 +447,11 @@ Trampas ya conocidas (todas costaron un intento fallido):
 - Pendiente de despliegue: reconstruir la imagen del API (cambió
   `packages/shared`) y confirmar con `npx prisma migrate status` que producción
   está al día.
+- **El web y el API tienen que desplegarse juntos**: cambiaron las rutas
+  (`/api/analisispiel360/*`, `/api/analisisdermapiel360/*`,
+  `/api/admin/bolsa-unidades/analisis*`) y un web viejo contra un API nuevo
+  pediría URLs que ya no existen.
+- `apps/mobile` sigue nombrando a los proveedores en sus espejos
+  (`youcamScoreConfig.ts`, `analysisProviderLabel.ts`, vistas `Youcam*` /
+  `Skiniver*`). No se rompe —el móvil no importa `@piel360/shared`— pero queda
+  desalineado: es una entrega aparte.

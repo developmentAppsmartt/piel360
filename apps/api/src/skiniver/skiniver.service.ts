@@ -1,9 +1,9 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type {
-  SkiniverAtlasResponse,
-  SkiniverPrediction,
-  SkiniverValidateResponse,
+  AnalisisDermaPiel360AtlasResponse,
+  AnalisisDermaPiel360Prediction,
+  AnalisisDermaPiel360ValidateResponse,
 } from '@piel360/shared';
 
 /**
@@ -13,7 +13,7 @@ import type {
  * hardcodeado en el código (MIGRACION.md deuda #1).
  */
 @Injectable()
-export class SkiniverService {
+export class AnalisisDermaPiel360Service {
   private readonly baseUrl: string;
   private readonly token: string;
 
@@ -22,15 +22,15 @@ export class SkiniverService {
     this.token = this.config.getOrThrow<string>('SKINIVER_API_TOKEN');
   }
 
-  async validate(image: Buffer): Promise<SkiniverValidateResponse> {
-    return this.postImage<SkiniverValidateResponse>('/validate', image);
+  async validate(image: Buffer): Promise<AnalisisDermaPiel360ValidateResponse> {
+    return this.postImage<AnalisisDermaPiel360ValidateResponse>('/validate', image);
   }
 
-  async predict(image: Buffer, lang: string): Promise<SkiniverPrediction> {
-    return this.postImage<SkiniverPrediction>('/predict', image, { lang });
+  async predict(image: Buffer, lang: string): Promise<AnalisisDermaPiel360Prediction> {
+    return this.postImage<AnalisisDermaPiel360Prediction>('/predict', image, { lang });
   }
 
-  async getAtlasPages(): Promise<SkiniverAtlasResponse> {
+  async getAtlasPages(): Promise<AnalisisDermaPiel360AtlasResponse> {
     const response = await fetch(`${this.baseUrl}/get_atlas_pages`, {
       headers: { Authorization: `Basic ${this.token}` },
     });
@@ -39,7 +39,7 @@ export class SkiniverService {
         `Skiniver /get_atlas_pages respondió ${response.status}`,
       );
     }
-    return response.json() as Promise<SkiniverAtlasResponse>;
+    return response.json() as Promise<AnalisisDermaPiel360AtlasResponse>;
   }
 
   private async postImage<T>(

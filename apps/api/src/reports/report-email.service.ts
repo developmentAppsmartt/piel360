@@ -11,7 +11,7 @@ const REPORT_READY_KIND = 'report_ready';
 /**
  * Puente entre las plantillas guardadas (`EmailTemplate`, kind="report_ready")
  * y el envío real (`MailService`/Brevo) — hoy ese módulo era CRUD puro, sin
- * disparar nada. Se llama desde `YoucamResultsService.applySuccess()` al
+ * disparar nada. Se llama desde `AnalisisPiel360ResultsService.applySuccess()` al
  * completarse un análisis.
  */
 @Injectable()

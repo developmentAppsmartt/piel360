@@ -7,7 +7,7 @@ import {
   type RawBodyRequest,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { YoucamWebhookService } from './youcam-webhook.service';
+import { AnalisisPiel360WebhookService } from './youcam-webhook.service';
 
 /**
  * Ruta fija sin prefijo `/api` — debe coincidir exactamente con la URL
@@ -16,8 +16,8 @@ import { YoucamWebhookService } from './youcam-webhook.service';
  * que usaba Laravel). Público — sin `JwtAuthGuard`, la firma Svix es la autenticación.
  */
 @Controller('webhooks/youcam')
-export class YoucamWebhookController {
-  constructor(private readonly youcamWebhookService: YoucamWebhookService) {}
+export class AnalisisPiel360WebhookController {
+  constructor(private readonly analisisPiel360WebhookService: AnalisisPiel360WebhookService) {}
 
   @Post()
   @HttpCode(200)
@@ -25,6 +25,6 @@ export class YoucamWebhookController {
     @Req() req: RawBodyRequest<Request>,
     @Headers() headers: Record<string, string>,
   ) {
-    return this.youcamWebhookService.handle(req.rawBody!, headers);
+    return this.analisisPiel360WebhookService.handle(req.rawBody!, headers);
   }
 }

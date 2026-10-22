@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { SkiniverReport } from "@piel360/shared";
+import type { AnalisisDermaPiel360Report } from "@piel360/shared";
 import { apiClientFetch } from "@/lib/api-client";
 
 export type ReportGranularity = "day" | "month" | "year";
@@ -34,17 +34,17 @@ export function useAdminReports(filters: ReportsFilters) {
 
 /** Mismo reporte dermatológico del panel del doctor, con alcance global.
  * La granularidad no aplica: sus series siempre son mensuales. */
-export function useAdminSkiniverReport(filters: ReportsFilters, enabled = true) {
+export function useAdminAnalisisDermaPiel360Report(filters: ReportsFilters, enabled = true) {
   const params = new URLSearchParams();
   if (filters.startDate) params.set("startDate", filters.startDate);
   if (filters.endDate) params.set("endDate", filters.endDate);
   const query = params.toString();
 
   return useQuery({
-    queryKey: ["admin", "reports", "skiniver", filters.startDate, filters.endDate],
+    queryKey: ["admin", "reports", "analisisdermapiel360", filters.startDate, filters.endDate],
     queryFn: () =>
-      apiClientFetch<SkiniverReport>(
-        `/admin/reports/skiniver${query ? `?${query}` : ""}`,
+      apiClientFetch<AnalisisDermaPiel360Report>(
+        `/admin/reports/analisisdermapiel360${query ? `?${query}` : ""}`,
       ),
     enabled,
   });

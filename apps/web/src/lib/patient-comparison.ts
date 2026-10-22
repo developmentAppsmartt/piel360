@@ -1,12 +1,12 @@
 import type { AnalysisDetail } from "@/lib/queries/analyses";
 import type { Analysis } from "@/lib/queries/patients";
-import { YOUCAM_METRIC_LABELS } from "@/lib/youcam-metric-labels";
+import { ANALISIS_PIEL360_METRIC_LABELS } from "@/lib/youcam-metric-labels";
 import {
-  parseYoucamMetrics,
-  YOUCAM_MAIN_METRIC_TYPES,
-  youcamOverallScore,
-  youcamScoresByType,
-  type YoucamRawResponse,
+  parseAnalisisPiel360Metrics,
+  ANALISIS_PIEL360_MAIN_METRIC_TYPES,
+  analisisPiel360OverallScore,
+  analisisPiel360ScoresByType,
+  type AnalisisPiel360RawResponse,
 } from "@/lib/youcam-metrics";
 
 export type ComparisonMode = "aesthetic" | "derm";
@@ -41,17 +41,17 @@ export function emptyComparisonNotes(): ComparisonNotes {
 /** Lo mínimo para saber de qué tipo es un análisis, para que los predicados
  * sirvan tanto con `Analysis` como con el `AnalysisListItem` de `GET /analyses`. */
 type AnalysisKindRow = {
-  youcamTaskId: string | null;
+  analisisPiel360TaskId: string | null;
   fitzpatrickTaskId?: string | null;
   isValid?: boolean;
 };
 
 export function isAestheticAnalysis(a: AnalysisKindRow): boolean {
-  return !!a.youcamTaskId && a.isValid !== false;
+  return !!a.analisisPiel360TaskId && a.isValid !== false;
 }
 
 export function isDermatologicalAnalysis(a: AnalysisKindRow): boolean {
-  return !a.youcamTaskId && !a.fitzpatrickTaskId;
+  return !a.analisisPiel360TaskId && !a.fitzpatrickTaskId;
 }
 
 export function formatAnalysisDate(iso: string): string {
@@ -113,14 +113,14 @@ export function buildComparisonCategories(
   initial: Analysis | undefined,
   current: Analysis | undefined,
 ): ComparisonCategoryRow[] {
-  const initialScores = youcamScoresByType(
-    parseYoucamMetrics(initial?.aiRawResponse as YoucamRawResponse | undefined),
+  const initialScores = analisisPiel360ScoresByType(
+    parseAnalisisPiel360Metrics(initial?.aiRawResponse as AnalisisPiel360RawResponse | undefined),
   );
-  const currentScores = youcamScoresByType(
-    parseYoucamMetrics(current?.aiRawResponse as YoucamRawResponse | undefined),
+  const currentScores = analisisPiel360ScoresByType(
+    parseAnalisisPiel360Metrics(current?.aiRawResponse as AnalisisPiel360RawResponse | undefined),
   );
 
-  return YOUCAM_MAIN_METRIC_TYPES.filter(
+  return ANALISIS_PIEL360_MAIN_METRIC_TYPES.filter(
     (type) => initialScores[type] != null || currentScores[type] != null,
   ).map((type) => {
     const initialScore = Math.round(initialScores[type] ?? 0);
@@ -128,7 +128,7 @@ export function buildComparisonCategories(
     const improvement = currentScore - initialScore;
     return {
       id: type,
-      label: YOUCAM_METRIC_LABELS[type] ?? type,
+      label: ANALISIS_PIEL360_METRIC_LABELS[type] ?? type,
       initialScore,
       currentScore,
       improvement,
@@ -137,19 +137,19 @@ export function buildComparisonCategories(
   });
 }
 
-export function youcamOverallFromAnalysis(
+export function analisisPiel360OverallFromAnalysis(
   analysis: Analysis | undefined,
 ): number | null {
   if (!analysis?.aiRawResponse) return null;
-  return youcamOverallScore(
-    parseYoucamMetrics(analysis.aiRawResponse as YoucamRawResponse),
+  return analisisPiel360OverallScore(
+    parseAnalisisPiel360Metrics(analysis.aiRawResponse as AnalisisPiel360RawResponse),
   );
 }
 
 const DEFAULT_REGION = "whole";
 
-/** Misma lógica que youcam-results-section: máscara por tipo + región. */
-export function findYoucamMaskUrl(
+/** Misma lógica que analisispiel360-results-section: máscara por tipo + región. */
+export function findAnalisisPiel360MaskUrl(
   masks: AnalysisDetail["masks"],
   type: string,
   region?: string | null,
@@ -172,7 +172,7 @@ export function analysisPhotoUrl(
 ): string | null {
   if (!detail) return null;
   if (detail.hasOriginalPhoto && detail.imageUrl) return detail.imageUrl;
-  if (detail.youcamTaskId) return null;
+  if (detail.analisisPiel360TaskId) return null;
   return detail.coloredUrl ?? detail.imageUrl ?? detail.maskedUrl ?? null;
 }
 
@@ -188,7 +188,7 @@ function maskUrlFromRaw(
   type: string,
   region?: string | null,
 ): string | null {
-  const output = (detail.aiRawResponse as YoucamRawResponse | undefined)
+  const output = (detail.aiRawResponse as AnalisisPiel360RawResponse | undefined)
     ?.output;
   if (!output?.length) return null;
   const normalized = region ?? DEFAULT_REGION;
@@ -204,14 +204,14 @@ function maskUrlFromRaw(
 }
 
 /** Imagen de la métrica priorizando la región general (`whole`). */
-export function youcamMetricMaskUrl(
+export function analisisPiel360MetricMaskUrl(
   detail: AnalysisDetail | undefined,
   metricType: string,
 ): string | null {
   if (!detail) return null;
 
-  const metrics = parseYoucamMetrics(
-    detail.aiRawResponse as YoucamRawResponse | undefined,
+  const metrics = parseAnalisisPiel360Metrics(
+    detail.aiRawResponse as AnalisisPiel360RawResponse | undefined,
   );
   const candidates = metrics.filter((m) => m.type === metricType);
   const whole =
@@ -220,7 +220,7 @@ export function youcamMetricMaskUrl(
   const region = whole?.region ?? DEFAULT_REGION;
 
   if (detail.masks?.length) {
-    const url = findYoucamMaskUrl(detail.masks, metricType, region);
+    const url = findAnalisisPiel360MaskUrl(detail.masks, metricType, region);
     if (url) return url;
   }
 

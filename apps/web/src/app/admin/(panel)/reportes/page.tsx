@@ -6,10 +6,10 @@ import { DiagnosisByAgeChart } from "@/components/admin/diagnosis-by-age-chart";
 import { DiagnosisByClassChart } from "@/components/admin/diagnosis-by-class-chart";
 import { ReportsDateFilter } from "@/components/admin/reports-date-filter";
 import { SubscriptionStatusChart } from "@/components/admin/subscription-status-chart";
-import { SkiniverReportView } from "@/components/reports/skiniver-report-view";
+import { AnalisisDermaPiel360ReportView } from "@/components/reports/skiniver-report-view";
 import {
   useAdminReports,
-  useAdminSkiniverReport,
+  useAdminAnalisisDermaPiel360Report,
   type ReportsFilters,
 } from "@/lib/queries/admin-reports";
 import { cn } from "@/lib/utils";
@@ -27,8 +27,8 @@ export default function ReportesPage() {
 
   const isDerm = tab === "dermatologico";
   const reports = useAdminReports(filters);
-  const skiniver = useAdminSkiniverReport(filters, isDerm);
-  const active = isDerm ? skiniver : reports;
+  const analisisdermapiel360 = useAdminAnalisisDermaPiel360Report(filters, isDerm);
+  const active = isDerm ? analisisdermapiel360 : reports;
 
   return (
     <div className="space-y-6">
@@ -76,8 +76,8 @@ export default function ReportesPage() {
 
       {/* Sin el buscador clínico: carga el listado completo de análisis para
           filtrar en cliente, y a escala de plataforma eso no es viable. */}
-      {isDerm && skiniver.data && (
-        <SkiniverReportView report={skiniver.data} showClinicalBrowser={false} />
+      {isDerm && analisisdermapiel360.data && (
+        <AnalisisDermaPiel360ReportView report={analisisdermapiel360.data} showClinicalBrowser={false} />
       )}
     </div>
   );

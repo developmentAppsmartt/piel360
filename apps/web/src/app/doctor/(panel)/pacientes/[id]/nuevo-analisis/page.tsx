@@ -150,7 +150,7 @@ export default function NuevoAnalisisPage() {
       {step === "enviar" && photo && (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Se enviará la foto para el análisis de {ANALYSIS_PROVIDER_STATIC_LABELS.skiniver}. Esto
+            Se enviará la foto para el análisis de {ANALYSIS_PROVIDER_STATIC_LABELS.analisisdermapiel360}. Esto
             puede tardar unos segundos.
           </p>
           {importantNotes.trim() ? (

@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { AnalysisResultsView } from "@/components/analyses/analysis-results-view";
-import { YoucamCapture } from "@/components/analyses/youcam-capture";
+import { AnalisisPiel360Capture } from "@/components/analyses/youcam-capture";
 import { Button } from "@/components/ui/button";
 import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import { ApiError } from "@/lib/api-error";
@@ -60,7 +60,7 @@ export default function NuevoAnalisisFitzpatrickPage() {
 
       {step === "captura" && (
         <div className="space-y-6">
-          <YoucamCapture onCapture={setPhoto} />
+          <AnalisisPiel360Capture onCapture={setPhoto} />
           {photo && <p className="text-sm text-muted-foreground">Foto capturada correctamente.</p>}
 
           <div className="flex gap-2">

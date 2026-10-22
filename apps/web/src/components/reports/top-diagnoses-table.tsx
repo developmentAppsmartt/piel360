@@ -1,6 +1,6 @@
 "use client";
 
-import type { SkiniverTopDiagnosis } from "@piel360/shared";
+import type { AnalisisDermaPiel360TopDiagnosis } from "@piel360/shared";
 
 /**
  * Widget "Top 10 de diagnósticos más recurrentes". Tabla HTML plana, sin
@@ -10,7 +10,7 @@ import type { SkiniverTopDiagnosis } from "@piel360/shared";
  * El ICD sale de `aiRawResponse.lesion_code`, que solo existe en la raíz de la
  * respuesta; los candidatos de `topn[]` nunca lo traen, por eso puede faltar.
  */
-export function TopDiagnosesTable({ rows }: { rows: SkiniverTopDiagnosis[] }) {
+export function TopDiagnosesTable({ rows }: { rows: AnalisisDermaPiel360TopDiagnosis[] }) {
   if (rows.length === 0) {
     return (
       <p className="py-10 text-center text-sm text-muted-foreground">

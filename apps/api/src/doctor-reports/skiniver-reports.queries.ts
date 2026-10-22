@@ -67,7 +67,7 @@ function pathologyFilter(): Prisma.Sql {
   `;
 }
 
-/** Rangos de SKINIVER_AGE_BUCKETS, calculados a la fecha del análisis:
+/** Rangos de ANALISIS_DERMA_PIEL360_AGE_BUCKETS, calculados a la fecha del análisis:
  * `Analysis.chronologicalAgeYears` solo se llena para YouCam. */
 function ageBucketCase(): Prisma.Sql {
   return Prisma.sql`
@@ -83,7 +83,7 @@ function ageBucketCase(): Prisma.Sql {
   `;
 }
 
-export interface SkiniverDiagnosisRow {
+export interface AnalisisDermaPiel360DiagnosisRow {
   period: string;
   ai_diagnosis: string | null;
   /** `desease` de la IA: de aquí sale la clase. */
@@ -102,7 +102,7 @@ export interface SkiniverDiagnosisRow {
  * concretas (Top 8, armado en skiniver-report.service.ts). Ambos se resuelven
  * en TS y no en SQL, para no duplicar esas tablas de mapeo en dos lenguajes.
  */
-export function skiniverMonthlyDiagnosesQuery(
+export function analisisDermaPiel360MonthlyDiagnosesQuery(
   doctorIds: DoctorIds,
   from: Date,
   toExclusive: Date,
@@ -120,7 +120,7 @@ export function skiniverMonthlyDiagnosesQuery(
   `;
 }
 
-export interface SkiniverAgeRow {
+export interface AnalisisDermaPiel360AgeRow {
   period: string;
   age_bucket: string;
   count: number;
@@ -132,7 +132,7 @@ export interface SkiniverAgeRow {
  * momento del análisis directo en SQL con `age()`, equivalente al
  * `ageInYears()` de analysis-conditions.service.ts.
  */
-export function skiniverAgeMonthlyQuery(
+export function analisisDermaPiel360AgeMonthlyQuery(
   doctorIds: DoctorIds,
   from: Date,
   toExclusive: Date,
@@ -154,14 +154,14 @@ export function skiniverAgeMonthlyQuery(
   `;
 }
 
-export interface SkiniverCategoryRow {
+export interface AnalisisDermaPiel360CategoryRow {
   category: string | null;
   count: number;
 }
 
 /** Categoría de la IA (`aiRawResponse.desease`) — la agrupación que Skiniver
  * ya devuelve, en vez de deducirla del nombre del diagnóstico. */
-export function skiniverCategoryQuery(
+export function analisisDermaPiel360CategoryQuery(
   doctorIds: DoctorIds,
   from: Date,
   toExclusive: Date,
@@ -177,7 +177,7 @@ export function skiniverCategoryQuery(
   `;
 }
 
-export interface SkiniverTopDiagnosisRow {
+export interface AnalisisDermaPiel360TopDiagnosisRow {
   diagnosis: string;
   icd_code: string | null;
   class_raw: string | null;
@@ -188,7 +188,7 @@ export interface SkiniverTopDiagnosisRow {
  * el mismo diagnóstico escrito en distintos idiomas. El ICD (`lesion_code`)
  * solo existe en la raíz del JSON, nunca en `topn[]`; `MAX` porque un mismo
  * diagnóstico siempre trae el mismo código y el GROUP BY necesita un agregado. */
-export function skiniverTopDiagnosesQuery(
+export function analisisDermaPiel360TopDiagnosesQuery(
   doctorIds: DoctorIds,
   from: Date,
   toExclusive: Date,
@@ -206,7 +206,7 @@ export function skiniverTopDiagnosesQuery(
   `;
 }
 
-export interface SkiniverAgeGenderRow {
+export interface AnalisisDermaPiel360AgeGenderRow {
   age_bucket: string;
   gender: string | null;
   count: number;
@@ -214,7 +214,7 @@ export interface SkiniverAgeGenderRow {
 
 /** Cruce edad × sexo. `patients.gender` es texto libre: se normaliza en TS con
  * normalizeGender() para no repetir esa lista de valores en SQL. */
-export function skiniverAgeGenderQuery(
+export function analisisDermaPiel360AgeGenderQuery(
   doctorIds: DoctorIds,
   from: Date,
   toExclusive: Date,
@@ -236,14 +236,14 @@ export function skiniverAgeGenderQuery(
   `;
 }
 
-export interface SkiniverSkinToneRow {
+export interface AnalisisDermaPiel360SkinToneRow {
   fitzpatrick_type: string | null;
   count: number;
 }
 
 /** Distribución por fototipo Fitzpatrick del paciente (no depende del mes —
  * el mockup lo pide como total del periodo, no como serie mensual). */
-export function skiniverSkinToneQuery(
+export function analisisDermaPiel360SkinToneQuery(
   doctorIds: DoctorIds,
   from: Date,
   toExclusive: Date,

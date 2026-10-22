@@ -78,8 +78,8 @@ export class RolesController {
   @RequirePermission('update_role')
   updateSpecialtyPlanPermissions(@Body() dto: UpdateSpecialtyPlanPermissionsDto) {
     return this.specialtyAccess.updateSpecialtyPlanPermissions(dto.roleId, {
-      skiniver: dto.skiniver,
-      youcam: dto.youcam,
+      analisisdermapiel360: dto.analisisdermapiel360,
+      analisispiel360: dto.analisispiel360,
       fitzpatrick: dto.fitzpatrick,
     });
   }

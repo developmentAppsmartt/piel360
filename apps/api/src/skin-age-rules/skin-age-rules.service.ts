@@ -9,7 +9,7 @@ import { OrgContextService } from '../organizations/org-context.service';
 import { StorageService } from '../storage/storage.service';
 import {
   computeSkinAgeSnapshot,
-  readYoucamSkinAgeYears,
+  readAnalisisPiel360SkinAgeYears,
 } from '../youcam/skin-age-snapshot.util';
 import type {
   CreateSkinAgeRuleDto,
@@ -529,7 +529,7 @@ export class SkinAgeRulesService {
   ) {
     const skinAgeYears =
       analysis.skinAgeYears ??
-      readYoucamSkinAgeYears(analysis.aiRawResponse) ??
+      readAnalisisPiel360SkinAgeYears(analysis.aiRawResponse) ??
       patient.lastSkinAgeYears ??
       null;
     const snap = computeSkinAgeSnapshot({
@@ -765,7 +765,7 @@ export class SkinAgeRulesService {
         chronologicalAgeYears: true,
         skinAgeDifference: true,
         aiRawResponse: true,
-        youcamTaskId: true,
+        analisisPiel360TaskId: true,
       },
     });
 
@@ -775,7 +775,7 @@ export class SkinAgeRulesService {
 
     for (const candidate of sharedCandidates) {
       const fromColumn = candidate.skinAgeYears;
-      const fromRaw = readYoucamSkinAgeYears(candidate.aiRawResponse);
+      const fromRaw = readAnalisisPiel360SkinAgeYears(candidate.aiRawResponse);
       const resolvedSkinAge = fromColumn ?? fromRaw;
       if (resolvedSkinAge == null) continue;
 

@@ -1,4 +1,4 @@
 import { Controller } from '@nestjs/common';
 
-@Controller('skiniver')
-export class SkiniverController {}
+@Controller('analisisdermapiel360')
+export class AnalisisDermaPiel360Controller {}

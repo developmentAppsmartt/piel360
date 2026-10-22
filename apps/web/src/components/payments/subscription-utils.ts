@@ -1,4 +1,3 @@
-import { toInternalProviderSlug } from "@piel360/shared";
 import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import type { Subscription } from "@/lib/queries/subscriptions";
 
@@ -16,14 +15,14 @@ export type PlanKind = "both" | "derm" | "aesthetic" | "fototipo" | "other";
 
 export function subscriptionPlanKind(sub: Subscription): PlanKind {
   const limits = sub.plan.analysisLimits ?? {};
-  const derm = (limits.skiniver ?? 0) > 0;
+  const derm = (limits.analisisdermapiel360 ?? 0) > 0;
   const aesthetic = (limits.aesthetic ?? 0) > 0;
   if (derm && aesthetic) return "both";
   if (derm) return "derm";
   if (aesthetic) return "aesthetic";
-  const slug = toInternalProviderSlug(sub.plan.provider.slug);
-  if (slug === "skiniver") return "derm";
-  if (slug === "youcam") return "aesthetic";
+  const slug = sub.plan.provider.slug;
+  if (slug === "analisisdermapiel360") return "derm";
+  if (slug === "analisispiel360") return "aesthetic";
   if (slug === "fitzpatrick") return "fototipo";
   return "other";
 }
@@ -67,16 +66,6 @@ export function formatCOP(price: string | number) {
 export function providerLabel(slug: string, fallbackName?: string) {
   const fromMap = (ANALYSIS_PROVIDER_STATIC_LABELS as Record<string, string>)[slug];
   return fromMap ?? fallbackName ?? slug;
-}
-
-/** Oculta nombres de proveedor (Skiniver / YouCam / Perfect Corp) en textos al usuario. */
-export function maskVendorPoolMessage(message: string): string {
-  return message
-    .replace(/\bPerfect\s*Corp\b/gi, "Análisis Estético Piel 360")
-    .replace(/\bPerfectCorp\b/gi, "Análisis Estético Piel 360")
-    .replace(/\bYouCam\b/gi, "Análisis Estético Piel 360")
-    .replace(/\bYoucam\b/gi, "Análisis Estético Piel 360")
-    .replace(/\bSkiniver\b/gi, "Análisis Dermatológico Piel 360");
 }
 
 export function formatAdminDate(iso: string | null) {

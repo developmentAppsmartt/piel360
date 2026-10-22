@@ -4,10 +4,10 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import { useEffect, useState } from "react";
 import {
-  skiniverDiagnosisLabel,
-  skiniverRiskLabel,
+  analisisDermaPiel360DiagnosisLabel,
+  analisisDermaPiel360RiskLabel,
   type RiskLevel,
-  type SkiniverPrediction,
+  type AnalisisDermaPiel360Prediction,
 } from "@piel360/shared";
 import { ImageCarousel } from "@/components/analyses/image-carousel";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ const RISK_COLORS: Record<RiskLevel, string> = {
 const DEFAULT_MARKER_COLOR = "#94a3b8";
 
 function riskLevel(analysis: Analysis3D): RiskLevel | null {
-  const prediction = analysis.aiRawResponse as SkiniverPrediction | null;
+  const prediction = analysis.aiRawResponse as AnalisisDermaPiel360Prediction | null;
   return prediction?.topn?.[0]?.risk_level ?? null;
 }
 
@@ -52,7 +52,7 @@ export function PatientBodyHistory({
   const [gender, setGender] = useState<Gender>(initialGender ?? "female");
   const [selected, setSelected] = useState<Analysis3D | null>(null);
 
-  const selectedPrediction = selected?.aiRawResponse as SkiniverPrediction | null | undefined;
+  const selectedPrediction = selected?.aiRawResponse as AnalisisDermaPiel360Prediction | null | undefined;
 
   return (
     <div className="space-y-3">
@@ -111,7 +111,7 @@ export function PatientBodyHistory({
                   de la IA necesita traducción. */}
               {selected?.finalDiagnosis ??
                 (selected?.aiDiagnosis
-                  ? skiniverDiagnosisLabel(selected.aiDiagnosis)
+                  ? analisisDermaPiel360DiagnosisLabel(selected.aiDiagnosis)
                   : "Análisis")}
             </DialogTitle>
           </DialogHeader>
@@ -128,7 +128,7 @@ export function PatientBodyHistory({
               <p className="text-sm">
                 Riesgo:{" "}
                 <span className="font-medium">
-                  {skiniverRiskLabel(
+                  {analisisDermaPiel360RiskLabel(
                     selectedPrediction?.risk,
                     selectedPrediction?.topn?.[0]?.risk_level,
                   )}

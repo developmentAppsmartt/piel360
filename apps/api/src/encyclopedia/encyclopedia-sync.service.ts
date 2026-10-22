@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import type { Queue } from 'bullmq';
 import { ENCYCLOPEDIA_QUEUE, type EncyclopediaJobData } from '../analyses/queues';
-import { SkiniverService } from '../skiniver/skiniver.service';
+import { AnalisisDermaPiel360Service } from '../skiniver/skiniver.service';
 
 /**
  * Puerto de `SyncEncyclopediaJob` (Laravel, `routes/console.php:12` —
@@ -21,7 +21,7 @@ export class EncyclopediaSyncService {
   private readonly logger = new Logger(EncyclopediaSyncService.name);
 
   constructor(
-    private readonly skiniver: SkiniverService,
+    private readonly skiniver: AnalisisDermaPiel360Service,
     @InjectQueue(ENCYCLOPEDIA_QUEUE)
     private readonly encyclopediaQueue: Queue<EncyclopediaJobData>,
   ) {}

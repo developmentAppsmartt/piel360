@@ -78,12 +78,12 @@ export class PlanApiCostsDto {
   @IsOptional()
   @ValidateNested()
   @Type(() => PlanApiCostLineDto)
-  skiniver?: PlanApiCostLineDto;
+  analisisdermapiel360?: PlanApiCostLineDto;
 
   @IsOptional()
   @ValidateNested()
   @Type(() => PlanApiCostLineDto)
-  youcam?: PlanApiCostLineDto;
+  analisispiel360?: PlanApiCostLineDto;
 
   @IsOptional()
   @ValidateNested()
@@ -133,10 +133,10 @@ export class CreatePlanDto {
   @IsObject()
   roleLimits?: Record<string, number>;
 
-  /** { skiniver?: number, aesthetic?: number } */
+  /** { analisisdermapiel360?: number, aesthetic?: number } */
   @IsOptional()
   @IsObject()
-  analysisLimits?: { skiniver?: number; aesthetic?: number };
+  analysisLimits?: { analisisdermapiel360?: number; aesthetic?: number };
 
   @IsOptional()
   @IsBoolean()

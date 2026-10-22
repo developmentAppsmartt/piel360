@@ -1,13 +1,14 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubscriptionPoolService } from '../subscriptions/subscription-pool.service';
-import type { CreateSkiniverRechargeDto } from './dto/create-skiniver-recharge.dto';
+import type { CreateAnalisisDermaPiel360RechargeDto } from './dto/create-skiniver-recharge.dto';
+import { POOL_PUBLIC_ALIASES } from '@piel360/shared';
 
 const SKINIVER_PROVIDER = 'skiniver';
 const EXPIRING_SOON_MS = 30 * 24 * 60 * 60 * 1000;
 
 @Injectable()
-export class SkiniverUnitsService {
+export class AnalisisDermaPiel360UnitsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly subscriptionPool: SubscriptionPoolService,
@@ -16,7 +17,7 @@ export class SkiniverUnitsService {
   async getDermUnitPool() {
     await this.subscriptionPool.syncActiveSubscriptionPools();
 
-    const [recharges, history, committed, skiniverProvider] = await Promise.all([
+    const [recharges, history, committed, analisisDermaPiel360Provider] = await Promise.all([
       this.prisma.platformUnitRecharge.findMany({
         where: {
           provider: SKINIVER_PROVIDER,
@@ -62,9 +63,9 @@ export class SkiniverUnitsService {
       .reduce((sum, r) => sum + r.quantity, 0);
 
     return {
-      source: 'skiniver' as const,
+      source: POOL_PUBLIC_ALIASES.skiniver,
       fetchedAt: new Date().toISOString(),
-      providerConfigured: Boolean(skiniverProvider),
+      providerConfigured: Boolean(analisisDermaPiel360Provider),
       pool: {
         id: 'derm' as const,
         name: 'Análisis dermatológico (créditos)',
@@ -94,7 +95,7 @@ export class SkiniverUnitsService {
     };
   }
 
-  async createRecharge(dto: CreateSkiniverRechargeDto, createdById: bigint) {
+  async createRecharge(dto: CreateAnalisisDermaPiel360RechargeDto, createdById: bigint) {
     const expiresAt =
       dto.expiresAt?.trim() ? new Date(dto.expiresAt) : undefined;
     if (expiresAt && Number.isNaN(expiresAt.getTime())) {

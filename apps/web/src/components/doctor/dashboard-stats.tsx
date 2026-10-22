@@ -60,7 +60,7 @@ export function DashboardStats({
       iconBg: "bg-sky-100 text-sky-600",
     },
     {
-      label: "Protocolos activos",
+      label: "Rutinas activas",
       value: protocolsCount,
       hint: "Ver protocolos",
       href: "/doctor/rutinas",

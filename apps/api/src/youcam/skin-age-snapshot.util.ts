@@ -17,7 +17,7 @@ export function chronologicalAgeYears(birthDate: Date, atDate: Date): number {
   return age;
 }
 
-export function readYoucamSkinAgeYears(raw: unknown): number | null {
+export function readAnalisisPiel360SkinAgeYears(raw: unknown): number | null {
   if (!raw || typeof raw !== 'object') return null;
   const output = (raw as { output?: unknown }).output;
   if (!Array.isArray(output)) return null;

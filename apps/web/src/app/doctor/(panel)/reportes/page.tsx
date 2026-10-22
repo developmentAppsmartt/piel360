@@ -10,7 +10,7 @@ import {
   rangeForDays,
 } from "@/components/reports/report-filters";
 import { SkinHealthSummary } from "@/components/reports/skin-health-summary";
-import { SkiniverReportView } from "@/components/reports/skiniver-report-view";
+import { AnalisisDermaPiel360ReportView } from "@/components/reports/skiniver-report-view";
 import {
   TopProblemsTable,
   sortCategories,
@@ -20,7 +20,7 @@ import { downloadCsv } from "@/lib/csv-export";
 import {
   useDoctorLifestyleReport,
   useDoctorSkinHealthReport,
-  useDoctorSkiniverReport,
+  useDoctorAnalisisDermaPiel360Report,
   type DoctorReportsFilters,
 } from "@/lib/queries/doctor-reports";
 import { useOrganizationTeam } from "@/lib/queries/organizations";
@@ -60,8 +60,8 @@ export default function ReportesPage() {
 
   const report = useDoctorSkinHealthReport(filters);
   const lifestyle = useDoctorLifestyleReport(filters);
-  const isSkiniverTab = tab === "dermatologico";
-  const skiniver = useDoctorSkiniverReport(filters, isSkiniverTab);
+  const isAnalisisDermaPiel360Tab = tab === "dermatologico";
+  const analisisdermapiel360 = useDoctorAnalisisDermaPiel360Report(filters, isAnalisisDermaPiel360Tab);
   const team = useOrganizationTeam();
   const members = team.data?.members ?? [];
   // Solo el dueño filtra por profesional: el backend devuelve 403 a los demás
@@ -77,8 +77,8 @@ export default function ReportesPage() {
     tab === "clinico";
 
   function handleExport() {
-    if (isSkiniverTab && skiniver.data) {
-      const data = skiniver.data;
+    if (isAnalisisDermaPiel360Tab && analisisdermapiel360.data) {
+      const data = analisisdermapiel360.data;
       const rows: (string | number | null)[][] = [
         ["Categoría", "Diagnósticos", "%"],
         ...data.byCategory.map((c) => [c.label, c.count, c.pct.toFixed(1)]),
@@ -223,8 +223,8 @@ export default function ReportesPage() {
         showProfessionalFilter={showProfessionalFilter}
         onExport={handleExport}
         exportDisabled={
-          isSkiniverTab
-            ? !skiniver.data
+          isAnalisisDermaPiel360Tab
+            ? !analisisdermapiel360.data
             : isLifestyleTab
               ? !lifestyle.data
               : !report.data || Boolean(isEmpty)
@@ -281,30 +281,30 @@ export default function ReportesPage() {
         </div>
       </div>
 
-      {report.isLoading && !isLifestyleTab && !isSkiniverTab && (
+      {report.isLoading && !isLifestyleTab && !isAnalisisDermaPiel360Tab && (
         <p className="text-sm text-muted-foreground">Cargando reportes…</p>
       )}
       {lifestyle.isLoading && isLifestyleTab && (
         <p className="text-sm text-muted-foreground">Cargando reportes…</p>
       )}
-      {skiniver.isLoading && isSkiniverTab && (
+      {analisisdermapiel360.isLoading && isAnalisisDermaPiel360Tab && (
         <p className="text-sm text-muted-foreground">Cargando reportes…</p>
       )}
-      {report.error && !isLifestyleTab && !isSkiniverTab && (
+      {report.error && !isLifestyleTab && !isAnalisisDermaPiel360Tab && (
         <p className="text-sm text-destructive">No se pudieron cargar los reportes.</p>
       )}
       {lifestyle.error && isLifestyleTab && (
         <p className="text-sm text-destructive">No se pudieron cargar los reportes.</p>
       )}
-      {skiniver.error && isSkiniverTab && (
+      {analisisdermapiel360.error && isAnalisisDermaPiel360Tab && (
         <p className="text-sm text-destructive">No se pudieron cargar los reportes.</p>
       )}
 
-      {isSkiniverTab && skiniver.data ? (
-        <SkiniverReportView report={skiniver.data} />
+      {isAnalisisDermaPiel360Tab && analisisdermapiel360.data ? (
+        <AnalisisDermaPiel360ReportView report={analisisdermapiel360.data} />
       ) : null}
 
-      {report.data && isEmpty && !isLifestyleTab && !isSkiniverTab ? (
+      {report.data && isEmpty && !isLifestyleTab && !isAnalisisDermaPiel360Tab ? (
         <ModuleCard className="flex flex-col items-center gap-3 p-10 text-center">
           <span className="flex size-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
             <BarChart3 className="size-6" />

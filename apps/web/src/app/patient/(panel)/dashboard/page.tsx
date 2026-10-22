@@ -269,7 +269,7 @@ export default function PatientDashboardPage() {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
-                        {a.youcamTaskId ? " · Facial" : " · Piel"}
+                        {a.analisisPiel360TaskId ? " · Facial" : " · Piel"}
                         {a.isConfirmed ? " · Confirmado" : ""}
                       </p>
                     </div>

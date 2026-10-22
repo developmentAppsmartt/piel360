@@ -7,19 +7,19 @@ import puppeteer from 'puppeteer';
 import {
   chronologicalAgeYears,
   formatSignedYears,
-  parseYoucamMetrics,
+  parseAnalisisPiel360Metrics,
   skinAgeDifference,
   skinAgeDifferenceMessage,
-  YOUCAM_MAIN_METRIC_TYPES,
-  YOUCAM_METRIC_LABELS,
-  youcamOverallScore,
-  youcamScoreBand,
-  youcamScoreBandLabel,
-  youcamScoresByType,
-  youcamSkinAge,
-  youcamSkinType,
-  youcamSkinTypeLabel,
-  type YoucamRawResponse,
+  ANALISIS_PIEL360_MAIN_METRIC_TYPES,
+  ANALISIS_PIEL360_METRIC_LABELS,
+  analisisPiel360OverallScore,
+  analisisPiel360ScoreBand,
+  analisisPiel360ScoreBandLabel,
+  analisisPiel360ScoresByType,
+  analisisPiel360SkinAge,
+  analisisPiel360SkinType,
+  analisisPiel360SkinTypeLabel,
+  type AnalisisPiel360RawResponse,
 } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -49,7 +49,7 @@ function buildSummary(scores: Record<string, number>, overall: number | null, sk
     .filter(([, v]) => v < 70)
     .sort((a, b) => a[1] - b[1])
     .slice(0, 3)
-    .map(([type]) => YOUCAM_METRIC_LABELS[type] ?? type);
+    .map(([type]) => ANALISIS_PIEL360_METRIC_LABELS[type] ?? type);
 
   const typeHint = skinTypeLabel
     ? ` Tu tipo de piel es ${skinTypeLabel.toLowerCase()}.`
@@ -121,16 +121,16 @@ export class ReportPdfService {
   ) {}
 
   private buildReportHtml(analysis: ReportAnalysis, patient: ReportPatient): string {
-    const metrics = parseYoucamMetrics(analysis.aiRawResponse as YoucamRawResponse | null);
-    const scores = youcamScoresByType(metrics, false);
-    const overall = youcamOverallScore(metrics);
-    const skinAge = analysis.skinAgeYears ?? youcamSkinAge(metrics);
+    const metrics = parseAnalisisPiel360Metrics(analysis.aiRawResponse as AnalisisPiel360RawResponse | null);
+    const scores = analisisPiel360ScoresByType(metrics, false);
+    const overall = analisisPiel360OverallScore(metrics);
+    const skinAge = analysis.skinAgeYears ?? analisisPiel360SkinAge(metrics);
     const chronologicalAge =
       analysis.chronologicalAgeYears ?? chronologicalAgeYears(patient.birthDate, analysis.createdAt);
     const ageDiff = analysis.skinAgeDifference ?? skinAgeDifference(skinAge, chronologicalAge);
-    const skinType = youcamSkinType(metrics);
-    const skinTypeLabel = skinType ? youcamSkinTypeLabel(skinType) : null;
-    const band = overall != null ? youcamScoreBand(overall) : null;
+    const skinType = analisisPiel360SkinType(metrics);
+    const skinTypeLabel = skinType ? analisisPiel360SkinTypeLabel(skinType) : null;
+    const band = overall != null ? analisisPiel360ScoreBand(overall) : null;
     const name = `${patient.firstName} ${patient.lastName}`.trim();
     const createdAt = formatStamp(analysis.createdAt);
 
@@ -152,13 +152,13 @@ export class ReportPdfService {
       'image/png',
     );
 
-    const rows = YOUCAM_MAIN_METRIC_TYPES.filter((type) => scores[type] != null).map((type) => {
+    const rows = ANALISIS_PIEL360_MAIN_METRIC_TYPES.filter((type) => scores[type] != null).map((type) => {
       const score = scores[type] ?? 0;
-      const itemBand = youcamScoreBand(score);
+      const itemBand = analisisPiel360ScoreBand(score);
       return {
-        title: YOUCAM_METRIC_LABELS[type] ?? type,
+        title: ANALISIS_PIEL360_METRIC_LABELS[type] ?? type,
         score,
-        band: youcamScoreBandLabel(itemBand),
+        band: analisisPiel360ScoreBandLabel(itemBand),
         advice: defaultAdvice(itemBand),
       };
     });
@@ -182,7 +182,7 @@ export class ReportPdfService {
       `Edad cronológica: ${chronologicalAge != null ? `${chronologicalAge} años` : '—'}`,
       ageDiff != null ? `Diferencia: ${formatSignedYears(ageDiff)}` : null,
       ageDiff != null ? skinAgeDifferenceMessage(ageDiff) : null,
-      band ? `Valoración: ${youcamScoreBandLabel(band)}` : null,
+      band ? `Valoración: ${analisisPiel360ScoreBandLabel(band)}` : null,
     ]
       .filter(Boolean)
       .map((line) => `<p>${escapeHtml(String(line))}</p>`)

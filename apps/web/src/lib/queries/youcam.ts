@@ -4,18 +4,18 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClientFetch } from "@/lib/api-client";
 import type { CreateAnalysisInput } from "@/lib/queries/analyses";
 
-// POST /youcam/analyses es fire-and-forget: solo devuelve el id, el
+// POST /analisispiel360/analyses es fire-and-forget: solo devuelve el id, el
 // resultado se obtiene después vía useAnalysis (GET /analyses/:id).
-interface CreateYoucamAnalysisResponse {
+interface CreateAnalisisPiel360AnalysisResponse {
   analysisId: string;
 }
 
-export type CreateYoucamAnalysisInput = CreateAnalysisInput;
+export type CreateAnalisisPiel360AnalysisInput = CreateAnalysisInput;
 
-export function useCreateYoucamAnalysis() {
+export function useCreateAnalisisPiel360Analysis() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ image, ...fields }: CreateYoucamAnalysisInput) => {
+    mutationFn: ({ image, ...fields }: CreateAnalisisPiel360AnalysisInput) => {
       const form = new FormData();
       form.append("image", image, "photo.jpg");
       form.append("patientId", fields.patientId);
@@ -24,7 +24,7 @@ export function useCreateYoucamAnalysis() {
       if (fields.yCoord !== undefined) form.append("yCoord", String(fields.yCoord));
       if (fields.zCoord !== undefined) form.append("zCoord", String(fields.zCoord));
 
-      return apiClientFetch<CreateYoucamAnalysisResponse>("/youcam/analyses", {
+      return apiClientFetch<CreateAnalisisPiel360AnalysisResponse>("/analisispiel360/analyses", {
         method: "POST",
         body: form,
       });

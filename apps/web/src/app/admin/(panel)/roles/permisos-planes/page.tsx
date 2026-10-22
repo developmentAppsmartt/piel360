@@ -29,7 +29,7 @@ export default function PermisosPlanesPage() {
           Matriz profesional × servicio
         </ModuleCardTitle>
         <p className="mt-1 text-sm text-muted-foreground">
-          Dermatológico (Skiniver), Estético (YouCam) y Fototipo (Fitzpatrick).
+          Dermatológico, Estético y Fototipo.
           Las filas se cargan desde{" "}
           <Link href="/admin/especialidades" className="underline hover:text-foreground">
             Profesionales › Especialidades

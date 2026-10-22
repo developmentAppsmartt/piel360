@@ -6,41 +6,41 @@
  * Lo que no se configura usa los valores de este archivo.
  */
 import {
-  YOUCAM_MAIN_METRIC_TYPES,
-  type YoucamScoreBand,
+  ANALISIS_PIEL360_MAIN_METRIC_TYPES,
+  type AnalisisPiel360ScoreBand,
 } from "./youcam-report.js";
 
-export const YOUCAM_SCORE_BANDS: readonly YoucamScoreBand[] = [
+export const ANALISIS_PIEL360_SCORE_BANDS: readonly AnalisisPiel360ScoreBand[] = [
   "regular",
   "promedio",
   "buena",
 ];
 
 /** Métricas que se configuran (una por tipo de análisis estético). */
-export const YOUCAM_SCORE_CONFIG_METRICS: readonly string[] = YOUCAM_MAIN_METRIC_TYPES;
+export const ANALISIS_PIEL360_SCORE_CONFIG_METRICS: readonly string[] = ANALISIS_PIEL360_MAIN_METRIC_TYPES;
 
 /** Puntaje < regularMax → Regular; < promedioMax → Promedio; resto → Buena. */
 export const DEFAULT_SCORE_RANGES = { regularMax: 70, promedioMax: 90 } as const;
 
-export type YoucamBandTexts = Partial<Record<YoucamScoreBand, string | null>>;
+export type AnalisisPiel360BandTexts = Partial<Record<AnalisisPiel360ScoreBand, string | null>>;
 
 /** Lo que guarda la cuenta por métrica; todo opcional (= valor por defecto). */
-export type YoucamMetricScoreConfig = {
+export type AnalisisPiel360MetricScoreConfig = {
   /** Puntaje desde el que empieza Promedio (Regular = 0 … regularMax − 1). */
   regularMax?: number | null;
   /** Puntaje desde el que empieza Buena (Promedio = regularMax … promedioMax − 1). */
   promedioMax?: number | null;
-  texts?: YoucamBandTexts;
+  texts?: AnalisisPiel360BandTexts;
 };
 
-export type YoucamScoreConfig = {
-  metrics: Record<string, YoucamMetricScoreConfig>;
+export type AnalisisPiel360ScoreConfig = {
+  metrics: Record<string, AnalisisPiel360MetricScoreConfig>;
 };
 
-export const DEFAULT_YOUCAM_SCORE_CONFIG: YoucamScoreConfig = { metrics: {} };
+export const DEFAULT_ANALISIS_PIEL360_SCORE_CONFIG: AnalisisPiel360ScoreConfig = { metrics: {} };
 
 /** Consejos accionables por nivel (estilo reporte Perfect). */
-export const YOUCAM_DEFAULT_ADVICE: Record<string, Record<YoucamScoreBand, string>> = {
+export const ANALISIS_PIEL360_DEFAULT_ADVICE: Record<string, Record<AnalisisPiel360ScoreBand, string>> = {
   hd_wrinkle: {
     regular:
       "La exposición solar acelera las arrugas. Usa protector solar SPF 30 o superior a diario y reaplícalo. Un retinoide nocturno puede ayudar bajo supervisión profesional.",
@@ -158,7 +158,7 @@ export const YOUCAM_DEFAULT_ADVICE: Record<string, Record<YoucamScoreBand, strin
   },
 };
 
-export const YOUCAM_FALLBACK_ADVICE: Record<YoucamScoreBand, string> = {
+export const ANALISIS_PIEL360_FALLBACK_ADVICE: Record<AnalisisPiel360ScoreBand, string> = {
   regular:
     "Con un poco más de cuidado enfocado puedes mejorar esta área. Revisa la rutina y la protección solar diaria.",
   promedio:
@@ -166,17 +166,17 @@ export const YOUCAM_FALLBACK_ADVICE: Record<YoucamScoreBand, string> = {
   buena: "¡Excelente resultado en esta métrica! Mantén tu rutina y la protección solar.",
 };
 
-export function defaultYoucamAdvice(
+export function defaultAnalisisPiel360Advice(
   type: string | null | undefined,
-  band: YoucamScoreBand,
+  band: AnalisisPiel360ScoreBand,
 ): string {
-  return (type && YOUCAM_DEFAULT_ADVICE[type]?.[band]) || YOUCAM_FALLBACK_ADVICE[band];
+  return (type && ANALISIS_PIEL360_DEFAULT_ADVICE[type]?.[band]) || ANALISIS_PIEL360_FALLBACK_ADVICE[band];
 }
 
 export type ResolvedScoreRanges = { regularMax: number; promedioMax: number };
 
 export function resolveScoreRanges(
-  config: YoucamScoreConfig | null | undefined,
+  config: AnalisisPiel360ScoreConfig | null | undefined,
   type: string | null | undefined,
 ): ResolvedScoreRanges {
   const m = (type && config?.metrics?.[type]) || {};
@@ -186,11 +186,11 @@ export function resolveScoreRanges(
   };
 }
 
-export function configuredYoucamScoreBand(
+export function configuredAnalisisPiel360ScoreBand(
   score: number,
   type: string | null | undefined,
-  config: YoucamScoreConfig | null | undefined,
-): YoucamScoreBand {
+  config: AnalisisPiel360ScoreConfig | null | undefined,
+): AnalisisPiel360ScoreBand {
   const { regularMax, promedioMax } = resolveScoreRanges(config, type);
   if (score < regularMax) return "regular";
   if (score < promedioMax) return "promedio";
@@ -198,22 +198,22 @@ export function configuredYoucamScoreBand(
 }
 
 /** Texto del nivel: el configurado o el texto por defecto. */
-export function configuredYoucamAdvice(
+export function configuredAnalisisPiel360Advice(
   type: string | null | undefined,
-  band: YoucamScoreBand,
-  config: YoucamScoreConfig | null | undefined,
+  band: AnalisisPiel360ScoreBand,
+  config: AnalisisPiel360ScoreConfig | null | undefined,
 ): string {
   const custom = type ? config?.metrics?.[type]?.texts?.[band] : null;
-  return custom?.trim() ? custom : defaultYoucamAdvice(type, band);
+  return custom?.trim() ? custom : defaultAnalisisPiel360Advice(type, band);
 }
 
 /** Valida y limpia lo que envía el CRM; lanza un mensaje legible si algo no cuadra. */
-export function sanitizeYoucamScoreConfig(input: unknown): YoucamScoreConfig {
-  const raw = (input ?? {}) as Partial<YoucamScoreConfig>;
+export function sanitizeAnalisisPiel360ScoreConfig(input: unknown): AnalisisPiel360ScoreConfig {
+  const raw = (input ?? {}) as Partial<AnalisisPiel360ScoreConfig>;
   const int = (v: unknown) =>
     typeof v === "number" && Number.isFinite(v) ? Math.round(v) : null;
-  const metrics: Record<string, YoucamMetricScoreConfig> = {};
-  for (const type of YOUCAM_SCORE_CONFIG_METRICS) {
+  const metrics: Record<string, AnalisisPiel360MetricScoreConfig> = {};
+  for (const type of ANALISIS_PIEL360_SCORE_CONFIG_METRICS) {
     const m = raw.metrics?.[type];
     if (!m) continue;
     const reg = int(m.regularMax) ?? DEFAULT_SCORE_RANGES.regularMax;
@@ -223,11 +223,11 @@ export function sanitizeYoucamScoreConfig(input: unknown): YoucamScoreConfig {
         "Regular, Promedio y Buena deben ir en orden y cada uno tener al menos un punto.",
       );
     }
-    const entry: YoucamMetricScoreConfig = {};
+    const entry: AnalisisPiel360MetricScoreConfig = {};
     if (reg !== DEFAULT_SCORE_RANGES.regularMax) entry.regularMax = reg;
     if (prom !== DEFAULT_SCORE_RANGES.promedioMax) entry.promedioMax = prom;
-    const texts: YoucamBandTexts = {};
-    for (const band of YOUCAM_SCORE_BANDS) {
+    const texts: AnalisisPiel360BandTexts = {};
+    for (const band of ANALISIS_PIEL360_SCORE_BANDS) {
       const value = m.texts?.[band];
       if (typeof value === "string" && value.trim()) {
         texts[band] = value.trim().slice(0, 1000);

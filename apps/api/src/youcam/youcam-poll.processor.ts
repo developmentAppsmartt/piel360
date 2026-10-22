@@ -2,28 +2,28 @@ import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
-import { YOUCAM_POLL_QUEUE, type YoucamPollJobData } from './queues';
-import { YoucamResultsService } from './youcam-results.service';
-import { YouCamService } from './youcam.service';
+import { YOUCAM_POLL_QUEUE, type AnalisisPiel360PollJobData } from './queues';
+import { AnalisisPiel360ResultsService } from './youcam-results.service';
+import { AnalisisPiel360Service } from './youcam.service';
 
 /**
  * Job de respaldo (reemplaza el re-despacho manual con delay fijo de 30s de
  * Laravel, sin tope de reintentos): BullMQ reintenta con backoff exponencial
- * hasta `attempts` veces (fijado al encolar en `YoucamAnalysesService`).
+ * hasta `attempts` veces (fijado al encolar en `AnalisisPiel360AnalysesService`).
  */
 @Processor(YOUCAM_POLL_QUEUE)
-export class YoucamPollProcessor extends WorkerHost {
-  private readonly logger = new Logger(YoucamPollProcessor.name);
+export class AnalisisPiel360PollProcessor extends WorkerHost {
+  private readonly logger = new Logger(AnalisisPiel360PollProcessor.name);
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly youcam: YouCamService,
-    private readonly results: YoucamResultsService,
+    private readonly youcam: AnalisisPiel360Service,
+    private readonly results: AnalisisPiel360ResultsService,
   ) {
     super();
   }
 
-  async process(job: Job<YoucamPollJobData>): Promise<void> {
+  async process(job: Job<AnalisisPiel360PollJobData>): Promise<void> {
     const { analysisId, taskId } = job.data;
 
     const analysis = await this.prisma.analysis.findUniqueOrThrow({
@@ -34,7 +34,7 @@ export class YoucamPollProcessor extends WorkerHost {
     const result = await this.youcam.checkStatus(taskId);
 
     if (result.status === 'processing') {
-      throw new Error('YouCam task aún procesando'); // BullMQ reintenta (attempts/backoff en YoucamAnalysesService)
+      throw new Error('YouCam task aún procesando'); // BullMQ reintenta (attempts/backoff en AnalisisPiel360AnalysesService)
     }
     if (result.status === 'error') {
       // Condición permanente (ej. resolución de imagen insuficiente) — no

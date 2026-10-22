@@ -1,10 +1,10 @@
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { YouCamWebhookPayload } from '@piel360/shared';
+import type { AnalisisPiel360WebhookPayload } from '@piel360/shared';
 import { Webhook, WebhookVerificationError } from 'svix';
 import { PrismaService } from '../prisma/prisma.service';
-import { YoucamResultsService } from './youcam-results.service';
-import { YouCamService } from './youcam.service';
+import { AnalisisPiel360ResultsService } from './youcam-results.service';
+import { AnalisisPiel360Service } from './youcam.service';
 
 // Placeholder base64 válido para cuando YOUCAM_WEBHOOK_SECRET aún no está
 // configurado (feature opcional hasta tener credenciales reales) — el
@@ -20,15 +20,15 @@ const NOT_CONFIGURED_SECRET = `whsec_${Buffer.from('not-configured-not-configure
  * decodificación manual.
  */
 @Injectable()
-export class YoucamWebhookService {
-  private readonly logger = new Logger(YoucamWebhookService.name);
+export class AnalisisPiel360WebhookService {
+  private readonly logger = new Logger(AnalisisPiel360WebhookService.name);
   private readonly webhook: Webhook;
 
   constructor(
     config: ConfigService,
     private readonly prisma: PrismaService,
-    private readonly youcam: YouCamService,
-    private readonly results: YoucamResultsService,
+    private readonly youcam: AnalisisPiel360Service,
+    private readonly results: AnalisisPiel360ResultsService,
   ) {
     this.webhook = new Webhook(
       config.get<string>('YOUCAM_WEBHOOK_SECRET') || NOT_CONFIGURED_SECRET,
@@ -36,9 +36,9 @@ export class YoucamWebhookService {
   }
 
   async handle(rawBody: Buffer, headers: Record<string, string>) {
-    let payload: YouCamWebhookPayload;
+    let payload: AnalisisPiel360WebhookPayload;
     try {
-      payload = this.webhook.verify(rawBody, headers) as YouCamWebhookPayload;
+      payload = this.webhook.verify(rawBody, headers) as AnalisisPiel360WebhookPayload;
     } catch (error) {
       if (error instanceof WebhookVerificationError) {
         throw new ForbiddenException('Firma de webhook inválida');
@@ -48,7 +48,7 @@ export class YoucamWebhookService {
 
     const { taskId, taskStatus } = payload.data;
     const analysis = await this.prisma.analysis.findFirst({
-      where: { youcamTaskId: taskId },
+      where: { analisisPiel360TaskId: taskId },
     });
 
     if (!analysis) {

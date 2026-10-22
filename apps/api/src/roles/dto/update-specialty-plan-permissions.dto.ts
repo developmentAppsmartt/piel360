@@ -1,4 +1,4 @@
-import { ANALYSIS_PROVIDER_SLUGS } from '@piel360/shared';
+import { PUBLIC_ANALYSIS_PROVIDER_SLUGS } from '@piel360/shared';
 import { IsBoolean, IsOptional, IsString } from 'class-validator';
 
 export class UpdateSpecialtyPlanPermissionsDto {
@@ -7,11 +7,11 @@ export class UpdateSpecialtyPlanPermissionsDto {
 
   @IsOptional()
   @IsBoolean()
-  skiniver?: boolean;
+  analisisdermapiel360?: boolean;
 
   @IsOptional()
   @IsBoolean()
-  youcam?: boolean;
+  analisispiel360?: boolean;
 
   @IsOptional()
   @IsBoolean()
@@ -19,4 +19,4 @@ export class UpdateSpecialtyPlanPermissionsDto {
 }
 
 // Referencia estática para validación futura por slug dinámico.
-void ANALYSIS_PROVIDER_SLUGS;
+void PUBLIC_ANALYSIS_PROVIDER_SLUGS;

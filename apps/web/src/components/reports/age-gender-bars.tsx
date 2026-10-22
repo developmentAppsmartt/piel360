@@ -1,6 +1,6 @@
 "use client";
 
-import type { SkiniverAgeGenderRow } from "@piel360/shared";
+import type { AnalisisDermaPiel360AgeGenderRow } from "@piel360/shared";
 
 /**
  * Widget "Enfermedades por edad y sexo": barras agrupadas por rango de edad.
@@ -17,7 +17,7 @@ const SERIES = [
   { key: "unknown", label: "Sin género", color: "#cbd5e1" },
 ] as const;
 
-export function AgeGenderBars({ rows }: { rows: SkiniverAgeGenderRow[] }) {
+export function AgeGenderBars({ rows }: { rows: AnalisisDermaPiel360AgeGenderRow[] }) {
   const hasAny = rows.some((r) => r.male + r.female + r.unknown > 0);
   if (!hasAny) {
     return (

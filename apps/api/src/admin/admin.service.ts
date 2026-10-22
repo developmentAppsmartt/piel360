@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { SkiniverReportService } from '../doctor-reports/skiniver-report.service';
+import { AnalisisDermaPiel360ReportService } from '../doctor-reports/skiniver-report.service';
 
 const AGE_BUCKET_LABELS = ['Menores', 'Adultos', 'Seniors'] as const;
 type AgeBucket = (typeof AGE_BUCKET_LABELS)[number];
@@ -19,12 +19,12 @@ type Granularity = 'day' | 'month' | 'year';
 export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly skiniverReport: SkiniverReportService,
+    private readonly analisisDermaPiel360Report: AnalisisDermaPiel360ReportService,
   ) {}
 
   /** Reporte dermatológico global: mismo armado que el del panel del doctor
-   * (SkiniverReportService), con `doctorIds = null` para no filtrar. */
-  async getSkiniverReport(startDate?: string, endDate?: string) {
+   * (AnalisisDermaPiel360ReportService), con `doctorIds = null` para no filtrar. */
+  async getAnalisisDermaPiel360Report(startDate?: string, endDate?: string) {
     const to = endDate ? new Date(endDate) : new Date();
     const from = startDate
       ? new Date(startDate)
@@ -32,7 +32,7 @@ export class AdminService {
     const toExclusive = new Date(
       Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate()) + DAY_MS,
     );
-    return this.skiniverReport.build(null, { from, to, toExclusive });
+    return this.analisisDermaPiel360Report.build(null, { from, to, toExclusive });
   }
 
   /** Port de SubscriptionStats.php + RiskChart.php (Filament, sistema viejo).

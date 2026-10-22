@@ -9,6 +9,7 @@ import {
   computeApiTokenCostCop,
   computeSaleEconomics,
   parsePlanApiCosts,
+  toPublicProviderKeys,
   type BillingRates,
   BILLING_CONFIG_KEYS,
   DEFAULT_BILLING_RATES,
@@ -123,7 +124,11 @@ export class BillingService {
     }
 
     const rates = await this.getBillingRates();
-    const apiCosts = parsePlanApiCosts(plan?.apiCosts);
+    // La columna guarda los slugs internos; `parsePlanApiCosts` ya habla el
+    // publico, que es el unico que sale al navegador.
+    const apiCosts = parsePlanApiCosts(
+      toPublicProviderKeys(plan?.apiCosts as Record<string, unknown> | null),
+    );
     const apiTokenCostCop = computeApiTokenCostCop(apiCosts, rates);
 
     const referral = await this.prisma.referral.findFirst({

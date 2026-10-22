@@ -1,29 +1,30 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { YOUCAM_DST_ACTIONS } from '@piel360/shared';
+import { ANALISIS_PIEL360_DST_ACTIONS } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-  YouCamService,
-  type PerfectCorpCreditBalance,
-  type PerfectCorpCreditHistoryItem,
-  type PerfectCorpFeatureSku,
+  AnalisisPiel360Service,
+  type AnalisisPiel360CreditBalance,
+  type AnalisisPiel360CreditHistoryItem,
+  type AnalisisPiel360FeatureSku,
 } from '../youcam/youcam.service';
+import { POOL_PUBLIC_ALIASES } from '@piel360/shared';
 
 const EXPIRING_SOON_MS = 30 * 24 * 60 * 60 * 1000;
 const PERFECTCORP_PROVIDER = 'perfectcorp';
 
 /** Costo documentado Perfect Corp cuando el endpoint feature-cost no responde. */
 const FALLBACK_FEATURE_COSTS = {
-  skinAnalysisHdConcerns: YOUCAM_DST_ACTIONS.length,
+  skinAnalysisHdConcerns: ANALISIS_PIEL360_DST_ACTIONS.length,
   skinAnalysisHdUnits: 22,
   fitzpatrickUnits: 10,
 } as const;
 
 @Injectable()
-export class PerfectCorpUnitsService {
-  private readonly logger = new Logger(PerfectCorpUnitsService.name);
+export class AnalisisPiel360UnitsService {
+  private readonly logger = new Logger(AnalisisPiel360UnitsService.name);
 
   constructor(
-    private readonly youcam: YouCamService,
+    private readonly youcam: AnalisisPiel360Service,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -38,13 +39,13 @@ export class PerfectCorpUnitsService {
         this.logger.warn(
           `feature-cost no disponible: ${err instanceof Error ? err.message : String(err)}`,
         );
-        return [] as PerfectCorpFeatureSku[];
+        return [] as AnalisisPiel360FeatureSku[];
       }),
       this.youcam.getCreditHistory(30).catch((err) => {
         this.logger.warn(
           `credit/history no disponible: ${err instanceof Error ? err.message : String(err)}`,
         );
-        return [] as PerfectCorpCreditHistoryItem[];
+        return [] as AnalisisPiel360CreditHistoryItem[];
       }),
       this.prisma.platformUnitRecharge.findMany({
         where: {
@@ -90,7 +91,7 @@ export class PerfectCorpUnitsService {
     }));
 
     return {
-      source: 'perfectcorp' as const,
+      source: POOL_PUBLIC_ALIASES.perfectcorp,
       fetchedAt: new Date().toISOString(),
       pool: {
         id: 'aesthetic' as const,
@@ -120,7 +121,7 @@ function round2(n: number) {
   return Math.round(n * 100) / 100;
 }
 
-function serializeBalance(b: PerfectCorpCreditBalance) {
+function serializeBalance(b: AnalisisPiel360CreditBalance) {
   return {
     id: b.id,
     type: b.type,
@@ -129,7 +130,7 @@ function serializeBalance(b: PerfectCorpCreditBalance) {
   };
 }
 
-function serializeHistory(h: PerfectCorpCreditHistoryItem) {
+function serializeHistory(h: AnalisisPiel360CreditHistoryItem) {
   return {
     id: h.id,
     action: h.action,
@@ -142,7 +143,7 @@ function serializeHistory(h: PerfectCorpCreditHistoryItem) {
   };
 }
 
-function summarizeFeatureCosts(skus: PerfectCorpFeatureSku[]) {
+function summarizeFeatureCosts(skus: AnalisisPiel360FeatureSku[]) {
   const skin = skus.filter((s) =>
     /skin-analysis/i.test(s.runTaskUrl || s.description),
   );
@@ -150,7 +151,7 @@ function summarizeFeatureCosts(skus: PerfectCorpFeatureSku[]) {
     /fitzpatrick/i.test(s.runTaskUrl || s.description),
   );
 
-  const concernCount = YOUCAM_DST_ACTIONS.length;
+  const concernCount = ANALISIS_PIEL360_DST_ACTIONS.length;
   const matchingHd = skin.find((s) => {
     const d = s.description.toLowerCase();
     return (
@@ -172,9 +173,8 @@ function summarizeFeatureCosts(skus: PerfectCorpFeatureSku[]) {
     })),
     /** Costo estimado del flujo Piel360 (16 concerns HD + Fitzpatrick). */
     estimatedPerAnalysis: {
-      youcamHdUnits:
-        matchingHd?.amount ?? FALLBACK_FEATURE_COSTS.skinAnalysisHdUnits,
-      youcamConcerns: concernCount,
+      hdUnits: matchingHd?.amount ?? FALLBACK_FEATURE_COSTS.skinAnalysisHdUnits,
+      concerns: concernCount,
       fitzpatrickUnits:
         fitz[0]?.amount ?? FALLBACK_FEATURE_COSTS.fitzpatrickUnits,
       combinedUnits:

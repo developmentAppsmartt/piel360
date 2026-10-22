@@ -13,9 +13,9 @@ import { UsersModule } from './users/users.module';
 import { DoctorsModule } from './doctors/doctors.module';
 import { PatientsModule } from './patients/patients.module';
 import { AnalysesModule } from './analyses/analyses.module';
-import { YoucamModule } from './youcam/youcam.module';
+import { AnalisisPiel360Module } from './youcam/youcam.module';
 import { FitzpatrickModule } from './fitzpatrick/fitzpatrick.module';
-import { SkiniverModule } from './skiniver/skiniver.module';
+import { AnalisisDermaPiel360Module } from './skiniver/skiniver.module';
 import { EncyclopediaModule } from './encyclopedia/encyclopedia.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { PaymentsModule } from './payments/payments.module';
@@ -81,9 +81,9 @@ import { BrandingModule } from './branding/branding.module';
     MessagesModule,
     NotificationsModule,
     AnalysesModule,
-    YoucamModule,
+    AnalisisPiel360Module,
     FitzpatrickModule,
-    SkiniverModule,
+    AnalisisDermaPiel360Module,
     EncyclopediaModule,
     SubscriptionsModule,
     PaymentsModule,

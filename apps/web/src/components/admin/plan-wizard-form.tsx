@@ -86,7 +86,7 @@ export type PlanWizardState = {
   analysisProviderIds: string[];
   /** Texto para poder borrar el valor al editar. */
   analysisLimit: string;
-  skiniverLimit: string;
+  analisisDermaPiel360Limit: string;
   aestheticLimit: string;
   price: string;
   durationDays: string;
@@ -99,10 +99,10 @@ export type PlanWizardState = {
   roleLimits: Record<string, number>;
   ivaEnabled: boolean;
   /** Campos de costo API como texto para poder borrarlos al editar. */
-  skiniverUnits: string;
-  skiniverUnitPrice: string;
-  youcamUnits: string;
-  youcamUnitPrice: string;
+  analisisDermaPiel360Units: string;
+  analisisDermaPiel360UnitPrice: string;
+  analisisPiel360Units: string;
+  analisisPiel360UnitPrice: string;
   fitzpatrickUnits: string;
   fitzpatrickUnitPrice: string;
 };
@@ -110,10 +110,10 @@ export type PlanWizardState = {
 function emptyApiCostState() {
   return {
     ivaEnabled: false,
-    skiniverUnits: "",
-    skiniverUnitPrice: "",
-    youcamUnits: "",
-    youcamUnitPrice: "",
+    analisisDermaPiel360Units: "",
+    analisisDermaPiel360UnitPrice: "",
+    analisisPiel360Units: "",
+    analisisPiel360UnitPrice: "",
     fitzpatrickUnits: "",
     fitzpatrickUnitPrice: "",
   };
@@ -141,10 +141,10 @@ function apiCostsFromPlan(plan: PlanAdmin) {
   const costs = parsePlanApiCosts(plan.apiCosts);
   return {
     ivaEnabled: Boolean(plan.ivaEnabled),
-    skiniverUnits: formatCostField(costs.skiniver?.units),
-    skiniverUnitPrice: formatCostField(costs.skiniver?.unitPrice),
-    youcamUnits: formatCostField(costs.youcam?.units),
-    youcamUnitPrice: formatCostField(costs.youcam?.unitPrice),
+    analisisDermaPiel360Units: formatCostField(costs.analisisdermapiel360?.units),
+    analisisDermaPiel360UnitPrice: formatCostField(costs.analisisdermapiel360?.unitPrice),
+    analisisPiel360Units: formatCostField(costs.analisispiel360?.units),
+    analisisPiel360UnitPrice: formatCostField(costs.analisispiel360?.unitPrice),
     fitzpatrickUnits: formatCostField(costs.fitzpatrick?.units),
     fitzpatrickUnitPrice: formatCostField(costs.fitzpatrick?.unitPrice),
   };
@@ -159,20 +159,20 @@ function apiCostsFromState(
     selectedSlugs,
     planType,
     analysisLimit: parseCostNumber(state.analysisLimit),
-    skiniverLimit: parseCostNumber(state.skiniverLimit),
+    analisisDermaPiel360Limit: parseCostNumber(state.analisisDermaPiel360Limit),
     aestheticLimit: parseCostNumber(state.aestheticLimit),
   });
   const out: PlanApiCosts = {};
-  if (selectedSlugs.includes("skiniver")) {
-    out.skiniver = {
-      units: resolved.skiniverUnits,
-      unitPrice: parseCostNumber(state.skiniverUnitPrice),
+  if (selectedSlugs.includes("analisisdermapiel360")) {
+    out.analisisdermapiel360 = {
+      units: resolved.analisisDermaPiel360Units,
+      unitPrice: parseCostNumber(state.analisisDermaPiel360UnitPrice),
     };
   }
-  if (selectedSlugs.includes("youcam")) {
-    out.youcam = {
-      units: resolved.youcamUnits,
-      unitPrice: parseCostNumber(state.youcamUnitPrice),
+  if (selectedSlugs.includes("analisispiel360")) {
+    out.analisispiel360 = {
+      units: resolved.analisisPiel360Units,
+      unitPrice: parseCostNumber(state.analisisPiel360UnitPrice),
     };
   }
   if (selectedSlugs.includes("fitzpatrick")) {
@@ -192,28 +192,28 @@ function emptyRoleLimits(options: PlanRoleOption[]): Record<string, number> {
 }
 
 function parseAnalysisLimits(plan: PlanAdmin): {
-  skiniverLimit: number;
+  analisisDermaPiel360Limit: number;
   aestheticLimit: number;
 } {
   const limits = plan.analysisLimits ?? {};
-  if (typeof limits.skiniver === "number" || typeof limits.aesthetic === "number") {
+  if (typeof limits.analisisdermapiel360 === "number" || typeof limits.aesthetic === "number") {
     return {
-      skiniverLimit: limits.skiniver ?? 0,
+      analisisDermaPiel360Limit: limits.analisisdermapiel360 ?? 0,
       aestheticLimit: limits.aesthetic ?? 0,
     };
   }
   // Planes antiguos: un solo analysisLimit → asignarlo al primer proveedor del paquete.
   const slugs = (plan.providers ?? [plan.provider]).map((provider) => provider.slug);
-  const hasSkiniver = slugs.includes("skiniver");
-  const hasAesthetic = slugs.some((slug) => slug === "youcam" || slug === "fitzpatrick");
-  if (hasSkiniver && !hasAesthetic) {
-    return { skiniverLimit: plan.analysisLimit, aestheticLimit: 0 };
+  const hasAnalisisDermaPiel360 = slugs.includes("analisisdermapiel360");
+  const hasAesthetic = slugs.some((slug) => slug === "analisispiel360" || slug === "fitzpatrick");
+  if (hasAnalisisDermaPiel360 && !hasAesthetic) {
+    return { analisisDermaPiel360Limit: plan.analysisLimit, aestheticLimit: 0 };
   }
-  if (hasAesthetic && !hasSkiniver) {
-    return { skiniverLimit: 0, aestheticLimit: plan.analysisLimit };
+  if (hasAesthetic && !hasAnalisisDermaPiel360) {
+    return { analisisDermaPiel360Limit: 0, aestheticLimit: plan.analysisLimit };
   }
   return {
-    skiniverLimit: hasSkiniver ? plan.analysisLimit : 0,
+    analisisDermaPiel360Limit: hasAnalisisDermaPiel360 ? plan.analysisLimit : 0,
     aestheticLimit: hasAesthetic ? plan.analysisLimit : 0,
   };
 }
@@ -223,13 +223,13 @@ function stateFromPlan(plan: PlanAdmin, roleOptions: PlanRoleOption[]): PlanWiza
     plan.analysisProviderIds?.length > 0
       ? plan.analysisProviderIds
       : [plan.analysisProviderId];
-  const { skiniverLimit, aestheticLimit } = parseAnalysisLimits(plan);
+  const { analisisDermaPiel360Limit, aestheticLimit } = parseAnalysisLimits(plan);
 
   return {
     name: plan.name,
     analysisProviderIds,
     analysisLimit: formatIntField(plan.analysisLimit),
-    skiniverLimit: formatIntField(skiniverLimit),
+    analisisDermaPiel360Limit: formatIntField(analisisDermaPiel360Limit),
     aestheticLimit: formatIntField(aestheticLimit),
     // En el wizard el COP es el precio del plan (con IVA si aplica).
     price: formatIntField(
@@ -263,14 +263,14 @@ function toPlanInput(
   const selectedSlugs = state.analysisProviderIds
     .map((id) => providerSlugById.get(id))
     .filter((slug): slug is string => Boolean(slug));
-  const hasSkiniver = selectedSlugs.includes("skiniver");
+  const hasAnalisisDermaPiel360 = selectedSlugs.includes("analisisdermapiel360");
   const hasAesthetic = selectedSlugs.some(
-    (slug) => slug === "youcam" || slug === "fitzpatrick",
+    (slug) => slug === "analisispiel360" || slug === "fitzpatrick",
   );
 
   const analysisLimitNum = parseCostNumber(state.analysisLimit);
-  const skiniverLimitNum = hasSkiniver
-    ? parseCostNumber(state.skiniverLimit)
+  const analisisDermaPiel360LimitNum = hasAnalisisDermaPiel360
+    ? parseCostNumber(state.analisisDermaPiel360Limit)
     : 0;
   const aestheticLimitNum = hasAesthetic
     ? parseCostNumber(state.aestheticLimit)
@@ -278,7 +278,7 @@ function toPlanInput(
   const analysisLimit =
     planType === "individual"
       ? analysisLimitNum
-      : skiniverLimitNum + aestheticLimitNum;
+      : analisisDermaPiel360LimitNum + aestheticLimitNum;
 
   // El campo COP muestra el precio al cliente; en BD guardamos la base sin IVA.
   const rawPrice = parseCostNumber(state.price);
@@ -293,10 +293,10 @@ function toPlanInput(
     analysisLimit,
     analysisLimits:
       planType === "individual"
-        ? selectedSlugs[0] === "skiniver"
-          ? { skiniver: analysisLimitNum, aesthetic: 0 }
-          : { skiniver: 0, aesthetic: analysisLimitNum }
-        : { skiniver: skiniverLimitNum, aesthetic: aestheticLimitNum },
+        ? selectedSlugs[0] === "analisisdermapiel360"
+          ? { analisisdermapiel360: analysisLimitNum, aesthetic: 0 }
+          : { analisisdermapiel360: 0, aesthetic: analysisLimitNum }
+        : { analisisdermapiel360: analisisDermaPiel360LimitNum, aesthetic: aestheticLimitNum },
     price: basePrice,
     durationDays: Math.max(1, parseCostNumber(state.durationDays) || 1),
     isActive: state.isActive,
@@ -473,7 +473,7 @@ export function PlanWizardForm({
           name: "",
           analysisProviderIds: [],
           analysisLimit: "",
-          skiniverLimit: "",
+          analisisDermaPiel360Limit: "",
           aestheticLimit: "",
           price: "",
           durationDays: "30",
@@ -594,10 +594,10 @@ export function PlanWizardForm({
         .filter((slug): slug is string => Boolean(slug)),
     [state.analysisProviderIds, providerSlugById],
   );
-  const skiniverEnabled = selectedSlugs.includes("skiniver");
-  const youcamEnabled = selectedSlugs.includes("youcam");
+  const analisisDermaPiel360Enabled = selectedSlugs.includes("analisisdermapiel360");
+  const analisisPiel360Enabled = selectedSlugs.includes("analisispiel360");
   const fitzpatrickEnabled = selectedSlugs.includes("fitzpatrick");
-  const aestheticEnabled = youcamEnabled || fitzpatrickEnabled;
+  const aestheticEnabled = analisisPiel360Enabled || fitzpatrickEnabled;
 
   const apiUnitsResolved = useMemo(
     () =>
@@ -605,14 +605,14 @@ export function PlanWizardForm({
         selectedSlugs,
         planType,
         analysisLimit: parseCostNumber(state.analysisLimit),
-        skiniverLimit: parseCostNumber(state.skiniverLimit),
+        analisisDermaPiel360Limit: parseCostNumber(state.analisisDermaPiel360Limit),
         aestheticLimit: parseCostNumber(state.aestheticLimit),
       }),
     [
       selectedSlugs,
       planType,
       state.analysisLimit,
-      state.skiniverLimit,
+      state.analisisDermaPiel360Limit,
       state.aestheticLimit,
     ],
   );
@@ -622,17 +622,17 @@ export function PlanWizardForm({
     setState((current) => {
       const next = {
         ...current,
-        skiniverUnits: skiniverEnabled
-          ? String(apiUnitsResolved.skiniverUnits)
+        analisisDermaPiel360Units: analisisDermaPiel360Enabled
+          ? String(apiUnitsResolved.analisisDermaPiel360Units)
           : "",
-        youcamUnits: youcamEnabled ? String(apiUnitsResolved.youcamUnits) : "",
+        analisisPiel360Units: analisisPiel360Enabled ? String(apiUnitsResolved.analisisPiel360Units) : "",
         fitzpatrickUnits: fitzpatrickEnabled
           ? String(apiUnitsResolved.fitzpatrickUnits)
           : "",
       };
       if (
-        next.skiniverUnits === current.skiniverUnits &&
-        next.youcamUnits === current.youcamUnits &&
+        next.analisisDermaPiel360Units === current.analisisDermaPiel360Units &&
+        next.analisisPiel360Units === current.analisisPiel360Units &&
         next.fitzpatrickUnits === current.fitzpatrickUnits
       ) {
         return current;
@@ -640,11 +640,11 @@ export function PlanWizardForm({
       return next;
     });
   }, [
-    skiniverEnabled,
-    youcamEnabled,
+    analisisDermaPiel360Enabled,
+    analisisPiel360Enabled,
     fitzpatrickEnabled,
-    apiUnitsResolved.skiniverUnits,
-    apiUnitsResolved.youcamUnits,
+    apiUnitsResolved.analisisDermaPiel360Units,
+    apiUnitsResolved.analisisPiel360Units,
     apiUnitsResolved.fitzpatrickUnits,
   ]);
 
@@ -725,19 +725,19 @@ export function PlanWizardForm({
         return "El límite de análisis debe ser mayor o igual a 0.";
       }
       if (!isIndividual) {
-        const skiniverN = parseCostNumber(state.skiniverLimit);
+        const analisisDermaPiel360N = parseCostNumber(state.analisisDermaPiel360Limit);
         const aestheticN = parseCostNumber(state.aestheticLimit);
-        if (skiniverEnabled && skiniverN < 0) {
+        if (analisisDermaPiel360Enabled && analisisDermaPiel360N < 0) {
           return "El límite dermatológico debe ser mayor o igual a 0.";
         }
         if (aestheticEnabled && aestheticN < 0) {
           return "El límite estético/fototipo debe ser mayor o igual a 0.";
         }
-        if (skiniverEnabled && aestheticEnabled) {
-          if (skiniverN + aestheticN < 1) {
+        if (analisisDermaPiel360Enabled && aestheticEnabled) {
+          if (analisisDermaPiel360N + aestheticN < 1) {
             return "Define al menos un crédito en los límites de análisis.";
           }
-        } else if (skiniverEnabled && skiniverN < 1) {
+        } else if (analisisDermaPiel360Enabled && analisisDermaPiel360N < 1) {
           return "Define el límite de análisis dermatológico.";
         } else if (aestheticEnabled && aestheticN < 1) {
           return "Define el límite de análisis estético/fototipo.";
@@ -953,25 +953,25 @@ export function PlanWizardForm({
                 <>
                   <label className="flex flex-col gap-1.5 text-sm">
                     <span className="font-medium">
-                      Límite dermatológico (Skiniver){" "}
-                      {skiniverEnabled ? <span className="text-destructive">*</span> : null}
+                      Límite dermatológico{" "}
+                      {analisisDermaPiel360Enabled ? <span className="text-destructive">*</span> : null}
                     </span>
                     <input
                       type="text"
                       inputMode="numeric"
                       placeholder="Ej. 100"
-                      disabled={!skiniverEnabled}
-                      className={cn(inputClass, !skiniverEnabled && "cursor-not-allowed bg-muted")}
-                      value={skiniverEnabled ? state.skiniverLimit : ""}
+                      disabled={!analisisDermaPiel360Enabled}
+                      className={cn(inputClass, !analisisDermaPiel360Enabled && "cursor-not-allowed bg-muted")}
+                      value={analisisDermaPiel360Enabled ? state.analisisDermaPiel360Limit : ""}
                       onChange={(e) =>
                         setState({
                           ...state,
-                          skiniverLimit: e.target.value,
+                          analisisDermaPiel360Limit: e.target.value,
                         })
                       }
                     />
                     <span className="text-xs text-muted-foreground">
-                      {skiniverEnabled
+                      {analisisDermaPiel360Enabled
                         ? "Créditos de la bolsa dermatológica."
                         : "Actívalo seleccionando Piel 360 AI · Dermatológico."}
                     </span>
@@ -997,7 +997,7 @@ export function PlanWizardForm({
                     />
                     <span className="text-xs text-muted-foreground">
                       {aestheticEnabled
-                        ? "Créditos compartidos YouCam + Fitzpatrick (bolsa Perfect Corp)."
+                        ? "Créditos compartidos Estético + Fototipo (bolsa estética)."
                         : "Actívalo seleccionando Estético y/o Fototipo."}
                     </span>
                   </label>
@@ -1058,9 +1058,10 @@ export function PlanWizardForm({
                 <div>
                   <p className="text-sm font-semibold">Costo API / tokens</p>
                   <p className="text-xs text-muted-foreground">
-                    Unidades = análisis del plan × consumo por análisis (Skiniver{" "}
-                    {API_UNITS_PER_ANALYSIS.skiniver}, YouCam{" "}
-                    {API_UNITS_PER_ANALYSIS.youcam}, Fototipo{" "}
+                    Unidades = análisis del plan × consumo por análisis
+                    (Dermatológico {API_UNITS_PER_ANALYSIS.analisisdermapiel360},
+                    Estético{" "}
+                    {API_UNITS_PER_ANALYSIS.analisispiel360}, Fototipo{" "}
                     {API_UNITS_PER_ANALYSIS.fitzpatrick}). Luego × valor/unidad ×
                     TRM (dólar {billingRates.usdToCop.toLocaleString("es-CO")} /
                     euro {billingRates.eurToCop.toLocaleString("es-CO")} COP).
@@ -1079,15 +1080,15 @@ export function PlanWizardForm({
                         : "sm:grid-cols-2 lg:grid-cols-3",
                     )}
                   >
-                    {skiniverEnabled ? (
+                    {analisisDermaPiel360Enabled ? (
                       <div className="space-y-2 rounded-lg bg-muted/40 p-3">
                         <p className="text-xs font-semibold uppercase text-muted-foreground">
-                          Skiniver (EUR)
+                          Dermatológico (EUR)
                         </p>
                         <p className="text-[11px] text-muted-foreground">
-                          {apiUnitsResolved.skiniverAnalyses} análisis ×{" "}
-                          {API_UNITS_PER_ANALYSIS.skiniver} ud ={" "}
-                          <strong>{apiUnitsResolved.skiniverUnits}</strong>{" "}
+                          {apiUnitsResolved.analisisDermaPiel360Analyses} análisis ×{" "}
+                          {API_UNITS_PER_ANALYSIS.analisisdermapiel360} ud ={" "}
+                          <strong>{apiUnitsResolved.analisisDermaPiel360Units}</strong>{" "}
                           unidades
                         </p>
                         <label className="flex flex-col gap-1 text-xs">
@@ -1096,7 +1097,7 @@ export function PlanWizardForm({
                             type="text"
                             readOnly
                             className={cn(inputClass, "cursor-not-allowed bg-muted")}
-                            value={state.skiniverUnits}
+                            value={state.analisisDermaPiel360Units}
                           />
                         </label>
                         <label className="flex flex-col gap-1 text-xs">
@@ -1106,11 +1107,11 @@ export function PlanWizardForm({
                             inputMode="decimal"
                             placeholder="Ej. 0.30"
                             className={inputClass}
-                            value={state.skiniverUnitPrice}
+                            value={state.analisisDermaPiel360UnitPrice}
                             onChange={(e) =>
                               setState({
                                 ...state,
-                                skiniverUnitPrice: e.target.value,
+                                analisisDermaPiel360UnitPrice: e.target.value,
                               })
                             }
                           />
@@ -1118,8 +1119,8 @@ export function PlanWizardForm({
                         <p className="text-xs tabular-nums text-muted-foreground">
                           ={" "}
                           {(
-                            apiUnitsResolved.skiniverUnits *
-                            parseCostNumber(state.skiniverUnitPrice) *
+                            apiUnitsResolved.analisisDermaPiel360Units *
+                            parseCostNumber(state.analisisDermaPiel360UnitPrice) *
                             billingRates.eurToCop
                           ).toLocaleString("es-CO", {
                             maximumFractionDigits: 0,
@@ -1128,15 +1129,15 @@ export function PlanWizardForm({
                         </p>
                       </div>
                     ) : null}
-                    {youcamEnabled ? (
+                    {analisisPiel360Enabled ? (
                       <div className="space-y-2 rounded-lg bg-muted/40 p-3">
                         <p className="text-xs font-semibold uppercase text-muted-foreground">
-                          YouCam (USD)
+                          Estético (USD)
                         </p>
                         <p className="text-[11px] text-muted-foreground">
-                          {apiUnitsResolved.youcamAnalyses} análisis ×{" "}
-                          {API_UNITS_PER_ANALYSIS.youcam} ud ={" "}
-                          <strong>{apiUnitsResolved.youcamUnits}</strong>{" "}
+                          {apiUnitsResolved.analisisPiel360Analyses} análisis ×{" "}
+                          {API_UNITS_PER_ANALYSIS.analisispiel360} ud ={" "}
+                          <strong>{apiUnitsResolved.analisisPiel360Units}</strong>{" "}
                           unidades
                         </p>
                         <label className="flex flex-col gap-1 text-xs">
@@ -1145,7 +1146,7 @@ export function PlanWizardForm({
                             type="text"
                             readOnly
                             className={cn(inputClass, "cursor-not-allowed bg-muted")}
-                            value={state.youcamUnits}
+                            value={state.analisisPiel360Units}
                           />
                         </label>
                         <label className="flex flex-col gap-1 text-xs">
@@ -1155,11 +1156,11 @@ export function PlanWizardForm({
                             inputMode="decimal"
                             placeholder="Ej. 0.055"
                             className={inputClass}
-                            value={state.youcamUnitPrice}
+                            value={state.analisisPiel360UnitPrice}
                             onChange={(e) =>
                               setState({
                                 ...state,
-                                youcamUnitPrice: e.target.value,
+                                analisisPiel360UnitPrice: e.target.value,
                               })
                             }
                           />
@@ -1167,8 +1168,8 @@ export function PlanWizardForm({
                         <p className="text-xs tabular-nums text-muted-foreground">
                           ={" "}
                           {(
-                            apiUnitsResolved.youcamUnits *
-                            parseCostNumber(state.youcamUnitPrice) *
+                            apiUnitsResolved.analisisPiel360Units *
+                            parseCostNumber(state.analisisPiel360UnitPrice) *
                             billingRates.usdToCop
                           ).toLocaleString("es-CO", {
                             maximumFractionDigits: 0,
@@ -1497,7 +1498,7 @@ export function PlanWizardForm({
               )}
             </div>
 
-            {youcamEnabled ? (
+            {analisisPiel360Enabled ? (
               <PlanCoveragePicker
                 title="Condiciones de la piel que cubre el plan"
                 subtitle="Seleccione las condiciones de la piel que incluye este plan de análisis estético"
@@ -1517,7 +1518,7 @@ export function PlanWizardForm({
               />
             ) : null}
 
-            {skiniverEnabled ? (
+            {analisisDermaPiel360Enabled ? (
               <>
                 <PlanCoveragePicker
                   title="Clases dermatológicas que cubre el plan"
@@ -1629,11 +1630,11 @@ export function PlanWizardForm({
                   </div>
                 ) : (
                   <>
-                    {skiniverEnabled ? (
+                    {analisisDermaPiel360Enabled ? (
                       <div className="flex justify-between gap-4">
                         <dt>Límite dermatológico</dt>
                         <dd className="text-right font-medium text-foreground">
-                          {state.skiniverLimit}
+                          {state.analisisDermaPiel360Limit}
                         </dd>
                       </div>
                     ) : null}

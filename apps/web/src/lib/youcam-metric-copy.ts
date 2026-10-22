@@ -38,7 +38,7 @@ const COPY: Record<string, string> = {
     "Se analiza el surco lagrimal y su profundidad relativa en el contorno ocular.",
 };
 
-export function youcamMetricCopy(type: string | null | undefined): string {
+export function analisisPiel360MetricCopy(type: string | null | undefined): string {
   if (!type) return COPY.overview;
   return COPY[type] ?? COPY.overview;
 }

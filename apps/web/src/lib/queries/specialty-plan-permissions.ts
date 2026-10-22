@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AnalysisProviderSlug } from "@piel360/shared";
+import type { PublicAnalysisProviderSlug } from "@piel360/shared";
 import { apiClientFetch } from "@/lib/api-client";
 
 export type SpecialtyPlanPermissionRow = {
@@ -9,7 +9,7 @@ export type SpecialtyPlanPermissionRow = {
   roleSlug: string;
   label: string;
   kind: "specialty" | "labor_technician";
-  providers: Record<AnalysisProviderSlug, boolean>;
+  providers: Record<PublicAnalysisProviderSlug, boolean>;
 };
 
 export function useSpecialtyPlanPermissions() {
@@ -27,7 +27,7 @@ export function useUpdateSpecialtyPlanPermissions() {
   return useMutation({
     mutationFn: (input: {
       roleId: string;
-      providers: Partial<Record<AnalysisProviderSlug, boolean>>;
+      providers: Partial<Record<PublicAnalysisProviderSlug, boolean>>;
     }) =>
       apiClientFetch<SpecialtyPlanPermissionRow>(
         "/admin/specialty-plan-permissions",

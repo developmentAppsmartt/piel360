@@ -1,43 +1,43 @@
 import { Injectable } from '@nestjs/common';
 import {
-  SKINIVER_AGE_BUCKETS,
+  ANALISIS_DERMA_PIEL360_AGE_BUCKETS,
   SKIN_TONE_BUCKET_DEFS,
   classifyDiagnosisClass,
   isNoPathologyCategory,
   isNoPathologyDiagnosis,
-  isSkiniverCategoryName,
-  isSkiniverDiagnosisName,
+  isAnalisisDermaPiel360CategoryName,
+  isAnalisisDermaPiel360DiagnosisName,
   normalizeGender,
   normalizeLabelKey,
   skinToneBucketForFitzpatrick,
-  skiniverCategoryColor,
-  skiniverCategoryLabel,
-  skiniverDiagnosisLabel,
-  type SkiniverAgeGenderRow,
-  type SkiniverCategorySlice,
-  type SkiniverMonthlySeriesPoint,
-  type SkiniverReport,
-  type SkiniverSkinToneBucket,
-  type SkiniverTopDiagnosis,
-  type SkiniverTrendSeriesDef,
+  analisisDermaPiel360CategoryColor,
+  analisisDermaPiel360CategoryLabel,
+  analisisDermaPiel360DiagnosisLabel,
+  type AnalisisDermaPiel360AgeGenderRow,
+  type AnalisisDermaPiel360CategorySlice,
+  type AnalisisDermaPiel360MonthlySeriesPoint,
+  type AnalisisDermaPiel360Report,
+  type AnalisisDermaPiel360SkinToneBucket,
+  type AnalisisDermaPiel360TopDiagnosis,
+  type AnalisisDermaPiel360TrendSeriesDef,
 } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-  skiniverAgeGenderQuery,
-  skiniverAgeMonthlyQuery,
-  skiniverCategoryQuery,
-  skiniverMonthlyDiagnosesQuery,
-  skiniverSkinToneQuery,
-  skiniverTopDiagnosesQuery,
-  type SkiniverAgeGenderRow as SkiniverAgeGenderSqlRow,
-  type SkiniverAgeRow,
-  type SkiniverCategoryRow,
-  type SkiniverDiagnosisRow,
-  type SkiniverSkinToneRow,
-  type SkiniverTopDiagnosisRow,
+  analisisDermaPiel360AgeGenderQuery,
+  analisisDermaPiel360AgeMonthlyQuery,
+  analisisDermaPiel360CategoryQuery,
+  analisisDermaPiel360MonthlyDiagnosesQuery,
+  analisisDermaPiel360SkinToneQuery,
+  analisisDermaPiel360TopDiagnosesQuery,
+  type AnalisisDermaPiel360AgeGenderRow as AnalisisDermaPiel360AgeGenderSqlRow,
+  type AnalisisDermaPiel360AgeRow,
+  type AnalisisDermaPiel360CategoryRow,
+  type AnalisisDermaPiel360DiagnosisRow,
+  type AnalisisDermaPiel360SkinToneRow,
+  type AnalisisDermaPiel360TopDiagnosisRow,
 } from './skiniver-reports.queries';
 
-export interface SkiniverReportRange {
+export interface AnalisisDermaPiel360ReportRange {
   from: Date;
   to: Date;
   toExclusive: Date;
@@ -73,7 +73,7 @@ function pct(part: number, total: number): number {
 function buildSeries(
   months: string[],
   entries: { period: string; key: string | null; count: number }[],
-): SkiniverMonthlySeriesPoint[] {
+): AnalisisDermaPiel360MonthlySeriesPoint[] {
   const byPeriod = new Map<string, Record<string, number>>(
     months.map((m) => [m, {}]),
   );
@@ -131,9 +131,9 @@ const OTHER_DISEASE_KEY = 'otras';
  * Se limita al Top 8 porque el catálogo tiene 52 diagnósticos y una leyenda de
  * 52 series es ilegible.
  */
-function buildDiseaseSeries(rows: SkiniverDiagnosisRow[]): {
+function buildDiseaseSeries(rows: AnalisisDermaPiel360DiagnosisRow[]): {
   entries: { period: string; key: string | null; count: number }[];
-  series: SkiniverTrendSeriesDef[];
+  series: AnalisisDermaPiel360TrendSeriesDef[];
 } {
   /**
    * Etiqueta de la serie, o `null` si la fila no es una enfermedad.
@@ -149,15 +149,15 @@ function buildDiseaseSeries(rows: SkiniverDiagnosisRow[]): {
    * son diagnósticos del atlas. Un nombre que no es ni lo uno ni lo otro se
    * grafica tal cual: suele ser un diagnóstico nuevo del modelo.
    */
-  const diseaseLabel = (row: SkiniverDiagnosisRow): string | null => {
+  const diseaseLabel = (row: AnalisisDermaPiel360DiagnosisRow): string | null => {
     if (!row.ai_diagnosis || isNoPathologyDiagnosis(row.ai_diagnosis)) return null;
     if (
-      !isSkiniverDiagnosisName(row.ai_diagnosis, row.class_raw) &&
-      isSkiniverCategoryName(row.ai_diagnosis)
+      !isAnalisisDermaPiel360DiagnosisName(row.ai_diagnosis, row.class_raw) &&
+      isAnalisisDermaPiel360CategoryName(row.ai_diagnosis)
     ) {
       return null;
     }
-    return skiniverDiagnosisLabel(row.ai_diagnosis, row.class_raw);
+    return analisisDermaPiel360DiagnosisLabel(row.ai_diagnosis, row.class_raw);
   };
 
   const totals = new Map<string, number>();
@@ -185,13 +185,13 @@ function buildDiseaseSeries(rows: SkiniverDiagnosisRow[]): {
     };
   });
 
-  const series: SkiniverTrendSeriesDef[] = top.map((label) => ({
+  const series: AnalisisDermaPiel360TrendSeriesDef[] = top.map((label) => ({
     // La clave es la propia etiqueta: el color se deriva de ella por hash, así
     // que una condición conserva su color al cambiar el filtro de fechas
     // (un color por posición en la lista sí cambiaría).
     key: label,
     label,
-    color: skiniverCategoryColor(label),
+    color: analisisDermaPiel360CategoryColor(label),
   }));
   // "Otras" no solo recoge lo que se queda fuera del Top 8: también las filas
   // que se descartaron por ser categorías.
@@ -217,13 +217,13 @@ function buildDiseaseSeries(rows: SkiniverDiagnosisRow[]): {
  * vistas `v_report_analyses`/`v_skin_metric_scores`, que además lo excluyen.
  */
 @Injectable()
-export class SkiniverReportService {
+export class AnalisisDermaPiel360ReportService {
   constructor(private readonly prisma: PrismaService) {}
 
   async build(
     doctorIds: string[] | null,
-    range: SkiniverReportRange,
-  ): Promise<SkiniverReport> {
+    range: AnalisisDermaPiel360ReportRange,
+  ): Promise<AnalisisDermaPiel360Report> {
     const { from, to, toExclusive } = range;
 
     const [
@@ -234,23 +234,23 @@ export class SkiniverReportService {
       topRows,
       ageGenderRows,
     ] = await Promise.all([
-      this.prisma.$queryRaw<SkiniverDiagnosisRow[]>(
-        skiniverMonthlyDiagnosesQuery(doctorIds, from, toExclusive),
+      this.prisma.$queryRaw<AnalisisDermaPiel360DiagnosisRow[]>(
+        analisisDermaPiel360MonthlyDiagnosesQuery(doctorIds, from, toExclusive),
       ),
-      this.prisma.$queryRaw<SkiniverAgeRow[]>(
-        skiniverAgeMonthlyQuery(doctorIds, from, toExclusive),
+      this.prisma.$queryRaw<AnalisisDermaPiel360AgeRow[]>(
+        analisisDermaPiel360AgeMonthlyQuery(doctorIds, from, toExclusive),
       ),
-      this.prisma.$queryRaw<SkiniverSkinToneRow[]>(
-        skiniverSkinToneQuery(doctorIds, from, toExclusive),
+      this.prisma.$queryRaw<AnalisisDermaPiel360SkinToneRow[]>(
+        analisisDermaPiel360SkinToneQuery(doctorIds, from, toExclusive),
       ),
-      this.prisma.$queryRaw<SkiniverCategoryRow[]>(
-        skiniverCategoryQuery(doctorIds, from, toExclusive),
+      this.prisma.$queryRaw<AnalisisDermaPiel360CategoryRow[]>(
+        analisisDermaPiel360CategoryQuery(doctorIds, from, toExclusive),
       ),
-      this.prisma.$queryRaw<SkiniverTopDiagnosisRow[]>(
-        skiniverTopDiagnosesQuery(doctorIds, from, toExclusive),
+      this.prisma.$queryRaw<AnalisisDermaPiel360TopDiagnosisRow[]>(
+        analisisDermaPiel360TopDiagnosesQuery(doctorIds, from, toExclusive),
       ),
-      this.prisma.$queryRaw<SkiniverAgeGenderSqlRow[]>(
-        skiniverAgeGenderQuery(doctorIds, from, toExclusive),
+      this.prisma.$queryRaw<AnalisisDermaPiel360AgeGenderSqlRow[]>(
+        analisisDermaPiel360AgeGenderQuery(doctorIds, from, toExclusive),
       ),
     ]);
 
@@ -262,9 +262,9 @@ export class SkiniverReportService {
         period: row.period,
         key: classifyDiagnosisClass(row.ai_diagnosis, {
           label: row.ai_diagnosis
-            ? skiniverDiagnosisLabel(row.ai_diagnosis, row.class_raw)
+            ? analisisDermaPiel360DiagnosisLabel(row.ai_diagnosis, row.class_raw)
             : null,
-          category: row.category ? skiniverCategoryLabel(row.category) : null,
+          category: row.category ? analisisDermaPiel360CategoryLabel(row.category) : null,
         }),
         count: row.count,
       })),
@@ -286,11 +286,11 @@ export class SkiniverReportService {
     const categories = mergeByLabel(
       categoryRows
         .filter(
-          (row): row is SkiniverCategoryRow & { category: string } =>
+          (row): row is AnalisisDermaPiel360CategoryRow & { category: string } =>
             Boolean(row.category) && !isNoPathologyCategory(row.category),
         )
         .map((row) => ({
-          label: skiniverCategoryLabel(row.category),
+          label: analisisDermaPiel360CategoryLabel(row.category),
           count: row.count,
           extra: null,
         })),
@@ -300,7 +300,7 @@ export class SkiniverReportService {
       topRows
         .filter((row) => !isNoPathologyDiagnosis(row.diagnosis))
         .map((row) => ({
-          label: skiniverDiagnosisLabel(row.diagnosis, row.class_raw),
+          label: analisisDermaPiel360DiagnosisLabel(row.diagnosis, row.class_raw),
           count: row.count,
           extra: row.icd_code?.trim() || null,
         })),
@@ -317,7 +317,7 @@ export class SkiniverReportService {
     const categorized = categories.reduce((sum, row) => sum + row.count, 0);
     const uncategorized = total - categorized;
 
-    const byCategory: SkiniverCategorySlice[] = [
+    const byCategory: AnalisisDermaPiel360CategorySlice[] = [
       ...categories,
       ...(uncategorized > 0
         ? [{ label: 'Sin categoría', count: uncategorized, extra: null }]
@@ -325,12 +325,12 @@ export class SkiniverReportService {
     ].map((row) => ({
       key: normalizeLabelKey(row.label),
       label: row.label,
-      color: skiniverCategoryColor(row.label),
+      color: analisisDermaPiel360CategoryColor(row.label),
       count: row.count,
       pct: pct(row.count, total),
     }));
 
-    const topDiagnoses: SkiniverTopDiagnosis[] = diagnoses
+    const topDiagnoses: AnalisisDermaPiel360TopDiagnosis[] = diagnoses
       .slice(0, TOP_DIAGNOSES_LIMIT)
       .map((row) => ({
         diagnosis: row.label,
@@ -346,7 +346,7 @@ export class SkiniverReportService {
       }
     }
     const ageTotal = [...ageTotals.values()].reduce((a, b) => a + b, 0);
-    const ageDistribution: SkiniverCategorySlice[] = SKINIVER_AGE_BUCKETS.map(
+    const ageDistribution: AnalisisDermaPiel360CategorySlice[] = ANALISIS_DERMA_PIEL360_AGE_BUCKETS.map(
       (bucket) => {
         const count = ageTotals.get(bucket.key) ?? 0;
         return {
@@ -363,7 +363,7 @@ export class SkiniverReportService {
       string,
       { male: number; female: number; unknown: number }
     >(
-      SKINIVER_AGE_BUCKETS.map((b) => [
+      ANALISIS_DERMA_PIEL360_AGE_BUCKETS.map((b) => [
         b.key,
         { male: 0, female: 0, unknown: 0 },
       ]),
@@ -373,7 +373,7 @@ export class SkiniverReportService {
       if (!bucket) continue;
       bucket[normalizeGender(row.gender)] += row.count;
     }
-    const byAgeGender: SkiniverAgeGenderRow[] = SKINIVER_AGE_BUCKETS.map(
+    const byAgeGender: AnalisisDermaPiel360AgeGenderRow[] = ANALISIS_DERMA_PIEL360_AGE_BUCKETS.map(
       (bucket) => ({
         key: bucket.key,
         label: bucket.label,
@@ -394,7 +394,7 @@ export class SkiniverReportService {
       toneCounts.set(key, (toneCounts.get(key) ?? 0) + row.count);
     }
     const skinToneTotal = [...toneCounts.values()].reduce((a, b) => a + b, 0);
-    const bySkinTone: SkiniverSkinToneBucket[] = SKIN_TONE_BUCKET_DEFS.map(
+    const bySkinTone: AnalisisDermaPiel360SkinToneBucket[] = SKIN_TONE_BUCKET_DEFS.map(
       (def) => {
         const count = toneCounts.get(def.key) ?? 0;
         return {

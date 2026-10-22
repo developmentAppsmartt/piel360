@@ -38,17 +38,17 @@ export function normalizeLabelKey(value: string): string {
 
 const normalize = normalizeLabelKey;
 
-export const SKINIVER_NO_PATHOLOGY_DIAGNOSIS = "Piel Sin Patología";
+export const ANALISIS_DERMA_PIEL360_NO_PATHOLOGY_DIAGNOSIS = "Piel Sin Patología";
 
-export type SkiniverDiagnosisClass =
+export type AnalisisDermaPiel360DiagnosisClass =
   | "inflammatory"
   | "infectious"
   | "tumors"
   | "annex"
   | "other";
 
-export const SKINIVER_DIAGNOSIS_CLASS_DEFS: Record<
-  SkiniverDiagnosisClass,
+export const ANALISIS_DERMA_PIEL360_DIAGNOSIS_CLASS_DEFS: Record<
+  AnalisisDermaPiel360DiagnosisClass,
   { label: string; color: string }
 > = {
   inflammatory: { label: "Enfermedades inflamatorias", color: "#f97316" },
@@ -65,7 +65,7 @@ export const SKINIVER_DIAGNOSIS_CLASS_DEFS: Record<
  * curación propia: son las condiciones concretas que devolvió la IA, contadas
  * directamente en skiniver-report.service.ts.
  */
-const DIAGNOSIS_MAP: Record<string, { class: SkiniverDiagnosisClass }> = {
+const DIAGNOSIS_MAP: Record<string, { class: AnalisisDermaPiel360DiagnosisClass }> = {
   // Neoplasias benignas
   "nevus benigno": { class: "tumors" },
   "nevus acral": { class: "tumors" },
@@ -146,7 +146,7 @@ const DIAGNOSIS_MAP: Record<string, { class: SkiniverDiagnosisClass }> = {
  * categoría (`desease`): cualquiera de esas formas queda fuera de los conteos. */
 const NO_PATHOLOGY_KEYS = new Set(
   [
-    SKINIVER_NO_PATHOLOGY_DIAGNOSIS,
+    ANALISIS_DERMA_PIEL360_NO_PATHOLOGY_DIAGNOSIS,
     "Sin patología",
     "No pathologies",
     "No pathology",
@@ -165,12 +165,12 @@ export function isNoPathologyCategory(desease: string | null | undefined): boole
 }
 
 /**
- * Categoría de la IA (`desease`, ya traducida con skiniverCategoryLabel) →
+ * Categoría de la IA (`desease`, ya traducida con analisisDermaPiel360CategoryLabel) →
  * clase. Respaldo para diagnósticos que el mapa no reconoce por nombre: el
  * modelo agrega diagnósticos y cambia su redacción, pero la categoría sigue
  * diciendo a qué grupo pertenecen.
  */
-const CATEGORY_CLASS: Record<string, SkiniverDiagnosisClass> = {
+const CATEGORY_CLASS: Record<string, AnalisisDermaPiel360DiagnosisClass> = {
   cancer: "tumors",
   "lesiones benignas": "tumors",
   "condiciones precancerosas": "tumors",
@@ -195,7 +195,7 @@ const CATEGORY_CLASS: Record<string, SkiniverDiagnosisClass> = {
  * tricomicosis son micosis, pero de uña y de pelo: clínicamente pesan como
  * trastornos de anexos, que es lo que el reporte quiere mostrar.
  */
-const CLASS_OVERRIDES: Record<string, SkiniverDiagnosisClass> = {
+const CLASS_OVERRIDES: Record<string, AnalisisDermaPiel360DiagnosisClass> = {
   onicomicosis: "annex",
   tricomicosis: "annex",
 };
@@ -214,7 +214,7 @@ const CLASS_OVERRIDES: Record<string, SkiniverDiagnosisClass> = {
 export function classifyDiagnosisClass(
   aiDiagnosis: string | null | undefined,
   options?: { label?: string | null; category?: string | null },
-): SkiniverDiagnosisClass | null {
+): AnalisisDermaPiel360DiagnosisClass | null {
   if (!aiDiagnosis || isNoPathologyDiagnosis(aiDiagnosis)) return null;
 
   const override =
@@ -268,7 +268,7 @@ export function skinToneBucketForFitzpatrick(
  * (serie mensual, distribución total y el cruce por sexo), así que la escala
  * debe ser una sola: dos particiones distintas de edad en la misma página se
  * leen mal. El `CASE` de skiniver-reports.queries.ts refleja estos cortes. */
-export const SKINIVER_AGE_BUCKETS: { key: string; label: string; color: string }[] = [
+export const ANALISIS_DERMA_PIEL360_AGE_BUCKETS: { key: string; label: string; color: string }[] = [
   { key: "0-12", label: "0 - 12 años", color: "#22c55e" },
   { key: "13-20", label: "13 - 20 años", color: "#14b8a6" },
   { key: "21-30", label: "21 - 30 años", color: "#3b82f6" },
@@ -314,7 +314,7 @@ const FALLBACK_CATEGORY_COLORS = [
 /** Color estable por categoría: la misma categoría conserva su color entre
  * widgets y entre recargas (el fallback se elige por hash del nombre, no por
  * posición en la lista, que cambia con los filtros). */
-export function skiniverCategoryColor(category: string): string {
+export function analisisDermaPiel360CategoryColor(category: string): string {
   const known = CATEGORY_COLORS[normalize(category)];
   if (known) return known;
   let hash = 0;
@@ -329,11 +329,11 @@ export function skiniverCategoryColor(category: string): string {
 
 // ─── Género ─────────────────────────────────────────────────────────────────
 
-export type SkiniverGender = "male" | "female" | "unknown";
+export type AnalisisDermaPiel360Gender = "male" | "female" | "unknown";
 
 /** `Patient.gender` es texto libre. Misma lista que apps/web/src/lib/body-model.ts,
  * promovida acá porque ahora el reporte la necesita del lado del servidor. */
-export function normalizeGender(value: string | null | undefined): SkiniverGender {
+export function normalizeGender(value: string | null | undefined): AnalisisDermaPiel360Gender {
   if (!value) return "unknown";
   const v = normalize(value);
   if (["female", "f", "femenino", "femenina", "mujer"].includes(v)) return "female";
