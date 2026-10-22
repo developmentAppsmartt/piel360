@@ -953,7 +953,7 @@ export function PlanWizardForm({
                 <>
                   <label className="flex flex-col gap-1.5 text-sm">
                     <span className="font-medium">
-                      Límite dermatológico (Skiniver){" "}
+                      Límite dermatológico{" "}
                       {analisisDermaPiel360Enabled ? <span className="text-destructive">*</span> : null}
                     </span>
                     <input
@@ -997,7 +997,7 @@ export function PlanWizardForm({
                     />
                     <span className="text-xs text-muted-foreground">
                       {aestheticEnabled
-                        ? "Créditos compartidos YouCam + Fitzpatrick (bolsa Perfect Corp)."
+                        ? "Créditos compartidos Estético + Fototipo (bolsa estética)."
                         : "Actívalo seleccionando Estético y/o Fototipo."}
                     </span>
                   </label>
@@ -1058,8 +1058,9 @@ export function PlanWizardForm({
                 <div>
                   <p className="text-sm font-semibold">Costo API / tokens</p>
                   <p className="text-xs text-muted-foreground">
-                    Unidades = análisis del plan × consumo por análisis (Skiniver{" "}
-                    {API_UNITS_PER_ANALYSIS.analisisdermapiel360}, YouCam{" "}
+                    Unidades = análisis del plan × consumo por análisis
+                    (Dermatológico {API_UNITS_PER_ANALYSIS.analisisdermapiel360},
+                    Estético{" "}
                     {API_UNITS_PER_ANALYSIS.analisispiel360}, Fototipo{" "}
                     {API_UNITS_PER_ANALYSIS.fitzpatrick}). Luego × valor/unidad ×
                     TRM (dólar {billingRates.usdToCop.toLocaleString("es-CO")} /
@@ -1082,7 +1083,7 @@ export function PlanWizardForm({
                     {analisisDermaPiel360Enabled ? (
                       <div className="space-y-2 rounded-lg bg-muted/40 p-3">
                         <p className="text-xs font-semibold uppercase text-muted-foreground">
-                          Skiniver (EUR)
+                          Dermatológico (EUR)
                         </p>
                         <p className="text-[11px] text-muted-foreground">
                           {apiUnitsResolved.analisisDermaPiel360Analyses} análisis ×{" "}
@@ -1131,7 +1132,7 @@ export function PlanWizardForm({
                     {analisisPiel360Enabled ? (
                       <div className="space-y-2 rounded-lg bg-muted/40 p-3">
                         <p className="text-xs font-semibold uppercase text-muted-foreground">
-                          YouCam (USD)
+                          Estético (USD)
                         </p>
                         <p className="text-[11px] text-muted-foreground">
                           {apiUnitsResolved.analisisPiel360Analyses} análisis ×{" "}

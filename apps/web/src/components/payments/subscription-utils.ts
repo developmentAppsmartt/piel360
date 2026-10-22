@@ -69,16 +69,6 @@ export function providerLabel(slug: string, fallbackName?: string) {
   return fromMap ?? fallbackName ?? slug;
 }
 
-/** Oculta nombres de proveedor (Skiniver / YouCam / Perfect Corp) en textos al usuario. */
-export function maskVendorPoolMessage(message: string): string {
-  return message
-    .replace(/\bPerfect\s*Corp\b/gi, "Análisis Estético Piel 360")
-    .replace(/\bAnalisisPiel360\b/gi, "Análisis Estético Piel 360")
-    .replace(/\bAnalisisPiel360\b/gi, "Análisis Estético Piel 360")
-    .replace(/\bAnalisisPiel360\b/gi, "Análisis Estético Piel 360")
-    .replace(/\bAnalisisDermaPiel360\b/gi, "Análisis Dermatológico Piel 360");
-}
-
 export function formatAdminDate(iso: string | null) {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("es-CO", {

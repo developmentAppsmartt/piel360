@@ -247,8 +247,8 @@ async function main() {
     return sub.id;
   };
 
-  const planDerm = plan('Skiniver Básico');
-  const planEstetico = plan('YouCam Básico');
+  const planDerm = plan('Dermatológico Básico');
+  const planEstetico = plan('Estético Básico');
   const planFototipo = plan('Fototipo Básico');
 
   const subActiva = await crearSuscripcion({

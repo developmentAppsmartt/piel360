@@ -390,7 +390,7 @@ function MovementDetailDialog({
             <div className="min-w-0 flex-1">
               <p className="font-semibold">{movement.unitLabel}</p>
               <p className="text-xs text-muted-foreground">
-                {movement.source === "analisispiel360" ? "Perfect Corp" : "Skiniver"}
+                {movement.source === "analisispiel360" ? "Estético" : "Dermatológico"}
               </p>
             </div>
             <Badge className={movementStatusBadgeClass(movement.status)}>
@@ -440,7 +440,7 @@ function MovementDetailDialog({
           ) : null}
 
           {movement.dstActions.length > 0 ? (
-            <DetailField label="Acciones Perfect Corp (dst)">
+            <DetailField label="Acciones del proveedor (dst)">
               <ul className="flex flex-wrap gap-1.5">
                 {movement.dstActions.map((action) => (
                   <li key={action}>
@@ -500,7 +500,7 @@ function AnalisisDermaPiel360RechargeDialog({
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Recargar créditos Skiniver</DialogTitle>
+          <DialogTitle>Recargar créditos dermatológicos</DialogTitle>
           <DialogDescription>
             Registra una compra o renovación de créditos dermatológicos. El
             saldo disponible se calcula como recargas activas menos análisis
@@ -576,7 +576,7 @@ function AnalisisDermaPiel360RechargeDialog({
               value={note}
               onChange={(e) => setNote(e.target.value.slice(0, 500))}
               rows={3}
-              placeholder="Factura, orden de compra, contacto Skiniver…"
+              placeholder="Factura, orden de compra, contacto del proveedor…"
               className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
@@ -752,7 +752,7 @@ export default function BolsaUnidadesPage() {
                 analisisPiel360Pool.isFetching && "animate-spin",
               )}
             />
-            Actualizar Perfect Corp
+            Actualizar Estético
           </Button>
           <Button
             type="button"
@@ -765,7 +765,7 @@ export default function BolsaUnidadesPage() {
             <RefreshCw
               className={cn("size-4", analisisdermapiel360.isFetching && "animate-spin")}
             />
-            Actualizar Skiniver
+            Actualizar Dermatológico
           </Button>
           <Button type="button" variant="outline" size="sm">
             Historial de recargas
@@ -777,26 +777,14 @@ export default function BolsaUnidadesPage() {
             onClick={() => setAnalisisDermaPiel360RechargeOpen(true)}
           >
             <Plus className="size-4" />
-            Recargar Skiniver
+            Recargar Dermatológico
           </Button>
-          <a
-            href="https://yce.analisispiel360.com/ai-api/api-pricing"
-            target="_blank"
-            rel="noreferrer"
-            className={cn(
-              "inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-primary px-2.5 text-sm font-medium text-primary-foreground",
-              "hover:bg-primary/80",
-            )}
-          >
-            <Plus className="size-4" />
-            Recargar en Perfect Corp
-          </a>
         </div>
       </div>
 
       {analisisPiel360Pool.isError ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          No se pudo consultar el saldo Perfect Corp (
+          No se pudo consultar el saldo Estético (
           {analisisPiel360Pool.error instanceof Error
             ? analisisPiel360Pool.error.message
             : "error desconocido"}
@@ -806,7 +794,7 @@ export default function BolsaUnidadesPage() {
 
       {analisisdermapiel360.isError ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          No se pudo consultar la bolsa Skiniver (
+          No se pudo consultar la bolsa Dermatológica (
           {analisisdermapiel360.error instanceof Error
             ? analisisdermapiel360.error.message
             : "error desconocido"}
@@ -817,7 +805,7 @@ export default function BolsaUnidadesPage() {
       {estimate ? (
         <ModuleCard className="p-4">
           <ModuleCardTitle className="text-sm">
-            Costo por análisis (Perfect Corp)
+            Costo por análisis (Estético)
           </ModuleCardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
             Fuente:{" "}
@@ -883,13 +871,13 @@ export default function BolsaUnidadesPage() {
             <UnitPoolCard
               pool={aestheticPool}
               live={Boolean(analisisPiel360Pool.data)}
-              liveLabel="Perfect Corp"
+              liveLabel="Estético"
               loading={analisisPiel360Pool.isLoading && !analisisPiel360Pool.data}
             />
             <UnitPoolCard
               pool={dermPool}
               live={Boolean(analisisdermapiel360.data)}
-              liveLabel="Skiniver"
+              liveLabel="Dermatológico"
               loading={analisisdermapiel360.isLoading && !analisisdermapiel360.data}
             />
           </div>
@@ -920,7 +908,7 @@ export default function BolsaUnidadesPage() {
                   className="gap-1.5 text-muted-foreground"
                 >
                   <CalendarDays className="size-4" />
-                  Historial Perfect Corp
+                  Historial Estético
                 </Button>
                 <Button
                   type="button"
@@ -1066,12 +1054,11 @@ export default function BolsaUnidadesPage() {
         <p className="flex gap-2">
           <Info className="mt-0.5 size-4 shrink-0 text-sky-600 dark:text-sky-300" />
           <span>
-            Estético y Fitzpatrick comparten la bolsa Perfect Corp (
-            `GET /s2s/v1.0/client/credit`); la recarga se hace en su portal.
-            Dermatológico (Skiniver) se registra aquí con &quot;Recargar
-            Skiniver&quot;: el saldo es recargas activas menos análisis
-            dermatológicos consumidos en la plataforma. Para ampliar el plan con
-            Skiniver contacta{" "}
+            Estético y Fototipo comparten la misma bolsa; la recarga se hace
+            en el portal del proveedor. La bolsa Dermatológica se registra aquí
+            con &quot;Recargar Dermatológico&quot;: el saldo es recargas activas
+            menos análisis dermatológicos consumidos en la plataforma. Para
+            ampliar el plan dermatológico contacta{" "}
             <a
               href="mailto:info@skinive.com"
               className="font-medium underline underline-offset-2"

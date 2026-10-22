@@ -118,7 +118,7 @@ function permissionActionLabel(action: string, resource: string, name: string): 
     const slug = name.replace("use_provider_", "") as PublicAnalysisProviderSlug;
     return ANALYSIS_PROVIDER_STATIC_LABELS[slug] ?? slug;
   }
-  if (name === "patient_run_youcam") {
+  if (name === "patient_run_analisispiel360") {
     return "Ejecutar análisis estético (solicitud)";
   }
   if (name === "patient_run_fitzpatrick") {

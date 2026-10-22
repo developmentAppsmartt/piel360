@@ -2,13 +2,9 @@
 
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
+import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import { usePlanPoolAlerts } from "@/lib/queries/admin-bolsa-units";
 import { cn } from "@/lib/utils";
-
-const POOL_LABELS = {
-  analisisdermapiel360: "Skiniver",
-  analisispiel360: "Perfect Corp",
-} as const;
 
 export function PoolCreditsAlert({ className }: { className?: string }) {
   const alerts = usePlanPoolAlerts();
@@ -46,13 +42,14 @@ export function PoolCreditsAlert({ className }: { className?: string }) {
                 <span className="font-medium">{plan.name}</span>
                 {" — "}
                 requiere {plan.poolRequired.toLocaleString("es-CO")} créditos{" "}
-                ({POOL_LABELS[plan.poolProvider]}:{" "}
+                ({ANALYSIS_PROVIDER_STATIC_LABELS[plan.poolProvider]}:{" "}
                 {plan.poolAvailable.toLocaleString("es-CO")} disponibles)
               </li>
             ))}
           </ul>
           <p className="text-xs text-amber-800/80">
-            Saldo actual — Skiniver: {balances.analisisdermapiel360.toLocaleString("es-CO")} · Perfect Corp:{" "}
+            Saldo actual — Dermatológico:{" "}
+            {balances.analisisdermapiel360.toLocaleString("es-CO")} · Estético:{" "}
             {balances.analisispiel360.toLocaleString("es-CO")}
           </p>
           <Link

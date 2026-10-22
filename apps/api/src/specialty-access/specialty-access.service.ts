@@ -10,6 +10,9 @@ import {
   type AnalysisProviderSlug,
   patientRunPermissionForProvider,
   providerSlugFromUsagePermission,
+  toInternalProviderKeys,
+  toPublicProviderKeys,
+  type PublicAnalysisProviderSlug,
 } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { SpecialtiesService } from '../specialties/specialties.service';
@@ -19,7 +22,8 @@ export type SpecialtyPlanPermissionRow = {
   roleSlug: string;
   label: string;
   kind: 'specialty' | 'labor_technician';
-  providers: Record<AnalysisProviderSlug, boolean>;
+  /** Claves con el slug público: esta fila se pinta en el panel. */
+  providers: Record<PublicAnalysisProviderSlug, boolean>;
 };
 
 @Injectable()
@@ -266,7 +270,9 @@ export class SpecialtyAccessService {
           roleSlug: specialty.slug,
           label: specialty.name,
           kind: 'specialty' as const,
-          providers: this.providersFromRolePermissions(permissionNames),
+          providers: toPublicProviderKeys(
+            this.providersFromRolePermissions(permissionNames),
+          ) as Record<PublicAnalysisProviderSlug, boolean>,
         };
       });
 
@@ -284,7 +290,9 @@ export class SpecialtyAccessService {
           roleSlug: profile.slug,
           label: profile.name,
           kind: 'labor_technician' as const,
-          providers: this.providersFromRolePermissions(permissionNames),
+          providers: toPublicProviderKeys(
+            this.providersFromRolePermissions(permissionNames),
+          ) as Record<PublicAnalysisProviderSlug, boolean>,
         };
       });
 
@@ -293,8 +301,12 @@ export class SpecialtyAccessService {
 
   async updateSpecialtyPlanPermissions(
     roleId: string,
-    providers: Partial<Record<AnalysisProviderSlug, boolean>>,
+    providersPublicos: Partial<Record<PublicAnalysisProviderSlug, boolean>>,
   ): Promise<SpecialtyPlanPermissionRow> {
+    // El panel manda los slugs públicos; los permisos en la base son internos.
+    const providers = toInternalProviderKeys(providersPublicos) as Partial<
+      Record<AnalysisProviderSlug, boolean>
+    >;
     const role = await this.prisma.role.findUnique({
       where: { id: BigInt(roleId) },
       include: {
