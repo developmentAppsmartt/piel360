@@ -483,6 +483,12 @@ mano** con `select id, name from plans where name ~* 'skiniver|youcam|perfect'`.
   por código (web) o por nombre (móvil). Nulos = cuenta el de la IA. Las
   queries usan `DIAGNOSIS`/`CATEGORY`/`CLASS_RAW` de
   `skiniver-reports.queries.ts`: no vuelvas a leer `ai_diagnosis` a pelo.
+- **Los nombres del JSON engañan: `desease` es la CLASE y `class` es la ENFERMEDAD.**
+  Comprobado contra `GET /get_disease_classes?lang=es` (Basic con `SKINIVER_API_TOKEN`):
+  `desease` coincide siempre con un `title_name` y `class` con un `diseases[].name`.
+  Las clases de los reportes son las de ese endpoint, con su nombre oficial;
+  `analisisDermaPiel360ClassLabel` las resuelve por `class_raw` primero.
+  «Piel Sin Patología» cuenta como una clase más en todos los gráficos (lo pidió el cliente).
 - La lista de «Corregir resultado» es `packages/shared/src/nosology-catalog.ts`;
   el móvil tiene su espejo en `views/nosologies/data/nosologies.ts`.
 

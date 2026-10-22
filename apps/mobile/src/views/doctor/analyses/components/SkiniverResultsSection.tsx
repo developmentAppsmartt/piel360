@@ -80,7 +80,7 @@ function formatStamp(iso: string): string {
 function enrichCandidate(
   item: SkiniverDiagnosisCandidate,
 ): SkiniverDiagnosisCandidate {
-  const parsed = parseSkiniverDescription(item.description);
+  const parsed = parseSkiniverDescription(item.description, item.class_raw);
   if (!parsed) return item;
 
   return {

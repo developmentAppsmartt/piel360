@@ -27,6 +27,8 @@ export interface AnalisisDermaPiel360DiagnosisCandidate {
 /** Respuesta de `POST /predict` (INTEGRACIONES-IA.md §1.3). */
 export interface AnalisisDermaPiel360Prediction {
   class: string;
+  /** Id interno del clasificador (ej. "1B_skin"); `class` es su nombre. */
+  class_raw?: string;
   prob: number;
   risk: string;
   high_risk_prob?: number;

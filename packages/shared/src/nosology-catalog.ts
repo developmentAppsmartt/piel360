@@ -9,6 +9,7 @@
  * Espejo en apps/mobile/src/views/nosologies/data/nosologies.ts (el móvil no
  * puede importar este paquete): si cambias uno, cambia el otro.
  */
+import { analisisDermaPiel360CategoryLabel } from "./skiniver-labels.js";
 import { normalizeLabelKey } from "./skiniver-diagnosis-taxonomy.js";
 
 export type NosologyItem = {
@@ -187,6 +188,20 @@ export function findNosologyByCode(code?: string | null): NosologyMatch | null {
     if (item) return { item, category };
   }
   return null;
+}
+
+/**
+ * La clase de un diagnóstico, con el nombre oficial del API. Manda el
+ * `class_raw`, que no depende del idioma; la categoría que trae la fila es el
+ * respaldo para un código que el catálogo no tenga. Sin esto, una fila con la
+ * categoría vacía o en otro idioma salía en el reporte como «Sin categoría».
+ */
+export function analisisDermaPiel360ClassLabel(
+  category?: string | null,
+  classRaw?: string | null,
+): string | null {
+  const name = findNosologyByCode(classRaw)?.category.name ?? category;
+  return analisisDermaPiel360CategoryLabel(name) || null;
 }
 
 /** Por nombre visible, sin tildes ni mayúsculas: el móvil solo envía el nombre. */

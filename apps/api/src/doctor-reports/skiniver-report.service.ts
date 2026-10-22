@@ -2,36 +2,36 @@ import { Injectable } from '@nestjs/common';
 import {
   ANALISIS_DERMA_PIEL360_AGE_BUCKETS,
   SKIN_TONE_BUCKET_DEFS,
-  classifyDiagnosisClass,
-  isNoPathologyCategory,
-  isNoPathologyDiagnosis,
   isAnalisisDermaPiel360CategoryName,
   isAnalisisDermaPiel360DiagnosisName,
   normalizeGender,
   normalizeLabelKey,
   skinToneBucketForFitzpatrick,
   analisisDermaPiel360CategoryColor,
-  analisisDermaPiel360CategoryLabel,
+  analisisDermaPiel360ClassLabel,
   analisisDermaPiel360DiagnosisLabel,
   type AnalisisDermaPiel360AgeGenderRow,
   type AnalisisDermaPiel360CategorySlice,
-  type AnalisisDermaPiel360MonthlySeriesPoint,
   type AnalisisDermaPiel360Report,
   type AnalisisDermaPiel360SkinToneBucket,
   type AnalisisDermaPiel360TopDiagnosis,
-  type AnalisisDermaPiel360TrendSeriesDef,
 } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  buildSeries,
+  buildTopSeries,
+  mergeByLabel,
+  monthKeysInRange,
+  pct,
+} from './skiniver-report-series';
+import {
   analisisDermaPiel360AgeGenderQuery,
   analisisDermaPiel360AgeMonthlyQuery,
-  analisisDermaPiel360CategoryQuery,
   analisisDermaPiel360MonthlyDiagnosesQuery,
   analisisDermaPiel360SkinToneQuery,
   analisisDermaPiel360TopDiagnosesQuery,
   type AnalisisDermaPiel360AgeGenderRow as AnalisisDermaPiel360AgeGenderSqlRow,
   type AnalisisDermaPiel360AgeRow,
-  type AnalisisDermaPiel360CategoryRow,
   type AnalisisDermaPiel360DiagnosisRow,
   type AnalisisDermaPiel360SkinToneRow,
   type AnalisisDermaPiel360TopDiagnosisRow,
@@ -43,167 +43,41 @@ export interface AnalisisDermaPiel360ReportRange {
   toExclusive: Date;
 }
 
-/** Lista de "YYYY-MM" entre `from` y `to` (inclusivos), un mes por entrada, para
- * que las series muestren también los meses sin diagnósticos en vez de saltarlos. */
-function monthKeysInRange(from: Date, to: Date): string[] {
-  const keys: string[] = [];
-  const cursor = new Date(
-    Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1),
-  );
-  const end = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), 1));
-  while (cursor.getTime() <= end.getTime()) {
-    keys.push(
-      `${cursor.getUTCFullYear()}-${String(cursor.getUTCMonth() + 1).padStart(2, '0')}`,
-    );
-    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
-  }
-  return keys;
-}
-
 function toIsoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-function pct(part: number, total: number): number {
-  return total > 0 ? (part / total) * 100 : 0;
-}
-
-/** Arma la serie mensual con todos los meses del rango y todas las claves de
- * bucket presentes, para que el chart no tenga que rellenar huecos. */
-function buildSeries(
-  months: string[],
-  entries: { period: string; key: string | null; count: number }[],
-): AnalisisDermaPiel360MonthlySeriesPoint[] {
-  const byPeriod = new Map<string, Record<string, number>>(
-    months.map((m) => [m, {}]),
-  );
-  for (const entry of entries) {
-    if (!entry.key) continue;
-    const bucket = byPeriod.get(entry.period);
-    if (!bucket) continue; // mes fuera del rango (no debería ocurrir)
-    bucket[entry.key] = (bucket[entry.key] ?? 0) + entry.count;
-  }
-  return months.map((period) => ({
-    period,
-    counts: byPeriod.get(period) ?? {},
-  }));
-}
-
 const TOP_DIAGNOSES_LIMIT = 10;
 
-/** Suma las filas que comparten etiqueta (sin distinguir tildes ni
- * mayúsculas) y las ordena de mayor a menor. `extra` conserva el primer valor
- * no nulo, p. ej. el CIE-10 de un diagnóstico. */
-function mergeByLabel<T>(
-  rows: { label: string; count: number; extra: T | null }[],
-): { label: string; count: number; extra: T | null }[] {
-  const merged = new Map<
-    string,
-    { label: string; count: number; extra: T | null }
-  >();
-  for (const row of rows) {
-    const key = normalizeLabelKey(row.label);
-    const current = merged.get(key);
-    if (current) {
-      current.count += row.count;
-      current.extra ??= row.extra;
-    } else {
-      merged.set(key, { ...row });
-    }
-  }
-  return [...merged.values()].sort(
-    (a, b) => b.count - a.count || a.label.localeCompare(b.label, 'es'),
-  );
-}
-
-/** Cuántas condiciones se grafican antes de agrupar el resto en "Otras". */
-const DISEASE_SERIES_LIMIT = 8;
-
-const OTHER_DISEASE_KEY = 'otras';
+/** Etiqueta del donut para una fila que no trae clase ni un código conocido. */
+const NO_CLASS_LABEL = 'Sin clase';
 
 /**
- * Las condiciones concretas del periodo, no grupos: cada serie es un
- * diagnóstico real de la IA ("Acné vulgar", "Nevus displásico"). Antes este
- * gráfico usaba 10 buckets curados a mano (Acné, Dermatitis, Tiña…) que
- * también eran grupos, así que repetía el nivel del gráfico de clases y las
- * condiciones nunca se veían — además todos los tumores caían en "Otras".
- *
- * Se limita al Top 8 porque el catálogo tiene 52 diagnósticos y una leyenda de
- * 52 series es ilegible.
+ * La clase de la fila, con el nombre oficial (`desease`). Ojo con el JSON de
+ * la IA: `desease` es la clase y `class` es la enfermedad.
  */
-function buildDiseaseSeries(rows: AnalisisDermaPiel360DiagnosisRow[]): {
-  entries: { period: string; key: string | null; count: number }[];
-  series: AnalisisDermaPiel360TrendSeriesDef[];
-} {
-  /**
-   * Etiqueta de la serie, o `null` si la fila no es una enfermedad.
-   *
-   * `class_raw` manda: es el id del clasificador, así que el mismo
-   * diagnóstico en dos idiomas colapsa en una sola serie en vez de aparecer
-   * dos veces.
-   *
-   * Un valor que no es un diagnóstico conocido pero sí una **categoría**
-   * ("Acné", "Infecciones por hongos") no es una enfermedad: va a "Otras", que
-   * es la mezcla de niveles que reportó el cliente. Se pregunta primero por el
-   * diagnóstico porque "Dermatitis" y "Eccema" son las dos cosas a la vez y sí
-   * son diagnósticos del atlas. Un nombre que no es ni lo uno ni lo otro se
-   * grafica tal cual: suele ser un diagnóstico nuevo del modelo.
-   */
-  const diseaseLabel = (row: AnalisisDermaPiel360DiagnosisRow): string | null => {
-    if (!row.ai_diagnosis || isNoPathologyDiagnosis(row.ai_diagnosis)) return null;
-    if (
-      !isAnalisisDermaPiel360DiagnosisName(row.ai_diagnosis, row.class_raw) &&
-      isAnalisisDermaPiel360CategoryName(row.ai_diagnosis)
-    ) {
-      return null;
-    }
-    return analisisDermaPiel360DiagnosisLabel(row.ai_diagnosis, row.class_raw);
-  };
+function classLabel(row: AnalisisDermaPiel360DiagnosisRow): string | null {
+  return analisisDermaPiel360ClassLabel(row.category, row.class_raw);
+}
 
-  const totals = new Map<string, number>();
-  for (const row of rows) {
-    const label = diseaseLabel(row);
-    if (!label) continue;
-    totals.set(label, (totals.get(label) ?? 0) + row.count);
+/**
+ * La enfermedad de la fila, o `null` si el nombre es en realidad una clase.
+ *
+ * `class_raw` manda: es el id del clasificador, así que el mismo diagnóstico
+ * en dos idiomas colapsa en una sola serie en vez de aparecer dos veces. Se
+ * pregunta primero por el diagnóstico porque "Dermatitis" y "Piel Sin
+ * Patología" son las dos cosas a la vez. Un nombre que no es ni lo uno ni lo
+ * otro se grafica tal cual: suele ser un diagnóstico nuevo del modelo.
+ */
+function diseaseLabel(row: AnalisisDermaPiel360DiagnosisRow): string | null {
+  if (!row.ai_diagnosis) return null;
+  if (
+    !isAnalisisDermaPiel360DiagnosisName(row.ai_diagnosis, row.class_raw) &&
+    isAnalisisDermaPiel360CategoryName(row.ai_diagnosis)
+  ) {
+    return null;
   }
-
-  const top = [...totals.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'))
-    .slice(0, DISEASE_SERIES_LIMIT)
-    .map(([label]) => label);
-  const topSet = new Set(top);
-
-  const entries = rows.map((row) => {
-    if (!row.ai_diagnosis || isNoPathologyDiagnosis(row.ai_diagnosis)) {
-      return { period: row.period, key: null, count: row.count };
-    }
-    const label = diseaseLabel(row);
-    return {
-      period: row.period,
-      key: label && topSet.has(label) ? label : OTHER_DISEASE_KEY,
-      count: row.count,
-    };
-  });
-
-  const series: AnalisisDermaPiel360TrendSeriesDef[] = top.map((label) => ({
-    // La clave es la propia etiqueta: el color se deriva de ella por hash, así
-    // que una condición conserva su color al cambiar el filtro de fechas
-    // (un color por posición en la lista sí cambiaría).
-    key: label,
-    label,
-    color: analisisDermaPiel360CategoryColor(label),
-  }));
-  // "Otras" no solo recoge lo que se queda fuera del Top 8: también las filas
-  // que se descartaron por ser categorías.
-  if (entries.some((entry) => entry.key === OTHER_DISEASE_KEY)) {
-    series.push({
-      key: OTHER_DISEASE_KEY,
-      label: 'Otras',
-      color: '#94a3b8',
-    });
-  }
-
-  return { entries, series };
+  return analisisDermaPiel360DiagnosisLabel(row.ai_diagnosis, row.class_raw);
 }
 
 /**
@@ -226,50 +100,46 @@ export class AnalisisDermaPiel360ReportService {
   ): Promise<AnalisisDermaPiel360Report> {
     const { from, to, toExclusive } = range;
 
-    const [
-      diagnosisRows,
-      ageRows,
-      skinToneRows,
-      categoryRows,
-      topRows,
-      ageGenderRows,
-    ] = await Promise.all([
-      this.prisma.$queryRaw<AnalisisDermaPiel360DiagnosisRow[]>(
-        analisisDermaPiel360MonthlyDiagnosesQuery(doctorIds, from, toExclusive),
-      ),
-      this.prisma.$queryRaw<AnalisisDermaPiel360AgeRow[]>(
-        analisisDermaPiel360AgeMonthlyQuery(doctorIds, from, toExclusive),
-      ),
-      this.prisma.$queryRaw<AnalisisDermaPiel360SkinToneRow[]>(
-        analisisDermaPiel360SkinToneQuery(doctorIds, from, toExclusive),
-      ),
-      this.prisma.$queryRaw<AnalisisDermaPiel360CategoryRow[]>(
-        analisisDermaPiel360CategoryQuery(doctorIds, from, toExclusive),
-      ),
-      this.prisma.$queryRaw<AnalisisDermaPiel360TopDiagnosisRow[]>(
-        analisisDermaPiel360TopDiagnosesQuery(doctorIds, from, toExclusive),
-      ),
-      this.prisma.$queryRaw<AnalisisDermaPiel360AgeGenderSqlRow[]>(
-        analisisDermaPiel360AgeGenderQuery(doctorIds, from, toExclusive),
-      ),
-    ]);
+    const [diagnosisRows, ageRows, skinToneRows, topRows, ageGenderRows] =
+      await Promise.all([
+        this.prisma.$queryRaw<AnalisisDermaPiel360DiagnosisRow[]>(
+          analisisDermaPiel360MonthlyDiagnosesQuery(
+            doctorIds,
+            from,
+            toExclusive,
+          ),
+        ),
+        this.prisma.$queryRaw<AnalisisDermaPiel360AgeRow[]>(
+          analisisDermaPiel360AgeMonthlyQuery(doctorIds, from, toExclusive),
+        ),
+        this.prisma.$queryRaw<AnalisisDermaPiel360SkinToneRow[]>(
+          analisisDermaPiel360SkinToneQuery(doctorIds, from, toExclusive),
+        ),
+        this.prisma.$queryRaw<AnalisisDermaPiel360TopDiagnosisRow[]>(
+          analisisDermaPiel360TopDiagnosesQuery(doctorIds, from, toExclusive),
+        ),
+        this.prisma.$queryRaw<AnalisisDermaPiel360AgeGenderSqlRow[]>(
+          analisisDermaPiel360AgeGenderQuery(doctorIds, from, toExclusive),
+        ),
+      ]);
 
     const months = monthKeysInRange(from, to);
 
-    const byClass = buildSeries(
-      months,
+    const classes = buildTopSeries(
       diagnosisRows.map((row) => ({
         period: row.period,
-        key: classifyDiagnosisClass(row.ai_diagnosis, {
-          label: row.ai_diagnosis
-            ? analisisDermaPiel360DiagnosisLabel(row.ai_diagnosis, row.class_raw)
-            : null,
-          category: row.category ? analisisDermaPiel360CategoryLabel(row.category) : null,
-        }),
+        label: classLabel(row),
         count: row.count,
       })),
     );
-    const disease = buildDiseaseSeries(diagnosisRows);
+    const byClass = buildSeries(months, classes.entries);
+    const disease = buildTopSeries(
+      diagnosisRows.map((row) => ({
+        period: row.period,
+        label: diseaseLabel(row),
+        count: row.count,
+      })),
+    );
     const byDisease = buildSeries(months, disease.entries);
     const byAge = buildSeries(
       months,
@@ -280,55 +150,34 @@ export class AnalisisDermaPiel360ReportService {
       })),
     );
 
-    // La IA escribe la misma categoría en varios idiomas ("Cancer" y
-    // "Cáncer"): se agrupa por la etiqueta traducida para que no aparezca dos
-    // veces en el donut.
-    const categories = mergeByLabel(
-      categoryRows
-        .filter(
-          (row): row is AnalisisDermaPiel360CategoryRow & { category: string } =>
-            Boolean(row.category) && !isNoPathologyCategory(row.category),
-        )
-        .map((row) => ({
-          label: analisisDermaPiel360CategoryLabel(row.category),
-          count: row.count,
-          extra: null,
-        })),
+    // Las mismas filas que las series mensuales, así el donut suma el total.
+    // Se agrupa por la etiqueta traducida: la IA escribe la misma clase en
+    // varios idiomas ("Cancer" y "Cáncer").
+    const classTotals = mergeByLabel(
+      diagnosisRows.map((row) => ({
+        label: classLabel(row) ?? NO_CLASS_LABEL,
+        count: row.count,
+        extra: null,
+      })),
+    );
+    const total = classTotals.reduce((sum, row) => sum + row.count, 0);
+    const byCategory: AnalisisDermaPiel360CategorySlice[] = classTotals.map(
+      (row) => ({
+        key: normalizeLabelKey(row.label),
+        label: row.label,
+        color: analisisDermaPiel360CategoryColor(row.label),
+        count: row.count,
+        pct: pct(row.count, total),
+      }),
     );
 
     const diagnoses = mergeByLabel(
-      topRows
-        .filter((row) => !isNoPathologyDiagnosis(row.diagnosis))
-        .map((row) => ({
-          label: analisisDermaPiel360DiagnosisLabel(row.diagnosis, row.class_raw),
-          count: row.count,
-          extra: row.icd_code?.trim() || null,
-        })),
+      topRows.map((row) => ({
+        label: analisisDermaPiel360DiagnosisLabel(row.diagnosis, row.class_raw),
+        count: row.count,
+        extra: row.icd_code?.trim() || null,
+      })),
     );
-
-    // El total se cuenta con las ENFERMEDADES y es el único denominador de la
-    // pantalla. Antes salía de sumar las categorías, que es otro nivel y otro
-    // universo: un análisis diagnosticado sin `desease` entraba en el top 10 y
-    // en las clases pero no en el total, y los porcentajes pasaban del 100%.
-    const total = diagnoses.reduce((sum, row) => sum + row.count, 0);
-
-    // Los diagnósticos sin categoría no pueden desaparecer del donut, o sus
-    // porciones no sumarían el total.
-    const categorized = categories.reduce((sum, row) => sum + row.count, 0);
-    const uncategorized = total - categorized;
-
-    const byCategory: AnalisisDermaPiel360CategorySlice[] = [
-      ...categories,
-      ...(uncategorized > 0
-        ? [{ label: 'Sin categoría', count: uncategorized, extra: null }]
-        : []),
-    ].map((row) => ({
-      key: normalizeLabelKey(row.label),
-      label: row.label,
-      color: analisisDermaPiel360CategoryColor(row.label),
-      count: row.count,
-      pct: pct(row.count, total),
-    }));
 
     const topDiagnoses: AnalisisDermaPiel360TopDiagnosis[] = diagnoses
       .slice(0, TOP_DIAGNOSES_LIMIT)
@@ -346,8 +195,8 @@ export class AnalisisDermaPiel360ReportService {
       }
     }
     const ageTotal = [...ageTotals.values()].reduce((a, b) => a + b, 0);
-    const ageDistribution: AnalisisDermaPiel360CategorySlice[] = ANALISIS_DERMA_PIEL360_AGE_BUCKETS.map(
-      (bucket) => {
+    const ageDistribution: AnalisisDermaPiel360CategorySlice[] =
+      ANALISIS_DERMA_PIEL360_AGE_BUCKETS.map((bucket) => {
         const count = ageTotals.get(bucket.key) ?? 0;
         return {
           key: bucket.key,
@@ -356,8 +205,7 @@ export class AnalisisDermaPiel360ReportService {
           count,
           pct: pct(count, ageTotal),
         };
-      },
-    );
+      });
 
     const genderByBucket = new Map<
       string,
@@ -373,8 +221,8 @@ export class AnalisisDermaPiel360ReportService {
       if (!bucket) continue;
       bucket[normalizeGender(row.gender)] += row.count;
     }
-    const byAgeGender: AnalisisDermaPiel360AgeGenderRow[] = ANALISIS_DERMA_PIEL360_AGE_BUCKETS.map(
-      (bucket) => ({
+    const byAgeGender: AnalisisDermaPiel360AgeGenderRow[] =
+      ANALISIS_DERMA_PIEL360_AGE_BUCKETS.map((bucket) => ({
         key: bucket.key,
         label: bucket.label,
         ...(genderByBucket.get(bucket.key) ?? {
@@ -382,8 +230,7 @@ export class AnalisisDermaPiel360ReportService {
           female: 0,
           unknown: 0,
         }),
-      }),
-    );
+      }));
 
     const toneCounts = new Map<string, number>(
       SKIN_TONE_BUCKET_DEFS.map((b) => [b.key, 0]),
@@ -394,8 +241,8 @@ export class AnalisisDermaPiel360ReportService {
       toneCounts.set(key, (toneCounts.get(key) ?? 0) + row.count);
     }
     const skinToneTotal = [...toneCounts.values()].reduce((a, b) => a + b, 0);
-    const bySkinTone: AnalisisDermaPiel360SkinToneBucket[] = SKIN_TONE_BUCKET_DEFS.map(
-      (def) => {
+    const bySkinTone: AnalisisDermaPiel360SkinToneBucket[] =
+      SKIN_TONE_BUCKET_DEFS.map((def) => {
         const count = toneCounts.get(def.key) ?? 0;
         return {
           key: def.key,
@@ -404,8 +251,7 @@ export class AnalisisDermaPiel360ReportService {
           count,
           pct: pct(count, skinToneTotal),
         };
-      },
-    );
+      });
 
     return {
       range: { from: toIsoDate(from), to: toIsoDate(to) },
@@ -415,6 +261,7 @@ export class AnalisisDermaPiel360ReportService {
       byAgeGender,
       ageDistribution,
       byClass,
+      classSeries: classes.series,
       byDisease,
       diseaseSeries: disease.series,
       byAge,

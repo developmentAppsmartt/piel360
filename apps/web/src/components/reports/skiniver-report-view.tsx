@@ -2,7 +2,6 @@
 
 import {
   ANALISIS_DERMA_PIEL360_AGE_BUCKETS,
-  ANALISIS_DERMA_PIEL360_DIAGNOSIS_CLASS_DEFS,
   type AnalisisDermaPiel360Report,
 } from "@piel360/shared";
 import {
@@ -18,14 +17,8 @@ import { SkinToneWidget } from "@/components/reports/skin-tone-widget";
 import { AnalisisDermaPiel360ClinicoWidget } from "@/components/reports/skiniver-clinico-widget";
 import { TopDiagnosesTable } from "@/components/reports/top-diagnoses-table";
 
-const CLASS_SERIES = Object.entries(ANALISIS_DERMA_PIEL360_DIAGNOSIS_CLASS_DEFS).map(([key, def]) => ({
-  key,
-  label: def.label,
-  color: def.color,
-}));
-
-// Las series de enfermedad no son constantes: dependen de qué se diagnosticó
-// en el periodo, así que llegan en `report.diseaseSeries`.
+// Las series de clase y de enfermedad no son constantes: dependen de qué se
+// diagnosticó en el periodo, así que llegan en el reporte.
 
 const AGE_SERIES = ANALISIS_DERMA_PIEL360_AGE_BUCKETS.map((b) => ({
   key: b.key,
@@ -53,11 +46,11 @@ export function AnalisisDermaPiel360ReportView({
       <div className="grid gap-5 xl:grid-cols-2">
         <ModuleCard className="p-5">
           <ModuleCardTitle className="text-base">
-            Enfermedades de la piel por categorías
+            Enfermedades de la piel por Clases
           </ModuleCardTitle>
           <ModuleCardDescription>
-            Distribución de diagnósticos por categoría, según la clasificación que
-            devuelve la IA.
+            Distribución de diagnósticos por clase (grupo de patologías), según
+            la clasificación que devuelve la IA.
           </ModuleCardDescription>
           <div className="mt-4">
             <DiagnosisCategoryDonut
@@ -124,11 +117,11 @@ export function AnalisisDermaPiel360ReportView({
           No. de diagnósticos por clase por mes
         </ModuleCardTitle>
         <ModuleCardDescription>
-          Las clases son los grupos de patología: cada una reúne las categorías
-          de diagnóstico que devuelve la IA.
+          Las clases son los grupos de patologías que devuelve la IA: las 8 más
+          frecuentes del periodo; el resto se agrupa en «Otras».
         </ModuleCardDescription>
         <div className="mt-4">
-          <MultiSeriesTrendChart points={report.byClass} series={CLASS_SERIES} />
+          <MultiSeriesTrendChart points={report.byClass} series={report.classSeries} />
         </div>
       </ModuleCard>
 

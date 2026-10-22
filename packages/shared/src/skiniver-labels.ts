@@ -277,7 +277,12 @@ export function analisisDermaPiel360DiagnosisLabel(
   return DIAGNOSIS_LABELS.get(diagnosisKey(text)) ?? text;
 }
 
-/** Las 12 categorías del atlas (`desease`), en inglés y en ruso. */
+/**
+ * Las clases (`desease`, el `title_name` de `get_disease_classes`) con el
+ * nombre oficial que devuelve el API en español, y sus formas en inglés y en
+ * ruso. Ojo con los nombres del JSON: `desease` es la clase y `class` es la
+ * enfermedad, al revés de lo que parece.
+ */
 const CATEGORY_ENTRIES: [string, string[]][] = [
   [
     "Lesiones benignas",
@@ -330,23 +335,22 @@ const CATEGORY_ENTRIES: [string, string[]][] = [
     ],
   ],
   [
-    "Infecciones herpéticas",
-    [
-      "herpetic infections",
-      "Герпетические инфекции",
-      // Así se llama el grupo en la lista de corrección (nosology-catalog.ts).
-      "Infecciones por herpesvirus",
-    ],
+    "Infecciones por herpesvirus",
+    ["herpetic infections", "Герпетические инфекции", "Infecciones herpéticas"],
   ],
   ["Acné", ["acne", "Акне"]],
   ["Dermatitis", ["dermatitis", "Дерматиты"]],
-  ["Eccema", ["eczema", "Экзема"]],
-  ["Urticaria", ["urticaria", "hives", "Крапивница", "Urticaria alérgica"]],
-  ["Eritema", ["erythema", "Эритема", "Eritema anular centrífugo"]],
+  ["Eczema", ["Eccema", "Экзема"]],
+  ["Urticaria alérgica", ["urticaria", "hives", "Крапивница"]],
+  ["Eritema anular centrífugo", ["erythema", "Эритема", "Eritema"]],
   ["Vitíligo", ["vitiligo", "Витилиго"]],
   [
     "Hidradenitis supurativa",
     ["hidradenitis suppurativa", "Гидраденит"],
+  ],
+  [
+    "Piel Sin Patología",
+    ["Sin patología", "No pathologies", "No pathology", "Healthy skin", "Нет патологий"],
   ],
 ];
 

@@ -407,13 +407,16 @@ export interface AnalisisDermaPiel360AgeGenderRow {
 
 export interface AnalisisDermaPiel360Report {
   range: { from: string; to: string };
-  /** Diagnósticos "sin patología" excluidos — ver isNoPathologyDiagnosis(). */
+  /** Todos los análisis con diagnóstico, «Piel Sin Patología» incluida. */
   total: number;
   byCategory: AnalisisDermaPiel360CategorySlice[];
   topDiagnoses: AnalisisDermaPiel360TopDiagnosis[];
   byAgeGender: AnalisisDermaPiel360AgeGenderRow[];
   ageDistribution: AnalisisDermaPiel360CategorySlice[];
+  /** Clases del API (`desease`): Top 8 del periodo + "Otras". */
   byClass: AnalisisDermaPiel360MonthlySeriesPoint[];
+  /** Series de `byClass`, en el orden en que deben leerse. */
+  classSeries: AnalisisDermaPiel360TrendSeriesDef[];
   /** Condiciones concretas: Top 8 del periodo + "Otras" — no grupos. */
   byDisease: AnalisisDermaPiel360MonthlySeriesPoint[];
   /** Series de `byDisease`, en el orden en que deben leerse. */

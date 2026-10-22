@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { analisisDermaPiel360ClassLabel } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { AnalisisDermaPiel360ReportService } from '../doctor-reports/skiniver-report.service';
+import {
+  CATEGORY,
+  CLASS_RAW,
+} from '../doctor-reports/skiniver-reports.queries';
 
 const AGE_BUCKET_LABELS = ['Menores', 'Adultos', 'Seniors'] as const;
 type AgeBucket = (typeof AGE_BUCKET_LABELS)[number];
@@ -115,27 +120,32 @@ export class AdminService {
     return { active, pending, expired };
   }
 
-  /** Agrupa por la categoría que devuelve la IA (`aiRawResponse.desease`) en
-   * vez del nombre puntual del diagnóstico: "Acné común" y "Acné pustuloso"
-   * son la misma clase y antes competían como filas distintas por el top 8.
-   * Cae al `aiDiagnosis` crudo cuando el análisis no trae categoría. */
+  /** Agrupa por la clase del diagnóstico que cuenta (el del profesional o el
+   * de la IA), igual que el reporte dermatológico. Antes, sin `desease` caía
+   * al `aiDiagnosis` crudo, que es una enfermedad: mezclaba los dos niveles. */
   private async getDiagnosisByClass(
     createdAt: { gte?: Date; lte?: Date } | undefined,
   ) {
     const rows = await this.prisma.$queryRaw<
-      { label: string; count: number }[]
+      { category: string | null; class_raw: string | null; count: number }[]
     >(Prisma.sql`
       SELECT
-        COALESCE(a.ai_raw_response->>'desease', a.ai_diagnosis) AS label,
-        COUNT(*)::int                                           AS count
+        ${CATEGORY}   AS category,
+        ${CLASS_RAW}  AS class_raw,
+        COUNT(*)::int AS count
       FROM analyses a
-      WHERE COALESCE(a.ai_raw_response->>'desease', a.ai_diagnosis) IS NOT NULL
+      WHERE COALESCE(${CATEGORY}, ${CLASS_RAW}) IS NOT NULL
         ${this.createdAtFilter(createdAt)}
-      GROUP BY 1
+      GROUP BY 1, 2
     `);
 
-    const sorted = rows
-      .map((r) => ({ label: r.label, count: r.count }))
+    const totals = new Map<string, number>();
+    for (const row of rows) {
+      const label = analisisDermaPiel360ClassLabel(row.category, row.class_raw);
+      if (label) totals.set(label, (totals.get(label) ?? 0) + row.count);
+    }
+    const sorted = [...totals]
+      .map(([label, count]) => ({ label, count }))
       .sort((a, b) => b.count - a.count);
 
     const top = sorted.slice(0, TOP_DIAGNOSIS_CLASSES);
