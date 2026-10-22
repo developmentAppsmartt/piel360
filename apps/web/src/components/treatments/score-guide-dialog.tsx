@@ -4,11 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { HelpCircle, SlidersHorizontal } from "lucide-react";
 import {
-  YOUCAM_MAIN_METRIC_TYPES,
-  YOUCAM_SCORE_BANDS,
+  ANALISIS_PIEL360_MAIN_METRIC_TYPES,
+  ANALISIS_PIEL360_SCORE_BANDS,
   resolveScoreRanges,
-  type YoucamScoreBand,
-  type YoucamScoreConfig,
+  type AnalisisPiel360ScoreBand,
+  type AnalisisPiel360ScoreConfig,
 } from "@piel360/shared";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,7 +34,7 @@ const SPECIAL_METRICS = [
 ];
 
 function bandRange(
-  band: YoucamScoreBand,
+  band: AnalisisPiel360ScoreBand,
   ranges: { regularMax: number; promedioMax: number },
 ): string {
   if (band === "regular") return `0 – ${ranges.regularMax - 1}`;
@@ -44,7 +44,7 @@ function bandRange(
 
 /** Métricas con cortes propios: los rangos son por métrica, así que mostrar
  * solo los generales sería mentir a quien ya los personalizó. */
-function customizedMetrics(config: YoucamScoreConfig | undefined) {
+function customizedMetrics(config: AnalisisPiel360ScoreConfig | undefined) {
   return Object.entries(config?.metrics ?? {})
     .filter(([, m]) => m?.regularMax != null || m?.promedioMax != null)
     .map(([type]) => ({ type, ranges: resolveScoreRanges(config, type) }));
@@ -164,7 +164,7 @@ export function ScoreGuideDialog({ kind }: { kind: "plain" | "treatment" }) {
             <section className="space-y-2">
               <h3 className="font-medium">Los tres niveles de puntaje</h3>
               <div className="grid gap-2 sm:grid-cols-3">
-                {YOUCAM_SCORE_BANDS.map((band) => (
+                {ANALISIS_PIEL360_SCORE_BANDS.map((band) => (
                   <div
                     key={band}
                     className="rounded-xl border border-border bg-card p-3"
@@ -213,7 +213,7 @@ export function ScoreGuideDialog({ kind }: { kind: "plain" | "treatment" }) {
             <section className="space-y-2">
               <h3 className="font-medium">Qué puedes condicionar</h3>
               <div className="flex flex-wrap gap-1.5">
-                {YOUCAM_MAIN_METRIC_TYPES.map((type) => (
+                {ANALISIS_PIEL360_MAIN_METRIC_TYPES.map((type) => (
                   <span
                     key={type}
                     className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground"

@@ -3,11 +3,11 @@
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import {
-  skiniverCategoryLabel,
-  skiniverDiagnosisLabel,
-  skiniverRiskLabel,
-  type SkiniverDiagnosisCandidate,
-  type SkiniverPrediction,
+  analisisDermaPiel360CategoryLabel,
+  analisisDermaPiel360DiagnosisLabel,
+  analisisDermaPiel360RiskLabel,
+  type AnalisisDermaPiel360DiagnosisCandidate,
+  type AnalisisDermaPiel360Prediction,
 } from "@piel360/shared";
 import { DiagnosisDetailDialog } from "@/components/analyses/diagnosis-detail-dialog";
 import { DiagnosisList } from "@/components/analyses/diagnosis-list";
@@ -37,7 +37,7 @@ export function SkiniverClinicoWidget() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<ClinicoTab>("imagenes");
   const [selectedDiagnosis, setSelectedDiagnosis] =
-    useState<SkiniverDiagnosisCandidate | null>(null);
+    useState<AnalisisDermaPiel360DiagnosisCandidate | null>(null);
 
   const skiniverAnalyses = useMemo(() => {
     // Por tipo de análisis y no por `provider.displayLabel`: esa etiqueta es
@@ -58,9 +58,9 @@ export function SkiniverClinicoWidget() {
 
   const selected = useAnalysis(selectedId ?? "", { enabled: !!selectedId });
 
-  const prediction = selected.data?.aiRawResponse as SkiniverPrediction | undefined;
+  const prediction = selected.data?.aiRawResponse as AnalisisDermaPiel360Prediction | undefined;
   const topDiagnosis = prediction?.topn?.[0];
-  const riskLabel = skiniverRiskLabel(prediction?.risk, topDiagnosis?.risk_level);
+  const riskLabel = analisisDermaPiel360RiskLabel(prediction?.risk, topDiagnosis?.risk_level);
 
   return (
     <div className="space-y-4">
@@ -102,7 +102,7 @@ export function SkiniverClinicoWidget() {
                   <span className="text-xs text-muted-foreground">
                     {new Date(a.createdAt).toLocaleDateString("es-CO")}
                     {a.aiDiagnosis
-                      ? ` · ${skiniverDiagnosisLabel(a.aiDiagnosis)}`
+                      ? ` · ${analisisDermaPiel360DiagnosisLabel(a.aiDiagnosis)}`
                       : ""}
                   </span>
                 </button>
@@ -183,11 +183,11 @@ export function SkiniverClinicoWidget() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-muted-foreground">
-                      {skiniverCategoryLabel(topDiagnosis.desease) ||
+                      {analisisDermaPiel360CategoryLabel(topDiagnosis.desease) ||
                         "Diagnóstico principal"}
                     </p>
                     <p className="truncate text-base font-semibold">
-                      {skiniverDiagnosisLabel(
+                      {analisisDermaPiel360DiagnosisLabel(
                         topDiagnosis.class,
                         topDiagnosis.class_raw,
                       )}
@@ -195,7 +195,7 @@ export function SkiniverClinicoWidget() {
                     {topDiagnosis.risk ? (
                       <p className="text-sm text-muted-foreground">
                         Riesgo:{" "}
-                        {skiniverRiskLabel(
+                        {analisisDermaPiel360RiskLabel(
                           topDiagnosis.risk,
                           topDiagnosis.risk_level,
                         )}

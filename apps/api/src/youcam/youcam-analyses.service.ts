@@ -1,9 +1,9 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import {
-  YOUCAM_HD_MIN_SHORT_SIDE_PX,
-  YOUCAM_UPSCALE_MIN_SHORT_SIDE_PX,
-  YOUCAM_UPSCALE_TARGET_SHORT_SIDE_PX,
+  ANALISIS_PIEL360_HD_MIN_SHORT_SIDE_PX,
+  ANALISIS_PIEL360_UPSCALE_MIN_SHORT_SIDE_PX,
+  ANALISIS_PIEL360_UPSCALE_TARGET_SHORT_SIDE_PX,
 } from '@piel360/shared';
 import type { Queue } from 'bullmq';
 import { imageSize } from 'image-size';
@@ -124,18 +124,18 @@ export class YoucamAnalysesService {
     const shortSide = Math.min(width, height);
     let uploadBuffer = image;
 
-    if (shortSide < YOUCAM_UPSCALE_MIN_SHORT_SIDE_PX) {
+    if (shortSide < ANALISIS_PIEL360_UPSCALE_MIN_SHORT_SIDE_PX) {
       throw new BadRequestException(
-        `La foto es de muy baja resolución para el análisis HD (mínimo ${YOUCAM_UPSCALE_MIN_SHORT_SIDE_PX}px en el lado corto, esta tiene ${shortSide}px). Toma la foto de nuevo con mejor calidad.`,
+        `La foto es de muy baja resolución para el análisis HD (mínimo ${ANALISIS_PIEL360_UPSCALE_MIN_SHORT_SIDE_PX}px en el lado corto, esta tiene ${shortSide}px). Toma la foto de nuevo con mejor calidad.`,
       );
     }
 
-    if (shortSide < YOUCAM_HD_MIN_SHORT_SIDE_PX) {
+    if (shortSide < ANALISIS_PIEL360_HD_MIN_SHORT_SIDE_PX) {
       // Recorte marginal (ej. 1080×1058, visto en producción con capturas de
       // iPad) — a diferencia de una foto genuinamente de baja calidad
       // (bloqueada arriba), un upscale de unos pocos % no pierde calidad
       // perceptible y evita perder el análisis por error_below_min_image_size.
-      const scale = YOUCAM_UPSCALE_TARGET_SHORT_SIDE_PX / shortSide;
+      const scale = ANALISIS_PIEL360_UPSCALE_TARGET_SHORT_SIDE_PX / shortSide;
       const targetWidth = Math.round(width * scale);
       const targetHeight = Math.round(height * scale);
       uploadBuffer = await sharp(image)
@@ -143,7 +143,7 @@ export class YoucamAnalysesService {
         .jpeg({ quality: 92 })
         .toBuffer();
       this.logger.log(
-        `Análisis: imagen redimensionada de ${width}x${height} a ${targetWidth}x${targetHeight} (lado corto ${shortSide}px < ${YOUCAM_HD_MIN_SHORT_SIDE_PX}px) para cumplir el mínimo HD de YouCam`,
+        `Análisis: imagen redimensionada de ${width}x${height} a ${targetWidth}x${targetHeight} (lado corto ${shortSide}px < ${ANALISIS_PIEL360_HD_MIN_SHORT_SIDE_PX}px) para cumplir el mínimo HD de YouCam`,
       );
     }
 

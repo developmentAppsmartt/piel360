@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { YOUCAM_DST_ACTIONS } from '@piel360/shared';
+import { ANALISIS_PIEL360_DST_ACTIONS } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   YouCamService,
@@ -13,7 +13,7 @@ const PERFECTCORP_PROVIDER = 'perfectcorp';
 
 /** Costo documentado Perfect Corp cuando el endpoint feature-cost no responde. */
 const FALLBACK_FEATURE_COSTS = {
-  skinAnalysisHdConcerns: YOUCAM_DST_ACTIONS.length,
+  skinAnalysisHdConcerns: ANALISIS_PIEL360_DST_ACTIONS.length,
   skinAnalysisHdUnits: 22,
   fitzpatrickUnits: 10,
 } as const;
@@ -150,7 +150,7 @@ function summarizeFeatureCosts(skus: PerfectCorpFeatureSku[]) {
     /fitzpatrick/i.test(s.runTaskUrl || s.description),
   );
 
-  const concernCount = YOUCAM_DST_ACTIONS.length;
+  const concernCount = ANALISIS_PIEL360_DST_ACTIONS.length;
   const matchingHd = skin.find((s) => {
     const d = s.description.toLowerCase();
     return (

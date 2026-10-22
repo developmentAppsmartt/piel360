@@ -1,4 +1,4 @@
-export const YOUCAM_METRIC_LABELS: Record<string, string> = {
+export const ANALISIS_PIEL360_METRIC_LABELS: Record<string, string> = {
   hd_redness: "Enrojecimiento",
   hd_oiliness: "Grasa",
   hd_age_spot: "Manchas de edad",
@@ -43,7 +43,7 @@ export function youcamRegionLabel(region: string): string {
 }
 
 export function youcamMaskLabel(type: string, region?: string): string {
-  const base = YOUCAM_METRIC_LABELS[type] ?? type;
+  const base = ANALISIS_PIEL360_METRIC_LABELS[type] ?? type;
   if (!region) return base;
   return `${base} — ${youcamRegionLabel(region)}`;
 }
@@ -51,7 +51,7 @@ export function youcamMaskLabel(type: string, region?: string): string {
 // Los 8 valores posibles de `skin_type`/`hd_skin_type[].skin_type` según la
 // doc de YouCam — clave en minúsculas porque la API no garantiza la misma
 // capitalización de la doc byte a byte.
-export const YOUCAM_SKIN_TYPE_LABELS: Record<string, string> = {
+export const ANALISIS_PIEL360_SKIN_TYPE_LABELS: Record<string, string> = {
   normal: "Normal",
   oily: "Grasa",
   dry: "Seca",
@@ -62,6 +62,6 @@ export const YOUCAM_SKIN_TYPE_LABELS: Record<string, string> = {
   "combination & redness": "Mixta y enrojecida",
 };
 
-export function youcamSkinTypeLabel(value: string): string {
-  return YOUCAM_SKIN_TYPE_LABELS[value.toLowerCase()] ?? value;
+export function analisisPiel360SkinTypeLabel(value: string): string {
+  return ANALISIS_PIEL360_SKIN_TYPE_LABELS[value.toLowerCase()] ?? value;
 }

@@ -2,10 +2,10 @@
 
 import Image from "next/image";
 import {
-  skiniverCategoryLabel,
-  skiniverDiagnosisLabel,
-  type SkiniverCandidateDetails,
-  type SkiniverDiagnosisCandidate,
+  analisisDermaPiel360CategoryLabel,
+  analisisDermaPiel360DiagnosisLabel,
+  type AnalisisDermaPiel360CandidateDetails,
+  type AnalisisDermaPiel360DiagnosisCandidate,
 } from "@piel360/shared";
 import { SkiniverDescriptive } from "@/components/analyses/skiniver-descriptive";
 import {
@@ -25,10 +25,10 @@ export function DiagnosisDetailDialog({
   details,
   onClose,
 }: {
-  item: SkiniverDiagnosisCandidate | null;
+  item: AnalisisDermaPiel360DiagnosisCandidate | null;
   /** Descriptivo de ESTE candidato (`skiniverDiagnosis.candidates`). Cada
    * `topn[]` trae el suyo; no es el del diagnóstico principal. */
-  details?: SkiniverCandidateDetails | null;
+  details?: AnalisisDermaPiel360CandidateDetails | null;
   onClose: () => void;
 }) {
   const entry = useEncyclopediaByUrl(item?.atlas_page_link);
@@ -47,12 +47,12 @@ export function DiagnosisDetailDialog({
                 className="mb-1 h-auto w-32"
               />
               <DialogTitle>
-                {skiniverDiagnosisLabel(item.class, item.class_raw)}
+                {analisisDermaPiel360DiagnosisLabel(item.class, item.class_raw)}
               </DialogTitle>
             </DialogHeader>
             <p className="text-sm text-muted-foreground">
               Probabilidad: {Math.round(normalizedProb(item.prob))}%
-              {item.desease && ` — ${skiniverCategoryLabel(item.desease)}`}
+              {item.desease && ` — ${analisisDermaPiel360CategoryLabel(item.desease)}`}
             </p>
 
             {details ? (

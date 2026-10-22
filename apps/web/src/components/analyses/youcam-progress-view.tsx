@@ -5,19 +5,19 @@ import { ArrowLeft } from "lucide-react";
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import type { AnalysisDetail } from "@/lib/queries/analyses";
 import { usePatientAnalyses } from "@/lib/queries/patients";
-import { YOUCAM_METRIC_LABELS } from "@/lib/youcam-metric-labels";
+import { ANALISIS_PIEL360_METRIC_LABELS } from "@/lib/youcam-metric-labels";
 import {
-  parseYoucamMetrics,
-  YOUCAM_MAIN_METRIC_TYPES,
-  youcamScoresByType,
-  type YoucamRawResponse,
+  parseAnalisisPiel360Metrics,
+  ANALISIS_PIEL360_MAIN_METRIC_TYPES,
+  analisisPiel360ScoresByType,
+  type AnalisisPiel360RawResponse,
 } from "@/lib/youcam-metrics";
 import { cn } from "@/lib/utils";
 
 type LayoutMode = "vertical" | "horizontal";
 
 function shortLabel(type: string): string {
-  const full = YOUCAM_METRIC_LABELS[type] ?? type;
+  const full = ANALISIS_PIEL360_METRIC_LABELS[type] ?? type;
   if (full.length <= 10) return full;
   return full.split(/[\s—-]/)[0] ?? full.slice(0, 9);
 }
@@ -34,8 +34,8 @@ export function YoucamProgressView({
 
   const currentScores = useMemo(
     () =>
-      youcamScoresByType(
-        parseYoucamMetrics(analysis.aiRawResponse as YoucamRawResponse | null),
+      analisisPiel360ScoresByType(
+        parseAnalisisPiel360Metrics(analysis.aiRawResponse as AnalisisPiel360RawResponse | null),
       ),
     [analysis.aiRawResponse],
   );
@@ -58,14 +58,14 @@ export function YoucamProgressView({
   const previousScores = useMemo(
     () =>
       previous?.aiRawResponse
-        ? youcamScoresByType(
-            parseYoucamMetrics(previous.aiRawResponse as YoucamRawResponse),
+        ? analisisPiel360ScoresByType(
+            parseAnalisisPiel360Metrics(previous.aiRawResponse as AnalisisPiel360RawResponse),
           )
         : {},
     [previous],
   );
 
-  const rows = YOUCAM_MAIN_METRIC_TYPES.filter(
+  const rows = ANALISIS_PIEL360_MAIN_METRIC_TYPES.filter(
     (type) => currentScores[type] != null || previousScores[type] != null,
   );
 
@@ -146,7 +146,7 @@ export function YoucamProgressView({
                 return (
                   <div key={type} className="space-y-1.5">
                     <ModuleCardTitle className="text-sm">
-                      {YOUCAM_METRIC_LABELS[type] ?? type}
+                      {ANALISIS_PIEL360_METRIC_LABELS[type] ?? type}
                     </ModuleCardTitle>
                     <div className="space-y-1">
                       <div className="h-2.5 overflow-hidden rounded-full bg-muted">

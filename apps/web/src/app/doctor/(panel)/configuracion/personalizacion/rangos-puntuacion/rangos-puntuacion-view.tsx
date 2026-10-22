@@ -4,15 +4,15 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Info, Loader2, RotateCcw } from "lucide-react";
 import {
-  YOUCAM_METRIC_LABELS,
-  YOUCAM_SCORE_BANDS,
-  YOUCAM_SCORE_CONFIG_METRICS,
-  defaultYoucamAdvice,
+  ANALISIS_PIEL360_METRIC_LABELS,
+  ANALISIS_PIEL360_SCORE_BANDS,
+  ANALISIS_PIEL360_SCORE_CONFIG_METRICS,
+  defaultAnalisisPiel360Advice,
   resolveScoreRanges,
-  sanitizeYoucamScoreConfig,
-  type YoucamMetricScoreConfig,
-  type YoucamScoreBand,
-  type YoucamScoreConfig,
+  sanitizeAnalisisPiel360ScoreConfig,
+  type AnalisisPiel360MetricScoreConfig,
+  type AnalisisPiel360ScoreBand,
+  type AnalisisPiel360ScoreConfig,
 } from "@piel360/shared";
 import { cn } from "@/lib/utils";
 import { useMyScoreConfig, useUpdateScoreConfig } from "@/lib/queries/score-config";
@@ -28,22 +28,22 @@ const INPUT_CLASS =
   "h-10 w-20 rounded-lg border border-border bg-background px-3 text-sm tabular-nums outline-none focus:border-primary focus:ring-2 focus:ring-primary/20";
 
 function metricLabel(type: string) {
-  return YOUCAM_METRIC_LABELS[type] ?? type;
+  return ANALISIS_PIEL360_METRIC_LABELS[type] ?? type;
 }
 
-function isCustomized(metric: YoucamMetricScoreConfig | undefined) {
+function isCustomized(metric: AnalisisPiel360MetricScoreConfig | undefined) {
   return !!metric && Object.keys(metric).length > 0;
 }
 
 /** Quita textos iguales al por defecto para que sigan las futuras mejoras del texto base. */
-function withoutDefaultTexts(config: YoucamScoreConfig): YoucamScoreConfig {
-  const metrics: YoucamScoreConfig["metrics"] = {};
+function withoutDefaultTexts(config: AnalisisPiel360ScoreConfig): AnalisisPiel360ScoreConfig {
+  const metrics: AnalisisPiel360ScoreConfig["metrics"] = {};
   for (const [type, metric] of Object.entries(config.metrics)) {
     const texts = Object.fromEntries(
       Object.entries(metric.texts ?? {}).filter(
         ([band, text]) =>
           text?.trim() &&
-          text.trim() !== defaultYoucamAdvice(type, band as YoucamScoreBand),
+          text.trim() !== defaultAnalisisPiel360Advice(type, band as AnalisisPiel360ScoreBand),
       ),
     );
     metrics[type] = { ...metric, texts };
@@ -96,8 +96,8 @@ function NumberField({
 export function RangosPuntuacionView() {
   const query = useMyScoreConfig();
   const update = useUpdateScoreConfig();
-  const [draft, setDraft] = useState<YoucamScoreConfig | null>(null);
-  const [selected, setSelected] = useState<string>(YOUCAM_SCORE_CONFIG_METRICS[0]);
+  const [draft, setDraft] = useState<AnalisisPiel360ScoreConfig | null>(null);
+  const [selected, setSelected] = useState<string>(ANALISIS_PIEL360_SCORE_CONFIG_METRICS[0]);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
@@ -107,7 +107,7 @@ export function RangosPuntuacionView() {
   const normalized = useMemo(() => {
     if (!draft) return { config: null, error: null as string | null };
     try {
-      return { config: sanitizeYoucamScoreConfig(withoutDefaultTexts(draft)), error: null };
+      return { config: sanitizeAnalisisPiel360ScoreConfig(withoutDefaultTexts(draft)), error: null };
     } catch (err) {
       return { config: null, error: err instanceof Error ? err.message : "Configuración inválida" };
     }
@@ -140,7 +140,7 @@ export function RangosPuntuacionView() {
   const metric = draft.metrics[selected] ?? {};
   const ranges = resolveScoreRanges(draft, selected);
 
-  const patchMetric = (patch: Partial<YoucamMetricScoreConfig>) => {
+  const patchMetric = (patch: Partial<AnalisisPiel360MetricScoreConfig>) => {
     setMessage(null);
     setDraft((prev) => {
       if (!prev) return prev;
@@ -149,7 +149,7 @@ export function RangosPuntuacionView() {
     });
   };
 
-  const setText = (band: YoucamScoreBand, value: string | null) =>
+  const setText = (band: AnalisisPiel360ScoreBand, value: string | null) =>
     patchMetric({ texts: { ...(metric.texts ?? {}), [band]: value } });
 
   const resetMetric = () => {
@@ -244,7 +244,7 @@ export function RangosPuntuacionView() {
             Análisis estéticos
           </p>
           <ul className="space-y-0.5">
-            {YOUCAM_SCORE_CONFIG_METRICS.map((type) => (
+            {ANALISIS_PIEL360_SCORE_CONFIG_METRICS.map((type) => (
               <li key={type}>
                 <button
                   type="button"
@@ -376,8 +376,8 @@ export function RangosPuntuacionView() {
             </p>
 
             <div className="mt-4 space-y-4">
-              {YOUCAM_SCORE_BANDS.map((band) => {
-                const fallback = defaultYoucamAdvice(selected, band);
+              {ANALISIS_PIEL360_SCORE_BANDS.map((band) => {
+                const fallback = defaultAnalisisPiel360Advice(selected, band);
                 const value = metric.texts?.[band] ?? fallback;
                 const isDefault = value.trim() === fallback;
                 const range =

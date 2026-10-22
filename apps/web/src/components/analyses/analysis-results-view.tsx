@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import {
-  skiniverCategoryLabel,
-  skiniverDiagnosisLabel,
-  skiniverRiskLabel,
-  type SkiniverDiagnosisCandidate,
-  type SkiniverPrediction,
+  analisisDermaPiel360CategoryLabel,
+  analisisDermaPiel360DiagnosisLabel,
+  analisisDermaPiel360RiskLabel,
+  type AnalisisDermaPiel360DiagnosisCandidate,
+  type AnalisisDermaPiel360Prediction,
 } from "@piel360/shared";
 import { ConfirmAnalysisForm } from "@/components/analyses/confirm-analysis-form";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,7 @@ export function AnalysisResultsView({
   const analysis = useAnalysis(analysisId);
   const confirmAnalysis = useConfirmAnalysis(analysisId, patientId);
   const [selectedDiagnosis, setSelectedDiagnosis] =
-    useState<SkiniverDiagnosisCandidate | null>(null);
+    useState<AnalisisDermaPiel360DiagnosisCandidate | null>(null);
   const [youcamView, setYoucamView] = useState<YoucamSubView>("detail");
   const [editingNotes, setEditingNotes] = useState(false);
 
@@ -55,7 +55,7 @@ export function AnalysisResultsView({
   // Dermatologico y estetico piden observaciones; Fitzpatrick no.
   const usesDoctorNotes = isSkiniver || isYoucam;
   const prediction = isSkiniver
-    ? (analysis.data?.aiRawResponse as SkiniverPrediction | undefined)
+    ? (analysis.data?.aiRawResponse as AnalisisDermaPiel360Prediction | undefined)
     : undefined;
   const youcamError =
     isYoucam &&
@@ -93,7 +93,7 @@ export function AnalysisResultsView({
   const topDiagnosis = prediction?.topn?.[0];
   // Skiniver no traduce `risk`/`class`/`desease`: se resuelven contra
   // `risk_level` y `class_raw`, que no dependen del idioma.
-  const riskLabel = skiniverRiskLabel(prediction?.risk, topDiagnosis?.risk_level);
+  const riskLabel = analisisDermaPiel360RiskLabel(prediction?.risk, topDiagnosis?.risk_level);
 
   return (
     <div className="space-y-6">
@@ -147,11 +147,11 @@ export function AnalysisResultsView({
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-medium text-muted-foreground">
-                  {skiniverCategoryLabel(topDiagnosis.desease) ||
+                  {analisisDermaPiel360CategoryLabel(topDiagnosis.desease) ||
                     "Diagnóstico principal"}
                 </p>
                 <p className="truncate text-base font-semibold">
-                  {skiniverDiagnosisLabel(
+                  {analisisDermaPiel360DiagnosisLabel(
                     topDiagnosis.class,
                     topDiagnosis.class_raw,
                   )}
@@ -159,7 +159,7 @@ export function AnalysisResultsView({
                 {topDiagnosis.risk ? (
                   <p className="text-sm text-muted-foreground">
                     Riesgo:{" "}
-                    {skiniverRiskLabel(
+                    {analisisDermaPiel360RiskLabel(
                       topDiagnosis.risk,
                       topDiagnosis.risk_level,
                     )}

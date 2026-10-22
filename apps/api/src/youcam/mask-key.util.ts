@@ -1,4 +1,4 @@
-import type { YouCamOutputItem } from '@piel360/shared';
+import type { AnalisisPiel360OutputItem } from '@piel360/shared';
 
 /**
  * Métricas como `hd_pore`, `hd_wrinkle` o `hd_skin_type` devuelven varias
@@ -9,7 +9,7 @@ import type { YouCamOutputItem } from '@piel360/shared';
  * (analyses.service.ts) para que ambos lados coincidan.
  */
 export function youcamMaskKey(
-  item: Pick<YouCamOutputItem, 'type' | 'region'>,
+  item: Pick<AnalisisPiel360OutputItem, 'type' | 'region'>,
 ): string {
   return item.region ? `${item.type}_${item.region}` : item.type;
 }

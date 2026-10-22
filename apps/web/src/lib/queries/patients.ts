@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { SkiniverPrediction, YouCamResults } from "@piel360/shared";
+import type { AnalisisDermaPiel360Prediction, AnalisisPiel360Results } from "@piel360/shared";
 import { apiClientFetch } from "@/lib/api-client";
 import type { YouCamAnalysisError } from "@/lib/queries/analyses";
 
@@ -81,7 +81,7 @@ export interface Analysis3D {
   zCoord: number;
   aiDiagnosis: string | null;
   finalDiagnosis: string | null;
-  aiRawResponse: SkiniverPrediction | YouCamResults | YouCamAnalysisError | null;
+  aiRawResponse: AnalisisDermaPiel360Prediction | AnalisisPiel360Results | YouCamAnalysisError | null;
   imageUrl: string | null;
   coloredUrl: string | null;
   maskedUrl: string | null;

@@ -1,6 +1,6 @@
 import type {
-  SkiniverDescriptiveText,
-  SkiniverRiskGuidance,
+  AnalisisDermaPiel360DescriptiveText,
+  AnalisisDermaPiel360RiskGuidance,
 } from "@piel360/shared";
 
 function Field({ label, value }: { label: string; value: string | null }) {
@@ -22,7 +22,7 @@ export function SkiniverDescriptive({
   details,
   icdCode = null,
 }: {
-  details: SkiniverDescriptiveText;
+  details: AnalisisDermaPiel360DescriptiveText;
   icdCode?: string | null;
 }) {
   return (
@@ -36,7 +36,7 @@ export function SkiniverDescriptive({
   );
 }
 
-export function hasRiskGuidance(risk: SkiniverRiskGuidance | undefined): boolean {
+export function hasRiskGuidance(risk: AnalisisDermaPiel360RiskGuidance | undefined): boolean {
   return Boolean(
     risk && (risk.description || risk.suggestion || risk.short_recommendation),
   );
@@ -46,7 +46,7 @@ export function hasRiskGuidance(risk: SkiniverRiskGuidance | undefined): boolean
 export function SkiniverRiskGuidanceBlock({
   risk,
 }: {
-  risk: SkiniverRiskGuidance;
+  risk: AnalisisDermaPiel360RiskGuidance;
 }) {
   if (!hasRiskGuidance(risk)) return null;
   return (

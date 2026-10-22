@@ -3,9 +3,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   FitzpatrickResult,
-  SkiniverDiagnosisDetails,
-  SkiniverPrediction,
-  YouCamResults,
+  AnalisisDermaPiel360DiagnosisDetails,
+  AnalisisDermaPiel360Prediction,
+  AnalisisPiel360Results,
 } from "@piel360/shared";
 import { apiClientFetch } from "@/lib/api-client";
 
@@ -20,8 +20,8 @@ export interface YouCamAnalysisError {
 // Shape completo de GET/POST /analyses (`id` es string por el polyfill de
 // BigInt del backend). imageUrl/coloredUrl/maskedUrl/masks son URLs firmadas
 // agregadas por AnalysesService.withImageUrls — no existen como columnas.
-// aiRawResponse es SkiniverPrediction si youcamTaskId/fitzpatrickTaskId son
-// null, YouCamResults/YouCamAnalysisError si hay youcamTaskId, o
+// aiRawResponse es AnalisisDermaPiel360Prediction si youcamTaskId/fitzpatrickTaskId son
+// null, AnalisisPiel360Results/YouCamAnalysisError si hay youcamTaskId, o
 // FitzpatrickResult si hay fitzpatrickTaskId (distinguir por esos campos
 // antes de leer, y por la propiedad `error` para el caso de fallo YouCam).
 export interface AnalysisDetail {
@@ -38,8 +38,8 @@ export interface AnalysisDetail {
   aiDiagnosis: string | null;
   aiProbability: number | null;
   aiRawResponse:
-    | SkiniverPrediction
-    | YouCamResults
+    | AnalisisDermaPiel360Prediction
+    | AnalisisPiel360Results
     | YouCamAnalysisError
     | FitzpatrickResult
     | null;
@@ -56,7 +56,7 @@ export interface AnalysisDetail {
   masks: { type: string; region?: string; url: string }[];
   // Solo Skiniver — diagnóstico/tratamiento/consejo/ICD parseados del texto
   // libre de aiRawResponse.description (ver skiniver-description.util.ts).
-  skiniverDiagnosis: SkiniverDiagnosisDetails | null;
+  skiniverDiagnosis: AnalisisDermaPiel360DiagnosisDetails | null;
   // true solo si se guardó la selfie original aparte (YouCam con
   // enableMaskOverlay: false) — en ese caso imageUrl es una foto real que
   // sirve de fondo para las máscaras crudas; si no, imageUrl es un link

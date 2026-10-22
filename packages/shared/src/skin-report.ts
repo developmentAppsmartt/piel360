@@ -26,7 +26,7 @@ export interface SkinReportBandDef {
 
 /**
  * Cuatro bandas del reporte. Los cortes en 70 y 90 son los mismos de
- * `youcamScoreBand()` (youcam-report.ts) — esto solo parte su banda "regular"
+ * `analisisPiel360ScoreBand()` (youcam-report.ts) — esto solo parte su banda "regular"
  * (<70) en "regular" (50-69) y "malo" (0-49), así que las dos funciones nunca
  * se contradicen.
  *
@@ -101,7 +101,7 @@ export interface ReportableSkinCategory {
  *    así que "Flacidez 98" se leería justo al revés.
  * 3. `hd_skin_type` queda fuera (es categórica, sin puntaje numérico).
  *
- * Las etiquetas son propias del reporte y no reusan YOUCAM_METRIC_LABELS porque
+ * Las etiquetas son propias del reporte y no reusan ANALISIS_PIEL360_METRIC_LABELS porque
  * el wording difiere ("Lagrimal" vs "Surco lagrimal", "Pigmentación" vs
  * "Manchas de edad", "Oleosidad" vs "Grasa").
  */

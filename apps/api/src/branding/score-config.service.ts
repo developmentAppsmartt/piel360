@@ -1,8 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import {
-  DEFAULT_YOUCAM_SCORE_CONFIG,
-  sanitizeYoucamScoreConfig,
-  type YoucamScoreConfig,
+  DEFAULT_ANALISIS_PIEL360_SCORE_CONFIG,
+  sanitizeAnalisisPiel360ScoreConfig,
+  type AnalisisPiel360ScoreConfig,
 } from '@piel360/shared';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -16,16 +16,16 @@ export class ScoreConfigService {
     private readonly branding: BrandingService,
   ) {}
 
-  async getOwn(user: JwtPayload): Promise<YoucamScoreConfig> {
+  async getOwn(user: JwtPayload): Promise<AnalisisPiel360ScoreConfig> {
     await this.branding.assertCanManage(user);
     return this.read(BigInt(user.sub));
   }
 
-  async update(user: JwtPayload, body: unknown): Promise<YoucamScoreConfig> {
+  async update(user: JwtPayload, body: unknown): Promise<AnalisisPiel360ScoreConfig> {
     await this.branding.assertCanManage(user);
-    let config: YoucamScoreConfig;
+    let config: AnalisisPiel360ScoreConfig;
     try {
-      config = sanitizeYoucamScoreConfig(body);
+      config = sanitizeAnalisisPiel360ScoreConfig(body);
     } catch (err) {
       throw new BadRequestException(
         err instanceof Error ? err.message : 'Configuración inválida',
@@ -42,21 +42,21 @@ export class ScoreConfigService {
   }
 
   /** La que aplica al usuario: la suya, la de su empresa o la de su profesional. */
-  async getEffective(userId: string): Promise<YoucamScoreConfig> {
+  async getEffective(userId: string): Promise<AnalisisPiel360ScoreConfig> {
     const ownerId = await this.branding.resolveOwnerUserId(BigInt(userId));
-    if (!ownerId) return DEFAULT_YOUCAM_SCORE_CONFIG;
+    if (!ownerId) return DEFAULT_ANALISIS_PIEL360_SCORE_CONFIG;
     return this.read(ownerId);
   }
 
-  private async read(userId: bigint): Promise<YoucamScoreConfig> {
+  private async read(userId: bigint): Promise<AnalisisPiel360ScoreConfig> {
     const row = await this.prisma.accountScoreConfig.findUnique({
       where: { userId },
     });
-    if (!row) return DEFAULT_YOUCAM_SCORE_CONFIG;
+    if (!row) return DEFAULT_ANALISIS_PIEL360_SCORE_CONFIG;
     try {
-      return sanitizeYoucamScoreConfig({ metrics: row.metrics });
+      return sanitizeAnalisisPiel360ScoreConfig({ metrics: row.metrics });
     } catch {
-      return DEFAULT_YOUCAM_SCORE_CONFIG;
+      return DEFAULT_ANALISIS_PIEL360_SCORE_CONFIG;
     }
   }
 }

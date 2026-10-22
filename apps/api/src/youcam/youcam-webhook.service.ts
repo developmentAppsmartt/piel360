@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { YouCamWebhookPayload } from '@piel360/shared';
+import type { AnalisisPiel360WebhookPayload } from '@piel360/shared';
 import { Webhook, WebhookVerificationError } from 'svix';
 import { PrismaService } from '../prisma/prisma.service';
 import { YoucamResultsService } from './youcam-results.service';
@@ -36,9 +36,9 @@ export class YoucamWebhookService {
   }
 
   async handle(rawBody: Buffer, headers: Record<string, string>) {
-    let payload: YouCamWebhookPayload;
+    let payload: AnalisisPiel360WebhookPayload;
     try {
-      payload = this.webhook.verify(rawBody, headers) as YouCamWebhookPayload;
+      payload = this.webhook.verify(rawBody, headers) as AnalisisPiel360WebhookPayload;
     } catch (error) {
       if (error instanceof WebhookVerificationError) {
         throw new ForbiddenException('Firma de webhook inválida');

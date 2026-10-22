@@ -1,14 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import {
-  parseSkiniverDescription,
-  skiniverCategoryLabel,
-  skiniverDiagnosisLabel,
-  type SkiniverCandidateDetails,
-  type SkiniverDiagnosisDetails,
-  type SkiniverPrediction,
-  type SkiniverRiskGuidance,
-  type YouCamResults,
+  parseAnalisisDermaPiel360Description,
+  analisisDermaPiel360CategoryLabel,
+  analisisDermaPiel360DiagnosisLabel,
+  type AnalisisDermaPiel360CandidateDetails,
+  type AnalisisDermaPiel360DiagnosisDetails,
+  type AnalisisDermaPiel360Prediction,
+  type AnalisisDermaPiel360RiskGuidance,
+  type AnalisisPiel360Results,
 } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -53,7 +53,7 @@ export class AnalysisImageUrlsService {
     // mientras no haya bucket propio configurado.
     const prediction =
       !analysis.youcamTaskId && analysis.aiRawResponse
-        ? (analysis.aiRawResponse as unknown as SkiniverPrediction)
+        ? (analysis.aiRawResponse as unknown as AnalisisDermaPiel360Prediction)
         : null;
 
     const [imageUrl, signedColoredUrl, signedMaskedUrl, masks] =
@@ -93,12 +93,12 @@ export class AnalysisImageUrlsService {
 
   /** Skiniver no manda diagnóstico/tratamiento/consejo/ICD como claves
    * separadas — vienen concatenados como texto libre en `description`, y el
-   * "ICD" real se llama `lesion_code`. Ver `parseSkiniverDescription`. */
+   * "ICD" real se llama `lesion_code`. Ver `parseAnalisisDermaPiel360Description`. */
   private buildSkiniverDiagnosis(
-    prediction: SkiniverPrediction,
+    prediction: AnalisisDermaPiel360Prediction,
     aiProbability: number | null,
-  ): SkiniverDiagnosisDetails {
-    const parsed = parseSkiniverDescription(prediction.description);
+  ): AnalisisDermaPiel360DiagnosisDetails {
+    const parsed = parseAnalisisDermaPiel360Description(prediction.description);
     return {
       description: parsed?.riskEvaluation ?? null,
       conclusion: {
@@ -106,8 +106,8 @@ export class AnalysisImageUrlsService {
         // que se traduce acá y no en cada vista: Skiniver no traduce `desease`
         // ni `class`, y de aquí comen web, mobile y el PDF del reporte.
         category:
-          skiniverCategoryLabel(prediction.desease) ||
-          skiniverDiagnosisLabel(prediction.class) ||
+          analisisDermaPiel360CategoryLabel(prediction.desease) ||
+          analisisDermaPiel360DiagnosisLabel(prediction.class) ||
           null,
         category_prob: Math.round((aiProbability ?? 0) * 100),
       },
@@ -125,26 +125,26 @@ export class AnalysisImageUrlsService {
    * antes se descartaba por heurística y los diagnósticos de apoyo salían sin
    * texto, aunque el JSON sí lo traía. */
   private buildSkiniverCandidates(
-    prediction: SkiniverPrediction,
-  ): SkiniverCandidateDetails[] {
+    prediction: AnalisisDermaPiel360Prediction,
+  ): AnalisisDermaPiel360CandidateDetails[] {
     const topn = Array.isArray(prediction.topn) ? prediction.topn : [];
     const rootClass = prediction.class?.trim().toLowerCase();
 
     return topn.flatMap((item) => {
       const className = item?.class?.trim();
       if (!className) return [];
-      const parsed = parseSkiniverDescription(item.description);
+      const parsed = parseAnalisisDermaPiel360Description(item.description);
       const prob = Number(item.prob);
       const safeProb = Number.isFinite(prob) ? prob : 0;
       return [
         {
           class: className,
           class_raw: item.class_raw ?? null,
-          label: skiniverDiagnosisLabel(className, item.class_raw),
+          label: analisisDermaPiel360DiagnosisLabel(className, item.class_raw),
           // Skiniver manda 0–1 en `topn[]`; el resto del sistema usa 0–100.
           prob:
             Math.round((safeProb <= 1 ? safeProb * 100 : safeProb) * 10) / 10,
-          category: skiniverCategoryLabel(item.desease) || null,
+          category: analisisDermaPiel360CategoryLabel(item.desease) || null,
           risk_level: item.risk_level ?? null,
           // El ICD de la raíz solo vale para el candidato que ES la raíz.
           icd_code:
@@ -164,8 +164,8 @@ export class AnalysisImageUrlsService {
 
   /** Textos que Skiniver manda como claves propias, fuera de `description`. */
   private buildSkiniverRiskGuidance(
-    prediction: SkiniverPrediction,
-  ): SkiniverRiskGuidance {
+    prediction: AnalisisDermaPiel360Prediction,
+  ): AnalisisDermaPiel360RiskGuidance {
     const raw = prediction as unknown as Record<string, unknown>;
     const text = (key: string): string | null => {
       const value = raw[key];
@@ -187,7 +187,7 @@ export class AnalysisImageUrlsService {
   }): Promise<{ type: string; region?: string; url: string }[]> {
     if (!analysis.youcamTaskId || !analysis.aiRawResponse) return [];
 
-    const results = analysis.aiRawResponse as unknown as YouCamResults;
+    const results = analysis.aiRawResponse as unknown as AnalisisPiel360Results;
     // Incluir TODOS los output items (no solo los que traen mask_urls).
     // Poros/arrugas por zona (forehead/nose/cheek/…) suelen estar en S3
     // aunque mask_urls haya expirado o venga vacío — sin esto "General"

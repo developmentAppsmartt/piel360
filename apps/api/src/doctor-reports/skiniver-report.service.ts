@@ -1,18 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import {
-  SKINIVER_AGE_BUCKETS,
+  ANALISIS_DERMA_PIEL360_AGE_BUCKETS,
   SKIN_TONE_BUCKET_DEFS,
   classifyDiagnosisClass,
   isNoPathologyCategory,
   isNoPathologyDiagnosis,
-  isSkiniverCategoryName,
-  isSkiniverDiagnosisName,
+  isAnalisisDermaPiel360CategoryName,
+  isAnalisisDermaPiel360DiagnosisName,
   normalizeGender,
   normalizeLabelKey,
   skinToneBucketForFitzpatrick,
-  skiniverCategoryColor,
-  skiniverCategoryLabel,
-  skiniverDiagnosisLabel,
+  analisisDermaPiel360CategoryColor,
+  analisisDermaPiel360CategoryLabel,
+  analisisDermaPiel360DiagnosisLabel,
   type SkiniverAgeGenderRow,
   type SkiniverCategorySlice,
   type SkiniverMonthlySeriesPoint,
@@ -152,12 +152,12 @@ function buildDiseaseSeries(rows: SkiniverDiagnosisRow[]): {
   const diseaseLabel = (row: SkiniverDiagnosisRow): string | null => {
     if (!row.ai_diagnosis || isNoPathologyDiagnosis(row.ai_diagnosis)) return null;
     if (
-      !isSkiniverDiagnosisName(row.ai_diagnosis, row.class_raw) &&
-      isSkiniverCategoryName(row.ai_diagnosis)
+      !isAnalisisDermaPiel360DiagnosisName(row.ai_diagnosis, row.class_raw) &&
+      isAnalisisDermaPiel360CategoryName(row.ai_diagnosis)
     ) {
       return null;
     }
-    return skiniverDiagnosisLabel(row.ai_diagnosis, row.class_raw);
+    return analisisDermaPiel360DiagnosisLabel(row.ai_diagnosis, row.class_raw);
   };
 
   const totals = new Map<string, number>();
@@ -191,7 +191,7 @@ function buildDiseaseSeries(rows: SkiniverDiagnosisRow[]): {
     // (un color por posición en la lista sí cambiaría).
     key: label,
     label,
-    color: skiniverCategoryColor(label),
+    color: analisisDermaPiel360CategoryColor(label),
   }));
   // "Otras" no solo recoge lo que se queda fuera del Top 8: también las filas
   // que se descartaron por ser categorías.
@@ -262,9 +262,9 @@ export class SkiniverReportService {
         period: row.period,
         key: classifyDiagnosisClass(row.ai_diagnosis, {
           label: row.ai_diagnosis
-            ? skiniverDiagnosisLabel(row.ai_diagnosis, row.class_raw)
+            ? analisisDermaPiel360DiagnosisLabel(row.ai_diagnosis, row.class_raw)
             : null,
-          category: row.category ? skiniverCategoryLabel(row.category) : null,
+          category: row.category ? analisisDermaPiel360CategoryLabel(row.category) : null,
         }),
         count: row.count,
       })),
@@ -290,7 +290,7 @@ export class SkiniverReportService {
             Boolean(row.category) && !isNoPathologyCategory(row.category),
         )
         .map((row) => ({
-          label: skiniverCategoryLabel(row.category),
+          label: analisisDermaPiel360CategoryLabel(row.category),
           count: row.count,
           extra: null,
         })),
@@ -300,7 +300,7 @@ export class SkiniverReportService {
       topRows
         .filter((row) => !isNoPathologyDiagnosis(row.diagnosis))
         .map((row) => ({
-          label: skiniverDiagnosisLabel(row.diagnosis, row.class_raw),
+          label: analisisDermaPiel360DiagnosisLabel(row.diagnosis, row.class_raw),
           count: row.count,
           extra: row.icd_code?.trim() || null,
         })),
@@ -325,7 +325,7 @@ export class SkiniverReportService {
     ].map((row) => ({
       key: normalizeLabelKey(row.label),
       label: row.label,
-      color: skiniverCategoryColor(row.label),
+      color: analisisDermaPiel360CategoryColor(row.label),
       count: row.count,
       pct: pct(row.count, total),
     }));
@@ -346,7 +346,7 @@ export class SkiniverReportService {
       }
     }
     const ageTotal = [...ageTotals.values()].reduce((a, b) => a + b, 0);
-    const ageDistribution: SkiniverCategorySlice[] = SKINIVER_AGE_BUCKETS.map(
+    const ageDistribution: SkiniverCategorySlice[] = ANALISIS_DERMA_PIEL360_AGE_BUCKETS.map(
       (bucket) => {
         const count = ageTotals.get(bucket.key) ?? 0;
         return {
@@ -363,7 +363,7 @@ export class SkiniverReportService {
       string,
       { male: number; female: number; unknown: number }
     >(
-      SKINIVER_AGE_BUCKETS.map((b) => [
+      ANALISIS_DERMA_PIEL360_AGE_BUCKETS.map((b) => [
         b.key,
         { male: 0, female: 0, unknown: 0 },
       ]),
@@ -373,7 +373,7 @@ export class SkiniverReportService {
       if (!bucket) continue;
       bucket[normalizeGender(row.gender)] += row.count;
     }
-    const byAgeGender: SkiniverAgeGenderRow[] = SKINIVER_AGE_BUCKETS.map(
+    const byAgeGender: SkiniverAgeGenderRow[] = ANALISIS_DERMA_PIEL360_AGE_BUCKETS.map(
       (bucket) => ({
         key: bucket.key,
         label: bucket.label,

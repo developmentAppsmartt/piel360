@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { YouCamResults } from '@piel360/shared';
+import type { AnalisisPiel360Results } from '@piel360/shared';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReportEmailService } from '../reports/report-email.service';
@@ -32,7 +32,7 @@ export class YoucamResultsService {
 
   async applySuccess(
     analysisId: bigint,
-    results: YouCamResults,
+    results: AnalisisPiel360Results,
   ): Promise<void> {
     const analysis = await this.prisma.analysis.findUniqueOrThrow({
       where: { id: analysisId },

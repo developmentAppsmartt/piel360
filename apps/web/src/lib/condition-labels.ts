@@ -1,8 +1,8 @@
 import { CONDITIONABLE_METRIC_TYPES } from "@piel360/shared";
 import {
-  YOUCAM_METRIC_LABELS,
+  ANALISIS_PIEL360_METRIC_LABELS,
   youcamRegionLabel,
-  youcamSkinTypeLabel,
+  analisisPiel360SkinTypeLabel,
 } from "@/lib/youcam-metric-labels";
 
 export type ConditionOperator = "lt" | "lte" | "eq" | "gte" | "gt" | "between";
@@ -65,7 +65,7 @@ export const CONDITION_OPERATORS: {
 ];
 
 export function conditionMetricLabel(metricType: string): string {
-  return YOUCAM_METRIC_LABELS[metricType] ?? metricType;
+  return ANALISIS_PIEL360_METRIC_LABELS[metricType] ?? metricType;
 }
 
 export function conditionOperatorLabel(operator: string): string {
@@ -81,7 +81,7 @@ export function conditionSentence(condition: ConditionLike, subjectPhrase: strin
   const region = condition.region ? ` (${youcamRegionLabel(condition.region)})` : "";
 
   if (isSkinTypeMetric(condition.metricType)) {
-    const value = condition.textValue ? youcamSkinTypeLabel(condition.textValue) : "—";
+    const value = condition.textValue ? analisisPiel360SkinTypeLabel(condition.textValue) : "—";
     return `Se recomienda ${subjectPhrase} cuando ${metric}${region} sea ${value}`;
   }
 

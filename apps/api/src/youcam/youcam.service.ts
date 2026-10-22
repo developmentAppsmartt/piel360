@@ -4,8 +4,8 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { YOUCAM_DST_ACTIONS } from '@piel360/shared';
-import type { YouCamResults } from '@piel360/shared';
+import { ANALISIS_PIEL360_DST_ACTIONS } from '@piel360/shared';
+import type { AnalisisPiel360Results } from '@piel360/shared';
 
 interface UploadUrlResponse {
   data: {
@@ -20,7 +20,7 @@ interface StartAnalysisResponse {
 interface CheckStatusResponse {
   data: {
     task_status?: string;
-    results?: YouCamResults;
+    results?: AnalisisPiel360Results;
     error?: unknown;
     // Descripción detallada del error (V2.1.MD) — `error` es solo el código
     // (ej. "error_no_face"), este campo trae el mensaje legible.
@@ -30,7 +30,7 @@ interface CheckStatusResponse {
 }
 
 export type YouCamCheckStatusResult =
-  | { status: 'success'; results: YouCamResults }
+  | { status: 'success'; results: AnalisisPiel360Results }
   | { status: 'processing' }
   | { status: 'error'; message: string };
 
@@ -277,7 +277,7 @@ export class YouCamService {
         },
         body: JSON.stringify({
           src_file_id: fileId,
-          dst_actions: YOUCAM_DST_ACTIONS,
+          dst_actions: ANALISIS_PIEL360_DST_ACTIONS,
           miniserver_args: { enable_mask_overlay: enableMaskOverlay },
           format: 'json',
           pf_camera_kit: true,
@@ -323,7 +323,7 @@ export class YouCamService {
     if (status === 'success') {
       return {
         status: 'success',
-        results: (json.data.results ?? json.data) as YouCamResults,
+        results: (json.data.results ?? json.data) as AnalisisPiel360Results,
       };
     }
     if (status === 'error') {

@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  SKINIVER_AGE_BUCKETS,
-  SKINIVER_DIAGNOSIS_CLASS_DEFS,
+  ANALISIS_DERMA_PIEL360_AGE_BUCKETS,
+  ANALISIS_DERMA_PIEL360_DIAGNOSIS_CLASS_DEFS,
   type SkiniverReport,
 } from "@piel360/shared";
 import {
@@ -18,7 +18,7 @@ import { SkinToneWidget } from "@/components/reports/skin-tone-widget";
 import { SkiniverClinicoWidget } from "@/components/reports/skiniver-clinico-widget";
 import { TopDiagnosesTable } from "@/components/reports/top-diagnoses-table";
 
-const CLASS_SERIES = Object.entries(SKINIVER_DIAGNOSIS_CLASS_DEFS).map(([key, def]) => ({
+const CLASS_SERIES = Object.entries(ANALISIS_DERMA_PIEL360_DIAGNOSIS_CLASS_DEFS).map(([key, def]) => ({
   key,
   label: def.label,
   color: def.color,
@@ -27,7 +27,7 @@ const CLASS_SERIES = Object.entries(SKINIVER_DIAGNOSIS_CLASS_DEFS).map(([key, de
 // Las series de enfermedad no son constantes: dependen de qué se diagnosticó
 // en el periodo, así que llegan en `report.diseaseSeries`.
 
-const AGE_SERIES = SKINIVER_AGE_BUCKETS.map((b) => ({
+const AGE_SERIES = ANALISIS_DERMA_PIEL360_AGE_BUCKETS.map((b) => ({
   key: b.key,
   label: b.label,
   color: b.color,

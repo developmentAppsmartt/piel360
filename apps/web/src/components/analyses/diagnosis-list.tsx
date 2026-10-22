@@ -1,7 +1,7 @@
 import {
-  skiniverCategoryLabel,
-  skiniverDiagnosisLabel,
-  type SkiniverDiagnosisCandidate,
+  analisisDermaPiel360CategoryLabel,
+  analisisDermaPiel360DiagnosisLabel,
+  type AnalisisDermaPiel360DiagnosisCandidate,
 } from "@piel360/shared";
 
 const RISK_COLORS: Record<string, string> = {
@@ -18,8 +18,8 @@ export function DiagnosisList({
   items,
   onSelect,
 }: {
-  items: SkiniverDiagnosisCandidate[];
-  onSelect: (item: SkiniverDiagnosisCandidate) => void;
+  items: AnalisisDermaPiel360DiagnosisCandidate[];
+  onSelect: (item: AnalisisDermaPiel360DiagnosisCandidate) => void;
 }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -48,11 +48,11 @@ export function DiagnosisList({
             </div>
             <div>
               <p className="text-sm font-medium">
-                {skiniverDiagnosisLabel(item.class, item.class_raw)}
+                {analisisDermaPiel360DiagnosisLabel(item.class, item.class_raw)}
               </p>
               {item.desease && (
                 <p className="text-xs text-muted-foreground">
-                  {skiniverCategoryLabel(item.desease)}
+                  {analisisDermaPiel360CategoryLabel(item.desease)}
                 </p>
               )}
             </div>

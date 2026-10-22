@@ -67,7 +67,7 @@ function pathologyFilter(): Prisma.Sql {
   `;
 }
 
-/** Rangos de SKINIVER_AGE_BUCKETS, calculados a la fecha del análisis:
+/** Rangos de ANALISIS_DERMA_PIEL360_AGE_BUCKETS, calculados a la fecha del análisis:
  * `Analysis.chronologicalAgeYears` solo se llena para YouCam. */
 function ageBucketCase(): Prisma.Sql {
   return Prisma.sql`

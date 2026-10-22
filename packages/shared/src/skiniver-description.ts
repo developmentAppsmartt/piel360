@@ -1,4 +1,4 @@
-export interface ParsedSkiniverDescription {
+export interface ParsedAnalisisDermaPiel360Description {
   riskEvaluation: string;
   conclusionText: string;
   preciseDiagnosis: string;
@@ -26,9 +26,9 @@ export interface ParsedSkiniverDescription {
  *
  * Defensivo: si el formato cambia, devuelve `null` en vez de romper.
  */
-export function parseSkiniverDescription(
+export function parseAnalisisDermaPiel360Description(
   description: string | null | undefined,
-): ParsedSkiniverDescription | null {
+): ParsedAnalisisDermaPiel360Description | null {
   if (!description?.trim()) return null;
 
   const riskEvaluation =

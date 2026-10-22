@@ -11,17 +11,17 @@ import {
 } from "@/components/analyses/fitzpatrick-results-section";
 import { FITZPATRICK_TYPES } from "@/lib/fitzpatrick-labels";
 import { youcamMetricCopy } from "@/lib/youcam-metric-copy";
-import { YOUCAM_METRIC_LABELS, youcamRegionLabel, youcamSkinTypeLabel } from "@/lib/youcam-metric-labels";
+import { ANALISIS_PIEL360_METRIC_LABELS, youcamRegionLabel, analisisPiel360SkinTypeLabel } from "@/lib/youcam-metric-labels";
 import type { AnalysisDetail } from "@/lib/queries/analyses";
 import {
-  parseYoucamMetrics,
-  YOUCAM_MAIN_METRIC_TYPES,
-  youcamMetricValue,
-  youcamOverallScore,
-  youcamSkinAge,
-  youcamSkinType,
-  type YoucamMetric,
-  type YoucamRawResponse,
+  parseAnalisisPiel360Metrics,
+  ANALISIS_PIEL360_MAIN_METRIC_TYPES,
+  analisisPiel360MetricValue,
+  analisisPiel360OverallScore,
+  analisisPiel360SkinAge,
+  analisisPiel360SkinType,
+  type AnalisisPiel360Metric,
+  type AnalisisPiel360RawResponse,
 } from "@/lib/youcam-metrics";
 import { cn } from "@/lib/utils";
 import {
@@ -91,7 +91,7 @@ type MetricChip = {
 };
 
 function shortLabel(type: string): string {
-  const full = YOUCAM_METRIC_LABELS[type] ?? type;
+  const full = ANALISIS_PIEL360_METRIC_LABELS[type] ?? type;
   if (full.length <= 12) return full;
   return full.split(" ")[0] ?? full;
 }
@@ -110,7 +110,7 @@ function findMaskUrl(
 
 function buildRegionOptions(
   type: string,
-  candidates: YoucamMetric[],
+  candidates: AnalisisPiel360Metric[],
   masks: AnalysisDetail["masks"],
   preferRaw: boolean,
 ): MetricRegionOption[] {
@@ -125,7 +125,7 @@ function buildRegionOptions(
     return {
       region,
       label: youcamRegionLabel(region),
-      score: youcamMetricValue(m, preferRaw),
+      score: analisisPiel360MetricValue(m, preferRaw),
       skinType: m.skinType,
       maskUrl: findMaskUrl(masks, type, m.region),
     };
@@ -135,7 +135,7 @@ function buildRegionOptions(
 /** Mismo orden que la app móvil (YoucamResultsSection.tsx): Edad de la piel,
  * Puntaje de la piel, Biotipo, Fototipo y luego las métricas principales. */
 function buildChips(
-  metrics: YoucamMetric[],
+  metrics: AnalisisPiel360Metric[],
   masks: AnalysisDetail["masks"],
   preferRaw: boolean,
   skinAge: number | null,
@@ -150,7 +150,7 @@ function buildChips(
     {
       type: "overview",
       label: "Puntaje de la piel",
-      score: youcamOverallScore(metrics),
+      score: analisisPiel360OverallScore(metrics),
       maskUrl: null,
     },
   ];
@@ -163,7 +163,7 @@ function buildChips(
     chips.push({
       type: "hd_skin_type",
       label: "Biotipo",
-      score: youcamMetricValue(whole, preferRaw),
+      score: analisisPiel360MetricValue(whole, preferRaw),
       maskUrl: findMaskUrl(masks, "hd_skin_type", whole.region),
       regions:
         skinTypeCandidates.length > 1
@@ -181,7 +181,7 @@ function buildChips(
     maskUrl: null,
   });
 
-  for (const type of YOUCAM_MAIN_METRIC_TYPES) {
+  for (const type of ANALISIS_PIEL360_MAIN_METRIC_TYPES) {
     const candidates = metrics.filter((m) => m.type === type);
     if (candidates.length === 0) continue;
     const whole =
@@ -189,7 +189,7 @@ function buildChips(
     chips.push({
       type,
       label: shortLabel(type),
-      score: youcamMetricValue(whole, preferRaw),
+      score: analisisPiel360MetricValue(whole, preferRaw),
       maskUrl: findMaskUrl(masks, type, whole.region),
       regions:
         MULTI_REGION_TYPES.has(type) && candidates.length > 1
@@ -204,7 +204,7 @@ function buildChips(
 /** URLs de las capas superpuestas del chip "Salud de la piel" — mismo
  * criterio whole/default que buildChips para elegir la región de cada tipo. */
 function buildOverviewMaskUrls(
-  metrics: YoucamMetric[],
+  metrics: AnalisisPiel360Metric[],
   masks: AnalysisDetail["masks"],
 ): string[] {
   const urls: string[] = [];
@@ -320,7 +320,7 @@ function RegionCarousel({
                   )}
                 >
                   {option.skinType
-                    ? youcamSkinTypeLabel(option.skinType)
+                    ? analisisPiel360SkinTypeLabel(option.skinType)
                     : option.score != null
                       ? Math.round(option.score)
                       : "·"}
@@ -344,7 +344,7 @@ function RegionCarousel({
 }
 
 function regionPillLabel(option: MetricRegionOption): string {
-  if (option.skinType) return `${option.label} · ${youcamSkinTypeLabel(option.skinType)}`;
+  if (option.skinType) return `${option.label} · ${analisisPiel360SkinTypeLabel(option.skinType)}`;
   if (option.score != null) return `${option.label} ${Math.round(option.score)}`;
   return option.label;
 }
@@ -360,18 +360,18 @@ export function YoucamResultsSection({
 }) {
   const metrics = useMemo(
     () =>
-      parseYoucamMetrics(analysis.aiRawResponse as YoucamRawResponse | null),
+      parseAnalisisPiel360Metrics(analysis.aiRawResponse as AnalisisPiel360RawResponse | null),
     [analysis.aiRawResponse],
   );
-  const overall = youcamOverallScore(metrics);
-  const skinAge = analysis.skinAgeYears ?? youcamSkinAge(metrics);
+  const overall = analisisPiel360OverallScore(metrics);
+  const skinAge = analysis.skinAgeYears ?? analisisPiel360SkinAge(metrics);
   const chronologicalAge =
     analysis.chronologicalAgeYears ??
     chronologicalAgeYears(analysis.patient?.birthDate, analysis.createdAt);
   const ageDiff =
     analysis.skinAgeDifference ??
     skinAgeDifference(skinAge, chronologicalAge);
-  const skinType = youcamSkinType(metrics);
+  const skinType = analisisPiel360SkinType(metrics);
   const fitzpatrickScale = useMemo(
     () => resolveFitzpatrickScale(analysis),
     [analysis],
@@ -558,7 +558,7 @@ export function YoucamResultsSection({
         <p className="text-sm">
           Biotipo:{" "}
           <span className="font-semibold text-muted-foreground">
-            {skinType ? youcamSkinTypeLabel(skinType) : "—"}
+            {skinType ? analisisPiel360SkinTypeLabel(skinType) : "—"}
           </span>
         </p>
         {fitzpatrickDetail ? (

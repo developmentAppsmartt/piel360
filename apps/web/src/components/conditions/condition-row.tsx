@@ -2,7 +2,7 @@
 
 import type { FieldValues, UseFormRegister } from "react-hook-form";
 import { Trash2 } from "lucide-react";
-import { YOUCAM_SKIN_TYPE_VALUES } from "@piel360/shared";
+import { ANALISIS_PIEL360_SKIN_TYPE_VALUES } from "@piel360/shared";
 import { Button } from "@/components/ui/button";
 import {
   CONDITION_METRICS,
@@ -13,7 +13,7 @@ import {
   isSkinTypeMetric,
   type ConditionOperator,
 } from "@/lib/condition-labels";
-import { youcamRegionLabel, youcamSkinTypeLabel } from "@/lib/youcam-metric-labels";
+import { youcamRegionLabel, analisisPiel360SkinTypeLabel } from "@/lib/youcam-metric-labels";
 
 const inputCls =
   "w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-ring disabled:opacity-50";
@@ -106,9 +106,9 @@ export function ConditionRow({
 
       {skinType ? (
         <select className={inputCls} {...register(`conditions.${index}.textValue`)}>
-          {YOUCAM_SKIN_TYPE_VALUES.map((value) => (
+          {ANALISIS_PIEL360_SKIN_TYPE_VALUES.map((value) => (
             <option key={value} value={value}>
-              {youcamSkinTypeLabel(value)}
+              {analisisPiel360SkinTypeLabel(value)}
             </option>
           ))}
         </select>

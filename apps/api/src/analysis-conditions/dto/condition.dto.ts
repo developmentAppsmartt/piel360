@@ -1,5 +1,5 @@
 import { IsIn, IsNumber, IsOptional, IsString, ValidateIf } from 'class-validator';
-import { CONDITIONABLE_METRIC_TYPES, YOUCAM_SKIN_TYPE_VALUES } from '@piel360/shared';
+import { CONDITIONABLE_METRIC_TYPES, ANALISIS_PIEL360_SKIN_TYPE_VALUES } from '@piel360/shared';
 
 /** "between" es genérico — sirve para cualquier métrica numérica, no solo
  * edad (ej. "hd_wrinkle entre 40 y 60"). `value` = límite inferior,
@@ -30,6 +30,6 @@ export class ConditionDto {
   valueTo?: number;
 
   @ValidateIf((o: ConditionDto) => o.metricType === 'hd_skin_type')
-  @IsIn(YOUCAM_SKIN_TYPE_VALUES)
+  @IsIn(ANALISIS_PIEL360_SKIN_TYPE_VALUES)
   textValue?: string;
 }

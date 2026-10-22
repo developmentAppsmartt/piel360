@@ -1,12 +1,12 @@
 import type { AnalysisDetail } from "@/lib/queries/analyses";
 import type { Analysis } from "@/lib/queries/patients";
-import { YOUCAM_METRIC_LABELS } from "@/lib/youcam-metric-labels";
+import { ANALISIS_PIEL360_METRIC_LABELS } from "@/lib/youcam-metric-labels";
 import {
-  parseYoucamMetrics,
-  YOUCAM_MAIN_METRIC_TYPES,
-  youcamOverallScore,
-  youcamScoresByType,
-  type YoucamRawResponse,
+  parseAnalisisPiel360Metrics,
+  ANALISIS_PIEL360_MAIN_METRIC_TYPES,
+  analisisPiel360OverallScore,
+  analisisPiel360ScoresByType,
+  type AnalisisPiel360RawResponse,
 } from "@/lib/youcam-metrics";
 
 export type ComparisonMode = "aesthetic" | "derm";
@@ -113,14 +113,14 @@ export function buildComparisonCategories(
   initial: Analysis | undefined,
   current: Analysis | undefined,
 ): ComparisonCategoryRow[] {
-  const initialScores = youcamScoresByType(
-    parseYoucamMetrics(initial?.aiRawResponse as YoucamRawResponse | undefined),
+  const initialScores = analisisPiel360ScoresByType(
+    parseAnalisisPiel360Metrics(initial?.aiRawResponse as AnalisisPiel360RawResponse | undefined),
   );
-  const currentScores = youcamScoresByType(
-    parseYoucamMetrics(current?.aiRawResponse as YoucamRawResponse | undefined),
+  const currentScores = analisisPiel360ScoresByType(
+    parseAnalisisPiel360Metrics(current?.aiRawResponse as AnalisisPiel360RawResponse | undefined),
   );
 
-  return YOUCAM_MAIN_METRIC_TYPES.filter(
+  return ANALISIS_PIEL360_MAIN_METRIC_TYPES.filter(
     (type) => initialScores[type] != null || currentScores[type] != null,
   ).map((type) => {
     const initialScore = Math.round(initialScores[type] ?? 0);
@@ -128,7 +128,7 @@ export function buildComparisonCategories(
     const improvement = currentScore - initialScore;
     return {
       id: type,
-      label: YOUCAM_METRIC_LABELS[type] ?? type,
+      label: ANALISIS_PIEL360_METRIC_LABELS[type] ?? type,
       initialScore,
       currentScore,
       improvement,
@@ -141,8 +141,8 @@ export function youcamOverallFromAnalysis(
   analysis: Analysis | undefined,
 ): number | null {
   if (!analysis?.aiRawResponse) return null;
-  return youcamOverallScore(
-    parseYoucamMetrics(analysis.aiRawResponse as YoucamRawResponse),
+  return analisisPiel360OverallScore(
+    parseAnalisisPiel360Metrics(analysis.aiRawResponse as AnalisisPiel360RawResponse),
   );
 }
 
@@ -188,7 +188,7 @@ function maskUrlFromRaw(
   type: string,
   region?: string | null,
 ): string | null {
-  const output = (detail.aiRawResponse as YoucamRawResponse | undefined)
+  const output = (detail.aiRawResponse as AnalisisPiel360RawResponse | undefined)
     ?.output;
   if (!output?.length) return null;
   const normalized = region ?? DEFAULT_REGION;
@@ -210,8 +210,8 @@ export function youcamMetricMaskUrl(
 ): string | null {
   if (!detail) return null;
 
-  const metrics = parseYoucamMetrics(
-    detail.aiRawResponse as YoucamRawResponse | undefined,
+  const metrics = parseAnalisisPiel360Metrics(
+    detail.aiRawResponse as AnalisisPiel360RawResponse | undefined,
   );
   const candidates = metrics.filter((m) => m.type === metricType);
   const whole =
