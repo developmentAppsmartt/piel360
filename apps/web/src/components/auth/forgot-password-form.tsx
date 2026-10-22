@@ -2,9 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Eye, EyeOff } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { isStrongPassword, PASSWORD_STRENGTH_MESSAGE } from "@piel360/shared";
-import { Field, inputClass } from "@/components/auth/auth-form-primitives";
+import {
+  Field,
+  inputClass,
+  PasswordVisibilityToggle,
+} from "@/components/auth/auth-form-primitives";
 import { PasswordRequirements } from "@/components/ui/password-requirements";
 import {
   resetPasswordAction,
@@ -19,24 +23,6 @@ const buttonClass =
 
 /** El paso lo controla la página: la descripción de la maqueta ("te enviaremos
  * un código") ya no aplica cuando se está escribiendo la nueva contraseña. */
-function PasswordVisibilityToggle({
-  visible,
-  onToggle,
-}: {
-  visible: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="absolute top-0 right-3 flex h-11 items-center text-slate-400 hover:text-slate-600"
-      aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
-    >
-      {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-    </button>
-  );
-}
 
 export function ForgotPasswordForm({
   step,

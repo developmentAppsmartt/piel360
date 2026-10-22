@@ -21,6 +21,7 @@ import {
   SendChangePasswordOtpDto,
   VerifyChangePasswordOtpDto,
 } from './dto/change-password-otp.dto';
+import { ConfirmEmailChangeDto } from './dto/confirm-email-change.dto';
 import { ConfirmPhoneVerificationDto } from './dto/confirm-phone-verification.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
@@ -29,6 +30,7 @@ import { RegisterEmpresaDto } from './dto/register-empresa.dto';
 import { RegisterPatientDto } from './dto/register-patient.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyCurrentPasswordDto } from './dto/verify-current-password.dto';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { SendPhoneOtpDto } from './dto/send-phone-otp.dto';
@@ -179,6 +181,32 @@ export class AuthController {
     @Body() dto: VerifyChangePasswordOtpDto,
   ) {
     return this.authService.verifyChangePasswordOtp(user.sub, dto);
+  }
+
+  /** Camino por defecto del cambio de contraseña con sesión abierta: en vez
+   * de un código, la contraseña actual. Devuelve el mismo token que el OTP. */
+  @Post('me/password/verify')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  verifyCurrentPassword(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: VerifyCurrentPasswordDto,
+  ) {
+    return this.authService.verifyCurrentPassword(user.sub, dto);
+  }
+
+  /** Último paso del cambio de correo: el código ya se verificó contra el
+   * correo NUEVO con `otp/send` + `otp/verify` (`purpose: 'register'`). */
+  @Post('me/email/confirm')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  confirmEmailChange(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: ConfirmEmailChangeDto,
+  ) {
+    return this.authService.confirmEmailChange(user.sub, dto);
   }
 
   @Post('otp/phone/verify')

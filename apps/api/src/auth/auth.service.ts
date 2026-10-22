@@ -50,7 +50,9 @@ import type { RegisterPatientDto } from './dto/register-patient.dto';
 import type { ResetPasswordDto } from './dto/reset-password.dto';
 import type { SendOtpDto } from './dto/send-otp.dto';
 import type { VerifyOtpDto } from './dto/verify-otp.dto';
+import type { ConfirmEmailChangeDto } from './dto/confirm-email-change.dto';
 import type { ConfirmPhoneVerificationDto } from './dto/confirm-phone-verification.dto';
+import type { VerifyCurrentPasswordDto } from './dto/verify-current-password.dto';
 import type { SendPhoneOtpDto } from './dto/send-phone-otp.dto';
 import type { VerifyPhoneOtpDto } from './dto/verify-phone-otp.dto';
 import type { GoogleProfile } from './google.strategy';
@@ -1055,6 +1057,13 @@ export class AuthService implements OnModuleDestroy {
       return { ok: true, ticket };
     }
 
+    return { ok: true, token: await this.issuePasswordResetToken(email) };
+  }
+
+  /** Token de un solo uso que consume `resetPassword`. Lo emiten los tres
+   * caminos que prueban la identidad: el OTP por correo, el OTP por SMS y la
+   * contraseña actual. */
+  private async issuePasswordResetToken(email: string): Promise<string> {
     const token = randomBytes(32).toString('hex');
     const expiresAt = new Date(
       Date.now() + PASSWORD_RESET_TTL_MINUTES * 60_000,
@@ -1062,7 +1071,28 @@ export class AuthService implements OnModuleDestroy {
     await this.prisma.passwordResetToken.create({
       data: { email, token, expiresAt },
     });
-    return { ok: true, token };
+    return token;
+  }
+
+  /**
+   * Cambio de contraseña probando la identidad con la contraseña ACTUAL, que
+   * es el camino por defecto cuando hay sesión abierta. El OTP queda como
+   * alternativa para quien no la recuerda.
+   */
+  async verifyCurrentPassword(
+    userId: string,
+    dto: VerifyCurrentPasswordDto,
+  ): Promise<{ ok: true; token: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: BigInt(userId) },
+    });
+    if (!user?.email || !user.password) throw new UnauthorizedException();
+
+    if (!(await argon2.verify(user.password, dto.currentPassword))) {
+      throw new UnauthorizedException('La contraseña actual no es correcta');
+    }
+
+    return { ok: true, token: await this.issuePasswordResetToken(user.email) };
   }
 
   async resetPassword(dto: ResetPasswordDto): Promise<{ ok: true }> {
@@ -1347,6 +1377,81 @@ export class AuthService implements OnModuleDestroy {
     }
 
     return { ok: true };
+  }
+
+  /**
+   * Último paso del cambio de correo. El código ya viajó al correo NUEVO con
+   * `otp/send`/`otp/verify` (`purpose: 'register'`, el único que rechaza un
+   * correo ya registrado), así que aquí solo se canjea el ticket.
+   *
+   * La sesión NO se cierra: el JWT va por `sub`, no por correo.
+   */
+  async confirmEmailChange(
+    userId: string,
+    dto: ConfirmEmailChangeDto,
+  ): Promise<{ ok: true; email: string }> {
+    const email = dto.email.trim().toLowerCase();
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: BigInt(userId) },
+    });
+    if (!user?.email) throw new UnauthorizedException();
+
+    if (user.email === email) {
+      throw new BadRequestException('Ese ya es tu correo actual');
+    }
+
+    await this.consumeRegisterTicket(dto.emailTicket, email);
+
+    // Entre el código y el canje pudo registrarse otro con ese correo, y la
+    // columna es `@unique`: sin esto el update revienta con un P2002 crudo.
+    const taken = await this.prisma.user.findUnique({ where: { email } });
+    if (taken) {
+      throw new ConflictException('Ya existe una cuenta con ese email');
+    }
+
+    const anterior = user.email;
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { email, emailVerifiedAt: new Date() },
+    });
+
+    // `doctors` no guarda correo (usa el del user); `patients` sí.
+    const patient = await this.prisma.patient.findUnique({
+      where: { userId: user.id },
+    });
+    if (patient) {
+      await this.prisma.patient.update({
+        where: { id: patient.id },
+        data: { email },
+      });
+    }
+
+    // Aviso al correo anterior: deja rastro si alguien secuestró la sesión.
+    // HTML fijo igual que el del OTP — son correos de seguridad y no deben
+    // quedar en una plantilla que el doctor pueda editar.
+    await this.mail.send({
+      to: anterior,
+      subject: 'Tu correo de acceso cambió — Piel360',
+      html:
+        `<p>El correo de acceso de tu cuenta Piel360 cambió a ` +
+        `<strong>${email}</strong>.</p>` +
+        `<p>A partir de ahora tienes que iniciar sesión con ese correo. ` +
+        `Las sesiones que ya tenías abiertas siguen funcionando.</p>` +
+        `<p><strong>Si no fuiste tú</strong>, escríbenos de inmediato a ` +
+        `${this.supportEmail()} para recuperar la cuenta.</p>`,
+    });
+
+    return { ok: true, email };
+  }
+
+  private supportEmail(): string {
+    return (
+      this.config.get<string>('SUPPORT_EMAIL') ??
+      this.config.get<string>('MAIL_FROM') ??
+      'soporte@piel360.com'
+    );
   }
 
   async verifyPhoneOtp(
