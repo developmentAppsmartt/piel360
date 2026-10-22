@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { extname } from 'path';
 import { SYSTEM_EMAIL_VARIABLES } from '@piel360/shared';
@@ -12,6 +13,11 @@ import type { JwtPayload } from '../auth/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrgContextService } from '../organizations/org-context.service';
 import { StorageService } from '../storage/storage.service';
+import {
+  baseApiPublica,
+  conBannersEstables,
+  urlPublicaDeBanner,
+} from './banner-urls';
 import type {
   CreateEmailTemplateDto,
   CreateEmailTemplateVariableDto,
@@ -70,6 +76,7 @@ export class EmailTemplatesService {
     private readonly prisma: PrismaService,
     private readonly orgContext: OrgContextService,
     private readonly storage: StorageService,
+    private readonly config: ConfigService,
   ) {}
 
   /**
@@ -97,7 +104,9 @@ export class EmailTemplatesService {
       name: row.name,
       subject: row.subject,
       preheader: row.preheader,
-      bodyHtml: row.bodyHtml,
+      // Las plantillas guardadas antes llevan la URL firmada del banner, que
+      // caduca a los 7 días: se le devuelve al editor ya reescrita.
+      bodyHtml: conBannersEstables(row.bodyHtml, baseApiPublica(this.config)),
       isActive: row.isActive,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
@@ -400,9 +409,6 @@ export class EmailTemplatesService {
       'jpg';
     const key = `email-templates/${doctorId ?? 'plataforma'}/banners/${randomUUID()}.${ext}`;
     await this.storage.upload(key, file.buffer, file.mimetype);
-    // Máx. 7 días (límite SigV4). La vista previa usa esta URL; el envío
-    // real debería regenerar la firma o servir por CDN público.
-    const url = await this.storage.getSignedUrl(key, 60 * 60 * 24 * 7);
-    return { key, url };
+    return { key, url: urlPublicaDeBanner(baseApiPublica(this.config), key) };
   }
 }

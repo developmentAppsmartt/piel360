@@ -492,6 +492,11 @@ mano** con `select id, name from plans where name ~* 'skiniver|youcam|perfect'`.
 - Pendiente de despliegue: reconstruir la imagen del API (cambió
   `packages/shared`) y confirmar con `npx prisma migrate status` que producción
   está al día.
+- Los banners de las plantillas de correo se sirven por
+  `/api/public/email-assets/<key>`, que redirige a una firma nueva: la URL
+  firmada que se guardaba antes caducaba a los 7 días. Esa ruta y el link del
+  reporte se arman con **`PUBLIC_API_URL`** (dominio público del API, sin
+  `/api`): comprobar que está bien en `/opt/piel360/.env.production`.
 - **El web y el API tienen que desplegarse juntos**: cambiaron las rutas
   (`/api/analisispiel360/*`, `/api/analisisdermapiel360/*`,
   `/api/admin/bolsa-unidades/analisis*`) y un web viejo contra un API nuevo

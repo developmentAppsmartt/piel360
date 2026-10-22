@@ -24,9 +24,10 @@ import {
   type EmailTemplateVariable,
 } from "@/lib/queries/email-templates";
 
-/** Ancho del cuerpo del correo. Outlook ignora `max-width`, así que el ancho
- * real de la imagen va en el atributo `width`, con este tope. */
-const ANCHO_MAX_CORREO = 600;
+/** Ancho útil del cuerpo del correo: 480 de la caja de `renderBrandedEmail`
+ * menos 28 + 28 de padding. Outlook ignora `max-width`, así que el ancho real
+ * de la imagen va en el atributo `width`, con este tope. */
+const ANCHO_MAX_CORREO = 424;
 
 function anchoParaCorreo(url: string): Promise<number> {
   return new Promise((resolve) => {
