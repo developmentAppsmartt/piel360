@@ -1,27 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import {
-  analisisDermaPiel360CategoryLabel,
-  analisisDermaPiel360DiagnosisLabel,
-  analisisDermaPiel360RiskLabel,
-  type AnalisisDermaPiel360DiagnosisCandidate,
-  type AnalisisDermaPiel360Prediction,
-} from "@piel360/shared";
 import { ConfirmAnalysisForm } from "@/components/analyses/confirm-analysis-form";
 import { Button } from "@/components/ui/button";
-import { DiagnosisDetailDialog } from "@/components/analyses/diagnosis-detail-dialog";
-import { DiagnosisList } from "@/components/analyses/diagnosis-list";
+import { DermaResultsSection } from "@/components/analyses/derma-results-section";
 import { FitzpatrickResultsSection } from "@/components/analyses/fitzpatrick-results-section";
-import { ImageCarousel } from "@/components/analyses/image-carousel";
-import { RiskGauge } from "@/components/analyses/risk-gauge";
 import { AnalisisPiel360ProgressView } from "@/components/analyses/youcam-progress-view";
 import { AnalisisPiel360ReportView } from "@/components/analyses/youcam-report-view";
 import { AnalisisPiel360ResultsSection } from "@/components/analyses/youcam-results-section";
-import {
-  AnalisisDermaPiel360Descriptive,
-  AnalisisDermaPiel360RiskGuidanceBlock,
-} from "@/components/analyses/skiniver-descriptive";
 import { ModuleCard } from "@/components/ui/module-card";
 import { useAnalysis, useConfirmAnalysis } from "@/lib/queries/analyses";
 
@@ -44,19 +30,14 @@ export function AnalysisResultsView({
 }) {
   const analysis = useAnalysis(analysisId);
   const confirmAnalysis = useConfirmAnalysis(analysisId, patientId);
-  const [selectedDiagnosis, setSelectedDiagnosis] =
-    useState<AnalisisDermaPiel360DiagnosisCandidate | null>(null);
   const [analisisPiel360View, setAnalisisPiel360View] = useState<AnalisisPiel360SubView>("detail");
   const [editingNotes, setEditingNotes] = useState(false);
 
   const isAnalisisPiel360 = !!analysis.data?.analisisPiel360TaskId;
   const isFitzpatrick = !!analysis.data?.fitzpatrickTaskId;
   const isAnalisisDermaPiel360 = !isAnalisisPiel360 && !isFitzpatrick;
-  // Dermatologico y estetico piden observaciones; Fitzpatrick no.
-  const usesDoctorNotes = isAnalisisDermaPiel360 || isAnalisisPiel360;
-  const prediction = isAnalisisDermaPiel360
-    ? (analysis.data?.aiRawResponse as AnalisisDermaPiel360Prediction | undefined)
-    : undefined;
+  // El estético pide observaciones; Fitzpatrick no.
+  const usesDoctorNotes = isAnalisisPiel360;
   const analisisPiel360Error =
     isAnalisisPiel360 &&
     analysis.data?.aiRawResponse &&
@@ -90,11 +71,6 @@ export function AnalysisResultsView({
     );
   }
 
-  const topDiagnosis = prediction?.topn?.[0];
-  // Skiniver no traduce `risk`/`class`/`desease`: se resuelven contra
-  // `risk_level` y `class_raw`, que no dependen del idioma.
-  const riskLabel = analisisDermaPiel360RiskLabel(prediction?.risk, topDiagnosis?.risk_level);
-
   return (
     <div className="space-y-6">
       {isAnalisisPiel360 && !analysis.data.isValid && analisisPiel360Error && (
@@ -124,113 +100,25 @@ export function AnalysisResultsView({
       )}
 
       {isAnalisisDermaPiel360 && (
-        <>
-          <RiskGauge
-            percent={(() => {
-              const raw = prediction?.high_risk_prob;
-              if (raw == null || !Number.isFinite(Number(raw))) return 0;
-              const n = Number(raw);
-              // Solo high_risk_prob — no usar aiProbability (prob de clase).
-              return n <= 1 ? n * 100 : n;
-            })()}
-            riskLabel={riskLabel}
-          />
-
-          {topDiagnosis ? (
-            <ModuleCard className="flex items-center gap-4 p-4">
-              <div className="flex size-16 shrink-0 items-center justify-center rounded-full border-4 border-primary text-lg font-bold text-primary">
-                {Math.round(
-                  (topDiagnosis.prob <= 1
-                    ? topDiagnosis.prob * 100
-                    : topDiagnosis.prob),
-                )}
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-muted-foreground">
-                  {analisisDermaPiel360CategoryLabel(topDiagnosis.desease) ||
-                    "Diagnóstico principal"}
-                </p>
-                <p className="truncate text-base font-semibold">
-                  {analisisDermaPiel360DiagnosisLabel(
-                    topDiagnosis.class,
-                    topDiagnosis.class_raw,
-                  )}
-                </p>
-                {topDiagnosis.risk ? (
-                  <p className="text-sm text-muted-foreground">
-                    Riesgo:{" "}
-                    {analisisDermaPiel360RiskLabel(
-                      topDiagnosis.risk,
-                      topDiagnosis.risk_level,
-                    )}
-                  </p>
-                ) : null}
-              </div>
-            </ModuleCard>
-          ) : null}
-
-          <ImageCarousel
-            images={[
-              { label: "Original", url: analysis.data.imageUrl },
-              { label: "Coloreada", url: analysis.data.coloredUrl },
-              { label: "Máscara", url: analysis.data.maskedUrl },
-            ]}
-          />
-
-          <ModuleCard className="border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/30">
-            <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
-              Nivel de Riesgo: {riskLabel}
-            </p>
-            <p className="mt-1 text-sm text-amber-800/90 dark:text-amber-200/80">
-              Este resultado es orientativo. Consulta con un dermatólogo y evita
-              la automedicación.
-            </p>
-          </ModuleCard>
-
-          {analysis.data.analisisDermaPiel360Diagnosis ? (
-            <ModuleCard className="space-y-3 p-4">
-              <AnalisisDermaPiel360Descriptive
-                details={analysis.data.analisisDermaPiel360Diagnosis}
-                icdCode={analysis.data.analisisDermaPiel360Diagnosis.icd_code}
-              />
-              {analysis.data.analisisDermaPiel360Diagnosis.conclusion.category && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Conclusión
-                  </p>
-                  <p className="text-sm">
-                    {analysis.data.analisisDermaPiel360Diagnosis.conclusion.category}
-                    {" · "}
-                    {analysis.data.analisisDermaPiel360Diagnosis.conclusion.category_prob}%
-                  </p>
-                </div>
-              )}
-              <AnalisisDermaPiel360RiskGuidanceBlock
-                risk={analysis.data.analisisDermaPiel360Diagnosis.risk}
-              />
-            </ModuleCard>
-          ) : null}
-
-          {prediction?.topn && prediction.topn.length > 0 ? (
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold">
-                Lee más sobre la enfermedad
-              </h3>
-              <DiagnosisList
-                items={prediction.topn}
-                onSelect={setSelectedDiagnosis}
-              />
-            </div>
-          ) : null}
-        </>
+        <DermaResultsSection
+          key={analysis.data.id}
+          analysis={analysis.data}
+          canConfirm={!hideConfirm}
+          onSubmit={async (input) => {
+            await confirmAnalysis.mutateAsync(input);
+            onConfirmed?.();
+          }}
+        />
       )}
 
+      {/* El dermatológico confirma y corrige dentro de DermaResultsSection. */}
       {!hideConfirm &&
+        !isAnalisisDermaPiel360 &&
         (!isAnalisisPiel360 || analysis.data.isValid) &&
         (analysis.data.isConfirmed && !editingNotes ? (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              {isAnalisisPiel360 || isFitzpatrick ? "Análisis" : "Diagnóstico"}{" "}
+              Análisis{" "}
               {analysis.data.isCorrected ? "corregido" : "confirmado"}
               {analysis.data.finalDiagnosis
                 ? `: ${analysis.data.finalDiagnosis}`
@@ -273,21 +161,6 @@ export function AnalysisResultsView({
           />
         ))}
 
-      {isAnalisisDermaPiel360 && (
-        <DiagnosisDetailDialog
-          item={selectedDiagnosis}
-          details={
-            selectedDiagnosis
-              ? (analysis.data.analisisDermaPiel360Diagnosis?.candidates.find(
-                  (candidate) =>
-                    candidate.class.toLowerCase() ===
-                    selectedDiagnosis.class.trim().toLowerCase(),
-                ) ?? null)
-              : null
-          }
-          onClose={() => setSelectedDiagnosis(null)}
-        />
-      )}
     </div>
   );
 }

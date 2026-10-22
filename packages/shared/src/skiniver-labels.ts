@@ -334,13 +334,15 @@ const CATEGORY_ENTRIES: [string, string[]][] = [
     [
       "herpetic infections",
       "Герпетические инфекции",
+      // Así se llama el grupo en la lista de corrección (nosology-catalog.ts).
+      "Infecciones por herpesvirus",
     ],
   ],
   ["Acné", ["acne", "Акне"]],
   ["Dermatitis", ["dermatitis", "Дерматиты"]],
   ["Eccema", ["eczema", "Экзема"]],
-  ["Urticaria", ["urticaria", "hives", "Крапивница"]],
-  ["Eritema", ["erythema", "Эритема"]],
+  ["Urticaria", ["urticaria", "hives", "Крапивница", "Urticaria alérgica"]],
+  ["Eritema", ["erythema", "Эритема", "Eritema anular centrífugo"]],
   ["Vitíligo", ["vitiligo", "Витилиго"]],
   [
     "Hidradenitis supurativa",

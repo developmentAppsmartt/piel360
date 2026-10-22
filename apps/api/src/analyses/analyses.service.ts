@@ -38,6 +38,7 @@ import {
 } from './analysis-image-urls.service';
 import type { ConfirmAnalysisDto } from './dto/confirm-analysis.dto';
 import type { CreateAnalysisDto } from './dto/create-analysis.dto';
+import { resolverDiagnosticoFinal } from './final-diagnosis';
 import {
   ANALYSIS_IMAGES_QUEUE,
   ENCYCLOPEDIA_QUEUE,
@@ -431,6 +432,15 @@ export class AnalysesService {
   async confirm(id: string, dto: ConfirmAnalysisDto, currentUser: JwtPayload) {
     const analysis = await this.findOne(id, currentUser);
     const finalDiagnosis = dto.finalDiagnosis ?? analysis.aiDiagnosis;
+    const esDermatologico =
+      !analysis.analisisPiel360TaskId && !analysis.fitzpatrickTaskId;
+    const clase = esDermatologico
+      ? resolverDiagnosticoFinal(
+          analysis.aiRawResponse,
+          dto.finalDiagnosis,
+          dto.finalDiagnosisCode,
+        )
+      : null;
     // El PDF del reporte se genera una sola vez y se cachea (ensureReportUrl
     // devuelve el guardado mientras existan token y key). Como las
     // observaciones salen en el PDF, si cambian hay que tirar el archivo para
@@ -447,6 +457,8 @@ export class AnalysesService {
           isConfirmed: true,
           isCorrected: dto.isCorrected ?? false,
           finalDiagnosis,
+          finalDiagnosisCode: clase?.code ?? null,
+          finalDiagnosisCategory: clase?.category ?? null,
           doctorNotes: dto.doctorNotes,
           confirmedById: BigInt(currentUser.sub),
           confirmedAt: new Date(),

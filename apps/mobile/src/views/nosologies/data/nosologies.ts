@@ -4,6 +4,9 @@ import type { NosologyCategory } from '../../../types/nosology';
  * Catálogo de nosologías (clases = categorías, enfermedades = ítems).
  * Origen: Skiniver `GET /get_disease_classes?lang=es` (no se consulta en runtime).
  * Actualizado desde la respuesta del API de Skiniver.
+ *
+ * Espejo de packages/shared/src/nosology-catalog.ts (el web y el API usan
+ * ese): si cambias uno, cambia el otro.
  */
 export const NOSOLOGY_CATEGORIES: NosologyCategory[] = [
   {

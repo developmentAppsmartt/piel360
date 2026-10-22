@@ -44,6 +44,22 @@ function baseJoin(
   `;
 }
 
+/**
+ * El diagnóstico que cuenta: el del profesional cuando lo dejó al confirmar o
+ * corregir (`final_diagnosis_code` no nulo, ver
+ * apps/api/src/analyses/final-diagnosis.ts) y, si no, el de la IA. Antes los
+ * reportes leían siempre el de la IA, así que una corrección no cambiaba nada.
+ * Las cuatro piezas van juntas: mezclar el nombre de uno con la categoría del
+ * otro contaría una enfermedad en un grupo que no es el suyo.
+ */
+const CORRECTED = Prisma.sql`a.final_diagnosis_code IS NOT NULL`;
+const DIAGNOSIS = Prisma.sql`(CASE WHEN ${CORRECTED} THEN a.final_diagnosis ELSE a.ai_diagnosis END)`;
+const CATEGORY = Prisma.sql`(CASE WHEN ${CORRECTED} THEN a.final_diagnosis_category ELSE a.ai_raw_response->>'desease' END)`;
+const CLASS_RAW = Prisma.sql`COALESCE(a.final_diagnosis_code, a.ai_raw_response->>'class_raw')`;
+/** El ICD solo existe para el diagnóstico principal de la IA: con otro
+ * diagnóstico sería el código de una enfermedad distinta. */
+const ICD_CODE = Prisma.sql`(CASE WHEN ${CORRECTED} THEN NULL ELSE a.ai_raw_response->>'lesion_code' END)`;
+
 /** Los reportes de "qué se encontró" (categoría, top 10, clase, enfermedad)
  * excluyen el resultado "sin hallazgos"; los demográficos (edad, sexo, tono)
  * sí lo cuentan, porque describen a quién se analizó. Ver el comentario de
@@ -62,8 +78,8 @@ const NO_PATHOLOGY = 'Piel Sin Patología';
  */
 function pathologyFilter(): Prisma.Sql {
   return Prisma.sql`
-      AND a.ai_diagnosis IS NOT NULL
-      AND a.ai_diagnosis <> ${NO_PATHOLOGY}
+      AND ${DIAGNOSIS} IS NOT NULL
+      AND ${DIAGNOSIS} <> ${NO_PATHOLOGY}
   `;
 }
 
@@ -86,7 +102,7 @@ function ageBucketCase(): Prisma.Sql {
 export interface AnalisisDermaPiel360DiagnosisRow {
   period: string;
   ai_diagnosis: string | null;
-  /** `desease` de la IA: de aquí sale la clase. */
+  /** Categoría (`desease` de la IA o el grupo del profesional): de aquí sale la clase. */
   category: string | null;
   /** Id del clasificador (`2A_acne_vulgaris`): la identidad del diagnóstico,
    * que no cambia con el idioma del nombre visible. */
@@ -95,7 +111,7 @@ export interface AnalisisDermaPiel360DiagnosisRow {
 }
 
 /**
- * Diagnóstico crudo (`ai_diagnosis`, top-1 de Skiniver) por mes, con su
+ * Diagnóstico que cuenta (`DIAGNOSIS`: el del profesional o el de la IA) por mes, con su
  * categoría y su id de clasificador. Alimenta dos gráficos: el de clases
  * (agrupado con classifyDiagnosisClass, en
  * packages/shared/src/skiniver-diagnosis-taxonomy.ts) y el de condiciones
@@ -110,9 +126,9 @@ export function analisisDermaPiel360MonthlyDiagnosesQuery(
   return Prisma.sql`
     SELECT
       to_char(date_trunc('month', a.created_at), 'YYYY-MM') AS period,
-      a.ai_diagnosis                                        AS ai_diagnosis,
-      a.ai_raw_response->>'desease'                         AS category,
-      a.ai_raw_response->>'class_raw'                       AS class_raw,
+      ${DIAGNOSIS}                                          AS ai_diagnosis,
+      ${CATEGORY}                                           AS category,
+      ${CLASS_RAW}                                          AS class_raw,
       COUNT(*)::int                                         AS count
     ${baseJoin(doctorIds, from, toExclusive)}
       ${pathologyFilter()}
@@ -159,7 +175,7 @@ export interface AnalisisDermaPiel360CategoryRow {
   count: number;
 }
 
-/** Categoría de la IA (`aiRawResponse.desease`) — la agrupación que Skiniver
+/** Categoría (`desease` de la IA, o el grupo que eligió el profesional) — la agrupación que la IA
  * ya devuelve, en vez de deducirla del nombre del diagnóstico. */
 export function analisisDermaPiel360CategoryQuery(
   doctorIds: DoctorIds,
@@ -168,7 +184,7 @@ export function analisisDermaPiel360CategoryQuery(
 ): Prisma.Sql {
   return Prisma.sql`
     SELECT
-      a.ai_raw_response->>'desease' AS category,
+      ${CATEGORY}                   AS category,
       COUNT(*)::int                 AS count
     ${baseJoin(doctorIds, from, toExclusive)}
       ${pathologyFilter()}
@@ -195,9 +211,9 @@ export function analisisDermaPiel360TopDiagnosesQuery(
 ): Prisma.Sql {
   return Prisma.sql`
     SELECT
-      a.ai_diagnosis                              AS diagnosis,
-      MAX(a.ai_raw_response->>'lesion_code')      AS icd_code,
-      MAX(a.ai_raw_response->>'class_raw')        AS class_raw,
+      ${DIAGNOSIS}                                AS diagnosis,
+      MAX(${ICD_CODE})                            AS icd_code,
+      MAX(${CLASS_RAW})                           AS class_raw,
       COUNT(*)::int                               AS count
     ${baseJoin(doctorIds, from, toExclusive)}
       ${pathologyFilter()}

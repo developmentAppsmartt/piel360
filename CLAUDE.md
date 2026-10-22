@@ -476,6 +476,15 @@ mano** con `select id, name from plans where name ~* 'skiniver|youcam|perfect'`.
 - Si Skiniver falla, la excepción salta **antes** de crear el análisis: no queda
   fila en `analyses` y **no se consume crédito**. Los logs son la única evidencia.
   Busca `POST /analyses falló` y `Skiniver /predict`.
+- **Los reportes cuentan el diagnóstico del profesional**, no siempre el de la
+  IA. Al confirmar o corregir se guardan `final_diagnosis_code` (el
+  `class_raw`) y `final_diagnosis_category` (el grupo, con el nombre de la
+  categoría de la IA); `apps/api/src/analyses/final-diagnosis.ts` los resuelve
+  por código (web) o por nombre (móvil). Nulos = cuenta el de la IA. Las
+  queries usan `DIAGNOSIS`/`CATEGORY`/`CLASS_RAW` de
+  `skiniver-reports.queries.ts`: no vuelvas a leer `ai_diagnosis` a pelo.
+- La lista de «Corregir resultado» es `packages/shared/src/nosology-catalog.ts`;
+  el móvil tiene su espejo en `views/nosologies/data/nosologies.ts`.
 
 ### Front
 

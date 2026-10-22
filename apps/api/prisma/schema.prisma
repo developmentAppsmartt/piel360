@@ -456,6 +456,10 @@ model Analysis {
   aiProbability   Float?    @map("ai_probability")
   aiRawResponse   Json?     @map("ai_raw_response")
   finalDiagnosis  String?   @map("final_diagnosis")
+  /// Id del clasificador y grupo del diagnóstico del profesional, para que
+  /// los reportes lo cuenten en vez del de la IA. Nulos = cuenta el de la IA.
+  finalDiagnosisCode     String? @map("final_diagnosis_code")
+  finalDiagnosisCategory String? @map("final_diagnosis_category")
   isConfirmed       Boolean   @default(false) @map("is_confirmed")
   isCorrected       Boolean   @default(false) @map("is_corrected")
   doctorNotes       String?   @map("doctor_notes") @db.Text
