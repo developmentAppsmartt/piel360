@@ -14,7 +14,11 @@ import {
 } from "@/components/analyses/derma-correction-form";
 import { DermaDiagnosisActions } from "@/components/analyses/derma-diagnosis-actions";
 import { DiagnosisDetailDialog } from "@/components/analyses/diagnosis-detail-dialog";
-import { candidateKey, DiagnosisList } from "@/components/analyses/diagnosis-list";
+import {
+  candidateKey,
+  DiagnosisList,
+  RiskLegend,
+} from "@/components/analyses/diagnosis-list";
 import { ImageCarousel } from "@/components/analyses/image-carousel";
 import { NosologyPickerDialog } from "@/components/analyses/nosology-picker-dialog";
 import { ProfessionalOutcomeCard } from "@/components/analyses/professional-outcome-card";
@@ -190,13 +194,16 @@ export function DermaResultsSection({
 
       {topn.length > 0 ? (
         <div className="space-y-3">
-          <h3 className="text-sm font-semibold">
-            {!canConfirm
-              ? "Lee más sobre la enfermedad"
-              : analysis.isConfirmed
-                ? "Diagnósticos de apoyo de la IA"
-                : "Elija una opción de los diagnósticos de apoyo"}
-          </h3>
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+            <h3 className="text-base font-semibold">
+              {!canConfirm
+                ? "Lee más sobre la enfermedad"
+                : analysis.isConfirmed
+                  ? "Diagnósticos de apoyo de la IA"
+                  : "Elija una opción de los diagnósticos de apoyo"}
+            </h3>
+            <RiskLegend />
+          </div>
           <DiagnosisList
             items={topn}
             onSelect={handleCandidate}

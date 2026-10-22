@@ -15,6 +15,37 @@ function normalizedProb(prob: number) {
   return prob <= 1 ? prob * 100 : prob;
 }
 
+const RISK_LEGEND = [
+  { level: "low", label: "Riesgo Bajo" },
+  { level: "medium", label: "Riesgo Medio" },
+  { level: "high", label: "Riesgo Alto" },
+] as const;
+
+/** Qué significa el color del anillo de cada diagnóstico. Usa los mismos
+ * colores que la lista, para que la leyenda y las marcas no se separen. */
+export function RiskLegend() {
+  return (
+    <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+      {RISK_LEGEND.map(({ level, label }, index) => (
+        <li
+          key={level}
+          className={cn(
+            "flex items-center gap-2",
+            index > 0 && "border-l border-border pl-4",
+          )}
+        >
+          <span
+            aria-hidden
+            className="size-3 rounded-full"
+            style={{ background: RISK_COLORS[level] }}
+          />
+          {label}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** Identidad de un candidato: `class_raw` no cambia con el idioma del nombre. */
 export function candidateKey(item: AnalisisDermaPiel360DiagnosisCandidate) {
   return item.class_raw || item.class;
