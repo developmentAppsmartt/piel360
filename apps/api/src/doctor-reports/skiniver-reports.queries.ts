@@ -56,6 +56,11 @@ const CORRECTED = Prisma.sql`a.final_diagnosis_code IS NOT NULL`;
 const DIAGNOSIS = Prisma.sql`(CASE WHEN ${CORRECTED} THEN a.final_diagnosis ELSE a.ai_diagnosis END)`;
 export const CATEGORY = Prisma.sql`(CASE WHEN ${CORRECTED} THEN a.final_diagnosis_category ELSE a.ai_raw_response->>'desease' END)`;
 export const CLASS_RAW = Prisma.sql`COALESCE(a.final_diagnosis_code, a.ai_raw_response->>'class_raw')`;
+/** Mes de Colombia del análisis. `created_at` es UTC sin zona: con el mes
+ * UTC, un análisis del 31/10 a las 21:00 caía en noviembre, fuera de los meses
+ * del rango, y el gráfico lo descartaba. Colombia no tiene horario de verano. */
+const COLOMBIA_MONTH = Prisma.sql`date_trunc('month', a.created_at - interval '5 hours')`;
+
 /** El ICD solo existe para el diagnóstico principal de la IA: con otro
  * diagnóstico sería el código de una enfermedad distinta. */
 const ICD_CODE = Prisma.sql`(CASE WHEN ${CORRECTED} THEN NULL ELSE a.ai_raw_response->>'lesion_code' END)`;
@@ -113,7 +118,7 @@ export function analisisDermaPiel360MonthlyDiagnosesQuery(
 ): Prisma.Sql {
   return Prisma.sql`
     SELECT
-      to_char(date_trunc('month', a.created_at), 'YYYY-MM') AS period,
+      to_char(${COLOMBIA_MONTH}, 'YYYY-MM') AS period,
       ${DIAGNOSIS}                                          AS ai_diagnosis,
       ${CATEGORY}                                           AS category,
       ${CLASS_RAW}                                          AS class_raw,
@@ -144,7 +149,7 @@ export function analisisDermaPiel360AgeMonthlyQuery(
   return Prisma.sql`
     WITH scoped AS (
       SELECT
-        date_trunc('month', a.created_at) AS month,
+        ${COLOMBIA_MONTH} AS month,
         date_part('year', age(a.created_at, p.birth_date))::int AS age_years
       ${baseJoin(doctorIds, from, toExclusive)}
         AND p.birth_date IS NOT NULL

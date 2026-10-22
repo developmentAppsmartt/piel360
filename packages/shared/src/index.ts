@@ -20,6 +20,7 @@ export * from "./empresa-role.js";
 export * from "./professional-role.js";
 export * from "./youcam-report.js";
 export * from "./skin-report.js";
+export * from "./colombia-date.js";
 export * from "./skiniver-diagnosis-taxonomy.js";
 export * from "./skiniver-labels.js";
 export * from "./nosology-catalog.js";

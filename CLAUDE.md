@@ -104,6 +104,9 @@ repartido.
   pnpm turbo run lint
   ```
 
+  **Ojo: el `lint` del API lleva `--fix`** y reformatea con Prettier todo
+  `apps/api` (decenas de archivos). Tras correrlo, revisa `git status` y
+  deshaz lo que no sea tuyo antes de hacer commit.
   A producción no llega código roto. Que compile no es que funcione: el build
   es el mínimo, encima van las comprobaciones de «No alucines».
 - Al terminar, di qué quedó sin hacer y por qué, y qué hace falta para desplegar.
@@ -491,6 +494,16 @@ mano** con `select id, name from plans where name ~* 'skiniver|youcam|perfect'`.
   «Piel Sin Patología» cuenta como una clase más en todos los gráficos (lo pidió el cliente).
 - La lista de «Corregir resultado» es `packages/shared/src/nosology-catalog.ts`;
   el móvil tiene su espejo en `views/nosologies/data/nosologies.ts`.
+
+### Fechas de los reportes
+
+Los filtros «desde/hasta» son **días de Colombia**, no UTC:
+`apps/api/src/doctor-reports/report-range.ts` (`resolveReportRange`) y
+`colombiaDateKey`/`colombiaDayStart` de `packages/shared/src/colombia-date.ts`.
+Antes «del 10/10 al 10/10» iba del 9/10 a las 19:00 al 10/10 a las 19:00 de
+Bogotá. Las series mensuales del reporte dermatológico agrupan por mes de
+Colombia; la tendencia del reporte estético (`doctor-reports.queries.ts`)
+todavía agrupa por mes UTC.
 
 ### Front
 

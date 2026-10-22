@@ -13,7 +13,6 @@ const ARCHIVOS_LARGOS_HEREDADOS = [
   "src/auth/recaptcha.service.ts",
   "src/billing/billing.service.ts",
   "src/doctor-reports/doctor-reports.queries.ts",
-  "src/doctor-reports/doctor-reports.service.ts",
   "src/doctors/doctors.service.ts",
   "src/email-templates/email-templates.service.ts",
   "src/fitzpatrick-rules/fitzpatrick-rules.service.ts",

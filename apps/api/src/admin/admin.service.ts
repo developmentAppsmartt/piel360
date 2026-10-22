@@ -1,12 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { analisisDermaPiel360ClassLabel } from '@piel360/shared';
+import {
+  analisisDermaPiel360ClassLabel,
+  colombiaDateKey,
+  colombiaDayStart,
+} from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { AnalisisDermaPiel360ReportService } from '../doctor-reports/skiniver-report.service';
 import {
   CATEGORY,
   CLASS_RAW,
 } from '../doctor-reports/skiniver-reports.queries';
+import { DAY_MS, resolveReportRange } from '../doctor-reports/report-range';
 
 const AGE_BUCKET_LABELS = ['Menores', 'Adultos', 'Seniors'] as const;
 type AgeBucket = (typeof AGE_BUCKET_LABELS)[number];
@@ -16,7 +21,9 @@ const TOP_DIAGNOSIS_CLASSES = 8;
 /** Ventana por defecto del reporte dermatológico de admin cuando no se
  * mandan fechas — el mismo "últimos 6 meses" que muestra la UI. */
 const DEFAULT_SKINIVER_RANGE_DAYS = 180;
-const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Rango semiabierto en días de Colombia, como el de los reportes del doctor. */
+type CreatedAtRange = { gte?: Date; lt?: Date };
 
 type Granularity = 'day' | 'month' | 'year';
 
@@ -30,14 +37,15 @@ export class AdminService {
   /** Reporte dermatológico global: mismo armado que el del panel del doctor
    * (AnalisisDermaPiel360ReportService), con `doctorIds = null` para no filtrar. */
   async getAnalisisDermaPiel360Report(startDate?: string, endDate?: string) {
-    const to = endDate ? new Date(endDate) : new Date();
-    const from = startDate
-      ? new Date(startDate)
-      : new Date(to.getTime() - (DEFAULT_SKINIVER_RANGE_DAYS - 1) * DAY_MS);
-    const toExclusive = new Date(
-      Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate()) + DAY_MS,
+    const { from, to, toExclusive } = resolveReportRange(
+      { from: startDate, to: endDate },
+      DEFAULT_SKINIVER_RANGE_DAYS,
     );
-    return this.analisisDermaPiel360Report.build(null, { from, to, toExclusive });
+    return this.analisisDermaPiel360Report.build(null, {
+      from,
+      to,
+      toExclusive,
+    });
   }
 
   /** Port de SubscriptionStats.php + RiskChart.php (Filament, sistema viejo).
@@ -93,11 +101,18 @@ export class AdminService {
     return { subscriptionStatus, diagnosisByClass, diagnosisByAge, timeSeries };
   }
 
-  private buildDateRange(startDate?: string, endDate?: string) {
+  /** Antes era `lte: endDate` a las 00:00Z, que dejaba fuera casi todo el
+   * último día, y los cortes iban en UTC. */
+  private buildDateRange(
+    startDate?: string,
+    endDate?: string,
+  ): CreatedAtRange | undefined {
     if (!startDate && !endDate) return undefined;
     return {
-      ...(startDate ? { gte: new Date(startDate) } : {}),
-      ...(endDate ? { lte: new Date(endDate) } : {}),
+      ...(startDate ? { gte: colombiaDayStart(startDate) } : {}),
+      ...(endDate
+        ? { lt: new Date(colombiaDayStart(endDate).getTime() + DAY_MS) }
+        : {}),
     };
   }
 
@@ -123,9 +138,7 @@ export class AdminService {
   /** Agrupa por la clase del diagnóstico que cuenta (el del profesional o el
    * de la IA), igual que el reporte dermatológico. Antes, sin `desease` caía
    * al `aiDiagnosis` crudo, que es una enfermedad: mezclaba los dos niveles. */
-  private async getDiagnosisByClass(
-    createdAt: { gte?: Date; lte?: Date } | undefined,
-  ) {
+  private async getDiagnosisByClass(createdAt: CreatedAtRange | undefined) {
     const rows = await this.prisma.$queryRaw<
       { category: string | null; class_raw: string | null; count: number }[]
     >(Prisma.sql`
@@ -160,9 +173,7 @@ export class AdminService {
   /** Agrega en SQL y calcula la edad **a la fecha del análisis**, no a hoy:
    * antes se descargaba un registro por análisis y un paciente que cumplía
    * años cambiaba retroactivamente de bucket en reportes ya publicados. */
-  private async getDiagnosisByAge(
-    createdAt: { gte?: Date; lte?: Date } | undefined,
-  ) {
+  private async getDiagnosisByAge(createdAt: CreatedAtRange | undefined) {
     const rows = await this.prisma.$queryRaw<
       { bucket: AgeBucket; count: number }[]
     >(Prisma.sql`
@@ -192,18 +203,16 @@ export class AdminService {
   }
 
   /** Filtro de fecha reutilizable para las queries raw de reportes. */
-  private createdAtFilter(
-    createdAt: { gte?: Date; lte?: Date } | undefined,
-  ): Prisma.Sql {
+  private createdAtFilter(createdAt: CreatedAtRange | undefined): Prisma.Sql {
     if (!createdAt) return Prisma.empty;
     return Prisma.sql`
       ${createdAt.gte ? Prisma.sql`AND a.created_at >= ${createdAt.gte}` : Prisma.empty}
-      ${createdAt.lte ? Prisma.sql`AND a.created_at <= ${createdAt.lte}` : Prisma.empty}
+      ${createdAt.lt ? Prisma.sql`AND a.created_at < ${createdAt.lt}` : Prisma.empty}
     `;
   }
 
   private async getTimeSeries(
-    createdAt: { gte?: Date; lte?: Date } | undefined,
+    createdAt: CreatedAtRange | undefined,
     granularity: Granularity,
   ) {
     const analyses = await this.prisma.analysis.findMany({
@@ -222,13 +231,12 @@ export class AdminService {
       .sort((a, b) => a.period.localeCompare(b.period));
   }
 
+  /** Periodo del día de Colombia en que se hizo el análisis. */
   private periodKey(date: Date, granularity: Granularity): string {
-    const year = date.getUTCFullYear();
-    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(date.getUTCDate()).padStart(2, '0');
-    if (granularity === 'day') return `${year}-${month}-${day}`;
-    if (granularity === 'year') return `${year}`;
-    return `${year}-${month}`;
+    const day = colombiaDateKey(date);
+    if (granularity === 'day') return day;
+    if (granularity === 'year') return day.slice(0, 4);
+    return day.slice(0, 7);
   }
 
   /** Marcadores para el mapa de registros (doctores y pacientes con coords). */

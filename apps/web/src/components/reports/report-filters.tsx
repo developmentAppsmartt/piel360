@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { CalendarDays, Download } from "lucide-react";
+import { colombiaDateKey } from "@piel360/shared";
 import { Button } from "@/components/ui/button";
 import { PatientsProfessionalFilter } from "@/components/patients/patients-table";
 import type { OrgTeamMember } from "@/lib/queries/organizations";
@@ -15,14 +16,11 @@ const PRESETS = [
   { key: "12m", label: "12 meses", days: 365 },
 ] as const;
 
-function isoDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
+/** En días de Colombia: con la fecha UTC, desde las 19:00 «hoy» ya era mañana. */
 export function rangeForDays(days: number): { from: string; to: string } {
   const to = new Date();
   const from = new Date(to.getTime() - (days - 1) * 24 * 60 * 60 * 1000);
-  return { from: isoDate(from), to: isoDate(to) };
+  return { from: colombiaDateKey(from), to: colombiaDateKey(to) };
 }
 
 function displayDate(value?: string): string {

@@ -107,7 +107,7 @@ export function AnalisisDermaPiel360ReportView({
             profesional.
           </ModuleCardDescription>
           <div className="mt-4">
-            <AnalisisDermaPiel360ClinicoWidget />
+            <AnalisisDermaPiel360ClinicoWidget range={report.range} />
           </div>
         </ModuleCard>
       ) : null}

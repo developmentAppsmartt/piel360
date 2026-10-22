@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import { colombiaDateKey, colombiaDayStart } from '@piel360/shared';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -26,10 +27,8 @@ const ESTADOS: [string, string, string][] = [
  * «mañana». Colombia no tiene horario de verano, así que el desfase es fijo.
  */
 export function hoyEnColombia(ahora = new Date()) {
-  const fecha = new Intl.DateTimeFormat('en-CA', { timeZone: ZONA }).format(
-    ahora,
-  );
-  const desde = new Date(`${fecha}T00:00:00-05:00`);
+  const fecha = colombiaDateKey(ahora);
+  const desde = colombiaDayStart(fecha);
   const hasta = new Date(desde.getTime() + 24 * 60 * 60 * 1000);
   return { fecha, desde, hasta };
 }

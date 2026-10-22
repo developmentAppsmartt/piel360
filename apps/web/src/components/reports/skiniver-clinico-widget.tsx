@@ -6,6 +6,7 @@ import {
   analisisDermaPiel360CategoryLabel,
   analisisDermaPiel360DiagnosisLabel,
   analisisDermaPiel360RiskLabel,
+  colombiaDateKey,
   type AnalisisDermaPiel360DiagnosisCandidate,
   type AnalisisDermaPiel360Prediction,
 } from "@piel360/shared";
@@ -31,7 +32,13 @@ type ClinicoTab = "imagenes" | "resultados";
  * separado, así que acá se arman con las mismas piezas, no se duplica su
  * lógica de estado.
  */
-export function AnalisisDermaPiel360ClinicoWidget() {
+export function AnalisisDermaPiel360ClinicoWidget({
+  range,
+}: {
+  /** El periodo del reporte (`YYYY-MM-DD`, días de Colombia): la lista
+   * muestra los mismos análisis que cuentan los gráficos. */
+  range: { from: string; to: string };
+}) {
   const analyses = useAnalyses();
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -44,9 +51,15 @@ export function AnalisisDermaPiel360ClinicoWidget() {
     // texto para el usuario y en producción quedó con el valor anterior al
     // seed, así que compararla dejaba la lista siempre vacía. Es el mismo
     // criterio que el SQL del reporte (analisisdermapiel360-reports.queries.ts).
-    const rows = (analyses.data ?? []).filter(
-      (a) => a.isValid && isDermatologicalAnalysis(a),
-    );
+    const rows = (analyses.data ?? []).filter((a) => {
+      const day = colombiaDateKey(new Date(a.createdAt));
+      return (
+        a.isValid &&
+        isDermatologicalAnalysis(a) &&
+        day >= range.from &&
+        day <= range.to
+      );
+    });
     const q = search.trim().toLowerCase();
     const filtered = q
       ? rows.filter((a) =>
@@ -54,7 +67,7 @@ export function AnalisisDermaPiel360ClinicoWidget() {
         )
       : rows;
     return filtered.slice(0, 20);
-  }, [analyses.data, search]);
+  }, [analyses.data, search, range.from, range.to]);
 
   const selected = useAnalysis(selectedId ?? "", { enabled: !!selectedId });
 
@@ -83,7 +96,8 @@ export function AnalisisDermaPiel360ClinicoWidget() {
           <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto rounded-md border border-border/80 p-1">
             {analisisDermaPiel360Analyses.length === 0 && (
               <li className="px-2 py-1.5 text-sm text-muted-foreground">
-                Sin análisis dermatológicos {search ? "que coincidan" : "aún"}.
+                Sin análisis dermatológicos{" "}
+                {search ? "que coincidan" : "en el periodo"}.
               </li>
             )}
             {analisisDermaPiel360Analyses.map((a) => (
@@ -100,7 +114,9 @@ export function AnalisisDermaPiel360ClinicoWidget() {
                     {a.patient.firstName} {a.patient.lastName}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {new Date(a.createdAt).toLocaleDateString("es-CO")}
+                    {new Date(a.createdAt).toLocaleDateString("es-CO", {
+                      timeZone: "America/Bogota",
+                    })}
                     {a.aiDiagnosis
                       ? ` · ${analisisDermaPiel360DiagnosisLabel(a.aiDiagnosis)}`
                       : ""}
