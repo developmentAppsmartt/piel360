@@ -390,6 +390,25 @@ Antes de este trabajo daba 886 ocurrencias en 51 chunks; tiene que dar 0. El
 grep estático no ve lo que el API responde en caliente: para eso hay un guion
 de puppeteer que recorre el panel apuntando cada URL y cada cuerpo de respuesta.
 
+**El atlas trae el `<head>` del proveedor**: los artículos se guardan
+scrapeados, y el HTML incluía su JSON-LD y sus `<meta>` —con su marca y sus
+redes— además de meter el `<script>` de un tercero en nuestra página. El
+scraper ya los quita (`REMOVE_SELECTORS` en `encyclopedia.service.ts`), pero
+**eso solo afecta a lo que se baje a partir de ahora**: las filas que ya están
+guardadas siguen igual hasta que se vuelvan a scrapear. Para limpiarlas se
+fuerza el sync, que es idempotente y no toca SQL:
+
+```bash
+curl -X POST https://<api>/api/encyclopedia/sync -H "Authorization: Bearer <token>"
+```
+
+Requiere el permiso `update_encyclopedia_entry`. Si no, se limpian solas en el
+`@Cron` mensual. **No se arregla con una migración**: reescribir el HTML a
+golpe de `regexp_replace` se llevó por delante el cuerpo de los 46 artículos en
+local —en Postgres, si el primer cuantificador de la expresión es greedy, toda
+la expresión lo es, así que `<script[^>]*>.*?</script>` borra desde el primer
+`<script>` hasta el último—.
+
 **Nombres en los datos**: `plans.name` no se enmascara —lo escribe el negocio—
 así que un plan llamado «Skiniver Básico» se pinta tal cual. Los seeds ya usan
 «Dermatológico Básico» / «Estético Básico»; **en producción hay que revisarlo a
