@@ -111,7 +111,7 @@ export const REPORTABLE_SKIN_CATEGORIES: readonly ReportableSkinCategory[] = [
   { key: "hd_acne", type: "hd_acne", region: null, label: "Acné" },
   { key: "hd_pore", type: "hd_pore", region: null, label: "Poros" },
   { key: "hd_texture", type: "hd_texture", region: null, label: "Textura" },
-  { key: "hd_redness", type: "hd_redness", region: null, label: "Enrojecimiento" },
+  { key: "hd_redness", type: "hd_redness", region: null, label: "Eritema" },
   { key: "hd_age_spot", type: "hd_age_spot", region: null, label: "Pigmentación" },
   { key: "hd_radiance", type: "hd_radiance", region: null, label: "Luminosidad" },
   { key: "hd_dark_circle", type: "hd_dark_circle", region: null, label: "Ojeras" },

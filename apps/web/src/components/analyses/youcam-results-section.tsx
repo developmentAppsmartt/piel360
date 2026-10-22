@@ -62,7 +62,7 @@ function clampImagePan(
 }
 
 // Capas superpuestas en el chip "Salud de la piel" (overview) — ojeras,
-// firmeza, enrojecimiento, bolsas, surco, poros/manchas/arrugas general.
+// firmeza, eritema, bolsas, surco, poros/manchas/arrugas general.
 const OVERVIEW_LAYER_TYPES = [
   "hd_dark_circle",
   "hd_firmness",

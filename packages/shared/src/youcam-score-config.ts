@@ -121,7 +121,7 @@ export const ANALISIS_PIEL360_DEFAULT_ADVICE: Record<string, Record<AnalisisPiel
       "Prioriza productos calmantes (centella, ceramidas) y evita alcohol/fragancias. Usa SPF mineral si hay sensibilidad.",
     promedio:
       "Calma la piel con hidratantes barrera y reduce exfoliantes fuertes unos días.",
-    buena: "Poco enrojecimiento. Sigue con productos suaves y protección solar.",
+    buena: "Poco eritema. Sigue con productos suaves y protección solar.",
   },
   hd_eye_bag: {
     regular:

@@ -25,7 +25,7 @@ const EXAMPLES = [
       'Si el puntaje de "Poros" sale más de 60 (poco visibles/saludables), esta otra rutina se recomienda — puedes usar la misma métrica con condiciones distintas en rutinas distintas.',
   },
   {
-    condition: "Manchas de edad es menor que 50 — o — Enrojecimiento es menor que 50",
+    condition: "Manchas de edad es menor que 50 — o — Eritema es menor que 50",
     meaning:
       "Si una rutina tiene varias condiciones, basta con que se cumpla una sola para que se recomiende — no hace falta que se cumplan todas.",
   },

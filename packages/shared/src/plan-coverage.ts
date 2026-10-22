@@ -138,7 +138,7 @@ export const PLAN_DERM_DISEASE_COVERAGE_CATALOG: PlanCoverageCatalogEntry[] = [
   { key: "acne", label: "Acné", defaultDescription: "lesiones comedonianas e inflamatorias." },
   { key: "dermatitis", label: "Dermatitis", defaultDescription: "inflamación y irritación cutánea." },
   { key: "melasma", label: "Melasma", defaultDescription: "hiperpigmentación facial." },
-  { key: "rosacea", label: "Rosácea", defaultDescription: "enrojecimiento y sensibilidad facial." },
+  { key: "rosacea", label: "Rosácea", defaultDescription: "eritema y sensibilidad facial." },
   { key: "psoriasis", label: "Psoriasis", defaultDescription: "placas y descamación." },
   { key: "eccema", label: "Eccema", defaultDescription: "piel seca, pruriginosa e inflamada." },
   { key: "tinia", label: "Tiña", defaultDescription: "micosis cutáneas." },
