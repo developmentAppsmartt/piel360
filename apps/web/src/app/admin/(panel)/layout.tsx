@@ -38,7 +38,6 @@ export default async function AdminPanelLayout({
     <PanelShell
       nav={unifiedNav}
       user={navFeatures}
-      notificationCount={isMonitor ? 0 : 12}
       sidebarUser={{
         name: session.email,
         subtitle: isMonitor ? "Verificación de doctores" : session.email,

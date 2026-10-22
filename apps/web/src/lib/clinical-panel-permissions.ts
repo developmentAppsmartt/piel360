@@ -23,6 +23,8 @@ export function clinicalRouteAllowed(
   if (
     pathname === "/doctor" ||
     pathname === "/doctor/home" ||
+    // Las notificaciones son de cada usuario: no dependen de ningún permiso.
+    pathname === "/doctor/notificaciones" ||
     pathname.startsWith("/doctor/soporte")
   ) {
     return true;

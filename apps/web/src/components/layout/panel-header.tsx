@@ -1,9 +1,10 @@
 "use client";
 
-import { Bell, Crown, Menu } from "lucide-react";
+import { Crown, Menu } from "lucide-react";
 import type { Role } from "@piel360/shared";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useUserRoleDisplay } from "@/lib/hooks/use-user-role-display";
 import { Logo } from "./logo";
 
@@ -14,7 +15,7 @@ function initialsFromEmail(email: string) {
 export function PanelHeader({
   email,
   role,
-  notificationCount = 0,
+  notificationsHref = null,
   showLogout = true,
   onMenuClick,
   empresa,
@@ -23,7 +24,8 @@ export function PanelHeader({
 }: {
   email: string;
   role: Role;
-  notificationCount?: number;
+  /** Página con todas las notificaciones; `null` = el panel no la tiene. */
+  notificationsHref?: string | null;
   showLogout?: boolean;
   onMenuClick?: () => void;
   empresa?: boolean;
@@ -55,18 +57,7 @@ export function PanelHeader({
       </div>
 
       <div className="ml-auto flex items-center gap-3">
-        <button
-          type="button"
-          aria-label="Notificaciones"
-          className="relative flex size-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          <Bell className="size-4" />
-          {notificationCount > 0 ? (
-            <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white">
-              {notificationCount > 99 ? "99+" : notificationCount}
-            </span>
-          ) : null}
-        </button>
+        <NotificationBell allHref={notificationsHref} />
 
         <div className="flex items-center gap-2 rounded-full border border-border bg-background py-1 pr-3 pl-1">
           <Avatar className="size-8 bg-primary text-primary-foreground">
