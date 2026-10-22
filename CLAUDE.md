@@ -10,6 +10,15 @@ variables y los commits también van en español, siguiendo lo que ya hay.
 ## Cómo trabajar en este repo
 
 Estas reglas van primero porque aplican a cada cambio, no solo a los grandes.
+**No son sugerencias: un cambio que las incumpla se devuelve.**
+
+Si te sirven las siglas: lo de abajo es **KISS**, **DRY** y **SOLID** escritos
+en concreto y con los casos reales de este proyecto. Están desarrollados ahí,
+no repetidos aquí — la **S** de SOLID es «Responsabilidad única», **DRY** vive
+en «Nada de boilerplate» y **KISS** en «Nada de sobreingeniería». De las otras
+cuatro de SOLID, las que de verdad se aplican seguido son la **O** (extender
+sin tener que reescribir lo que ya funciona) y la **D** (depender de una
+función o un tipo, no de un detalle interno de otro módulo).
 
 ### No alucines: pregunta
 
@@ -46,6 +55,33 @@ necesitas un "y", probablemente son dos.
 - Un componente que calcula, filtra y además pinta, se parte.
 - Un servicio del API que orquesta y además formatea, se parte.
 
+**Ningún archivo pasa de 400 líneas**, y lo verifica ESLint (`max-lines`, en
+`packages/config/eslint.max-lines.mjs`). No es una regla de formato: un archivo
+que crece así casi siempre está haciendo más de una cosa.
+
+Cuando salte, **parte por responsabilidad**. No aprietes el código ni metas el
+archivo en `ARCHIVOS_LARGOS_HEREDADOS` de `eslint.config.mjs`: esa lista son
+los archivos que ya estaban largos el día que entró la regla —deuda reconocida,
+no permiso— y **solo puede encoger**. Si tocas uno de ellos, pártelo y bórralo
+de la lista. Nunca se añade un archivo nuevo.
+
+### Nada de espagueti
+
+Lo contrario de sobreingeniería no es desorden. Está prohibido:
+
+- Funciones que se llaman en cadena por media app sin que se vea quién manda.
+- Estado compartido que cualquiera muta desde cualquier sitio.
+- Condicionales anidados de tres o más niveles: saca una función con nombre, o
+  invierte la condición y sal temprano.
+- Un `useEffect` que arregla lo que debería haberse calculado bien de entrada
+  (en este repo `react-hooks/set-state-in-effect` es **error**: deriva con
+  `useMemo`).
+- Copiar un bloque "y le cambio dos cosas". Eso es el origen de los bugs que
+  solo se arreglan en una de las dos copias.
+
+Si para entender un cambio hay que saltar por cinco archivos, está mal
+repartido.
+
 ### Nada de sobreingeniería
 
 - Resuelve **lo que se pidió**, en el alcance que se pidió. Ni más ni menos.
@@ -61,6 +97,15 @@ necesitas un "y", probablemente son dos.
   pantalla gemela (crear/editar, web/mobile), **díselo y propón**; no lo amplíes
   en silencio ni lo ignores.
 - Los commits los crea el asistente; **el `push` lo hace siempre el usuario**.
+- **Antes de dar por terminado un cambio hay que compilarlo.** Sin excepción:
+
+  ```bash
+  pnpm turbo run build
+  pnpm turbo run lint
+  ```
+
+  A producción no llega código roto. Que compile no es que funcione: el build
+  es el mínimo, encima van las comprobaciones de «No alucines».
 - Al terminar, di qué quedó sin hacer y por qué, y qué hace falta para desplegar.
 
 ---

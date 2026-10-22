@@ -4,7 +4,8 @@
   "private": true,
   "files": [
     "tsconfig.base.json",
-    "eslint.config.base.mjs"
+    "eslint.config.base.mjs",
+    "eslint.max-lines.mjs"
   ],
   "devDependencies": {
     "@eslint/js": "^9.19.0",
