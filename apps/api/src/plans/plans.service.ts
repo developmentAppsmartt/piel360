@@ -8,6 +8,7 @@ import {
   parsePlanCoverage,
   planCustomerPrice,
   toPublicPlanProviders,
+  toPublicProviderKeys,
   toPublicProviderSlug,
 } from '@piel360/shared';
 import type { JwtPayload } from '../auth/types';
@@ -175,7 +176,7 @@ export class PlansService {
     }));
   }
 
-  create(dto: CreatePlanDto) {
+  async create(dto: CreatePlanDto) {
     const planType = dto.planType ?? 'business';
     const isIndividual = planType === 'individual';
     const providerIds = resolvePlanProviderIdsFromDto(dto);
@@ -187,7 +188,7 @@ export class PlansService {
       throw new BadRequestException('El plan individual solo puede incluir un análisis');
     }
 
-    return this.prisma.plan.create({
+    const creado = await this.prisma.plan.create({
       data: {
         name: dto.name,
         planType,
@@ -211,6 +212,9 @@ export class PlansService {
       },
       include: { provider: true },
     });
+    // La fila vuelve al panel igual que el listado, asi que sale enmascarada:
+    // `provider.slug`/`name`, `analysisLimits` y `apiCosts`.
+    return toPublicPlanProviders(creado);
   }
 
   async update(id: string, dto: UpdatePlanDto) {
@@ -232,7 +236,7 @@ export class PlansService {
       throw new BadRequestException('El plan individual solo puede incluir un análisis');
     }
 
-    return this.prisma.plan.update({
+    const actualizado = await this.prisma.plan.update({
       where: { id: BigInt(id) },
       data: {
         name: dto.name,
@@ -266,9 +270,21 @@ export class PlansService {
       },
       include: { provider: true },
     });
+    return toPublicPlanProviders(actualizado);
   }
 
-  remove(id: string) {
-    return this.prisma.plan.delete({ where: { id: BigInt(id) } });
+  /** Devuelve la fila borrada, asi que sus claves tambien salen publicas.
+   * No lleva relacion `provider`, por eso no pasa por `toPublicPlanProviders`. */
+  async remove(id: string) {
+    const borrado = await this.prisma.plan.delete({ where: { id: BigInt(id) } });
+    return {
+      ...borrado,
+      analysisLimits: toPublicProviderKeys(
+        borrado.analysisLimits as Record<string, unknown> | null,
+      ),
+      apiCosts: toPublicProviderKeys(
+        borrado.apiCosts as Record<string, unknown> | null,
+      ),
+    };
   }
 }
