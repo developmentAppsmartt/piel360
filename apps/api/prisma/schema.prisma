@@ -436,7 +436,7 @@ model AnalysisRequest {
 
 model Analysis {
   id              BigInt    @id @default(autoincrement())
-  youcamTaskId      String? @map("youcam_task_id")
+  analisisPiel360TaskId String? @map("youcam_task_id")
   fitzpatrickTaskId String? @map("fitzpatrick_task_id")
   patientId       BigInt    @map("patient_id")
   userId          BigInt?   @map("user_id")
@@ -484,11 +484,11 @@ model Analysis {
   results     AnalysisResult[]
   usage       SubscriptionUsage?
 
-  @@index([youcamTaskId])
+  @@index([analisisPiel360TaskId])
   @@index([fitzpatrickTaskId])
   @@index([patientId], map: "idx_analyses_patient_id")
   @@index([userId], map: "idx_analyses_user_id")
-  @@index([youcamTaskId], map: "idx_analyses_youcam_task_id")
+  @@index([analisisPiel360TaskId], map: "idx_analyses_youcam_task_id")
   @@index([sharedWithPatient], map: "idx_analyses_shared_with_patient")
   /** Reportes agregados por doctor + rango de fechas (doctor-reports). */
   @@index([patientId, createdAt], map: "idx_analyses_patient_id_created_at")

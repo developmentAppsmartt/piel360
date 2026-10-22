@@ -180,7 +180,7 @@ export class YoucamAnalysesService {
         patientId: BigInt(dto.patientId),
         userId,
         providerId: youcamProviderId,
-        youcamTaskId: taskId,
+        analisisPiel360TaskId: taskId,
         imagePath: 'youcam',
         bodyRegion: dto.bodyRegion,
         xCoord: dto.xCoord,

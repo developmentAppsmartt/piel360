@@ -112,7 +112,7 @@ async function main() {
       ? args.map((arg) => BigInt(arg))
       : (
           await prisma.analysis.findMany({
-            where: { youcamTaskId: { not: null }, isValid: true },
+            where: { analisisPiel360TaskId: { not: null }, isValid: true },
             select: { id: true },
             orderBy: { id: 'asc' },
           })

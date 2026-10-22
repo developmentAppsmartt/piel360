@@ -34,7 +34,7 @@ export class DoctorReportsController {
   }
 
   /** Reporte de análisis dermatológicos (Skiniver). */
-  @Get('skiniver')
+  @Get('analisisdermapiel360')
   skiniver(
     @CurrentUser() user: JwtPayload,
     @Query() query: SkiniverReportQueryDto,

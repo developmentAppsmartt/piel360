@@ -50,7 +50,7 @@ export interface Patient {
 
 export interface Analysis {
   id: string;
-  youcamTaskId: string | null;
+  analisisPiel360TaskId: string | null;
   fitzpatrickTaskId?: string | null;
   bodyRegion: string | null;
   imagePath: string | null;

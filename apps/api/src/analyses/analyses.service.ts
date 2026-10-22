@@ -288,7 +288,7 @@ export class AnalysesService {
   async findAll(currentUser: JwtPayload) {
     // `provider.displayLabel` — filas creadas antes de este campo (o sin
     // providerId poblado) no traen relación; el frontend cae al heurístico
-    // por youcamTaskId como respaldo.
+    // por analisisPiel360TaskId como respaldo.
     const providerSelect = { select: { displayLabel: true } };
 
     if (currentUser.role === 'superadmin') {
@@ -388,7 +388,7 @@ export class AnalysesService {
    * posteriores. Solo aplica a análisis YouCam (el PDF asume esas métricas). */
   async getReportUrl(id: string, currentUser: JwtPayload) {
     const analysis = await this.findOne(id, currentUser);
-    if (!analysis.youcamTaskId) {
+    if (!analysis.analisisPiel360TaskId) {
       throw new BadRequestException(
         'El reporte en PDF solo está disponible para análisis YouCam.',
       );
@@ -528,7 +528,7 @@ export class AnalysesService {
               quantity: true,
               analysis: {
                 select: {
-                  youcamTaskId: true,
+                  analisisPiel360TaskId: true,
                   fitzpatrickTaskId: true,
                   provider: { select: { slug: true } },
                 },
@@ -601,7 +601,7 @@ export class AnalysesService {
         analysis: {
           select: {
             patientId: true,
-            youcamTaskId: true,
+            analisisPiel360TaskId: true,
             fitzpatrickTaskId: true,
             provider: { select: { slug: true } },
             user: { select: { id: true, name: true } },
@@ -795,7 +795,7 @@ export class AnalysesService {
     T extends {
       id: bigint;
       patientId: bigint;
-      youcamTaskId: string | null;
+      analisisPiel360TaskId: string | null;
       isValid: boolean;
       aiRawResponse: Prisma.JsonValue | null;
       createdAt: Date;
@@ -808,7 +808,7 @@ export class AnalysesService {
       };
     },
   >(analysis: T): Promise<T> {
-    if (!analysis.youcamTaskId || !analysis.isValid) return analysis;
+    if (!analysis.analisisPiel360TaskId || !analysis.isValid) return analysis;
     if (
       analysis.skinAgeYears != null &&
       analysis.chronologicalAgeYears != null &&
@@ -897,11 +897,11 @@ function emptyPool() {
 }
 
 function isAestheticAnalysis(row: {
-  youcamTaskId?: string | null;
+  analisisPiel360TaskId?: string | null;
   fitzpatrickTaskId?: string | null;
   provider?: { slug: string } | null;
 }): boolean {
-  if (row.youcamTaskId || row.fitzpatrickTaskId) return true;
+  if (row.analisisPiel360TaskId || row.fitzpatrickTaskId) return true;
   const slug = row.provider?.slug;
   return slug != null && AESTHETIC_PROVIDER_SLUGS.has(slug);
 }

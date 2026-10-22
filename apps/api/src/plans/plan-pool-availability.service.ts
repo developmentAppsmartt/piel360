@@ -6,6 +6,11 @@ import {
   type PoolProvider,
 } from '../subscriptions/subscription-pool.service';
 import { YouCamService } from '../youcam/youcam.service';
+import {
+  POOL_PUBLIC_ALIASES,
+  toPublicPoolSlug,
+  toPublicProviderSlug,
+} from '@piel360/shared';
 
 export type PlanPoolStatus = {
   poolProvider: PoolProvider;
@@ -107,14 +112,14 @@ export class PlanPoolAvailabilityService {
         id: plan.id.toString(),
         name: plan.name,
         analysisLimit: plan.analysisLimit,
-        poolProvider: plan.poolProvider,
+        poolProvider: toPublicPoolSlug(plan.poolProvider),
         poolAvailable: plan.poolAvailable,
         poolRequired: plan.poolRequired,
         poolUnavailableReason: plan.poolUnavailableReason,
         provider: {
           id: plan.provider.id.toString(),
-          name: plan.provider.name,
-          slug: plan.provider.slug,
+          name: plan.provider.displayLabel?.trim() || plan.provider.name,
+          slug: toPublicProviderSlug(plan.provider.slug),
         },
       }));
 
@@ -122,7 +127,12 @@ export class PlanPoolAvailabilityService {
 
     return {
       fetchedAt: new Date().toISOString(),
-      balances,
+      // La alerta se pinta en el panel, asi que las bolsas salen con su slug
+      // publico; por dentro siguen siendo `skiniver` y `perfectcorp`.
+      balances: {
+        [POOL_PUBLIC_ALIASES.skiniver]: balances.skiniver,
+        [POOL_PUBLIC_ALIASES.perfectcorp]: balances.perfectcorp,
+      },
       hasAlerts: unavailablePlans.length > 0,
       unavailablePlans,
     };

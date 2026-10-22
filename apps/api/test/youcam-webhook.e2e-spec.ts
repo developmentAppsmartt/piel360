@@ -96,7 +96,7 @@ describe('YouCam webhook (e2e)', () => {
       data: {
         patientId: BigInt(patientId),
         userId: BigInt(doctorUserId),
-        youcamTaskId: taskId,
+        analisisPiel360TaskId: taskId,
         imagePath: 'youcam',
         isValid: false,
       },

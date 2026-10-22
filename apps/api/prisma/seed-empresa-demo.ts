@@ -346,7 +346,7 @@ async function main() {
       patientId: marta.id,
       userId: ana.userId,
       providerId: youcam?.id,
-      youcamTaskId: 'demo-youcam-task-1',
+      analisisPiel360TaskId: 'demo-youcam-task-1',
       imagePath: 'demo/empresa/estetico-1.jpg',
       bodyRegion: 'rostro',
       isValid: true,

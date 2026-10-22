@@ -18,7 +18,7 @@ interface UploadedImage {
   buffer: Buffer;
 }
 
-@Controller('youcam')
+@Controller('analisispiel360')
 @UseGuards(JwtAuthGuard)
 export class YoucamController {
   constructor(private readonly youcamAnalyses: YoucamAnalysesService) {}

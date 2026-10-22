@@ -13,7 +13,7 @@ const DEFAULT_PROVIDER_SLUG = 'youcam';
 
 interface AnalysisPayload {
   id?: string | number;
-  youcamTaskId?: string | null;
+  analisisPiel360TaskId?: string | null;
   patientId?: string | number | null;
   userId?: string | number | null;
   imagePath?: string | null;
@@ -172,7 +172,7 @@ async function importOne(payload: AnalysisPayload, providerId: bigint | null) {
       const explicitId = keepIds ? toBigIntOrNull(payload.id) : null;
 
       const data = {
-        youcamTaskId: payload.youcamTaskId ?? null,
+        analisisPiel360TaskId: payload.analisisPiel360TaskId ?? null,
         patientId,
         userId,
         providerId,

@@ -765,7 +765,7 @@ export class SkinAgeRulesService {
         chronologicalAgeYears: true,
         skinAgeDifference: true,
         aiRawResponse: true,
-        youcamTaskId: true,
+        analisisPiel360TaskId: true,
       },
     });
 

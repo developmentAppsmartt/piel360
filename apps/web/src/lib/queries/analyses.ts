@@ -20,14 +20,14 @@ export interface YouCamAnalysisError {
 // Shape completo de GET/POST /analyses (`id` es string por el polyfill de
 // BigInt del backend). imageUrl/coloredUrl/maskedUrl/masks son URLs firmadas
 // agregadas por AnalysesService.withImageUrls — no existen como columnas.
-// aiRawResponse es AnalisisDermaPiel360Prediction si youcamTaskId/fitzpatrickTaskId son
-// null, AnalisisPiel360Results/YouCamAnalysisError si hay youcamTaskId, o
+// aiRawResponse es AnalisisDermaPiel360Prediction si analisisPiel360TaskId/fitzpatrickTaskId son
+// null, AnalisisPiel360Results/YouCamAnalysisError si hay analisisPiel360TaskId, o
 // FitzpatrickResult si hay fitzpatrickTaskId (distinguir por esos campos
 // antes de leer, y por la propiedad `error` para el caso de fallo YouCam).
 export interface AnalysisDetail {
   id: string;
   patientId: string;
-  youcamTaskId: string | null;
+  analisisPiel360TaskId: string | null;
   fitzpatrickTaskId: string | null;
   bodyRegion: string | null;
   xCoord: number | null;
@@ -97,7 +97,7 @@ export interface ConfirmAnalysisInput {
 export interface AnalysisListItem {
   id: string;
   patientId: string;
-  youcamTaskId: string | null;
+  analisisPiel360TaskId: string | null;
   fitzpatrickTaskId: string | null;
   bodyRegion: string | null;
   isValid: boolean;
@@ -142,7 +142,7 @@ export function useAnalysis(id: string, options?: { enabled?: boolean }) {
       if (!data) return false;
       const attempts = query.state.dataUpdateCount;
 
-      if (data.youcamTaskId) {
+      if (data.analisisPiel360TaskId) {
         // Si ya se marcó como fallo permanente (YoucamResultsService#applyError),
         // isValid se queda en false para siempre — sin esto el polling seguiría
         // los 200s completos mostrando "procesando" sobre algo que ya falló.

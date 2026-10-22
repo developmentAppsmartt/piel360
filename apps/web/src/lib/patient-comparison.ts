@@ -41,17 +41,17 @@ export function emptyComparisonNotes(): ComparisonNotes {
 /** Lo mínimo para saber de qué tipo es un análisis, para que los predicados
  * sirvan tanto con `Analysis` como con el `AnalysisListItem` de `GET /analyses`. */
 type AnalysisKindRow = {
-  youcamTaskId: string | null;
+  analisisPiel360TaskId: string | null;
   fitzpatrickTaskId?: string | null;
   isValid?: boolean;
 };
 
 export function isAestheticAnalysis(a: AnalysisKindRow): boolean {
-  return !!a.youcamTaskId && a.isValid !== false;
+  return !!a.analisisPiel360TaskId && a.isValid !== false;
 }
 
 export function isDermatologicalAnalysis(a: AnalysisKindRow): boolean {
-  return !a.youcamTaskId && !a.fitzpatrickTaskId;
+  return !a.analisisPiel360TaskId && !a.fitzpatrickTaskId;
 }
 
 export function formatAnalysisDate(iso: string): string {
@@ -172,7 +172,7 @@ export function analysisPhotoUrl(
 ): string | null {
   if (!detail) return null;
   if (detail.hasOriginalPhoto && detail.imageUrl) return detail.imageUrl;
-  if (detail.youcamTaskId) return null;
+  if (detail.analisisPiel360TaskId) return null;
   return detail.coloredUrl ?? detail.imageUrl ?? detail.maskedUrl ?? null;
 }
 

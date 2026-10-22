@@ -7,6 +7,7 @@ import {
   type PerfectCorpCreditHistoryItem,
   type PerfectCorpFeatureSku,
 } from '../youcam/youcam.service';
+import { POOL_PUBLIC_ALIASES } from '@piel360/shared';
 
 const EXPIRING_SOON_MS = 30 * 24 * 60 * 60 * 1000;
 const PERFECTCORP_PROVIDER = 'perfectcorp';
@@ -90,7 +91,7 @@ export class PerfectCorpUnitsService {
     }));
 
     return {
-      source: 'perfectcorp' as const,
+      source: POOL_PUBLIC_ALIASES.perfectcorp,
       fetchedAt: new Date().toISOString(),
       pool: {
         id: 'aesthetic' as const,
@@ -172,9 +173,8 @@ function summarizeFeatureCosts(skus: PerfectCorpFeatureSku[]) {
     })),
     /** Costo estimado del flujo Piel360 (16 concerns HD + Fitzpatrick). */
     estimatedPerAnalysis: {
-      youcamHdUnits:
-        matchingHd?.amount ?? FALLBACK_FEATURE_COSTS.skinAnalysisHdUnits,
-      youcamConcerns: concernCount,
+      hdUnits: matchingHd?.amount ?? FALLBACK_FEATURE_COSTS.skinAnalysisHdUnits,
+      concerns: concernCount,
       fitzpatrickUnits:
         fitz[0]?.amount ?? FALLBACK_FEATURE_COSTS.fitzpatrickUnits,
       combinedUnits:

@@ -44,7 +44,7 @@ export function YoucamProgressView({
     const youcam = (list.data ?? [])
       .filter(
         (a) =>
-          !!a.youcamTaskId &&
+          !!a.analisisPiel360TaskId &&
           a.isValid !== false &&
           a.id !== analysis.id,
       )

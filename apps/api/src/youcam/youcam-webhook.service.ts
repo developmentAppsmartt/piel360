@@ -48,7 +48,7 @@ export class YoucamWebhookService {
 
     const { taskId, taskStatus } = payload.data;
     const analysis = await this.prisma.analysis.findFirst({
-      where: { youcamTaskId: taskId },
+      where: { analisisPiel360TaskId: taskId },
     });
 
     if (!analysis) {

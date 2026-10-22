@@ -576,7 +576,7 @@ export class PatientsService {
           imagePath: true,
           coloredS3Url: true,
           maskedS3Url: true,
-          youcamTaskId: true,
+          analisisPiel360TaskId: true,
           createdAt: true,
         },
       });
@@ -588,7 +588,7 @@ export class PatientsService {
 
     // `provider.displayLabel` — filas creadas antes de este campo (o sin
     // providerId poblado) no traen relación; el frontend cae al heurístico
-    // por youcamTaskId como respaldo.
+    // por analisisPiel360TaskId como respaldo.
     return this.prisma.analysis.findMany({
       where,
       orderBy: { createdAt: 'asc' },

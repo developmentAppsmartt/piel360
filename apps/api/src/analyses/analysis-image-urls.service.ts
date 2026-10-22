@@ -19,7 +19,7 @@ import { youcamMaskKey } from '../youcam/mask-key.util';
  * (historial 3D) para no duplicar el firmado de URLs ni la lógica de
  * fallback. Las columnas *S3Url/imagePath solo guardan la key del bucket
  * propio; esto agrega URLs firmadas navegables sin tocar los campos crudos.
- * Para análisis YouCam (youcamTaskId presente) también arma `masks` — a
+ * Para análisis YouCam (analisisPiel360TaskId presente) también arma `masks` — a
  * diferencia de Skiniver, YouCam no usa coloredS3Url/maskedS3Url sino una
  * máscara por métrica en `analyses/{id}/masks/{type}` (sin extensión en la
  * key, ver youcam-results.service.ts). */
@@ -40,7 +40,7 @@ export class AnalysisImageUrlsService {
       imagePreviewPath?: string | null;
       coloredS3Url: string | null;
       maskedS3Url: string | null;
-      youcamTaskId: string | null;
+      analisisPiel360TaskId: string | null;
       aiRawResponse: Prisma.JsonValue | null;
       aiProbability: number | null;
       id: bigint;
@@ -52,7 +52,7 @@ export class AnalysisImageUrlsService {
     // trae expiración por query string, así que sirve como respaldo estable
     // mientras no haya bucket propio configurado.
     const prediction =
-      !analysis.youcamTaskId && analysis.aiRawResponse
+      !analysis.analisisPiel360TaskId && analysis.aiRawResponse
         ? (analysis.aiRawResponse as unknown as AnalisisDermaPiel360Prediction)
         : null;
 
@@ -71,7 +71,7 @@ export class AnalysisImageUrlsService {
     // frontend no debe intentar mostrar.
     const hasOriginalPhoto = analysis.imagePath !== 'youcam';
     if (
-      analysis.youcamTaskId &&
+      analysis.analisisPiel360TaskId &&
       hasOriginalPhoto &&
       !analysis.imagePreviewPath
     ) {
@@ -181,11 +181,11 @@ export class AnalysisImageUrlsService {
   }
 
   private async signYoucamMasks(analysis: {
-    youcamTaskId: string | null;
+    analisisPiel360TaskId: string | null;
     aiRawResponse: Prisma.JsonValue | null;
     id: bigint;
   }): Promise<{ type: string; region?: string; url: string }[]> {
-    if (!analysis.youcamTaskId || !analysis.aiRawResponse) return [];
+    if (!analysis.analisisPiel360TaskId || !analysis.aiRawResponse) return [];
 
     const results = analysis.aiRawResponse as unknown as AnalisisPiel360Results;
     // Incluir TODOS los output items (no solo los que traen mask_urls).

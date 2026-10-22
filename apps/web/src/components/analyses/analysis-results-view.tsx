@@ -49,7 +49,7 @@ export function AnalysisResultsView({
   const [youcamView, setYoucamView] = useState<YoucamSubView>("detail");
   const [editingNotes, setEditingNotes] = useState(false);
 
-  const isYoucam = !!analysis.data?.youcamTaskId;
+  const isYoucam = !!analysis.data?.analisisPiel360TaskId;
   const isFitzpatrick = !!analysis.data?.fitzpatrickTaskId;
   const isSkiniver = !isYoucam && !isFitzpatrick;
   // Dermatologico y estetico piden observaciones; Fitzpatrick no.

@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubscriptionPoolService } from '../subscriptions/subscription-pool.service';
 import type { CreateSkiniverRechargeDto } from './dto/create-skiniver-recharge.dto';
+import { POOL_PUBLIC_ALIASES } from '@piel360/shared';
 
 const SKINIVER_PROVIDER = 'skiniver';
 const EXPIRING_SOON_MS = 30 * 24 * 60 * 60 * 1000;
@@ -62,7 +63,7 @@ export class SkiniverUnitsService {
       .reduce((sum, r) => sum + r.quantity, 0);
 
     return {
-      source: 'skiniver' as const,
+      source: POOL_PUBLIC_ALIASES.skiniver,
       fetchedAt: new Date().toISOString(),
       providerConfigured: Boolean(skiniverProvider),
       pool: {
