@@ -31,7 +31,11 @@ import {
   snapshotHasValues,
 } from '../youcam/skin-age-persist.util';
 import type { JwtPayload } from '../auth/types';
-import { AnalysisImageUrlsService } from './analysis-image-urls.service';
+import {
+  AnalysisImageUrlsService,
+  imagePathPublico,
+  sinUrlsDelProveedor,
+} from './analysis-image-urls.service';
 import type { ConfirmAnalysisDto } from './dto/confirm-analysis.dto';
 import type { CreateAnalysisDto } from './dto/create-analysis.dto';
 import {
@@ -291,11 +295,27 @@ export class AnalysesService {
     // por analisisPiel360TaskId como respaldo.
     const providerSelect = { select: { displayLabel: true } };
 
+    // El listado devuelve la fila cruda, y `aiRawResponse` trae las URLs del
+    // CDN del proveedor. A diferencia del detalle, aquí no pasa por
+    // `withImageUrls`, que es donde se sanean.
+    const sinUrls = <
+      T extends { aiRawResponse: Prisma.JsonValue | null; imagePath: string },
+    >(
+      rows: T[],
+    ): T[] =>
+      rows.map((row) => ({
+        ...row,
+        imagePath: imagePathPublico(row.imagePath),
+        aiRawResponse: sinUrlsDelProveedor(row.aiRawResponse),
+      }));
+
     if (currentUser.role === 'superadmin') {
-      return this.prisma.analysis.findMany({
-        include: { patient: true, provider: providerSelect },
-        orderBy: { id: 'desc' },
-      });
+      return sinUrls(
+        await this.prisma.analysis.findMany({
+          include: { patient: true, provider: providerSelect },
+          orderBy: { id: 'desc' },
+        }),
+      );
     }
 
     if (isDoctorPanelRole(currentUser.role)) {
@@ -306,23 +326,27 @@ export class AnalysesService {
       const scope = await this.orgContext.resolvePatientDoctorScope(
         currentUser.sub,
       );
-      return this.prisma.analysis.findMany({
-        where: { patient: { doctorId: { in: scope.visibleDoctorIds } } },
-        include: { patient: true, provider: providerSelect },
-        orderBy: { id: 'desc' },
-      });
+      return sinUrls(
+        await this.prisma.analysis.findMany({
+          where: { patient: { doctorId: { in: scope.visibleDoctorIds } } },
+          include: { patient: true, provider: providerSelect },
+          orderBy: { id: 'desc' },
+        }),
+      );
     }
 
     // Paciente: solo análisis compartidos de su perfil (Patient.userId).
     // Nunca verá resultados solo por haber ejecutado la captura.
-    return this.prisma.analysis.findMany({
-      where: {
-        sharedWithPatient: true,
-        patient: { userId: BigInt(currentUser.sub) },
-      },
-      include: { patient: true, provider: providerSelect },
-      orderBy: { id: 'desc' },
-    });
+    return sinUrls(
+      await this.prisma.analysis.findMany({
+        where: {
+          sharedWithPatient: true,
+          patient: { userId: BigInt(currentUser.sub) },
+        },
+        include: { patient: true, provider: providerSelect },
+        orderBy: { id: 'desc' },
+      }),
+    );
   }
 
   /**

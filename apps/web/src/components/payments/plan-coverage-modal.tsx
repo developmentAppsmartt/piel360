@@ -11,7 +11,6 @@ import {
 import {
   coverageHasItems,
   parsePlanCoverage,
-  providerSlugMatches,
   type Plan,
   type PlanCoverage,
   type PlanCoverageItem,
@@ -41,11 +40,9 @@ function resolveCoverageVariant(
   coverage: PlanCoverage,
 ): "aesthetic" | "dermatology" {
   const slugs = planProviderSlugs(plan);
-  const hasAnalisisDermaPiel360 = slugs.some((slug) =>
-    providerSlugMatches(slug, ["analisisdermapiel360"]),
-  );
-  const hasAesthetic = slugs.some((slug) =>
-    providerSlugMatches(slug, ["analisispiel360", "fitzpatrick"]),
+  const hasAnalisisDermaPiel360 = slugs.includes("analisisdermapiel360");
+  const hasAesthetic = slugs.some(
+    (slug) => slug === "analisispiel360" || slug === "fitzpatrick",
   );
 
   if (hasAnalisisDermaPiel360 && !hasAesthetic) return "dermatology";

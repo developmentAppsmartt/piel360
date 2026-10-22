@@ -15,6 +15,7 @@ import {
   type Role,
   type TeamMemberPermission,
 } from "@piel360/shared";
+import { toPublicProviderPermissions } from "@piel360/shared";
 import { adminRouteAllowed } from "@/lib/admin-panel-permissions";
 import { clinicalRouteAllowed } from "@/lib/clinical-panel-permissions";
 import { SESSION_REPLACED_REASON } from "@/lib/login-path";
@@ -197,10 +198,14 @@ export async function proxy(request: NextRequest) {
     response.cookies.delete("piel360_refresh");
     return response;
   }
-  const permissions =
-    panel === "doctor" || panel === "admin"
+  // El JWT guarda los slugs internos del proveedor; `/auth/me/permissions` ya
+  // los enmascara. Se normaliza aquí, en el único punto por donde entran, para
+  // que el resto del web —que sí se descarga— solo conozca el slug público.
+  const permissions = toPublicProviderPermissions(
+    (panel === "doctor" || panel === "admin"
       ? (fresh.permissions ?? session.permissions)
-      : session.permissions;
+      : session.permissions) ?? [],
+  );
 
   if (panel === "doctor") {
     const onDisabledPage = pathname === ACCOUNT_DISABLED_PATH;

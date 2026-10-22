@@ -1,9 +1,4 @@
 import type { AnalysisProviderSlug } from "./constants.js";
-import {
-  toInternalProviderPermission,
-  toPublicProviderSlug,
-  type PublicAnalysisProviderSlug,
-} from "./provider-public-alias.js";
 
 /** Permisos RBAC que habilitan el uso de un proveedor de análisis / plan. */
 export const PROVIDER_USAGE_PERMISSIONS: Record<
@@ -15,7 +10,7 @@ export const PROVIDER_USAGE_PERMISSIONS: Record<
   fitzpatrick: "use_provider_fitzpatrick",
 };
 
-export const PROVIDER_USAGE_PERMISSION_NAMES = Object.values(
+export const PROVIDER_USAGE_PERMISSION_NAMES = /* @__PURE__ */ Object.values(
   PROVIDER_USAGE_PERMISSIONS,
 ) as readonly (typeof PROVIDER_USAGE_PERMISSIONS)[AnalysisProviderSlug][];
 
@@ -30,7 +25,7 @@ export const PATIENT_PROVIDER_RUN_PERMISSIONS: Partial<
   fitzpatrick: "patient_run_fitzpatrick",
 };
 
-export const PATIENT_PROVIDER_RUN_PERMISSION_NAMES = Object.values(
+export const PATIENT_PROVIDER_RUN_PERMISSION_NAMES = /* @__PURE__ */ Object.values(
   PATIENT_PROVIDER_RUN_PERMISSIONS,
 ) as readonly string[];
 
@@ -52,20 +47,4 @@ export function patientRunPermissionForProvider(
   slug: AnalysisProviderSlug,
 ): string | null {
   return PATIENT_PROVIDER_RUN_PERMISSIONS[slug] ?? null;
-}
-
-/**
- * Igual que `providerSlugFromUsagePermission`, pero para el navegador: acepta
- * el permiso con el nombre enmascarado —que es el que sale del API— y
- * devuelve el slug público.
- */
-export function publicProviderSlugFromUsagePermission(
-  permission: string,
-): PublicAnalysisProviderSlug | null {
-  const interno = providerSlugFromUsagePermission(
-    toInternalProviderPermission(permission),
-  );
-  return interno
-    ? (toPublicProviderSlug(interno) as PublicAnalysisProviderSlug)
-    : null;
 }

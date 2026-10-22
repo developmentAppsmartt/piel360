@@ -315,7 +315,87 @@ Trampas ya conocidas (todas costaron un intento fallido):
 - Los pacientes **solo entran desde la app móvil**; el panel de paciente del web
   está bloqueado en el proxy.
 
-### Skiniver (análisis dermatológico)
+### Nombres de proveedor: qué slug es qué
+
+**Las palabras `youcam`, `perfectcorp`, `perfect corp` y `skiniver` no pueden
+aparecer en nada que descargue el navegador** — ni en un chunk, ni en una URL
+del Network, ni en una clave de JSON, ni en pantalla. En el servidor sí: el
+código del API no se descarga, y la base guarda los slugs internos.
+
+| Interno (invisible) | Slug público | Qué es para el usuario |
+|---|---|---|
+| `skiniver` | `analisisdermapiel360` | Análisis Dermatológico Piel 360 |
+| `youcam` | `analisispiel360` | Análisis Estético Piel 360 |
+| `perfectcorp` (bolsa) | `analisispiel360` | bolsa Estética (estético + fototipo) |
+| `fitzpatrick` | `fitzpatrick` | Análisis de Fototipo Piel 360 |
+
+`fitzpatrick` **no se enmascara**: es una escala médica publicada, no un
+proveedor. `perfectcorp` comparte slug público con `youcam` porque Perfect Corp
+es el dueño de YouCam; la vuelta atrás sí es distinta, y por eso hay dos mapas
+(`PROVIDER_PUBLIC_ALIASES` y `POOL_PUBLIC_ALIASES`).
+
+Dónde vive cada pieza:
+
+- `packages/shared/src/public-provider-slugs.ts` — **el único vocabulario que
+  puede llegar al navegador**. Está separado a propósito: basta con que el web
+  importe una función del otro módulo para que el bundler se traiga sus tablas
+  internas y los nombres acaben en un chunk.
+- `packages/shared/src/provider-public-alias.ts` — los mapas interno ↔ público
+  y los helpers de enmascarado. **Solo lo usa el API** (y `proxy.ts`, que corre
+  en el servidor).
+- `apps/web/src/lib/analysis-provider-label.ts` — las etiquetas que se pintan.
+
+La regla al añadir código:
+
+- **El API enmascara al serializar**, nunca el navegador. Si una respuesta nueva
+  lleva un slug o una clave de proveedor, pásala por `toPublicProviderSlug`,
+  `toPublicPoolSlug` o `toPublicProviderKeys`. `toPublicPlanProviders` ya cubre
+  los planes (slug, `name`, `analysisLimits`, `apiCosts`, `poolProvider`).
+- **Y desenmascara al escribir**: el panel manda slugs públicos y las columnas
+  guardan los internos (`toInternalProviderKeys`). Ojo con el `ValidationPipe`:
+  una clave que no esté en el DTO devuelve **400**, así que los DTOs declaran la
+  clave pública.
+- Los **nombres de archivo no importan** (`youcam-report-view.tsx` sigue
+  llamándose así): el build no publica source maps, comprobado. Lo que sí
+  sobrevive a la minificación son los **símbolos exportados** y los literales.
+- El **JWT guarda los permisos internos** porque los guards del API comparan
+  contra ellos. `proxy.ts` los normaliza con `toPublicProviderPermissions` en el
+  único punto por donde entran al web.
+
+Dos excepciones, a propósito:
+
+- **`POST /webhooks/youcam` no se toca**: esa URL está registrada en el
+  dashboard del proveedor y cambiarla rompe la integración. No la ve el
+  navegador.
+- Las variables de entorno del API (`YOUCAM_*`, `SKINIVER_*`) y los nombres de
+  columna (`youcam_task_id`) se quedan. El campo de Prisma se llama
+  `analisisPiel360TaskId` con `@map("youcam_task_id")`, así que **la columna y
+  los índices no cambiaron y no hubo migración**.
+
+Lo que se sacó del panel y se anota aquí para no perderlo:
+
+- Tarifario del proveedor estético: `https://yce.perfectcorp.com/ai-api/api-pricing`
+  (estaba como botón «Recargar en Perfect Corp» en Bolsa de unidades).
+- El contacto del proveedor dermatológico sigue en pantalla como
+  `info@skinive.com`: no contiene ninguna de las palabras prohibidas.
+
+Cómo comprobarlo — **no se razona, se ejecuta**:
+
+```bash
+pnpm turbo run build
+pnpm run check:proveedores   # recorre .next/static y el HTML/RSC servido
+```
+
+Antes de este trabajo daba 886 ocurrencias en 51 chunks; tiene que dar 0. El
+grep estático no ve lo que el API responde en caliente: para eso hay un guion
+de puppeteer que recorre el panel apuntando cada URL y cada cuerpo de respuesta.
+
+**Nombres en los datos**: `plans.name` no se enmascara —lo escribe el negocio—
+así que un plan llamado «Skiniver Básico» se pinta tal cual. Los seeds ya usan
+«Dermatológico Básico» / «Estético Básico»; **en producción hay que revisarlo a
+mano** con `select id, name from plans where name ~* 'skiniver|youcam|perfect'`.
+
+### Análisis dermatológico (el proveedor interno `skiniver`)
 
 - `/predict` recibe `lang` desde `users.diagnostic_language`, pero **solo traduce
   `description`**: `risk`, `class` y `desease` llegan siempre en el idioma
@@ -348,3 +428,11 @@ Trampas ya conocidas (todas costaron un intento fallido):
 - Pendiente de despliegue: reconstruir la imagen del API (cambió
   `packages/shared`) y confirmar con `npx prisma migrate status` que producción
   está al día.
+- **El web y el API tienen que desplegarse juntos**: cambiaron las rutas
+  (`/api/analisispiel360/*`, `/api/analisisdermapiel360/*`,
+  `/api/admin/bolsa-unidades/analisis*`) y un web viejo contra un API nuevo
+  pediría URLs que ya no existen.
+- `apps/mobile` sigue nombrando a los proveedores en sus espejos
+  (`youcamScoreConfig.ts`, `analysisProviderLabel.ts`, vistas `Youcam*` /
+  `Skiniver*`). No se rompe —el móvil no importa `@piel360/shared`— pero queda
+  desalineado: es una entrega aparte.

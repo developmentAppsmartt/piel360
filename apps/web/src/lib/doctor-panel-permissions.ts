@@ -1,7 +1,5 @@
 /** Permisos RBAC requeridos para secciones del panel doctor (JWT `permissions`). */
 
-import { expandProviderPermissionAliases } from "@piel360/shared";
-
 export const DOCTOR_PANEL_ACCESS = {
   mapsDoctors: ["view_any_doctor", "view_doctor"],
   mapsPatients: ["view_any_patient", "view_patient"],
@@ -30,14 +28,10 @@ export function hasAnyPermission(
 ): boolean {
   if (required.length === 0) return true;
   if (!userPermissions?.length) return false;
-  const set = new Set(
-    userPermissions.flatMap((permission) =>
-      expandProviderPermissionAliases(permission),
-    ),
-  );
-  return required.some((permission) =>
-    expandProviderPermissionAliases(permission).some((alias) => set.has(alias)),
-  );
+  // Comparación directa: el proxy normaliza los permisos al slug público antes
+  // de que lleguen aquí, así que no hay dos vocabularios que reconciliar.
+  const set = new Set(userPermissions);
+  return required.some((permission) => set.has(permission));
 }
 
 /** Rutas del panel doctor → permisos (cualquiera basta). Orden: prefijos más largos primero. */

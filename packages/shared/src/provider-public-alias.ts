@@ -1,3 +1,5 @@
+import type { PublicAnalysisProviderSlug } from "./public-provider-slugs.js";
+
 /**
  * Alias públicos de proveedores de análisis.
  * Los slugs internos (BD, webhooks, RBAC, APIs vendor) no cambian;
@@ -11,17 +13,6 @@ export const PROVIDER_PUBLIC_ALIASES = {
   youcam: "analisispiel360",
   skiniver: "analisisdermapiel360",
 } as const;
-
-/** Los tres analisis tal y como los nombra el navegador. `fitzpatrick` no se
- * enmascara: es una escala medica, no un proveedor. */
-export const PUBLIC_ANALYSIS_PROVIDER_SLUGS = [
-  "analisisdermapiel360",
-  "analisispiel360",
-  "fitzpatrick",
-] as const;
-
-export type PublicAnalysisProviderSlug =
-  (typeof PUBLIC_ANALYSIS_PROVIDER_SLUGS)[number];
 
 export type InternalMaskedProviderSlug = keyof typeof PROVIDER_PUBLIC_ALIASES;
 export type PublicProviderAlias =

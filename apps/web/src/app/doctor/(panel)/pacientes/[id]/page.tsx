@@ -12,8 +12,7 @@ import { ApiError } from "@/lib/api-error";
 import { usePatient, usePatientAnalyses } from "@/lib/queries/patients";
 import { useMyDoctorProfile } from "@/lib/queries/doctors";
 import {
-  PROVIDER_PUBLIC_ALIASES,
-  providerSlugMatches,
+  PUBLIC_ANALYSIS_PROVIDER_SLUGS,
 } from "@piel360/shared";
 
 export default function PacienteDetallePage() {
@@ -25,12 +24,10 @@ export default function PacienteDetallePage() {
   const analyses = usePatientAnalyses(id);
   const doctorProfile = useMyDoctorProfile();
 
-  const allowedProviders = doctorProfile.data?.allowedProviderSlugs ?? [
-    PROVIDER_PUBLIC_ALIASES.skiniver,
-    PROVIDER_PUBLIC_ALIASES.youcam,
-    "fitzpatrick",
-  ];
-  const allows = (slug: string) => providerSlugMatches(slug, allowedProviders);
+  // El API ya manda los slugs públicos, así que basta comparar.
+  const allowedProviders: readonly string[] =
+    doctorProfile.data?.allowedProviderSlugs ?? PUBLIC_ANALYSIS_PROVIDER_SLUGS;
+  const allows = (slug: string) => allowedProviders.includes(slug);
 
   const authError =
     (patient.error instanceof ApiError && patient.error.status === 401) ||

@@ -469,7 +469,7 @@ async function main() {
       maxUsers: 1,
       isActive: true,
       description:
-        'Plan mensual de diagnóstico dermatológico por imagen (Skiniver).',
+        'Plan mensual de diagnóstico dermatológico por imagen.',
     },
   });
 

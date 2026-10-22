@@ -13,25 +13,16 @@ export const ANALYSIS_PROVIDER_STATIC_LABELS: Record<
   fitzpatrick: "Análisis de Fototipo Piel 360",
 };
 
-function looksLikeApiVendor(label: string): boolean {
-  const lower = label.toLowerCase();
-  return (
-    lower.includes("analisisdermapiel360") ||
-    lower.includes("analisispiel360") ||
-    lower.includes("fitzpatrick") ||
-    lower.includes("perfect")
-  );
-}
-
 /** Label a mostrar para un análisis ya existente: prioriza
- * `provider.displayLabel` si no es un nombre de API; si no, heurística por task id. */
+ * `provider.displayLabel`, que el API ya entrega enmascarado; si viene vacío,
+ * heurística por task id. */
 export function analysisProviderLabel(row: {
   analisisPiel360TaskId: string | null;
   fitzpatrickTaskId?: string | null;
   provider?: { displayLabel: string | null } | null;
 }): string {
   const raw = row.provider?.displayLabel?.trim();
-  if (raw && !looksLikeApiVendor(raw)) return raw;
+  if (raw) return raw;
   if (row.analisisPiel360TaskId) return ANALYSIS_PROVIDER_STATIC_LABELS.analisispiel360;
   if (row.fitzpatrickTaskId) return ANALYSIS_PROVIDER_STATIC_LABELS.fitzpatrick;
   return ANALYSIS_PROVIDER_STATIC_LABELS.analisisdermapiel360;

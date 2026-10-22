@@ -22,6 +22,7 @@ import {
   type SkinReportSegmentView,
   type SkinReportTrendPoint,
   type AnalisisDermaPiel360Report,
+  toPublicProviderSlug,
 } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrgContextService } from '../organizations/org-context.service';
@@ -484,8 +485,11 @@ export class DoctorReportsService {
       clinicalAi: {
         title: 'Análisis clínico IA',
         segments: providerRows.map((row) => ({
-          key: row.provider_slug,
-          label: providerLabels[row.provider_slug] ?? row.provider_slug,
+          // `provider_slug` sale de la base con el slug interno.
+          key: toPublicProviderSlug(row.provider_slug),
+          label:
+            providerLabels[row.provider_slug] ??
+            toPublicProviderSlug(row.provider_slug),
           patients: row.patients,
           analyses: row.analyses,
           pct: providerTotal > 0 ? (row.analyses / providerTotal) * 100 : 0,

@@ -9,6 +9,7 @@ import {
   type AnalisisDermaPiel360Prediction,
   type AnalisisDermaPiel360RiskGuidance,
   type AnalisisPiel360Results,
+  toPublicProviderSlug,
 } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -63,8 +64,11 @@ export class AnalysisImageUrlsService {
         this.signIfPresent(analysis.maskedS3Url),
         this.signAnalisisPiel360Masks(analysis),
       ]);
-    const coloredUrl = signedColoredUrl ?? prediction?.colored_s3_url ?? null;
-    const maskedUrl = signedMaskedUrl ?? prediction?.masked_s3_url ?? null;
+    // Sin respaldo a la URL del proveedor: su dominio lleva el nombre y no
+    // puede llegar al navegador. Mientras el job no baje nuestra copia la
+    // imagen va nula, que es un caso que el front ya pinta.
+    const coloredUrl = signedColoredUrl;
+    const maskedUrl = signedMaskedUrl;
     // Para YouCam, `imagePath` solo es una key real cuando se guardó la selfie
     // aparte (enableMaskOverlay: false, ver youcam-analyses.service.ts) — con
     // el placeholder 'youcam' de siempre, imageUrl es un link muerto que el
@@ -82,6 +86,8 @@ export class AnalysisImageUrlsService {
       : null;
     return {
       ...analysis,
+      imagePath: imagePathPublico(analysis.imagePath),
+      aiRawResponse: sinUrlsDelProveedor(analysis.aiRawResponse),
       imageUrl,
       coloredUrl,
       maskedUrl,
@@ -253,4 +259,48 @@ export class AnalysisImageUrlsService {
       return null;
     }
   }
+}
+
+/**
+ * Quita de la respuesta cruda del proveedor cualquier valor que lleve su
+ * nombre. Hoy son cuatro URLs de su CDN —`s3_url`, `image_url`,
+ * `colored_s3_url`, `masked_s3_url`— y el front no las usa: pinta
+ * `coloredUrl`/`maskedUrl`, que firman nuestra propia copia.
+ *
+ * La regla va por VALOR y no por una lista de claves a propósito: el día que
+ * el proveedor añada otro campo con su dominio, esto lo tapa solo. La fila en
+ * la base no se toca, porque el job de descarga necesita esas URLs.
+ */
+const NOMBRE_DEL_PROVEEDOR = /youcam|skiniver|perfect/i;
+
+/**
+ * `imagePath` guarda el centinela `'youcam'` cuando no se guardó la selfie
+ * original (ver `youcam-analyses.service.ts`). Es una marca interna sin
+ * significado para el cliente —que mira `hasOriginalPhoto`— pero viaja en la
+ * respuesta, así que sale con el slug público.
+ */
+export function imagePathPublico(imagePath: string): string {
+  return toPublicProviderSlug(imagePath);
+}
+
+export function sinUrlsDelProveedor(
+  raw: Prisma.JsonValue | null,
+): Prisma.JsonValue | null {
+  if (typeof raw === 'string') {
+    return NOMBRE_DEL_PROVEEDOR.test(raw) ? null : raw;
+  }
+  if (raw === null || typeof raw !== 'object') return raw;
+  if (Array.isArray(raw)) {
+    return raw.map((item) =>
+      sinUrlsDelProveedor(item as Prisma.JsonValue),
+    ) as Prisma.JsonValue;
+  }
+  const salida: Record<string, Prisma.JsonValue> = {};
+  for (const [clave, valor] of Object.entries(
+    raw as Record<string, Prisma.JsonValue>,
+  )) {
+    if (typeof valor === 'string' && NOMBRE_DEL_PROVEEDOR.test(valor)) continue;
+    salida[clave] = sinUrlsDelProveedor(valor);
+  }
+  return salida as Prisma.JsonValue;
 }

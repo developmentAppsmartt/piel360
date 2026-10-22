@@ -9,8 +9,6 @@ import { PlanCoverageIconButton } from "@/components/payments/plan-coverage-moda
 import { formatCOP, providerLabel } from "@/components/payments/subscription-utils";
 import type { Plan, PlanFeature } from "@piel360/shared";
 import {
-  PROVIDER_PUBLIC_ALIASES,
-  providerSlugMatches,
   resolvePlanHeaderColor,
 } from "@piel360/shared";
 import { useMyDoctorProfile, isEnterpriseDoctor } from "@/lib/queries/doctors";
@@ -19,8 +17,8 @@ import { useMySubscriptions } from "@/lib/queries/subscriptions";
 import { cn } from "@/lib/utils";
 
 const PROVIDER_ORDER = [
-  PROVIDER_PUBLIC_ALIASES.youcam,
-  PROVIDER_PUBLIC_ALIASES.skiniver,
+  "analisispiel360",
+  "analisisdermapiel360",
   "fitzpatrick",
 ] as const;
 
@@ -46,12 +44,10 @@ function sortProviderSlugs(slugs: string[]): string[] {
 
 function planVariant(plan: Plan): "aesthetic" | "dermatology" | "mixed" {
   const slugs = planProviderSlugs(plan);
-  const hasAnalisisPiel360 = slugs.some((slug) =>
-    providerSlugMatches(slug, ["analisispiel360", "fitzpatrick"]),
+  const hasAnalisisPiel360 = slugs.some(
+    (slug) => slug === "analisispiel360" || slug === "fitzpatrick",
   );
-  const hasAnalisisDermaPiel360 = slugs.some((slug) =>
-    providerSlugMatches(slug, ["analisisdermapiel360"]),
-  );
+  const hasAnalisisDermaPiel360 = slugs.includes("analisisdermapiel360");
   if (hasAnalisisDermaPiel360 && !hasAnalisisPiel360) return "dermatology";
   if (hasAnalisisPiel360 && !hasAnalisisDermaPiel360) return "aesthetic";
   return "mixed";
@@ -274,14 +270,9 @@ export function PlansBrowser({
   const filtered = useMemo(() => {
     if (!providerSlug) return catalog;
     return catalog.filter((p) =>
-      planProviderSlugs(p).some((slug) =>
-        providerSlugMatches(slug, [providerSlug]),
-      ),
+      planProviderSlugs(p).includes(providerSlug),
     );
   }, [catalog, providerSlug]);
-
-  // const isDermFilter =
-  //   providerSlug != null && providerSlugMatches(providerSlug, ["analisisdermapiel360"]);
 
   const active = subscriptions.data?.filter((s) => s.status === "active") ?? [];
 

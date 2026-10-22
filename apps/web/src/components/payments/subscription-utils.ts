@@ -1,4 +1,3 @@
-import { toInternalProviderSlug } from "@piel360/shared";
 import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import type { Subscription } from "@/lib/queries/subscriptions";
 
@@ -21,7 +20,7 @@ export function subscriptionPlanKind(sub: Subscription): PlanKind {
   if (derm && aesthetic) return "both";
   if (derm) return "derm";
   if (aesthetic) return "aesthetic";
-  const slug = toInternalProviderSlug(sub.plan.provider.slug);
+  const slug = sub.plan.provider.slug;
   if (slug === "analisisdermapiel360") return "derm";
   if (slug === "analisispiel360") return "aesthetic";
   if (slug === "fitzpatrick") return "fototipo";
