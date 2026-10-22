@@ -1,3 +1,4 @@
+import { isRecaptchaNativeReady } from '../config/recaptcha';
 import type {
   AccountStatus,
   AuthResult,
@@ -17,10 +18,19 @@ export type OtpPurpose = 'register' | 'reset';
 
 export const authService = {
   async login(payload: LoginPayload): Promise<AuthResult> {
-    const { email, password } = payload;
+    const { email, password, captchaToken } = payload;
+    // Solo con SDK nativo activo; prod antigua rechaza captchaToken en el DTO.
+    const token =
+      isRecaptchaNativeReady() && captchaToken?.trim()
+        ? captchaToken.trim()
+        : undefined;
     const result = await apiRequest<AuthResult>('/auth/login', {
       method: 'POST',
-      body: { email, password },
+      body: {
+        email,
+        password,
+        ...(token ? { captchaToken: token } : {}),
+      },
     });
     const allowed = assertMobileLoginAllowed(result);
     await storageService.saveSession(allowed);
@@ -90,13 +100,27 @@ export const authService = {
       email: string;
       phone: string | null;
       phoneVerifiedAt: string | null;
-      patient?: { id: string | number | bigint } | null;
+      patient?: {
+        id: string | number | bigint;
+        phone?: string | null;
+        areaCode?: string | null;
+      } | null;
       doctor?: { id: string | number | bigint; phone: string | null } | null;
     }>('/auth/me', { auth: true });
+    // Algunos pacientes solo tienen el celular en patients.*; el CRM lee eso.
+    const patientPhoneDigits =
+      user.patient?.phone != null
+        ? `${(user.patient.areaCode ?? '').replace(/\D/g, '')}${user.patient.phone.replace(/\D/g, '')}`
+        : null;
+    const phone =
+      user.phone?.replace(/\D/g, '') ||
+      user.doctor?.phone?.replace(/\D/g, '') ||
+      patientPhoneDigits ||
+      null;
     return {
       id: String(user.id),
       email: user.email,
-      phone: user.phone,
+      phone,
       phoneVerifiedAt: user.phoneVerifiedAt,
       patient: user.patient
         ? { id: String(user.patient.id) }
@@ -137,6 +161,42 @@ export const authService = {
       method: 'POST',
       body: { token, password },
     });
+  },
+
+  /** Cambio de contraseña con sesión activa (token atado al usuario logueado). */
+  async sendChangePasswordOtp(
+    channel: 'email' | 'phone',
+    phone?: string,
+  ): Promise<void> {
+    await apiRequest<{ ok: true }>('/auth/me/password/otp/send', {
+      method: 'POST',
+      auth: true,
+      body: {
+        channel,
+        ...(channel === 'phone' && phone ? { phone } : {}),
+      },
+    });
+  },
+
+  async verifyChangePasswordOtp(
+    channel: 'email' | 'phone',
+    code: string,
+    phone?: string,
+  ): Promise<{ token: string; phoneTicket?: string }> {
+    const result = await apiRequest<{
+      ok: true;
+      token: string;
+      phoneTicket?: string;
+    }>('/auth/me/password/otp/verify', {
+      method: 'POST',
+      auth: true,
+      body: {
+        channel,
+        code: code.trim(),
+        ...(channel === 'phone' && phone ? { phone } : {}),
+      },
+    });
+    return { token: result.token, phoneTicket: result.phoneTicket };
   },
 
   async me(): Promise<AuthUser> {

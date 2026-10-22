@@ -55,3 +55,4 @@ docs/*
 # Ticket de soporte a Perfect Corp (no debe subirse — solo uso interno)
 docs/perfectcorp_soporte_ticket.MD
 *.dump
+.secrets/

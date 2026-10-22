@@ -266,7 +266,7 @@ function html(
       margin: 0 0 3px;
       font-size: 10px;
       letter-spacing: 0.4px;
-      color: ${dark};
+      color: ${title};
     }
     .notes p {
       margin: 0;

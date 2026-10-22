@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { DEFAULT_BRANDING } from '../../../../config/branding.defaults';
-import { Image, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Image } from 'expo-image';
+import { cachedImageSource } from '../../../../lib/image-cache';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useBranding } from '../../../../context/BrandingContext';
 import { useDeviceLayout } from '../../../../styles/deviceLayout';
@@ -19,6 +21,8 @@ const SCRIM_COLORS = [
 
 const SCRIM_LOCATIONS = [0, 0.48, 1] as const;
 
+const NO_SCRIM: [string, string, string] = ['transparent', 'transparent', 'transparent'];
+
 const noPointer = { pointerEvents: 'none' as const };
 
 export function AuthBackground({ children }: AuthBackgroundProps) {
@@ -27,7 +31,12 @@ export function AuthBackground({ children }: AuthBackgroundProps) {
   const custom = branding.loginHeroImage;
   const customUri = typeof custom === 'object' && 'uri' in custom ? custom.uri : null;
   const showingCustom = Boolean(customUri) && customUri !== failedUri;
-  const heroSource = customUri && !showingCustom ? DEFAULT_BRANDING.loginHeroImage : custom;
+  const heroSource =
+    customUri && !showingCustom
+      ? DEFAULT_BRANDING.loginHeroImage
+      : customUri
+        ? cachedImageSource(customUri)
+        : custom;
   const onHeroError = () => {
     if (customUri) setFailedUri(customUri);
   };
@@ -42,36 +51,42 @@ export function AuthBackground({ children }: AuthBackgroundProps) {
   if (useSplitLayout) {
     return (
       <View style={styles.root}>
-        <View style={styles.splitRow}>
-          <View style={[styles.formPane, { width: formPaneWidth }]}>
-            <LinearGradient
-              colors={[...AUTH_THEME.bgGradient]}
-              locations={[0, 0.45, 1]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[StyleSheet.absoluteFill, noPointer]}
-            />
-            <View style={styles.content}>{children}</View>
-          </View>
-          <View style={styles.heroPane}>
-            <LinearGradient
-              colors={[...AUTH_THEME.bgGradient]}
-              locations={[0, 0.45, 1]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[StyleSheet.absoluteFill, noPointer]}
-            />
-            <Image
-              source={heroSource}
-              onError={onHeroError}
-              style={[styles.heroFill, noPointer]}
-              resizeMode="cover"
-            />
-            <LinearGradient
-              colors={['rgba(14, 26, 56, 0.15)', 'rgba(0, 0, 0, 0.35)']}
-              style={[StyleSheet.absoluteFill, noPointer]}
-            />
-          </View>
+        <LinearGradient
+          colors={[...AUTH_THEME.bgGradient]}
+          locations={[0, 0.45, 1]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.backLayer, noPointer]}
+        />
+        {/* Detrás del formulario, la misma foto desenfocada; la nítida llena el resto. */}
+        <Image
+          source={heroSource}
+          pointerEvents="none"
+          style={styles.heroFill}
+          contentFit="cover"
+          cachePolicy="disk"
+          blurRadius={40}
+          transition={0}
+        />
+        <Image
+          source={heroSource}
+          onError={onHeroError}
+          pointerEvents="none"
+          style={[styles.heroBeside, { left: formPaneWidth }]}
+          contentFit="cover"
+          cachePolicy="disk"
+          priority="high"
+          transition={0}
+        />
+        <LinearGradient
+          colors={branding.loginOverlay ? [...SCRIM_COLORS] : NO_SCRIM}
+          locations={[...SCRIM_LOCATIONS]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[styles.backLayer, noPointer]}
+        />
+        <View style={[styles.formPane, { width: formPaneWidth }]}>
+          {children}
         </View>
       </View>
     );
@@ -89,11 +104,15 @@ export function AuthBackground({ children }: AuthBackgroundProps) {
       <Image
         source={heroSource}
         onError={onHeroError}
-        style={[styles.heroImage, { width: heroWidth }, noPointer]}
-        resizeMode="cover"
+        pointerEvents="none"
+        style={[styles.heroImage, { width: heroWidth }]}
+        contentFit="cover"
+        cachePolicy="disk"
+        priority="high"
+        transition={0}
       />
       <LinearGradient
-        colors={[...SCRIM_COLORS]}
+        colors={branding.loginOverlay ? [...SCRIM_COLORS] : NO_SCRIM}
         locations={[...SCRIM_LOCATIONS]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0.35 }}
@@ -124,22 +143,15 @@ const styles = StyleSheet.create({
   scrimLayer: {
     flex: 1,
   },
-  content: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  },
-  splitRow: {
-    flex: 1,
-    flexDirection: 'row',
-  },
   formPane: {
-    maxWidth: 520,
-    backgroundColor: '#0A1020',
-    overflow: 'hidden',
-  },
-  heroPane: {
     flex: 1,
-    position: 'relative',
+    maxWidth: 520,
+  },
+  heroBeside: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
   },
   heroFill: {
     ...StyleSheet.absoluteFill,

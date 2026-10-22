@@ -13,6 +13,7 @@ import {
   type BrandingColorKey,
 } from '@piel360/shared';
 import type { AccountBranding as AccountBrandingRow } from '@prisma/client';
+import sharp from 'sharp';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { AuthService } from '../auth/auth.service';
@@ -20,6 +21,35 @@ import type { JwtPayload } from '../auth/types';
 import type { UpdateBrandingDto } from './dto/update-branding.dto';
 
 export const PERSONALIZATION_PERMISSION = 'clinical.settings.personalization';
+
+/**
+ * Se guardan ya optimizadas para que el login cargue rápido: el fondo como
+ * JPEG del tamaño de un teléfono y el logo como PNG (conserva la transparencia).
+ */
+async function optimizeBrandingImage(
+  kind: BrandingImageKind,
+  image: Buffer,
+): Promise<{ body: Buffer; ext: string; contentType: string }> {
+  const base = sharp(image).rotate();
+  if (kind === 'login-background') {
+    return {
+      body: await base
+        .resize({ width: 1080, height: 2340, fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 80, mozjpeg: true })
+        .toBuffer(),
+      ext: 'jpg',
+      contentType: 'image/jpeg',
+    };
+  }
+  return {
+    body: await base
+      .resize({ width: 900, height: 900, fit: 'inside', withoutEnlargement: true })
+      .png({ compressionLevel: 9 })
+      .toBuffer(),
+    ext: 'png',
+    contentType: 'image/png',
+  };
+}
 
 const IMAGE_MIME = new Map([
   ['image/jpeg', 'jpg'],
@@ -51,6 +81,7 @@ const COLOR_COLUMNS: Record<
     | 'gradientTextColor'
     | 'linkColor'
     | 'loginTextColor'
+    | 'menuBackgroundColor'
   >
 > = {
   background: 'backgroundColor',
@@ -69,6 +100,7 @@ const COLOR_COLUMNS: Record<
   gradientText: 'gradientTextColor',
   link: 'linkColor',
   loginText: 'loginTextColor',
+  menuBackground: 'menuBackgroundColor',
 };
 
 export type BrandingImageKind = 'login-background' | 'login-logo';
@@ -119,7 +151,8 @@ export class BrandingService {
     dto: UpdateBrandingDto,
   ): Promise<AccountBranding> {
     await this.assertCanManage(user);
-    const data: Partial<Record<string, string | null>> = {};
+    const data: Partial<Record<string, string | boolean | null>> = {};
+    if (dto.loginOverlay !== undefined) data.loginOverlay = dto.loginOverlay;
     for (const [key, column] of Object.entries(COLOR_COLUMNS) as [
       BrandingColorKey,
       string,
@@ -161,13 +194,19 @@ export class BrandingService {
       );
     }
     const userId = BigInt(user.sub);
-    const key = `branding/${user.sub}/${kind}-${Date.now()}.${ext}`;
+    let optimized: { body: Buffer; ext: string; contentType: string };
     try {
-      await this.storage.upload(
-        key,
-        file.buffer,
-        mime === 'image/jpg' ? 'image/jpeg' : mime,
-      );
+      optimized = await optimizeBrandingImage(kind, file.buffer);
+    } catch {
+      optimized = {
+        body: file.buffer,
+        ext,
+        contentType: mime === 'image/jpg' ? 'image/jpeg' : mime,
+      };
+    }
+    const key = `branding/${user.sub}/${kind}-${Date.now()}.${optimized.ext}`;
+    try {
+      await this.storage.upload(key, optimized.body, optimized.contentType);
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       throw new BadGatewayException(`No se pudo guardar la imagen (${detail})`);
@@ -279,9 +318,12 @@ export class BrandingService {
           row.gradientTextColor ?? DEFAULT_BRANDING_COLORS.gradientText,
         link: row.linkColor ?? DEFAULT_BRANDING_COLORS.link,
         loginText: row.loginTextColor ?? DEFAULT_BRANDING_COLORS.loginText,
+        menuBackground:
+          row.menuBackgroundColor ?? DEFAULT_BRANDING_COLORS.menuBackground,
       },
       loginBackgroundUrl: await this.signOrNull(row.loginBackgroundKey),
       loginLogoUrl: await this.signOrNull(row.loginLogoKey),
+      loginOverlay: row.loginOverlay,
     };
   }
 

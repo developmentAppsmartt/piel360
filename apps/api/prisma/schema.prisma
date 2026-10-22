@@ -79,6 +79,7 @@ model AccountBranding {
   /** Se usa en la URL pública que lee el login móvil antes de iniciar sesión. */
   publicId           String   @unique @default(uuid()) @map("public_id")
   backgroundColor    String?  @map("background_color")
+  menuBackgroundColor String? @map("menu_background_color")
   primaryColor       String?  @map("primary_color")
   primaryTextColor   String?  @map("primary_text_color")
   secondaryTextColor String?  @map("secondary_text_color")
@@ -97,6 +98,8 @@ model AccountBranding {
   /** Keys S3; `null` = imagen por defecto del sistema. */
   loginBackgroundKey String?  @map("login_background_key")
   loginLogoKey       String?  @map("login_logo_key")
+  /// Degradado oscuro del login sobre la imagen de fondo.
+  loginOverlay       Boolean  @default(true) @map("login_overlay")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
@@ -439,6 +442,8 @@ model Analysis {
   userId          BigInt?   @map("user_id")
   providerId      BigInt?   @map("provider_id")
   imagePath       String    @map("image_path")
+  /// Versión liviana de la foto para mostrar en la app (ver image-preview.util.ts).
+  imagePreviewPath String?  @map("image_preview_path")
   coloredS3Url    String?   @map("colored_s3_url")
   maskedS3Url     String?   @map("masked_s3_url")
   bodyRegion      String?   @map("body_region")

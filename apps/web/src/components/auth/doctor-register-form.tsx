@@ -333,7 +333,7 @@ export function DoctorRegisterForm({
           membershipType: "solo_doctor",
           specialty: resolvedSpecialty,
           address: locationPicker.address || locationPicker.addressQuery,
-          country: "CO",
+          country: locationPicker.country.trim() || undefined,
           lat: locationPicker.location.lat,
           lng: locationPicker.location.lng,
           docType: docType || undefined,

@@ -15,13 +15,13 @@ export function useMyBranding() {
   });
 }
 
-export function useUpdateBrandingColors() {
+export function useUpdateBranding() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (colors: BrandingColors) =>
+    mutationFn: (body: { colors?: BrandingColors; loginOverlay?: boolean }) =>
       apiClientFetch<AccountBranding>("/doctor/branding", {
         method: "PATCH",
-        body: JSON.stringify({ colors }),
+        body: JSON.stringify(body),
       }),
     onSuccess: (data) => qc.setQueryData(KEY, data),
   });

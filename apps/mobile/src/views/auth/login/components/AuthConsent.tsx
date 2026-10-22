@@ -7,9 +7,7 @@ type AuthConsentProps = {
   styles: LoginStyles;
   primaryColor: string;
   onDark: string;
-  captchaChecked: boolean;
   termsChecked: boolean;
-  onToggleCaptcha: () => void;
   onToggleTerms: () => void;
   onOpenTerms?: () => void;
   onOpenPrivacy?: () => void;
@@ -20,9 +18,7 @@ export function AuthConsent({
   styles,
   primaryColor,
   onDark,
-  captchaChecked,
   termsChecked,
-  onToggleCaptcha,
   onToggleTerms,
   onOpenTerms,
   onOpenPrivacy,
@@ -30,21 +26,6 @@ export function AuthConsent({
 }: AuthConsentProps) {
   return (
     <View style={styles.consentBlock}>
-      <Pressable
-        style={styles.checkRow}
-        onPress={onToggleCaptcha}
-        disabled={disabled}
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: captchaChecked }}
-      >
-        <AppIcon
-          icon={captchaChecked ? Icons.checkboxOn : Icons.checkboxOff}
-          size={22}
-          color={captchaChecked ? primaryColor : onDark}
-        />
-        <Text style={styles.checkLabel}>No soy un robot</Text>
-      </Pressable>
-
       <View style={styles.checkRow}>
         <Pressable
           onPress={onToggleTerms}

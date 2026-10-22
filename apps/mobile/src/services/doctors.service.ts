@@ -11,10 +11,13 @@ export type DoctorProfile = {
   docNumber: string | null;
   phone: string | null;
   specialty: string | null;
+  /** `medical` | `labor` — define qué campos de formación se muestran. */
+  professionalKind?: string | null;
   medicalRegistry: string | null;
   licenseNumber: string | null;
   educationEntity: string | null;
   graduationInstitution: string | null;
+  technicalInstitution?: string | null;
   address: string | null;
   city: string | null;
   country: string | null;
@@ -39,9 +42,9 @@ export type UpdateDoctorInput = {
   gender?: string;
   specialty?: string;
   medicalRegistry?: string;
-  licenseNumber?: string;
   educationEntity?: string;
   graduationInstitution?: string;
+  technicalInstitution?: string;
   address?: string;
   city?: string;
   country?: string;

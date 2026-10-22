@@ -143,6 +143,7 @@ export function AppModuleChrome({
     return (
       <ChangePasswordFlow
         title="Cambiar contraseña"
+        mode="account"
         initialEmail={user?.email ?? ''}
         onBack={() => setPasswordOpen(false)}
         onSuccess={() => setPasswordOpen(false)}

@@ -11,6 +11,7 @@ import { Image } from 'expo-image';
 import { useBranding } from '../../../context/BrandingContext';
 import { analysesService } from '../../../services/analyses.service';
 import { ApiError } from '../../../services/api.client';
+import type { AnalysisDetail } from '../../../types/analysis';
 import type { BodySelection } from '../../../data/bodyRegions';
 
 type SkiniverProcessingStepProps = {
@@ -33,6 +34,28 @@ const IMAGE_POLL_MS = 2000;
 const IMAGE_POLL_ATTEMPTS = 8;
 
 /**
+ * El efecto se vuelve a montar si el padre re-renderiza (callbacks nuevos)
+ * o en Strict Mode. Sin esta caché, cada montaje hace otro POST /analyses
+ * y el historial muestra el mismo dermatológico varias veces.
+ */
+const inflightCreates = new Map<string, Promise<AnalysisDetail>>();
+
+function createKey(
+  patientId: string,
+  imageUri: string,
+  selection: BodySelection,
+): string {
+  return [
+    patientId,
+    imageUri,
+    selection.bodyRegion,
+    selection.xCoord,
+    selection.yCoord,
+    selection.zCoord,
+  ].join('|');
+}
+
+/**
  * Carga estilo Skiniver: foto + línea de escaneo + % + etapa.
  * El POST es síncrono; el progreso es una animación de UX mientras espera.
  */
@@ -47,8 +70,11 @@ export function SkiniverProcessingStep({
   const [progress, setProgress] = useState(4);
   const [stage, setStage] = useState(STAGES[0].label);
   const scanY = useRef(new Animated.Value(0)).current;
-  const cancelled = useRef(false);
   const finished = useRef(false);
+  const onDoneRef = useRef(onDone);
+  const onErrorRef = useRef(onError);
+  onDoneRef.current = onDone;
+  onErrorRef.current = onError;
 
   const styles = useMemo(
     () =>
@@ -150,11 +176,13 @@ export function SkiniverProcessingStep({
   }, [scanY]);
 
   useEffect(() => {
-    cancelled.current = false;
+    let cancelled = false;
     finished.current = false;
     let tick: ReturnType<typeof setInterval> | null = null;
+    const key = createKey(patientId, imageUri, selection);
 
     const bumpProgress = (target: number) => {
+      if (cancelled) return;
       setProgress((p) => {
         const next = Math.min(99, Math.max(p, target));
         const label =
@@ -166,7 +194,7 @@ export function SkiniverProcessingStep({
     };
 
     tick = setInterval(() => {
-      if (finished.current) return;
+      if (cancelled || finished.current) return;
       setProgress((p) => {
         if (p >= 92) return p;
         const next = p + (p < 40 ? 3 : p < 70 ? 2 : 1);
@@ -181,35 +209,42 @@ export function SkiniverProcessingStep({
     (async () => {
       try {
         bumpProgress(10);
-        const created = await analysesService.create({
-          patientId,
-          imageUri,
-          bodyRegion: selection.bodyRegion,
-          xCoord: selection.xCoord,
-          yCoord: selection.yCoord,
-          zCoord: selection.zCoord,
-        });
-        if (cancelled.current) return;
+        let pending = inflightCreates.get(key);
+        if (!pending) {
+          pending = analysesService.create({
+            patientId,
+            imageUri,
+            bodyRegion: selection.bodyRegion,
+            xCoord: selection.xCoord,
+            yCoord: selection.yCoord,
+            zCoord: selection.zCoord,
+          });
+          inflightCreates.set(key, pending);
+        }
+        const created = await pending;
+        inflightCreates.delete(key);
+        if (cancelled) return;
 
         bumpProgress(88);
         setStage('Diagnósticos completos');
 
         // Las imágenes colored/masked pueden llegar segundos después.
         for (let i = 0; i < IMAGE_POLL_ATTEMPTS; i++) {
-          if (cancelled.current) return;
+          if (cancelled) return;
           const status = await analysesService.getProcessingStatus(created.id);
           if (status.hasColored || status.hasMasked) break;
           await new Promise((r) => setTimeout(r, IMAGE_POLL_MS));
         }
 
-        if (cancelled.current) return;
+        if (cancelled) return;
         finished.current = true;
         setProgress(100);
         setStage('Diagnósticos completos');
-        onDone(created.id);
+        onDoneRef.current(created.id);
       } catch (e) {
-        if (cancelled.current) return;
-        onError(
+        inflightCreates.delete(key);
+        if (cancelled) return;
+        onErrorRef.current(
           e instanceof ApiError
             ? e.message
             : e instanceof Error
@@ -222,10 +257,10 @@ export function SkiniverProcessingStep({
     })();
 
     return () => {
-      cancelled.current = true;
+      cancelled = true;
       if (tick) clearInterval(tick);
     };
-  }, [patientId, imageUri, selection, onDone, onError]);
+  }, [patientId, imageUri, selection]);
 
   const translateY = scanY.interpolate({
     inputRange: [0, 1],

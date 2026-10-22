@@ -78,6 +78,8 @@ export type AuthResult = {
 export type LoginPayload = {
   email: string;
   password: string;
+  /** Token de reCAPTCHA v2 (“No soy un robot”). Solo si está habilitado. */
+  captchaToken?: string;
 };
 
 /** Registro móvil: solo pacientes. */

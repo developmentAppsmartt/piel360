@@ -28,9 +28,11 @@ export type RemoteBranding = {
     gradientText?: string;
     link?: string;
     loginText?: string;
+    menuBackground?: string;
   };
   loginBackgroundUrl: string | null;
   loginLogoUrl: string | null;
+  loginOverlay?: boolean;
 };
 
 /**
@@ -126,6 +128,8 @@ export function toAppBranding(remote: RemoteBranding | null): AppBranding {
         colors.gradientText ?? DEFAULT_BRANDING.colors.buttonGradientText,
       loginAccent: colors.secondary,
       links: colors.link ?? DEFAULT_BRANDING.colors.links,
+      menuBackground:
+        colors.menuBackground ?? DEFAULT_BRANDING.colors.menuBackground,
       loginTextOverride:
         colors.loginText != null && colors.loginText.toUpperCase() !== "#FFFFFF"
           ? colors.loginText
@@ -138,6 +142,7 @@ export function toAppBranding(remote: RemoteBranding | null): AppBranding {
       ? { uri: remote.loginLogoUrl }
       : DEFAULT_BRANDING.loginLogoImage,
     companyLogoImage: remote.loginLogoUrl ? { uri: remote.loginLogoUrl } : null,
+    loginOverlay: remote.loginOverlay ?? true,
   };
 }
 

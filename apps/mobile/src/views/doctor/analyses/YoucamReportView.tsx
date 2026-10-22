@@ -14,6 +14,7 @@ import { AppIcon } from '../../../components/AppIcon';
 import { Icons } from '../../../components/icons';
 import { useBranding } from '../../../context/BrandingContext';
 import { useYoucamScorer } from '../../../lib/youcam-scoring';
+import { cachedImageSource } from '../../../lib/image-cache';
 import {
   YOUCAM_METRIC_LABELS,
   youcamMetricLabel,
@@ -464,7 +465,7 @@ export function YoucamReportView({
             <View style={styles.reportAvatar}>
               {analysis.hasOriginalPhoto && analysis.imageUrl ? (
                 <Image
-                  source={{ uri: analysis.imageUrl }}
+                  source={cachedImageSource(analysis.imageUrl)}
                   style={styles.reportAvatarImg}
                   contentFit="cover"
                 />
@@ -618,7 +619,7 @@ export function YoucamReportView({
                     <View style={styles.metricRowThumbWrap}>
                       {analysis.imageUrl ? (
                         <Image
-                          source={{ uri: analysis.imageUrl }}
+                          source={cachedImageSource(analysis.imageUrl)}
                           style={styles.metricRowThumb}
                           contentFit="cover"
                         />
@@ -633,7 +634,7 @@ export function YoucamReportView({
                       )}
                       {row.maskUrl ? (
                         <Image
-                          source={{ uri: row.maskUrl }}
+                          source={cachedImageSource(row.maskUrl)}
                           style={[
                             styles.metricRowThumb,
                             StyleSheet.absoluteFill,

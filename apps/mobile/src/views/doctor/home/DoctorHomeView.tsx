@@ -42,6 +42,7 @@ import {
 } from '../../../types/notifications';
 import type { PatientProfile } from '../../../types/patient';
 import { patientDisplayName } from '../../../types/patient';
+import { useDeviceLayout } from '../../../styles/deviceLayout';
 import { resolveMediaUrl } from '../../../utils/mediaUrl';
 import { SupportChatView } from '../../support/SupportChatView';
 import { ChangePasswordFlow } from '../../auth/forgot-password/ForgotPasswordView';
@@ -213,6 +214,15 @@ export function DoctorHomeView({
   const branding = useBranding();
   const { user, logout } = useAuth();
   const notifications = useNotificationsOptional();
+  const { isTablet, isLandscape } = useDeviceLayout();
+  const welcomeLabelSize = isTablet ? 24 : undefined;
+  const shareIconSize = isTablet ? 28 : 18;
+  // En tablet 10″ el logo de empresa se ve pequeño a 96×56.
+  const companyLogoSize = isTablet
+    ? isLandscape
+      ? { width: 148, height: 86 }
+      : { width: 168, height: 98 }
+    : undefined;
   const styles = useMemo(
     () => createDoctorHomeStyles(branding.colors),
     [branding.colors],
@@ -502,6 +512,7 @@ export function DoctorHomeView({
     return (
       <ChangePasswordFlow
         title="Cambiar contraseña"
+        mode="account"
         initialEmail={user?.email ?? ''}
         onBack={() => setShowingPassword(false)}
         onSuccess={() => setShowingPassword(false)}
@@ -695,37 +706,49 @@ export function DoctorHomeView({
           </Pressable>
           <View style={styles.welcomeTextWrap}>
             <View style={styles.welcomeNameRow}>
-              <Text style={styles.welcomeLabel}>Bienvenido,</Text>
+              <Text
+                style={[
+                  styles.welcomeLabel,
+                  welcomeLabelSize != null && { fontSize: welcomeLabelSize },
+                ]}
+              >
+                Bienvenido,
+              </Text>
               <Pressable
-                style={styles.inviteBtn}
+                style={[
+                  styles.inviteBtn,
+                  isTablet && { width: 52, height: 52, borderRadius: 26 },
+                ]}
                 onPress={() => setInviteOpen(true)}
                 accessibilityLabel="Invitar a un colega"
                 hitSlop={6}
               >
                 <AppIcon
                   icon={Icons.share}
-                  size={18}
+                  size={shareIconSize}
                   color={branding.colors.icon}
                 />
               </Pressable>
             </View>
-            <Text style={styles.welcomeName} numberOfLines={1}>
-              {welcomeName}
-            </Text>
-            {!loading && pendingCount > 0 ? (
-              <Text style={styles.pendingHint}>
-                {pendingCount} análisis pendiente{pendingCount === 1 ? '' : 's'}{' '}
-                de confirmar
-              </Text>
-            ) : null}
           </View>
           {branding.companyLogoImage ? (
             <Image
               source={branding.companyLogoImage}
-              style={styles.companyLogo}
+              style={[styles.companyLogo, companyLogoSize]}
               resizeMode="contain"
               accessibilityLabel="Logo de la empresa"
             />
+          ) : null}
+        </View>
+        <View style={styles.welcomeInfo}>
+          <Text style={styles.welcomeName} numberOfLines={1}>
+            {welcomeName}
+          </Text>
+          {!loading && pendingCount > 0 ? (
+            <Text style={styles.pendingHint}>
+              {pendingCount} análisis pendiente{pendingCount === 1 ? '' : 's'}{' '}
+              de confirmar
+            </Text>
           ) : null}
         </View>
 

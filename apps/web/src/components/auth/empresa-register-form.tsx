@@ -308,7 +308,7 @@ export function EmpresaRegisterForm({
           legalRepDocType: legalRepDocType || undefined,
           legalRepDocNumber: legalRepDocNumber.trim(),
           address: locationPicker.address || locationPicker.addressQuery,
-          country: "CO",
+          country: locationPicker.country.trim() || undefined,
           lat: locationPicker.location.lat,
           lng: locationPicker.location.lng,
           ...(membershipType === "empresa_aliada"

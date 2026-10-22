@@ -2,7 +2,7 @@
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppNoticeHost } from './src/components/notices/AppNoticeHost';
@@ -13,6 +13,7 @@ import { AuthProvider } from './src/context/AuthContext';
 import { BrandingProvider } from './src/context/BrandingContext';
 import { NotificationsProvider } from './src/context/NotificationsContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { warmRecaptchaClient } from './src/services/recaptcha-native.service';
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 if (Constants.executionEnvironment !== ExecutionEnvironment.StoreClient) {
@@ -22,6 +23,10 @@ if (Constants.executionEnvironment !== ExecutionEnvironment.StoreClient) {
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    warmRecaptchaClient();
+  }, []);
 
   return (
     <SafeAreaProvider>

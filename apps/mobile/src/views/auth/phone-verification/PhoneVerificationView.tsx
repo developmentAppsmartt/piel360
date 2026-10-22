@@ -40,6 +40,7 @@ export function PhoneVerificationView() {
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { isTablet, isLandscape } = useDeviceLayout();
+  const logoHeight = isTablet ? (isLandscape ? 160 : 200) : 120;
   const scrollMinHeight =
     isTablet && isLandscape
       ? Math.max(height - insets.top - insets.bottom, 480)
@@ -126,7 +127,7 @@ export function PhoneVerificationView() {
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.logoWrap}>
-                <BrandLogo variant="login" height={120} />
+                <BrandLogo variant="login" height={logoHeight} />
               </View>
 
               <Text style={styles.brand}>Verifica tu celular</Text>

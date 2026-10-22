@@ -6,6 +6,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { AppIcon } from '../../../../components/AppIcon';
+import { Icons } from '../../../../components/icons';
 import { useBranding } from '../../../../context/BrandingContext';
 import { ApiError } from '../../../../services/api.client';
 import type { ConfirmAnalysisInput } from '../../../../services/analyses.service';
@@ -20,6 +22,8 @@ type ConfirmAnalysisFormProps = {
    */
   correctMode?: 'nosology' | 'notes';
   onCorrectPress?: () => void;
+  /** Deshabilita confirmar (p. ej. aún no hay diagnóstico seleccionado). */
+  confirmDisabled?: boolean;
 };
 
 export function ConfirmAnalysisForm({
@@ -27,6 +31,7 @@ export function ConfirmAnalysisForm({
   onSubmit,
   correctMode = 'notes',
   onCorrectPress,
+  confirmDisabled = false,
 }: ConfirmAnalysisFormProps) {
   const branding = useBranding();
   const styles = useMemo(
@@ -118,8 +123,11 @@ export function ConfirmAnalysisForm({
         {error ? <Text style={styles.confirmError}>{error}</Text> : null}
         <View style={styles.confirmActions}>
           <Pressable
-            style={({ pressed }) => [styles.confirmPrimaryBtn,
-              submitting && styles.confirmBtnDisabled, pressed && { backgroundColor: branding.colors.buttonHover }]}
+            style={({ pressed }) => [
+              styles.confirmPrimaryBtn,
+              submitting && styles.confirmBtnDisabled,
+              pressed && { backgroundColor: branding.colors.buttonHover },
+            ]}
             onPress={() => void handleSaveCorrection()}
             disabled={submitting}
           >
@@ -146,22 +154,39 @@ export function ConfirmAnalysisForm({
       {error ? <Text style={styles.confirmError}>{error}</Text> : null}
       <View style={styles.confirmActions}>
         <Pressable
-          style={({ pressed }) => [styles.confirmPrimaryBtn,
-            submitting && styles.confirmBtnDisabled, pressed && { backgroundColor: branding.colors.buttonHover }]}
+          style={({ pressed }) => [
+            styles.confirmPrimaryBtn,
+            (submitting || confirmDisabled) && styles.confirmBtnDisabled,
+            pressed && { backgroundColor: branding.colors.buttonHover },
+          ]}
           onPress={() => void handleConfirm()}
-          disabled={submitting}
+          disabled={submitting || confirmDisabled}
+          accessibilityLabel="Confirmar resultado"
         >
           {submitting ? (
             <ActivityIndicator color={branding.colors.buttonText} />
           ) : (
-            <Text style={styles.confirmPrimaryText}>Confirmar resultado</Text>
+            <>
+              <AppIcon
+                icon={Icons.check}
+                size={18}
+                color={branding.colors.buttonText}
+              />
+              <Text style={styles.confirmPrimaryText}>Confirmar resultado</Text>
+            </>
           )}
         </Pressable>
         <Pressable
           style={styles.confirmOutlineBtn}
           onPress={handleCorrectPress}
           disabled={submitting}
+          accessibilityLabel="Corregir resultado"
         >
+          <AppIcon
+            icon={Icons.edit}
+            size={18}
+            color={branding.colors.icon}
+          />
           <Text style={styles.confirmOutlineText}>Corregir resultado</Text>
         </Pressable>
       </View>

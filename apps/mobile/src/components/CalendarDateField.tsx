@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react';
 import {
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
   type StyleProp,
   type TextStyle,
   type ViewStyle,
@@ -46,7 +48,13 @@ type CalendarDateFieldProps = {
   onVisibleMonthChange?: (monthAnchor: Date) => void;
   /** Si true, no deja elegir días bloqueados. Default false. */
   disableBlockedDays?: boolean;
+  /** Tocar el mes abre una grilla de años (fecha de nacimiento). */
+  yearSelectable?: boolean;
 };
+
+const SHEET_MAX_WIDTH = 420;
+/** Alto aproximado de título, ayuda, mes, leyenda, días de la semana y botones. */
+const SHEET_CHROME_HEIGHT = 300;
 
 const DAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
@@ -93,11 +101,20 @@ export function CalendarDateField({
   apptCountByDate,
   onVisibleMonthChange,
   disableBlockedDays = false,
+  yearSelectable = false,
 }: CalendarDateFieldProps) {
   const branding = useBranding();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  // Los días son cuadrados: sin tope, en tablet (sobre todo horizontal) el mes no cabe.
+  const sheetWidth = Math.min(
+    screenWidth - 40,
+    SHEET_MAX_WIDTH,
+    Math.max(280, (screenHeight - SHEET_CHROME_HEIGHT) * (7 / 6) + 32),
+  );
   const accentColor = accentColorProp ?? branding.colors.primary;
   const rangeMode = typeof onChangeRange === 'function';
   const [open, setOpen] = useState(false);
+  const [pickingYear, setPickingYear] = useState(false);
   const [anchor, setAnchor] = useState(() => parseIsoOrToday(value));
   const [draftStart, setDraftStart] = useState<string | null>(value);
   const [draftEnd, setDraftEnd] = useState<string | null>(rangeEnd);
@@ -107,6 +124,15 @@ export function CalendarDateField({
     month: 'long',
     year: 'numeric',
   });
+  const showLegend = Boolean(blockedByDate || apptCountByDate);
+  const years = useMemo(() => {
+    const nowY = new Date().getFullYear();
+    const min = allowPast ? 1900 : nowY;
+    const max = allowFuture ? nowY + 20 : nowY;
+    const list: number[] = [];
+    for (let y = max; y >= min; y -= 1) list.push(y);
+    return list;
+  }, [allowFuture, allowPast]);
 
   function goToMonth(next: Date) {
     const monthStart = new Date(next.getFullYear(), next.getMonth(), 1);
@@ -121,6 +147,7 @@ export function CalendarDateField({
     setAnchor(monthStart);
     setDraftStart(value);
     setDraftEnd(rangeEnd);
+    setPickingYear(false);
     setOpen(true);
     onVisibleMonthChange?.(monthStart);
   }
@@ -130,6 +157,19 @@ export function CalendarDateField({
     if (!allowPast && date < todayYmd) return true;
     if (disableBlockedDays && blockedByDate?.has(date)) return true;
     return false;
+  }
+
+  function selectYear(year: number) {
+    const now = new Date();
+    let month = anchor.getMonth();
+    if (!allowFuture && year === now.getFullYear() && month > now.getMonth()) {
+      month = now.getMonth();
+    }
+    if (!allowPast && year === now.getFullYear() && month < now.getMonth()) {
+      month = now.getMonth();
+    }
+    goToMonth(new Date(year, month, 1));
+    setPickingYear(false);
   }
 
   function selectDay(date: string) {
@@ -207,7 +247,10 @@ export function CalendarDateField({
         onRequestClose={() => setOpen(false)}
       >
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+          <Pressable
+            style={[styles.sheet, { width: sheetWidth }]}
+            onPress={(e) => e.stopPropagation()}
+          >
             <Text style={[styles.sheetTitle, { color: textColor }]}>{title}</Text>
             {rangeMode ? (
               <Text style={styles.hint}>
@@ -231,9 +274,16 @@ export function CalendarDateField({
               >
                 <Text style={{ fontWeight: '700', color: textColor }}>←</Text>
               </Pressable>
-              <Text style={[styles.monthLabel, { color: textColor }]}>
-                {monthLabel}
-              </Text>
+              <Pressable
+                disabled={!yearSelectable}
+                onPress={() => setPickingYear((current) => !current)}
+                accessibilityRole="button"
+                accessibilityLabel="Elegir año"
+              >
+                <Text style={[styles.monthLabel, { color: textColor }]}>
+                  {monthLabel}
+                </Text>
+              </Pressable>
               <Pressable
                 hitSlop={10}
                 onPress={() =>
@@ -247,17 +297,58 @@ export function CalendarDateField({
               </Pressable>
             </View>
 
-            <View style={styles.legendRow}>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]} />
-                <Text style={styles.legendText}>No disponible</Text>
+            {showLegend && !pickingYear ? (
+              <View style={styles.legendRow}>
+                {blockedByDate ? (
+                  <View style={styles.legendItem}>
+                    <View style={[styles.legendDot, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]} />
+                    <Text style={styles.legendText}>No disponible</Text>
+                  </View>
+                ) : null}
+                {apptCountByDate ? (
+                  <View style={styles.legendItem}>
+                    <View style={[styles.legendDot, { backgroundColor: '#DBEAFE', borderColor: '#93C5FD' }]} />
+                    <Text style={styles.legendText}>Con citas</Text>
+                  </View>
+                ) : null}
               </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#DBEAFE', borderColor: '#93C5FD' }]} />
-                <Text style={styles.legendText}>Con citas</Text>
-              </View>
-            </View>
+            ) : null}
 
+            {pickingYear ? (
+              <ScrollView style={styles.yearScroll} contentContainerStyle={styles.yearGrid}>
+                {years.map((year) => {
+                  const selected = year === anchor.getFullYear();
+                  return (
+                    <View key={year} style={styles.yearCell}>
+                      <Pressable
+                        onPress={() => selectYear(year)}
+                        style={[
+                          styles.yearBtn,
+                          selected && {
+                            backgroundColor: accentColor,
+                            borderColor: accentColor,
+                          },
+                        ]}
+                        accessibilityRole="button"
+                        accessibilityLabel={String(year)}
+                      >
+                        <Text
+                          style={[
+                            styles.yearText,
+                            { color: selected ? '#FFFFFF' : textColor },
+                          ]}
+                        >
+                          {year}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            ) : null}
+
+            {!pickingYear ? (
+            <>
             <View style={styles.weekHeader}>
               {['D', 'L', 'M', 'X', 'J', 'V', 'S'].map((d) => (
                 <View key={d} style={styles.weekCell}>
@@ -353,6 +444,8 @@ export function CalendarDateField({
                 );
               })}
             </View>
+            </>
+            ) : null}
 
             <View style={styles.footer}>
               <Pressable
@@ -412,6 +505,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
   },
   sheet: {
@@ -486,6 +580,28 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#64748B',
+  },
+  yearScroll: {
+    maxHeight: 280,
+  },
+  yearGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  yearCell: {
+    width: '25%',
+    padding: 4,
+  },
+  yearBtn: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  yearText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   footer: {
     flexDirection: 'row',

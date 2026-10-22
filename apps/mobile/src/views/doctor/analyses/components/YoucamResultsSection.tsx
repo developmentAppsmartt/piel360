@@ -22,6 +22,7 @@ import {
 import { PATIENT_FITZ_OPTIONS } from '../../../../data/patientFormOptions';
 import { youcamMetricCopy } from '../../../../data/youcamMetricCopy';
 import { useYoucamScorer } from '../../../../lib/youcam-scoring';
+import { ImagePreloader, cachedImageSource } from '../../../../lib/image-cache';
 import { youcamMetricConvention, youcamViewerBadgeLabel } from '../../../../data/youcamMetricConventions';
 import {
   formatSignedYears,
@@ -417,6 +418,18 @@ export function YoucamResultsSection({
     () => buildOverviewMaskUrls(metrics, analysis.masks),
     [metrics, analysis.masks],
   );
+  const preloadUris = useMemo(
+    () => [
+      ...new Set(
+        (analysis.masks ?? [])
+          .filter((m) => m.type !== 'resize_image')
+          .map((m) => m.url)
+          .filter(Boolean),
+      ),
+    ],
+    [analysis.masks],
+  );
+  const [baseLoaded, setBaseLoaded] = useState(false);
 
   const metricScrollRef = useRef<ScrollView>(null);
   const metricScrollX = useRef(0);
@@ -675,7 +688,11 @@ export function YoucamResultsSection({
           {showBase ? (
             <>
               <Image
-                source={{ uri: analysis.imageUrl! }}
+                source={cachedImageSource(analysis.imageUrl!)}
+                cachePolicy="memory-disk"
+                priority="high"
+                onLoad={() => setBaseLoaded(true)}
+                onError={() => setBaseLoaded(true)}
                 style={styles.viewerImage}
                 contentFit="cover"
               />
@@ -683,14 +700,16 @@ export function YoucamResultsSection({
                 ? overviewMaskUrls.map((url) => (
                     <Image
                       key={url}
-                      source={{ uri: url }}
+                      source={cachedImageSource(url)}
+                      cachePolicy="memory-disk"
                       style={styles.viewerOverlay}
                       contentFit="cover"
                     />
                   ))
                 : maskUrl ? (
                     <Image
-                      source={{ uri: maskUrl }}
+                      source={cachedImageSource(maskUrl)}
+                      cachePolicy="memory-disk"
                       style={styles.viewerOverlay}
                       contentFit="cover"
                     />
@@ -698,7 +717,8 @@ export function YoucamResultsSection({
             </>
           ) : maskUrl ? (
             <Image
-              source={{ uri: maskUrl }}
+              source={cachedImageSource(maskUrl)}
+              cachePolicy="memory-disk"
               style={styles.viewerImage}
               contentFit="contain"
             />
@@ -745,6 +765,10 @@ export function YoucamResultsSection({
           </View>
         ) : null}
         {showBase || maskUrl ? <AnalysisWatermark /> : null}
+        <ImagePreloader
+          uris={preloadUris}
+          enabled={baseLoaded || !analysis.hasOriginalPhoto || !analysis.imageUrl}
+        />
         {badgeLabel ? (
           <View
             style={[

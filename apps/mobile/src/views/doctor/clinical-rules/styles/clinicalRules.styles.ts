@@ -2,6 +2,10 @@ import type { AppBranding } from '../../../../config/branding.defaults';
 import { StyleSheet } from 'react-native';
 import { appShadow } from '../../../../styles/shadow';
 
+function soft(hex: string, a = '18'): string {
+  return /^#[0-9A-Fa-f]{6}$/.test(hex) ? `${hex}${a}` : hex;
+}
+
 export function createClinicalRulesStyles(colors: AppBranding['colors']) {
   return StyleSheet.create({
     screen: {
@@ -95,6 +99,53 @@ export function createClinicalRulesStyles(colors: AppBranding['colors']) {
     },
     chipTextActive: {
       color: colors.buttonText,
+    },
+    /** Grid 2×3 de fototipos con swatch de color (simulador). */
+    fotoGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    fotoCard: {
+      width: '31.5%',
+      flexGrow: 1,
+      minWidth: '30%',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: '#E5E7EB',
+      backgroundColor: '#FFFFFF',
+      paddingHorizontal: 10,
+      paddingVertical: 10,
+    },
+    fotoCardActive: {
+      borderColor: colors.button,
+      backgroundColor: soft(colors.button, '14'),
+      borderWidth: 1.5,
+    },
+    fotoSwatch: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: 'rgba(0,0,0,0.08)',
+    },
+    fotoCardText: {
+      flex: 1,
+      minWidth: 0,
+      gap: 1,
+    },
+    fotoCardTitle: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    fotoCardSubtitle: {
+      fontSize: 11,
+      fontWeight: '500',
+      color: colors.secondaryTextOverride ?? colors.muted,
     },
     ruleCard: {
       backgroundColor: '#FFFFFF',

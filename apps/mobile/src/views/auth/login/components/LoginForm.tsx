@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   Text,
   View,
@@ -9,14 +10,22 @@ import { AppIcon } from '../../../../components/AppIcon';
 import { Icons } from '../../../../components/icons';
 // import { ComplianceBadges } from '../../../../components/legal/ComplianceBadges';
 import { LegalDocumentModal } from '../../../../components/legal/LegalDocumentModal';
+import { isRecaptchaNativeReady } from '../../../../config/recaptcha';
 import { useAuth } from '../../../../context/AuthContext';
 import { useBranding } from '../../../../context/BrandingContext';
 import type { LegalDocId } from '../../../../data/legal/documents';
 import { ApiError } from '../../../../services/api.client';
+import {
+  getRecaptchaToken,
+  isRecaptchaSdkLinked,
+} from '../../../../services/recaptcha-native.service';
+import { useDeviceLayout } from '../../../../styles/deviceLayout';
 import { AuthConsent } from './AuthConsent';
 import { AuthGradientButton } from './AuthGradientButton';
 import { LoginIconField } from './LoginIconField';
 import { createLoginStyles } from '../styles/login.styles';
+
+const POWERED_BY_LOGO = require('../../../../../assets/logo-piel360-report.png');
 
 type LoginFormProps = {
   onGoRegister: () => void;
@@ -26,10 +35,28 @@ type LoginFormProps = {
 export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) {
   const { login, loginWithGoogle } = useAuth();
   const branding = useBranding();
+  const { isTablet, isLandscape } = useDeviceLayout();
   const styles = useMemo(() => createLoginStyles(branding.colors), [branding.colors]);
+  const poweredByLogoSize = isTablet
+    ? isLandscape
+      ? { width: 168, height: 62 }
+      : { width: 200, height: 74 }
+    : { width: 132, height: 48 };
+  const poweredByLabelSize = isTablet ? (isLandscape ? 14 : 16) : 13;
 
-  const [captcha, setCaptcha] = useState(false);
   const [terms, setTerms] = useState(false);
+
+  async function resolveCaptchaToken(): Promise<string> {
+    if (!isRecaptchaNativeReady()) return '';
+    // En Expo Go / Metro sin native module el SDK no existe.
+    if (__DEV__ && !isRecaptchaSdkLinked()) {
+      console.warn(
+        '[recaptcha] SDK no enlazado: login sin captcha en desarrollo. Usa expo run:android.',
+      );
+      return '';
+    }
+    return (await getRecaptchaToken('LOGIN')).trim();
+  }
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -67,8 +94,8 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
 
   async function onSubmitSignIn() {
     setError(null);
-    if (!captcha || !terms) {
-      setError('Marca “No soy un robot” y acepta los términos.');
+    if (!terms) {
+      setError('Debes aceptar los Términos y Condiciones.');
       return;
     }
     const emailTrimmed = email.trim();
@@ -87,9 +114,33 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
 
     setSubmitting(true);
     try {
+      let captchaToken: string | undefined;
+      if (isRecaptchaNativeReady()) {
+        try {
+          const token = await resolveCaptchaToken();
+          if (token) captchaToken = token;
+          else if (!__DEV__ || isRecaptchaSdkLinked()) {
+            setError('No se pudo verificar reCAPTCHA. Inténtalo de nuevo.');
+            return;
+          }
+        } catch (captchaErr) {
+          const detail =
+            captchaErr instanceof Error
+              ? captchaErr.message
+              : 'No se pudo verificar reCAPTCHA.';
+          // Dev sin build nativo: no bloquear login.
+          if (__DEV__ && !isRecaptchaSdkLinked()) {
+            console.warn('[recaptcha]', detail);
+          } else {
+            setError(detail);
+            return;
+          }
+        }
+      }
       await login({
         email: emailTrimmed.toLowerCase(),
         password,
+        ...(captchaToken ? { captchaToken } : {}),
       });
     } catch (err) {
       setError(loginErrorMessage(err));
@@ -100,8 +151,8 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
 
   async function onGoogleSignIn() {
     setError(null);
-    if (!captcha || !terms) {
-      setError('Marca “No soy un robot” y acepta los términos.');
+    if (!terms) {
+      setError('Debes aceptar los Términos y Condiciones.');
       return;
     }
     setSubmitting(true);
@@ -197,9 +248,7 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
         styles={styles}
         primaryColor={primary}
         onDark={onDark}
-        captchaChecked={captcha}
         termsChecked={terms}
-        onToggleCaptcha={() => setCaptcha((v) => !v)}
         onToggleTerms={() => setTerms((v) => !v)}
         onOpenTerms={() => setLegalDoc('terms')}
         onOpenPrivacy={() => setLegalDoc('privacy')}
@@ -207,23 +256,6 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
       />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <View style={styles.featureRow}>
-        <View style={[styles.featureCard, styles.featureCardBorder]}>
-          <AppIcon icon={Icons.clipboardCheck} size={20} color={featureIconColor} />
-          <Text style={styles.featureTitle}>Seguro y confiable</Text>
-          <Text style={styles.featureText}>
-            Tus datos están protegidos con los más altos estándares.
-          </Text>
-        </View>
-        <View style={styles.featureCard}>
-          <AppIcon icon={Icons.heartPulse} size={20} color={featureIconColor} />
-          <Text style={styles.featureTitle}>Resultados medibles</Text>
-          <Text style={styles.featureText}>
-            Información precisa para decisiones más inteligentes.
-          </Text>
-        </View>
-      </View>
 
       <AuthGradientButton
         label="Iniciar sesión"
@@ -233,6 +265,23 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
         styles={styles}
       />
 
+      <View style={styles.featureRow}>
+        <View style={[styles.featureCard, styles.featureCardBorder]}>
+          <AppIcon icon={Icons.clipboardCheck} size={18} color={featureIconColor} />
+          <Text style={styles.featureTitle}>Seguro y confiable</Text>
+          <Text style={styles.featureText}>
+            Tus datos están protegidos con los más altos estándares.
+          </Text>
+        </View>
+        <View style={styles.featureCard}>
+          <AppIcon icon={Icons.heartPulse} size={18} color={featureIconColor} />
+          <Text style={styles.featureTitle}>Resultados medibles</Text>
+          <Text style={styles.featureText}>
+            Información precisa para decisiones más inteligentes.
+          </Text>
+        </View>
+      </View>
+
       <Text style={styles.footer}>
         ¿No tienes una cuenta?{' '}
         <Text style={styles.link} onPress={onGoRegister}>
@@ -240,9 +289,17 @@ export function LoginForm({ onGoRegister, onGoForgotPassword }: LoginFormProps) 
         </Text>
       </Text>
 
-      <Text style={styles.poweredBy}>
-        POWERED BY <Text style={styles.poweredByBrand}>PIEL360</Text>
-      </Text>
+      <View style={styles.poweredBy} accessibilityRole="text">
+        <Text style={[styles.poweredByLabel, { fontSize: poweredByLabelSize }]}>
+          POWERED BY
+        </Text>
+        <Image
+          source={POWERED_BY_LOGO}
+          style={[styles.poweredByLogo, poweredByLogoSize]}
+          resizeMode="contain"
+          accessibilityLabel="Piel 360"
+        />
+      </View>
 
       {/* Oculto por temas legales: aún no se cuenta con estas certificaciones.
       <View style={styles.complianceBlock}>

@@ -2,8 +2,8 @@ import type { NosologyCategory, NosologyItem } from '../types/nosology';
 import { NOSOLOGY_CATEGORIES } from '../views/nosologies/data/nosologies';
 
 /**
- * Hoy: catálogo estático del diseño.
- * Después: GET /encyclopedia o endpoint de nosologías.
+ * Catálogo estático generado desde Skiniver `GET /get_disease_classes?lang=es`.
+ * No consulta Skiniver en runtime (ver `data/nosologies.ts`).
  */
 export const nosologiesService = {
   async listCategories(): Promise<NosologyCategory[]> {

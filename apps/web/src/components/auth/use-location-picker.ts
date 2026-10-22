@@ -2,16 +2,22 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LatLng } from "@/components/maps";
+import { countryCodeFromNominatim } from "@/lib/nominatim-address";
 
 type GeocodeResult = {
   display_name: string;
   lat: string;
   lon: string;
+  address?: {
+    country?: string;
+    country_code?: string;
+  };
 };
 
 export function useLocationPicker() {
   const [addressQuery, setAddressQuery] = useState("");
   const [address, setAddress] = useState("");
+  const [country, setCountry] = useState("");
   const [suggestions, setSuggestions] = useState<GeocodeResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -62,7 +68,6 @@ export function useLocationPicker() {
         url.searchParams.set("format", "json");
         url.searchParams.set("addressdetails", "1");
         url.searchParams.set("limit", "5");
-        url.searchParams.set("countrycodes", "co");
         const res = await fetch(url.toString(), {
           signal: controller.signal,
           headers: { Accept: "application/json" },
@@ -104,16 +109,22 @@ export function useLocationPicker() {
       url.searchParams.set("lat", String(lat));
       url.searchParams.set("lon", String(lng));
       url.searchParams.set("format", "json");
+      url.searchParams.set("addressdetails", "1");
       const res = await fetch(url.toString(), {
         headers: { Accept: "application/json" },
       });
       if (!res.ok) return;
-      const data = (await res.json()) as { display_name?: string };
+      const data = (await res.json()) as GeocodeResult & {
+        display_name?: string;
+      };
       if (!data.display_name) return;
       cancelPendingSearch();
       suppressAddressSearch.current = true;
       setAddress(data.display_name);
       setAddressQuery(data.display_name);
+      setCountry(
+        countryCodeFromNominatim(data.address, data.display_name, country),
+      );
       closeSuggestions();
     } catch {
       /* el pin basta */
@@ -127,6 +138,9 @@ export function useLocationPicker() {
     suppressAddressSearch.current = true;
     setAddress(item.display_name);
     setAddressQuery(item.display_name);
+    setCountry(
+      countryCodeFromNominatim(item.address, item.display_name, country),
+    );
     setLocation({ lat, lng });
     closeSuggestions();
     setGeoError(null);
@@ -168,6 +182,7 @@ export function useLocationPicker() {
       address?: string | null;
       lat?: number | null;
       lng?: number | null;
+      country?: string | null;
     }) => {
       const addr = data.address?.trim();
       if (addr) {
@@ -176,6 +191,11 @@ export function useLocationPicker() {
         setAddress(addr);
         setAddressQuery(addr);
         closeSuggestions();
+      }
+      if (data.country?.trim()) {
+        setCountry(data.country.trim().toUpperCase());
+      } else if (addr) {
+        setCountry(countryCodeFromNominatim(null, addr));
       }
       if (
         data.lat != null &&
@@ -193,6 +213,7 @@ export function useLocationPicker() {
     addressQuery,
     setAddressQuery,
     address,
+    country,
     location,
     suggestions,
     searchLoading,

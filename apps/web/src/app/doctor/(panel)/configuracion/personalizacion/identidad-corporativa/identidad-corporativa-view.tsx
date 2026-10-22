@@ -15,7 +15,11 @@ import {
   Smartphone,
   Upload,
   UserRound,
+  Users,
   X,
+  Home,
+  CalendarDays,
+  MessageSquare,
 } from "lucide-react";
 import {
   BRANDING_BACKGROUND_COLORS,
@@ -34,7 +38,7 @@ import {
   type BrandingImageKind,
   useMyBranding,
   useRemoveBrandingImage,
-  useUpdateBrandingColors,
+  useUpdateBranding,
   useUploadBrandingImage,
 } from "@/lib/queries/branding";
 
@@ -55,88 +59,94 @@ const COLOR_FIELDS: ColorField[] = [
   {
     key: "background",
     label: "Color de fondo",
-    description: "Fondo de las vistas de la app (inicio, pacientes, agenda, mensajes…).",
+    description: "Elige el color de fondo que se mostrará en las diferentes pantallas de PIEL 360, como Inicio, Pacientes, Agenda y Mensajes, para adaptar la apariencia de la aplicación a la identidad visual de tu marca.",
+    baseOptions: BRANDING_BACKGROUND_COLORS,
+  },
+  {
+    key: "menuBackground",    
+    label: "Fondo del menú inferior",
+    description: "Barra de módulos de la parte inferior (Inicio, Pacientes, Agenda, Chat, Perfil).",
     baseOptions: BRANDING_BACKGROUND_COLORS,
   },
   {
     key: "primary",
     label: "Color primario",
-    description: "Header, fondos y acentos de la app.",
+    description: "Elige el color que identificará tu marca en PIEL 360. Se utilizará en los encabezados, fondos de algunas secciones, botones y otros elementos destacados de la aplicación.",
   },
   {
     key: "primaryText",
     label: "Color de texto primario",
-    description: "Títulos y valores destacados de la app.",
+    description: "Elige el color de los títulos, encabezados y datos destacados de la aplicación para que sean fáciles de leer ymantengan la identidad visual de tu marca.",
     baseOptions: BRANDING_TEXT_COLORS,
   },
   {
     key: "secondaryText",
     label: "Color de texto secundario",
-    description: "Párrafos, descripciones y datos de la app.",
+    description: "Elige el color que tendrán las descripciones, los párrafos y la información complementaria de la aplicación para facilitar la lectura y mantener una apariencia visual armoniosa con tu marca.",
     baseOptions: BRANDING_SECONDARY_TEXT_COLORS,
   },
   {
     key: "icon",
     label: "Color de iconos",
-    description: "Iconos del sistema en la app.",
+    description: "Elige el color de los iconos que aparecen en las diferentes secciones de PIEL 360 para que combinen con la identidad visual de tu marca.",
   },
   {
     key: "secondary",
     label: "Color secundario",
-    description: "Solo en el login: textos resaltados en negrita.",
+    description: "Elige el color que se utilizará para resaltar los textos en negrita de la pantalla de inicio de sesión de tu aplicación móvil.",
   },
   {
     key: "link",
     label: "Color de links",
-    description: "Enlaces subrayados (¿Olvidaste tu contraseña?, Términos, Regístrate…).",
+    description: "Elige el color de los enlaces de la aplicación, como «¿Olvidaste tu contraseña?», «Términos y condiciones» y «Regístrate», para que se distingan fácilmente del resto del texto.nlaces subrayados (¿Olvidaste tu contraseña?, Términos, Regístrate…).",
     baseOptions: BRANDING_BUTTON_TEXT_COLORS,
   },
   {
     key: "loginText",
     label: "Texto del login",
-    description: "Letra del login y del registro que no es título (descripciones, etiquetas, casillas…).",
+    description: "Elige el color de los textos de las pantallas de inicio de sesión y registro, como las descripciones, las etiquetas de los campos y los textos de las casillas, excluyendo los títulos.",
     baseOptions: BRANDING_BUTTON_TEXT_COLORS,
   },
   {
     key: "button",
     label: "Color de botones",
-    description: "Fondo de todos los botones de la app.",
+    description: "Fondo de todos los botones de la app. Elige el color de fondo que tendrán los botones de PIEL 360 para mantener una apariencia uniforme y acorde con la identidad visual de tu marca.",
   },
   {
     key: "buttonHover",
-    label: "Botones · hover",
-    description: "Filtros, chips y opciones seleccionadas, y botones al presionarlos.",
+    label: "Color de botones al seleccionarlos o presionarlos",
+    description: "Elige el color que tendrán los botones, filtros y opciones cuando estén seleccionados o al presionarlos, para que el usuario identifique fácilmente las acciones activas dentro de PIEL 360.",
   },
   {
     key: "gradientStart",
-    label: "Degradado · inicio",
-    description: "Primer color de los botones con degradado.",
+    label: "Color inicial del degradado de los botones",
+    description: "Elige el primer color que se utilizará en el degradado de los botones. Se combinará con el color final para crear una transición suave entre ambos tonos.",
   },
   {
     key: "gradientEnd",
-    label: "Degradado · fin",
-    description: "Segundo color de los botones con degradado.",
+    label: "Color final del degradado de los botones",
+    description: "Elige el segundo color del degradado de los botones. Se combinará con el color inicial para crear una transición suave y darle un estilo personalizado a tu aplicación PIEL 360.",
   },
   {
     key: "gradientHoverStart",
-    label: "Degradado hover · inicio",
-    description: "Primer color del degradado al presionar el botón.",
+    label: "Color inicial del degradado al presionar los botones",
+    description: "Elige el primer color del degradado que se mostrará cuando el usuario presione un botón. Se combinará con el color final para crear una transición suave al interactuar con la aplicación.",
   },
   {
     key: "gradientHoverEnd",
-    label: "Degradado hover · fin",
-    description: "Segundo color del degradado al presionar el botón.",
+    label: "Color final del degradado al presionar los botones",
+    description: "Elige el segundo color del degradado que se mostrará cuando el usuario presione un botón. Se combinará con el color inicial para crear una transición suave y visualmente atractiva.",
   },
   {
     key: "buttonText",
-    label: "Texto de botones",
-    description: "Color de letra de los botones generales.",
+    label: "Color del texto de los botones",
+    description: "Elige el color de las letras que aparecen en los botones de PIEL 360 para que los textos sean fáciles de leer y combinen con los colores de tu aplicación.",
     baseOptions: BRANDING_BUTTON_TEXT_COLORS,
   },
   {
     key: "gradientText",
-    label: "Texto de botones con degradado",
-    description: "Color de letra de los botones con degradado.",
+    label: "Color del texto de los botones con degradado",
+    description: "Elige el color de las letras de los botones que tienen un fondo con degradado, para que los textos sean fáciles de leer y contrasten adecuadamente con los colores del botón.",
     baseOptions: BRANDING_BUTTON_TEXT_COLORS,
   },
 ];
@@ -273,6 +283,7 @@ function ImagePicker({
   title,
   description,
   examples,
+  footer,
   recommended,
   src,
   isCustom,
@@ -283,6 +294,7 @@ function ImagePicker({
   title: string;
   description: string;
   examples?: ReactNode;
+  footer?: ReactNode;
   /** Tamaño recomendado; avisa (sin bloquear) si la imagen elegida se aleja mucho. */
   recommended: { width: number; height: number };
   src: string;
@@ -370,6 +382,7 @@ function ImagePicker({
       </div>
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
       {warning ? <p className="text-xs text-amber-600">{warning}</p> : null}
+      {footer}
       <p className="text-[11px] text-muted-foreground">
         Tamaño recomendado: {recommended.width} × {recommended.height} px · JPG, PNG o WebP · máx. 5 MB
       </p>
@@ -381,10 +394,12 @@ function LoginPreview({
   colors,
   background,
   logo,
+  overlay,
 }: {
   colors: BrandingColors;
   background: string;
   logo: string;
+  overlay: boolean;
 }) {
   const customized = (key: BrandingColorKey) =>
     (colors[key] ?? "").toUpperCase() !== DEFAULT_BRANDING_COLORS[key].toUpperCase();
@@ -400,13 +415,15 @@ function LoginPreview({
         alt=""
         className="absolute inset-0 h-full w-full object-cover"
       />
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "linear-gradient(110deg, rgba(26,43,94,0.88) 0%, rgba(14,26,56,0.62) 48%, rgba(0,0,0,0.28) 100%)",
-        }}
-      />
+      {overlay ? (
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(110deg, rgba(26,43,94,0.88) 0%, rgba(14,26,56,0.62) 48%, rgba(0,0,0,0.28) 100%)",
+          }}
+        />
+      ) : null}
       <div className="relative flex h-full flex-col px-4 pb-4 pt-7 text-white">
         <img src={logo} alt="Logo" className="mx-auto h-14 w-auto object-contain" />
         <p className="mt-3 text-center text-[10px] leading-snug" style={{ color: text(0.9) }}>
@@ -479,13 +496,15 @@ function LoginPreview({
           </span>
         </p>
         <p
-          className="mt-1.5 text-center text-[7px] font-semibold tracking-[0.12em]"
-          style={{ color: text(0.55) }}
+          className="mt-1.5 flex items-center justify-center gap-1.5 text-[9px] font-bold tracking-[0.14em]"
+          style={{ color: text(0.7) }}
         >
-          POWERED BY{" "}
-          <span className="font-extrabold" style={{ color: colors.secondary }}>
-            PIEL360
-          </span>
+          POWERED BY
+          <img
+            src="/logo-piel360-report.png"
+            alt="Piel 360"
+            className="h-7 w-auto object-contain"
+          />
         </p>
       </div>
     </div>
@@ -493,6 +512,10 @@ function LoginPreview({
 }
 
 function AppPreview({ colors }: { colors: BrandingColors }) {
+  const menuActive =
+    colors.secondary.toUpperCase() !== DEFAULT_BRANDING_COLORS.secondary.toUpperCase()
+      ? colors.secondary
+      : colors.icon;
   return (
     <div
       className="relative mx-auto flex aspect-[9/19] w-full max-w-[290px] flex-col overflow-hidden rounded-[2.2rem] border-[7px] border-slate-900 shadow-xl"
@@ -541,13 +564,37 @@ function AppPreview({ colors }: { colors: BrandingColors }) {
           Botón con degradado
         </div>
       </div>
+      <div
+        className="flex items-end justify-around border-t border-slate-200 px-1 pb-3 pt-1.5"
+        style={{ backgroundColor: colors.menuBackground }}
+      >
+        {(
+          [
+            [Home, "Inicio"],
+            [Users, "Pacientes"],
+            [CalendarDays, "Agenda"],
+            [MessageSquare, "Chat"],
+            [UserRound, "Perfil"],
+          ] as const
+        ).map(([Icon, label], index) => {
+          const color = index === 0 ? menuActive : "#9CA3AF";
+          return (
+            <div key={label} className="flex flex-col items-center gap-0.5">
+              <Icon className="size-3.5" style={{ color }} aria-hidden />
+              <span className="text-[7px] font-semibold" style={{ color }}>
+                {label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
 export function IdentidadCorporativaView() {
   const branding = useMyBranding();
-  const updateColors = useUpdateBrandingColors();
+  const updateBranding = useUpdateBranding();
   const uploadImage = useUploadBrandingImage();
   const removeImage = useRemoveBrandingImage();
 
@@ -556,6 +603,7 @@ export function IdentidadCorporativaView() {
   const [activeField, setActiveField] = useState<BrandingColorKey>("primary");
   const [background, setBackground] = useState<PendingImage>(null);
   const [logo, setLogo] = useState<PendingImage>(null);
+  const [overlay, setOverlay] = useState(true);
   const [previewMode, setPreviewMode] = useState<"login" | "app">("login");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -569,6 +617,11 @@ export function IdentidadCorporativaView() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza el formulario con lo guardado
     if (savedColors) setColors(savedColors);
   }, [savedColors]);
+  const savedOverlay = saved?.loginOverlay ?? true;
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza el formulario con lo guardado
+    setOverlay(savedOverlay);
+  }, [savedOverlay]);
 
   useEffect(() => () => revokePreview(background), [background]);
   useEffect(() => () => revokePreview(logo), [logo]);
@@ -593,8 +646,9 @@ export function IdentidadCorporativaView() {
     () =>
       Boolean(background) ||
       Boolean(logo) ||
+      overlay !== savedOverlay ||
       (savedColors ? !sameColors(colors, savedColors) : false),
-    [background, logo, colors, savedColors],
+    [background, logo, overlay, savedOverlay, colors, savedColors],
   );
 
   const setColor = (key: BrandingColorKey, hex: string) => {
@@ -621,6 +675,7 @@ export function IdentidadCorporativaView() {
   const discard = () => {
     setMessage(null);
     if (savedColors) setColors(savedColors);
+    setOverlay(savedOverlay);
     setBackground(null);
     setLogo(null);
   };
@@ -629,8 +684,12 @@ export function IdentidadCorporativaView() {
     setSaving(true);
     setMessage(null);
     try {
-      if (savedColors && !sameColors(colors, savedColors)) {
-        await updateColors.mutateAsync(colors);
+      const colorsChanged = savedColors && !sameColors(colors, savedColors);
+      if (colorsChanged || overlay !== savedOverlay) {
+        await updateBranding.mutateAsync({
+          ...(colorsChanged ? { colors } : {}),
+          loginOverlay: overlay,
+        });
       }
       for (const [kind, pending] of [
         ["login-background", background],
@@ -693,9 +752,8 @@ export function IdentidadCorporativaView() {
             Identidad corporativa
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Define los colores, el fondo y el logo del login de tu app móvil. Los
-            cambios se aplican a tu cuenta, a tu equipo y a tus pacientes al
-            guardar.
+          Configura los colores, la imagen de fondo y el logo de la pantalla de inicio de sesión para adaptarlos a la identidad visual de tu marca. Al guardar los cambios, la nueva
+          apariencia se aplicará a tu cuenta, a tu equipo y a tus pacientes.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -912,6 +970,23 @@ export function IdentidadCorporativaView() {
                 fit="cover"
                 onPick={(file) => pickImage("login-background", file)}
                 onReset={() => resetImage("login-background")}
+                footer={
+                  <label className="flex cursor-pointer items-start gap-2 text-xs text-foreground/80">
+                    <input
+                      type="checkbox"
+                      checked={!overlay}
+                      onChange={(e) => {
+                        setMessage(null);
+                        setOverlay(!e.target.checked);
+                      }}
+                      className="mt-0.5 size-4 accent-primary"
+                    />
+                    <span>
+                      Quitar el degradado oscuro sobre la foto. Úsalo si tu imagen ya
+                      deja leer bien los textos del login.
+                    </span>
+                  </label>
+                }
               />
               <ImagePicker
                 title="Logo del login"
@@ -963,6 +1038,7 @@ export function IdentidadCorporativaView() {
                 colors={colors}
                 background={backgroundImage.src}
                 logo={logoImage.src}
+                overlay={overlay}
               />
             ) : (
               <AppPreview colors={colors} />

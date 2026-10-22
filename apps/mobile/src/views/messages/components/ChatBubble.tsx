@@ -2,15 +2,16 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Linking,
   Pressable,
   Text,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { AppIcon } from '../../../components/AppIcon';
 import { Icons } from '../../../components/icons';
 import { useBranding } from '../../../context/BrandingContext';
+import { cachedImageSource } from '../../../lib/image-cache';
 import type { ChatMessage } from '../../../types/messages';
 import type { ChatStyles } from '../styles/chat.styles';
 import { downloadChatImage } from '../utils/downloadChatImage';
@@ -64,9 +65,16 @@ export function ChatBubble({
         <View style={{ maxWidth: '78%', gap: 4 }}>
           <View style={styles.chatImageWrap}>
             <Image
-              source={{ uri: attachment.url }}
+              source={cachedImageSource(attachment.url)}
               style={styles.chatImage}
-              resizeMode="cover"
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={0}
+              recyclingKey={
+                attachment.url.includes('?')
+                  ? attachment.url.slice(0, attachment.url.indexOf('?'))
+                  : attachment.url
+              }
               accessibilityIgnoresInvertColors
             />
             {canDownloadImages ? (

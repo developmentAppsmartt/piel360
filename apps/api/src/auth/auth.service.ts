@@ -30,11 +30,18 @@ import { Prisma } from '@prisma/client';
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { Redis } from 'ioredis';
 import { assertDocumentNumberAvailable } from '../common/document-number.util';
-import { splitPhoneDigits } from '../common/phone.util';
+import {
+  combinePhoneDigits,
+  splitPhoneDigits,
+} from '../common/phone.util';
 import { MailService } from '../mail/mail.service';
 import { SmsService } from '../sms/sms.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
+import type {
+  SendChangePasswordOtpDto,
+  VerifyChangePasswordOtpDto,
+} from './dto/change-password-otp.dto';
 import type { ForgotPasswordDto } from './dto/forgot-password.dto';
 import type { LoginDto } from './dto/login.dto';
 import type { RegisterDoctorDto } from './dto/register-doctor.dto';
@@ -47,6 +54,7 @@ import type { ConfirmPhoneVerificationDto } from './dto/confirm-phone-verificati
 import type { SendPhoneOtpDto } from './dto/send-phone-otp.dto';
 import type { VerifyPhoneOtpDto } from './dto/verify-phone-otp.dto';
 import type { GoogleProfile } from './google.strategy';
+import { RecaptchaService } from './recaptcha.service';
 import { sessionSlotFor } from './session-policy';
 import type { JwtPayload } from './types';
 
@@ -125,6 +133,7 @@ export class AuthService implements OnModuleDestroy {
     private readonly mail: MailService,
     private readonly sms: SmsService,
     private readonly specialtyAccess: SpecialtyAccessService,
+    private readonly recaptcha: RecaptchaService,
   ) {
     this.redis = new Redis(this.config.getOrThrow<string>('REDIS_URL'), {
       lazyConnect: true,
@@ -601,7 +610,17 @@ export class AuthService implements OnModuleDestroy {
   async login(
     dto: LoginDto,
     client: 'mobile' | 'web' = 'web',
+    devicePlatform?: string,
   ): Promise<AuthResult> {
+    if (client === 'mobile' && this.recaptcha.isEnabled()) {
+      await this.recaptcha.assertValid(dto.captchaToken, {
+        required: true,
+        // SDK móvil: RecaptchaAction.LOGIN → "login"
+        action: 'login',
+        platform: devicePlatform,
+      });
+    }
+
     const email = dto.email.trim().toLowerCase();
     const user = await this.findUserByEmail(email);
 
@@ -1071,6 +1090,155 @@ export class AuthService implements OnModuleDestroy {
   }
 
   /**
+   * Cambio de contraseña (y opcionalmente celular) para el usuario de la sesión.
+   * No usa el flujo público por teléfono: ese hacía findFirst y podía resetear
+   * otra cuenta si el número estaba duplicado o no era el del paciente.
+   */
+  async sendChangePasswordOtp(
+    userId: string,
+    dto: SendChangePasswordOtpDto,
+  ): Promise<{ ok: true }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: BigInt(userId) },
+    });
+    if (!user?.email) throw new UnauthorizedException();
+
+    if (dto.channel === 'email') {
+      return this.sendOtp({ email: user.email, purpose: 'reset' });
+    }
+
+    const phone = this.normalizePhoneDigits(dto.phone ?? '');
+    if (!/^\d{10,15}$/.test(phone)) {
+      throw new BadRequestException(
+        'Indica el celular con indicativo de país (solo dígitos).',
+      );
+    }
+
+    const taken = await this.prisma.user.findFirst({
+      where: { phone, NOT: { id: user.id } },
+    });
+    if (taken) {
+      throw new ConflictException('Ya existe una cuenta con ese teléfono');
+    }
+
+    const code = String(randomInt(10000, 100000));
+    await this.ensureRedis();
+    await this.redis.set(
+      this.phoneOtpKey(phone),
+      JSON.stringify({
+        code,
+        attempts: 0,
+        purpose: 'password-change',
+        userId: String(user.id),
+      }),
+      'EX',
+      OTP_TTL_SECONDS,
+    );
+
+    await this.sms.sendSms(
+      phone,
+      `Tu código para cambiar la contraseña Piel360 es: ${code}. Expira en 10 minutos.`,
+    );
+
+    if (!this.config.get<string>('ALTIRIA_API_KEY')) {
+      console.warn(`[OTP phone password-change] ${phone} → ${code}`);
+    }
+
+    return { ok: true };
+  }
+
+  async verifyChangePasswordOtp(
+    userId: string,
+    dto: VerifyChangePasswordOtpDto,
+  ): Promise<{ ok: true; token: string; phoneTicket?: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: BigInt(userId) },
+    });
+    if (!user?.email) throw new UnauthorizedException();
+
+    if (dto.channel === 'email') {
+      const verified = await this.verifyOtp({
+        email: user.email,
+        purpose: 'reset',
+        code: dto.code,
+      });
+      if (!verified.token) {
+        throw new BadRequestException('Código inválido o expirado');
+      }
+      return { ok: true, token: verified.token };
+    }
+
+    const phone = this.normalizePhoneDigits(dto.phone ?? '');
+    if (!/^\d{10,15}$/.test(phone)) {
+      throw new BadRequestException(
+        'Indica el celular con indicativo de país (solo dígitos).',
+      );
+    }
+
+    const key = this.phoneOtpKey(phone);
+    await this.ensureRedis();
+    const raw = await this.redis.get(key);
+    if (!raw) {
+      throw new BadRequestException('Código inválido o expirado');
+    }
+
+    const stored = JSON.parse(raw) as {
+      code: string;
+      attempts: number;
+      purpose?: string;
+      userId?: string;
+    };
+
+    if (
+      stored.purpose !== 'password-change' ||
+      stored.userId !== String(user.id)
+    ) {
+      throw new BadRequestException('Código inválido o expirado');
+    }
+
+    if (stored.attempts >= OTP_MAX_ATTEMPTS) {
+      await this.redis.del(key);
+      throw new BadRequestException(
+        'Demasiados intentos. Solicita un nuevo código.',
+      );
+    }
+
+    if (stored.code !== dto.code.trim()) {
+      stored.attempts += 1;
+      const ttl = await this.redis.ttl(key);
+      await this.redis.set(
+        key,
+        JSON.stringify(stored),
+        'EX',
+        ttl > 0 ? ttl : OTP_TTL_SECONDS,
+      );
+      throw new BadRequestException('Código incorrecto');
+    }
+
+    await this.redis.del(key);
+
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(
+      Date.now() + PASSWORD_RESET_TTL_MINUTES * 60_000,
+    );
+    await this.prisma.passwordResetToken.create({
+      data: { email: user.email, token, expiresAt },
+    });
+
+    // Siempre devolver ticket en canal SMS: sincroniza users.phone con
+    // patients/doctors (había perfiles con el número solo en una tabla).
+    const phoneTicket = randomUUID();
+    await this.redis.set(
+      this.phoneTicketKey(phoneTicket),
+      phone,
+      'EX',
+      OTP_TICKET_TTL_SECONDS,
+    );
+
+    return { ok: true, token, phoneTicket };
+  }
+
+  /**
    * OTP de teléfono por SMS — Altiria no tiene ningún recurso de OTP nativo
    * (confirmado contra la spec oficial), solo envío de SMS. El código lo
    * generamos y guardamos nosotros, mismo patrón exacto que el OTP de email
@@ -1083,13 +1251,17 @@ export class AuthService implements OnModuleDestroy {
     const phone = this.normalizePhoneDigits(dto.phone);
     const purpose = dto.purpose ?? 'register';
     const existing = await this.prisma.user.findFirst({ where: { phone } });
+    const resetTarget =
+      purpose === 'reset'
+        ? await this.findUniqueUserByPhoneDigits(phone)
+        : null;
 
     if (purpose === 'register') {
       if (existing && (!exceptUserId || existing.id !== exceptUserId)) {
         throw new ConflictException('Ya existe una cuenta con ese teléfono');
       }
-    } else if (!existing) {
-      // Anti-enumeración: no revelar si el teléfono existe.
+    } else if (!resetTarget) {
+      // Anti-enumeración: no revelar si el teléfono existe (o está ambiguo).
       return { ok: true };
     }
 
@@ -1216,7 +1388,9 @@ export class AuthService implements OnModuleDestroy {
     await this.redis.del(key);
 
     if (purpose === 'reset') {
-      const user = await this.prisma.user.findFirst({ where: { phone } });
+      // Evita resetear otra cuenta cuando hay teléfonos duplicados o el
+      // número solo vive en patients.phone (desfase histórico).
+      const user = await this.findUniqueUserByPhoneDigits(phone);
       if (!user?.email) {
         throw new BadRequestException('Código inválido o expirado');
       }
@@ -1242,6 +1416,50 @@ export class AuthService implements OnModuleDestroy {
 
   private normalizePhoneDigits(phone: string): string {
     return phone.replace(/\D/g, '');
+  }
+
+  /**
+   * Usuario dueño del teléfono, o null si no hay uno claro.
+   * Mira `users.phone` y, si hace falta, `patients.area_code` + `patients.phone`.
+   */
+  private async findUniqueUserByPhoneDigits(phone: string): Promise<{
+    id: bigint;
+    email: string;
+  } | null> {
+    const digits = this.normalizePhoneDigits(phone);
+    const byUserPhone = await this.prisma.user.findMany({
+      where: { phone: digits },
+      select: { id: true, email: true },
+    });
+    if (byUserPhone.length === 1) return byUserPhone[0]!;
+    if (byUserPhone.length > 1) return null;
+
+    const { phone: national } = splitPhoneDigits(digits);
+    if (!national) return null;
+
+    const patients = await this.prisma.patient.findMany({
+      where: { phone: national },
+      select: {
+        areaCode: true,
+        phone: true,
+        user: { select: { id: true, email: true } },
+      },
+    });
+
+    const matched = patients
+      .filter((p) => {
+        if (!p.user?.email) return false;
+        const combined = combinePhoneDigits(p.areaCode, p.phone);
+        return combined === digits || p.phone === digits;
+      })
+      .map((p) => p.user!)
+      // Un mismo user_id no debe repetirse.
+      .filter(
+        (u, i, arr) => arr.findIndex((x) => x.id === u.id) === i,
+      );
+
+    if (matched.length === 1) return matched[0]!;
+    return null;
   }
 
   private phoneOtpKey(phone: string) {

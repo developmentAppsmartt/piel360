@@ -76,15 +76,16 @@ export function EditDoctorForm({ doctor, onSubmit }: EditDoctorFormProps) {
   const [medicalRegistry, setMedicalRegistry] = useState(
     doctor.medicalRegistry ?? '',
   );
-  const [licenseNumber, setLicenseNumber] = useState(
-    doctor.licenseNumber ?? '',
-  );
   const [educationEntity, setEducationEntity] = useState(
     doctor.educationEntity ?? '',
   );
   const [graduationInstitution, setGraduationInstitution] = useState(
     doctor.graduationInstitution ?? '',
   );
+  const [technicalInstitution, setTechnicalInstitution] = useState(
+    doctor.technicalInstitution ?? '',
+  );
+  const isLabor = doctor.professionalKind === 'labor';
   const [address, setAddress] = useState(doctor.address ?? '');
   const [city, setCity] = useState(doctor.city ?? '');
   const [country, setCountry] = useState(doctor.country ?? '');
@@ -130,9 +131,12 @@ export function EditDoctorForm({ doctor, onSubmit }: EditDoctorFormProps) {
       gender: optional(gender),
       specialty: optional(specialty),
       medicalRegistry: optional(medicalRegistry),
-      licenseNumber: optional(licenseNumber),
-      educationEntity: optional(educationEntity),
-      graduationInstitution: optional(graduationInstitution),
+      ...(isLabor
+        ? { technicalInstitution: optional(technicalInstitution) }
+        : {
+            educationEntity: optional(educationEntity),
+            graduationInstitution: optional(graduationInstitution),
+          }),
       address: optional(address),
       city: optional(city),
       country: optional(country),
@@ -284,7 +288,7 @@ export function EditDoctorForm({ doctor, onSubmit }: EditDoctorFormProps) {
         <Text style={styles.cardTitle}>Información profesional</Text>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Especialidad</Text>
+          <Text style={styles.label}>Especialidad o perfil profesional</Text>
           <View style={styles.chips}>
             {DOCTOR_SPECIALTIES.map((s) => {
               const active = specialty === s;
@@ -307,7 +311,10 @@ export function EditDoctorForm({ doctor, onSubmit }: EditDoctorFormProps) {
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Registro médico</Text>
+          <Text style={styles.label}>Registro profesional</Text>
+          <Text style={styles.hint}>
+            Registro médico, tarjeta profesional o certificación técnica.
+          </Text>
           <TextInput
             style={styles.input}
             value={medicalRegistry}
@@ -315,33 +322,40 @@ export function EditDoctorForm({ doctor, onSubmit }: EditDoctorFormProps) {
             editable={!submitting}
           />
         </View>
-        <View style={styles.field}>
-          <Text style={styles.label}>Número de licencia</Text>
-          <TextInput
-            style={styles.input}
-            value={licenseNumber}
-            onChangeText={setLicenseNumber}
-            editable={!submitting}
-          />
-        </View>
-        <View style={styles.field}>
-          <Text style={styles.label}>Entidad educativa</Text>
-          <TextInput
-            style={styles.input}
-            value={educationEntity}
-            onChangeText={setEducationEntity}
-            editable={!submitting}
-          />
-        </View>
-        <View style={styles.field}>
-          <Text style={styles.label}>Institución de graduación</Text>
-          <TextInput
-            style={styles.input}
-            value={graduationInstitution}
-            onChangeText={setGraduationInstitution}
-            editable={!submitting}
-          />
-        </View>
+        {isLabor ? (
+          <View style={styles.field}>
+            <Text style={styles.label}>Institución educativa técnica</Text>
+            <TextInput
+              style={styles.input}
+              value={technicalInstitution}
+              onChangeText={setTechnicalInstitution}
+              editable={!submitting}
+            />
+          </View>
+        ) : (
+          <>
+            <View style={styles.field}>
+              <Text style={styles.label}>Entidad educativa pregrado</Text>
+              <TextInput
+                style={styles.input}
+                value={educationEntity}
+                onChangeText={setEducationEntity}
+                editable={!submitting}
+              />
+            </View>
+            <View style={styles.field}>
+              <Text style={styles.label}>
+                Entidad educativa postgrado (especialización médica)
+              </Text>
+              <TextInput
+                style={styles.input}
+                value={graduationInstitution}
+                onChangeText={setGraduationInstitution}
+                editable={!submitting}
+              />
+            </View>
+          </>
+        )}
       </View>
 
       <View style={styles.card}>
