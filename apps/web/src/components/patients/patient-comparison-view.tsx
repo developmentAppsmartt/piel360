@@ -37,8 +37,8 @@ import {
   formatAnalysisDate,
   formatAnalysisDateShort,
   type ComparisonMode,
-  youcamMetricMaskUrl,
-  youcamOverallFromAnalysis,
+  analisisPiel360MetricMaskUrl,
+  analisisPiel360OverallFromAnalysis,
 } from "@/lib/patient-comparison";
 import { useComparisonNotes } from "@/lib/use-comparison-notes";
 import { cn } from "@/lib/utils";
@@ -209,8 +209,8 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
     return categories.filter((c) => c.id === category);
   }, [category, categories]);
 
-  const overallInitial = youcamOverallFromAnalysis(initialAnalysis) ?? 0;
-  const overallCurrent = youcamOverallFromAnalysis(currentAnalysis) ?? 0;
+  const overallInitial = analisisPiel360OverallFromAnalysis(initialAnalysis) ?? 0;
+  const overallCurrent = analisisPiel360OverallFromAnalysis(currentAnalysis) ?? 0;
   const overallDelta = overallCurrent - overallInitial;
   const overallPct =
     overallInitial > 0
@@ -223,10 +223,10 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
 
   const visualMetricType = category === "all" ? null : category;
   const visualInitialMask = visualMetricType
-    ? youcamMetricMaskUrl(initialDetail.data, visualMetricType)
+    ? analisisPiel360MetricMaskUrl(initialDetail.data, visualMetricType)
     : null;
   const visualCurrentMask = visualMetricType
-    ? youcamMetricMaskUrl(currentDetail.data, visualMetricType)
+    ? analisisPiel360MetricMaskUrl(currentDetail.data, visualMetricType)
     : null;
   const hasVisual =
     !!initialPhotoUrl ||
@@ -271,9 +271,9 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
   function openMetricModal(metricType: string, metricLabel: string) {
     openImageModal({
       initialPhotoUrl,
-      initialMaskUrl: youcamMetricMaskUrl(initialDetail.data, metricType),
+      initialMaskUrl: analisisPiel360MetricMaskUrl(initialDetail.data, metricType),
       currentPhotoUrl,
-      currentMaskUrl: youcamMetricMaskUrl(currentDetail.data, metricType),
+      currentMaskUrl: analisisPiel360MetricMaskUrl(currentDetail.data, metricType),
       subtitle: metricLabel,
     });
   }
@@ -559,7 +559,7 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
                               <SkinThumb
                                 label="Captura inicial"
                                 photoUrl={initialPhotoUrl}
-                                maskUrl={youcamMetricMaskUrl(
+                                maskUrl={analisisPiel360MetricMaskUrl(
                                   initialDetail.data,
                                   row.id,
                                 )}
@@ -573,7 +573,7 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
                               <SkinThumb
                                 label="Captura actual"
                                 photoUrl={currentPhotoUrl}
-                                maskUrl={youcamMetricMaskUrl(
+                                maskUrl={analisisPiel360MetricMaskUrl(
                                   currentDetail.data,
                                   row.id,
                                 )}

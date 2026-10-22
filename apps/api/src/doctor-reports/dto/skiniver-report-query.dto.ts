@@ -1,7 +1,7 @@
 import { Type } from 'class-transformer';
 import { IsInt, IsISO8601, IsOptional, IsString, Max, Min } from 'class-validator';
 
-export class SkiniverReportQueryDto {
+export class AnalisisDermaPiel360ReportQueryDto {
   /** YYYY-MM-DD inclusivo. Default: hace 30 días. */
   @IsOptional()
   @IsISO8601()

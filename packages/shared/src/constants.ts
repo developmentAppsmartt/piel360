@@ -7,7 +7,7 @@ export type AnalysisProviderSlug = (typeof ANALYSIS_PROVIDER_SLUGS)[number];
 
 /**
  * Las 16 métricas HD solicitadas a YouCam en `dst_actions`
- * (INTEGRACIONES-IA.md §2.3 — YouCamService.startAnalysis).
+ * (INTEGRACIONES-IA.md §2.3 — AnalisisPiel360Service.startAnalysis).
  */
 export const ANALISIS_PIEL360_DST_ACTIONS = [
   "hd_redness",

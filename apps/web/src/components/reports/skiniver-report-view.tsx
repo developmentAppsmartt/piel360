@@ -3,7 +3,7 @@
 import {
   ANALISIS_DERMA_PIEL360_AGE_BUCKETS,
   ANALISIS_DERMA_PIEL360_DIAGNOSIS_CLASS_DEFS,
-  type SkiniverReport,
+  type AnalisisDermaPiel360Report,
 } from "@piel360/shared";
 import {
   ModuleCard,
@@ -15,7 +15,7 @@ import { AgeGenderBars } from "@/components/reports/age-gender-bars";
 import { DiagnosisCategoryDonut } from "@/components/reports/diagnosis-category-donut";
 import { MultiSeriesTrendChart } from "@/components/reports/multi-series-trend-chart";
 import { SkinToneWidget } from "@/components/reports/skin-tone-widget";
-import { SkiniverClinicoWidget } from "@/components/reports/skiniver-clinico-widget";
+import { AnalisisDermaPiel360ClinicoWidget } from "@/components/reports/skiniver-clinico-widget";
 import { TopDiagnosesTable } from "@/components/reports/top-diagnoses-table";
 
 const CLASS_SERIES = Object.entries(ANALISIS_DERMA_PIEL360_DIAGNOSIS_CLASS_DEFS).map(([key, def]) => ({
@@ -41,11 +41,11 @@ const AGE_SERIES = ANALISIS_DERMA_PIEL360_AGE_BUCKETS.map((b) => ({
  * `showClinicalBrowser` apaga el buscador de análisis, que carga el listado
  * completo para filtrar en cliente — innecesario en una vista global.
  */
-export function SkiniverReportView({
+export function AnalisisDermaPiel360ReportView({
   report,
   showClinicalBrowser = true,
 }: {
-  report: SkiniverReport;
+  report: AnalisisDermaPiel360Report;
   showClinicalBrowser?: boolean;
 }) {
   return (
@@ -114,7 +114,7 @@ export function SkiniverReportView({
             profesional.
           </ModuleCardDescription>
           <div className="mt-4">
-            <SkiniverClinicoWidget />
+            <AnalisisDermaPiel360ClinicoWidget />
           </div>
         </ModuleCard>
       ) : null}

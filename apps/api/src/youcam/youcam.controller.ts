@@ -11,8 +11,8 @@ import {
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { JwtPayload } from '../auth/types';
-import { CreateYoucamAnalysisDto } from './dto/create-youcam-analysis.dto';
-import { YoucamAnalysesService } from './youcam-analyses.service';
+import { CreateAnalisisPiel360AnalysisDto } from './dto/create-youcam-analysis.dto';
+import { AnalisisPiel360AnalysesService } from './youcam-analyses.service';
 
 interface UploadedImage {
   buffer: Buffer;
@@ -20,13 +20,13 @@ interface UploadedImage {
 
 @Controller('analisispiel360')
 @UseGuards(JwtAuthGuard)
-export class YoucamController {
-  constructor(private readonly youcamAnalyses: YoucamAnalysesService) {}
+export class AnalisisPiel360Controller {
+  constructor(private readonly analisisPiel360Analyses: AnalisisPiel360AnalysesService) {}
 
   @Post('analyses')
   @UseInterceptors(FileInterceptor('image'))
   create(
-    @Body() dto: CreateYoucamAnalysisDto,
+    @Body() dto: CreateAnalisisPiel360AnalysisDto,
     @UploadedFile() image: UploadedImage | undefined,
     @CurrentUser() user: JwtPayload,
   ) {
@@ -35,6 +35,6 @@ export class YoucamController {
         'Falta la imagen (campo "image") o llegó vacía',
       );
     }
-    return this.youcamAnalyses.createAnalysis(dto, image.buffer, user);
+    return this.analisisPiel360Analyses.createAnalysis(dto, image.buffer, user);
   }
 }

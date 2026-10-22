@@ -7,7 +7,7 @@ import {
   type AnalisisDermaPiel360CandidateDetails,
   type AnalisisDermaPiel360DiagnosisCandidate,
 } from "@piel360/shared";
-import { SkiniverDescriptive } from "@/components/analyses/skiniver-descriptive";
+import { AnalisisDermaPiel360Descriptive } from "@/components/analyses/skiniver-descriptive";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +26,7 @@ export function DiagnosisDetailDialog({
   onClose,
 }: {
   item: AnalisisDermaPiel360DiagnosisCandidate | null;
-  /** Descriptivo de ESTE candidato (`skiniverDiagnosis.candidates`). Cada
+  /** Descriptivo de ESTE candidato (`analisisDermaPiel360Diagnosis.candidates`). Cada
    * `topn[]` trae el suyo; no es el del diagnóstico principal. */
   details?: AnalisisDermaPiel360CandidateDetails | null;
   onClose: () => void;
@@ -57,7 +57,7 @@ export function DiagnosisDetailDialog({
 
             {details ? (
               <div className="space-y-3 rounded-xl border border-border p-4">
-                <SkiniverDescriptive
+                <AnalisisDermaPiel360Descriptive
                   details={details}
                   icdCode={details.icd_code}
                 />

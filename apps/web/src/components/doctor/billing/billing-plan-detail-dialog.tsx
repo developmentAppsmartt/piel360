@@ -157,7 +157,7 @@ function DetailBody({
   const limits = sub.plan.analysisLimits ?? {};
   const breakdown = [
     (limits.aesthetic ?? 0) > 0 ? `${limits.aesthetic} estéticos` : null,
-    (limits.skiniver ?? 0) > 0 ? `${limits.skiniver} dermatológicos` : null,
+    (limits.analisisdermapiel360 ?? 0) > 0 ? `${limits.analisisdermapiel360} dermatológicos` : null,
   ].filter(Boolean);
   const iva = Number(sub.invoice?.ivaAmount ?? 0);
 

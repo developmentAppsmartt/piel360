@@ -41,15 +41,15 @@ function resolveCoverageVariant(
   coverage: PlanCoverage,
 ): "aesthetic" | "dermatology" {
   const slugs = planProviderSlugs(plan);
-  const hasSkiniver = slugs.some((slug) =>
-    providerSlugMatches(slug, ["skiniver"]),
+  const hasAnalisisDermaPiel360 = slugs.some((slug) =>
+    providerSlugMatches(slug, ["analisisdermapiel360"]),
   );
   const hasAesthetic = slugs.some((slug) =>
-    providerSlugMatches(slug, ["youcam", "fitzpatrick"]),
+    providerSlugMatches(slug, ["analisispiel360", "fitzpatrick"]),
   );
 
-  if (hasSkiniver && !hasAesthetic) return "dermatology";
-  if (hasAesthetic && !hasSkiniver) return "aesthetic";
+  if (hasAnalisisDermaPiel360 && !hasAesthetic) return "dermatology";
+  if (hasAesthetic && !hasAnalisisDermaPiel360) return "aesthetic";
 
   const hasDermCoverage =
     coverage.dermatologyClasses.length > 0 ||

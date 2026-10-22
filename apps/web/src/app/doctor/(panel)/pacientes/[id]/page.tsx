@@ -67,16 +67,16 @@ export default function PacienteDetallePage() {
         >
           Editar
         </Button>
-        {allows("skiniver") ? (
+        {allows("analisisdermapiel360") ? (
           <Button
             variant="outline"
             nativeButton={false}
             render={<Link href={`/doctor/pacientes/${p.id}/nuevo-analisis`} />}
           >
-            {ANALYSIS_PROVIDER_STATIC_LABELS.skiniver}
+            {ANALYSIS_PROVIDER_STATIC_LABELS.analisisdermapiel360}
           </Button>
         ) : null}
-        {allows("youcam") ? (
+        {allows("analisispiel360") ? (
           <Button
             variant="outline"
             nativeButton={false}
@@ -86,7 +86,7 @@ export default function PacienteDetallePage() {
               />
             }
           >
-            {ANALYSIS_PROVIDER_STATIC_LABELS.youcam}
+            {ANALYSIS_PROVIDER_STATIC_LABELS.analisispiel360}
           </Button>
         ) : null}
         {allows("fitzpatrick") ? (

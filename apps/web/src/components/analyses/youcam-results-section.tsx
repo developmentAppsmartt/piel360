@@ -10,8 +10,8 @@ import {
   resolveFitzpatrickScale,
 } from "@/components/analyses/fitzpatrick-results-section";
 import { FITZPATRICK_TYPES } from "@/lib/fitzpatrick-labels";
-import { youcamMetricCopy } from "@/lib/youcam-metric-copy";
-import { ANALISIS_PIEL360_METRIC_LABELS, youcamRegionLabel, analisisPiel360SkinTypeLabel } from "@/lib/youcam-metric-labels";
+import { analisisPiel360MetricCopy } from "@/lib/youcam-metric-copy";
+import { ANALISIS_PIEL360_METRIC_LABELS, analisisPiel360RegionLabel, analisisPiel360SkinTypeLabel } from "@/lib/youcam-metric-labels";
 import type { AnalysisDetail } from "@/lib/queries/analyses";
 import {
   parseAnalisisPiel360Metrics,
@@ -124,7 +124,7 @@ function buildRegionOptions(
     const region = m.region ?? DEFAULT_REGION;
     return {
       region,
-      label: youcamRegionLabel(region),
+      label: analisisPiel360RegionLabel(region),
       score: analisisPiel360MetricValue(m, preferRaw),
       skinType: m.skinType,
       maskUrl: findMaskUrl(masks, type, m.region),
@@ -132,7 +132,7 @@ function buildRegionOptions(
   });
 }
 
-/** Mismo orden que la app móvil (YoucamResultsSection.tsx): Edad de la piel,
+/** Mismo orden que la app móvil (AnalisisPiel360ResultsSection.tsx): Edad de la piel,
  * Puntaje de la piel, Biotipo, Fototipo y luego las métricas principales. */
 function buildChips(
   metrics: AnalisisPiel360Metric[],
@@ -349,7 +349,7 @@ function regionPillLabel(option: MetricRegionOption): string {
   return option.label;
 }
 
-export function YoucamResultsSection({
+export function AnalisisPiel360ResultsSection({
   analysis,
   onOpenProgress,
   onOpenReport,
@@ -489,7 +489,7 @@ export function YoucamResultsSection({
       ? fitzpatrickDetail
         ? `Fototipo ${fitzpatrickDetail}. Describe cómo reacciona tu piel al sol (escala de Fitzpatrick).`
         : "El fototipo describe cómo reacciona tu piel al sol según la escala de Fitzpatrick. Este paciente aún no tiene un fototipo registrado."
-      : youcamMetricCopy(isOverview ? "all" : selected?.type);
+      : analisisPiel360MetricCopy(isOverview ? "all" : selected?.type);
 
   const scorePct =
     overall != null ? Math.max(0, Math.min(100, overall)) : 0;

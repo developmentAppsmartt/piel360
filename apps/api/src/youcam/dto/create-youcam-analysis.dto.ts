@@ -6,7 +6,7 @@ import {
   IsString,
 } from 'class-validator';
 
-export class CreateYoucamAnalysisDto {
+export class CreateAnalisisPiel360AnalysisDto {
   @IsNumberString()
   patientId!: string;
 

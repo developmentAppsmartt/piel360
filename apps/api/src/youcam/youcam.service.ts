@@ -29,19 +29,19 @@ interface CheckStatusResponse {
   };
 }
 
-export type YouCamCheckStatusResult =
+export type AnalisisPiel360CheckStatusResult =
   | { status: 'success'; results: AnalisisPiel360Results }
   | { status: 'processing' }
   | { status: 'error'; message: string };
 
-export type PerfectCorpCreditBalance = {
+export type AnalisisPiel360CreditBalance = {
   id: string;
   type: 'ApiSubsToken' | 'ApiPaygToken' | string;
   amount: number;
   expiryMs: number | null;
 };
 
-export type PerfectCorpFeatureSku = {
+export type AnalisisPiel360FeatureSku = {
   description: string;
   amount: number;
   unit: string;
@@ -49,7 +49,7 @@ export type PerfectCorpFeatureSku = {
   runTaskUrl: string;
 };
 
-export type PerfectCorpCreditHistoryItem = {
+export type AnalisisPiel360CreditHistoryItem = {
   id: string;
   timestampMs: number;
   action: string;
@@ -61,13 +61,13 @@ export type PerfectCorpCreditHistoryItem = {
 /**
  * Cliente HTTP puro de la API server-to-server de YouCam (INTEGRACIONES-IA.md
  * §2). `Authorization: Bearer ${YOUCAM_API_KEY}` — confirmado literal en
- * `YouCamService.php` vía `Http::withToken($apiKey)`.
+ * `AnalisisPiel360Service.php` vía `Http::withToken($apiKey)`.
  *
  * También consulta saldo/costos Perfect Corp (`/s2s/v1.0/client/credit`,
  * `/s2s/v2.0/credit/feature-cost`) — misma cuenta para YouCam + Fitzpatrick.
  */
 @Injectable()
-export class YouCamService {
+export class AnalisisPiel360Service {
   private readonly baseUrl: string;
   private readonly apiKey: string;
 
@@ -77,12 +77,12 @@ export class YouCamService {
   }
 
   /** `GET /s2s/v1.0/client/credit` — saldo de unidades Perfect Corp. */
-  async getCreditBalances(): Promise<PerfectCorpCreditBalance[]> {
+  async getCreditBalances(): Promise<AnalisisPiel360CreditBalance[]> {
     const response = await fetch(`${this.baseUrl}/s2s/v1.0/client/credit`, {
       headers: { Authorization: `Bearer ${this.apiKey}` },
     });
     if (!response.ok) {
-      await this.throwYouCamError(response, 'PerfectCorp client/credit');
+      await this.throwAnalisisPiel360Error(response, 'PerfectCorp client/credit');
     }
 
     const json = (await response.json()) as {
@@ -106,8 +106,8 @@ export class YouCamService {
   }
 
   /** `GET /s2s/v2.0/credit/feature-cost` — costo por SKU (paginado). */
-  async getFeatureCosts(maxPages = 10): Promise<PerfectCorpFeatureSku[]> {
-    const skus: PerfectCorpFeatureSku[] = [];
+  async getFeatureCosts(maxPages = 10): Promise<AnalisisPiel360FeatureSku[]> {
+    const skus: AnalisisPiel360FeatureSku[] = [];
     let startingToken: string | null = null;
 
     for (let page = 0; page < maxPages; page += 1) {
@@ -119,7 +119,7 @@ export class YouCamService {
         headers: { Authorization: `Bearer ${this.apiKey}` },
       });
       if (!response.ok) {
-        await this.throwYouCamError(response, 'PerfectCorp credit/feature-cost');
+        await this.throwAnalisisPiel360Error(response, 'PerfectCorp credit/feature-cost');
       }
 
       const json = (await response.json()) as {
@@ -156,7 +156,7 @@ export class YouCamService {
   /** `GET /s2s/v1.0/client/credit/history` — historial reciente de unidades. */
   async getCreditHistory(
     pageSize = 20,
-  ): Promise<PerfectCorpCreditHistoryItem[]> {
+  ): Promise<AnalisisPiel360CreditHistoryItem[]> {
     const url = new URL(`${this.baseUrl}/s2s/v1.0/client/credit/history`);
     url.searchParams.set('page_size', String(Math.min(Math.max(pageSize, 1), 30)));
 
@@ -164,7 +164,7 @@ export class YouCamService {
       headers: { Authorization: `Bearer ${this.apiKey}` },
     });
     if (!response.ok) {
-      await this.throwYouCamError(response, 'PerfectCorp client/credit/history');
+      await this.throwAnalisisPiel360Error(response, 'PerfectCorp client/credit/history');
     }
 
     const json = (await response.json()) as {
@@ -228,7 +228,7 @@ export class YouCamService {
       );
     }
     if (!declareResponse.ok) {
-      await this.throwYouCamError(declareResponse, 'análisis estético file/skin-analysis');
+      await this.throwAnalisisPiel360Error(declareResponse, 'análisis estético file/skin-analysis');
     }
 
     const json = (await declareResponse.json()) as UploadUrlResponse;
@@ -289,7 +289,7 @@ export class YouCamService {
       );
     }
     if (!response.ok) {
-      await this.throwYouCamError(response, 'análisis estético task/skin-analysis');
+      await this.throwAnalisisPiel360Error(response, 'análisis estético task/skin-analysis');
     }
 
     const json = (await response.json()) as StartAnalysisResponse;
@@ -305,16 +305,16 @@ export class YouCamService {
   /** No lanza en `task_status: 'error'` — YouCam puede rechazar la tarea de
    * forma permanente (ej. "Input image resolution is too small.") y no tiene
    * sentido reintentar; se devuelve como dato para que el caller decida
-   * (`YoucamPollProcessor`/`YoucamWebhookService` marcan el análisis como
+   * (`AnalisisPiel360PollProcessor`/`AnalisisPiel360WebhookService` marcan el análisis como
    * fallido en vez de reintentar 20 veces con backoff exponencial contra
    * una condición que nunca va a cambiar). */
-  async checkStatus(taskId: string): Promise<YouCamCheckStatusResult> {
+  async checkStatus(taskId: string): Promise<AnalisisPiel360CheckStatusResult> {
     const response = await fetch(
       `${this.baseUrl}/s2s/v2.1/task/skin-analysis/${taskId}`,
       { headers: { Authorization: `Bearer ${this.apiKey}` } },
     );
     if (!response.ok) {
-      await this.throwYouCamError(response, 'YouCam checkStatus');
+      await this.throwAnalisisPiel360Error(response, 'YouCam checkStatus');
     }
 
     const json = (await response.json()) as CheckStatusResponse;
@@ -341,12 +341,12 @@ export class YouCamService {
   /** Restricciones de cuenta (créditos, cuota, plan) vienen como 4xx con
    * `error_code` — se tratan como error de negocio (400), no como falla
    * nuestra (500). Un 5xx de YouCam sí es un problema del proveedor. */
-  private async throwYouCamError(
+  private async throwAnalisisPiel360Error(
     response: Response,
     context: string,
   ): Promise<never> {
     const body = await response.text();
-    const friendly = this.describeYouCamError(body);
+    const friendly = this.describeAnalisisPiel360Error(body);
 
     if (response.status >= 400 && response.status < 500) {
       throw new BadRequestException(
@@ -358,7 +358,7 @@ export class YouCamService {
     );
   }
 
-  private describeYouCamError(body: string): string | null {
+  private describeAnalisisPiel360Error(body: string): string | null {
     try {
       const parsed = JSON.parse(body) as {
         error?: string;

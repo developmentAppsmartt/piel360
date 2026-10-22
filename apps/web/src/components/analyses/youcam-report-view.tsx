@@ -5,7 +5,7 @@ import { ArrowLeft, Download } from "lucide-react";
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api-error";
-import { type AnalysisDetail, useDownloadYoucamReport } from "@/lib/queries/analyses";
+import { type AnalysisDetail, useDownloadAnalisisPiel360Report } from "@/lib/queries/analyses";
 import { ANALISIS_PIEL360_METRIC_LABELS, analisisPiel360SkinTypeLabel } from "@/lib/youcam-metric-labels";
 import {
   chronologicalAgeYears,
@@ -152,7 +152,7 @@ function RadarChart({
   );
 }
 
-export function YoucamReportView({
+export function AnalisisPiel360ReportView({
   analysis,
   patientName,
   onBack,
@@ -185,7 +185,7 @@ export function YoucamReportView({
       ? `${analysis.patient.firstName} ${analysis.patient.lastName}`.trim()
       : "Paciente");
 
-  const downloadReport = useDownloadYoucamReport(analysis.id);
+  const downloadReport = useDownloadAnalisisPiel360Report(analysis.id);
 
   async function handleDownloadPdf() {
     if (downloadReport.isPending) return;

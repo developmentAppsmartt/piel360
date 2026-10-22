@@ -22,7 +22,7 @@ function shortLabel(type: string): string {
   return full.split(/[\s—-]/)[0] ?? full.slice(0, 9);
 }
 
-export function YoucamProgressView({
+export function AnalisisPiel360ProgressView({
   analysis,
   onBack,
 }: {
@@ -41,7 +41,7 @@ export function YoucamProgressView({
   );
 
   const previous = useMemo(() => {
-    const youcam = (list.data ?? [])
+    const analisispiel360 = (list.data ?? [])
       .filter(
         (a) =>
           !!a.analisisPiel360TaskId &&
@@ -52,7 +52,7 @@ export function YoucamProgressView({
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
-    return youcam[0] ?? null;
+    return analisispiel360[0] ?? null;
   }, [list.data, analysis.id]);
 
   const previousScores = useMemo(

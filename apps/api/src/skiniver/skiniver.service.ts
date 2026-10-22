@@ -13,7 +13,7 @@ import type {
  * hardcodeado en el código (MIGRACION.md deuda #1).
  */
 @Injectable()
-export class SkiniverService {
+export class AnalisisDermaPiel360Service {
   private readonly baseUrl: string;
   private readonly token: string;
 

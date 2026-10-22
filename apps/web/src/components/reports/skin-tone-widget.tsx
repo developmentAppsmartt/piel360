@@ -1,12 +1,12 @@
 "use client";
 
-import type { SkiniverSkinToneBucket } from "@piel360/shared";
+import type { AnalisisDermaPiel360SkinToneBucket } from "@piel360/shared";
 import { SegmentDistributionDonut } from "@/components/reports/segment-distribution-donut";
 
 /**
  * Widget 14 del mockup: barras + donut de distribución por tono de piel
  * (fototipo Fitzpatrick, agrupado en 3 rangos reales — ver
- * packages/shared/src/skiniver-diagnosis-taxonomy.ts). El donut reusa
+ * packages/shared/src/analisisdermapiel360-diagnosis-taxonomy.ts). El donut reusa
  * SegmentDistributionDonut (ya genérico por {value,label,color,patients,pct}),
  * mapeando `count` → `patients` ya que ese componente no le da otro uso.
  */
@@ -14,7 +14,7 @@ export function SkinToneWidget({
   buckets,
   total,
 }: {
-  buckets: SkiniverSkinToneBucket[];
+  buckets: AnalisisDermaPiel360SkinToneBucket[];
   total: number;
 }) {
   if (total === 0) {

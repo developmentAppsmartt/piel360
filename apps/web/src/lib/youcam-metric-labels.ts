@@ -23,7 +23,7 @@ export const ANALISIS_PIEL360_METRIC_LABELS: Record<string, string> = {
 
 // Algunas métricas (hd_pore, hd_wrinkle, hd_skin_type) traen varias regiones
 // bajo el mismo `type` — se usa para distinguirlas en el carrusel y en el
-// selector de subcategorías de YoucamResultsSection.
+// selector de subcategorías de AnalisisPiel360ResultsSection.
 export const YOUCAM_REGION_LABELS: Record<string, string> = {
   whole: "Cara completa",
   forehead: "Frente",
@@ -38,14 +38,14 @@ export const YOUCAM_REGION_LABELS: Record<string, string> = {
   u_zone: "Zona U",
 };
 
-export function youcamRegionLabel(region: string): string {
+export function analisisPiel360RegionLabel(region: string): string {
   return YOUCAM_REGION_LABELS[region] ?? region;
 }
 
-export function youcamMaskLabel(type: string, region?: string): string {
+export function analisisPiel360MaskLabel(type: string, region?: string): string {
   const base = ANALISIS_PIEL360_METRIC_LABELS[type] ?? type;
   if (!region) return base;
-  return `${base} — ${youcamRegionLabel(region)}`;
+  return `${base} — ${analisisPiel360RegionLabel(region)}`;
 }
 
 // Los 8 valores posibles de `skin_type`/`hd_skin_type[].skin_type` según la

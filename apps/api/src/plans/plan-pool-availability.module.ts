@@ -1,7 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
-import { YoucamModule } from '../youcam/youcam.module';
+import { AnalisisPiel360Module } from '../youcam/youcam.module';
 import { PlanPoolAvailabilityService } from './plan-pool-availability.service';
 
 /** Bolsa vs planes — módulo aparte para evitar ciclos Subscriptions ↔ Youcam ↔ Plans. */
@@ -9,7 +9,7 @@ import { PlanPoolAvailabilityService } from './plan-pool-availability.service';
   imports: [
     PrismaModule,
     forwardRef(() => SubscriptionsModule),
-    forwardRef(() => YoucamModule),
+    forwardRef(() => AnalisisPiel360Module),
   ],
   providers: [PlanPoolAvailabilityService],
   exports: [PlanPoolAvailabilityService],

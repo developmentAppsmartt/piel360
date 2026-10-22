@@ -1,7 +1,7 @@
 import { CONDITIONABLE_METRIC_TYPES } from "@piel360/shared";
 import {
   ANALISIS_PIEL360_METRIC_LABELS,
-  youcamRegionLabel,
+  analisisPiel360RegionLabel,
   analisisPiel360SkinTypeLabel,
 } from "@/lib/youcam-metric-labels";
 
@@ -78,7 +78,7 @@ export function conditionOperatorLabel(operator: string): string {
  * el sujeto de la frase ("esta rutina" / "este tratamiento"). */
 export function conditionSentence(condition: ConditionLike, subjectPhrase: string): string {
   const metric = conditionMetricLabel(condition.metricType);
-  const region = condition.region ? ` (${youcamRegionLabel(condition.region)})` : "";
+  const region = condition.region ? ` (${analisisPiel360RegionLabel(condition.region)})` : "";
 
   if (isSkinTypeMetric(condition.metricType)) {
     const value = condition.textValue ? analisisPiel360SkinTypeLabel(condition.textValue) : "—";

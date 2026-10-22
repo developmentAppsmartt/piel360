@@ -6,8 +6,8 @@ import { usePlanPoolAlerts } from "@/lib/queries/admin-bolsa-units";
 import { cn } from "@/lib/utils";
 
 const POOL_LABELS = {
-  skiniver: "Skiniver",
-  perfectcorp: "Perfect Corp",
+  analisisdermapiel360: "Skiniver",
+  analisispiel360: "Perfect Corp",
 } as const;
 
 export function PoolCreditsAlert({ className }: { className?: string }) {
@@ -52,8 +52,8 @@ export function PoolCreditsAlert({ className }: { className?: string }) {
             ))}
           </ul>
           <p className="text-xs text-amber-800/80">
-            Saldo actual — Skiniver: {balances.skiniver.toLocaleString("es-CO")} · Perfect Corp:{" "}
-            {balances.perfectcorp.toLocaleString("es-CO")}
+            Saldo actual — Skiniver: {balances.analisisdermapiel360.toLocaleString("es-CO")} · Perfect Corp:{" "}
+            {balances.analisispiel360.toLocaleString("es-CO")}
           </p>
           <Link
             href="/admin/bolsa-unidades"

@@ -1,6 +1,6 @@
 "use client";
 
-import type { SkiniverCategorySlice } from "@piel360/shared";
+import type { AnalisisDermaPiel360CategorySlice } from "@piel360/shared";
 import { SegmentDistributionDonut } from "@/components/reports/segment-distribution-donut";
 
 /**
@@ -15,7 +15,7 @@ export function DiagnosisCategoryDonut({
   slices,
   total,
 }: {
-  slices: SkiniverCategorySlice[];
+  slices: AnalisisDermaPiel360CategorySlice[];
   total: number;
 }) {
   if (total === 0) {

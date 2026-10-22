@@ -16,14 +16,14 @@ export type PlanKind = "both" | "derm" | "aesthetic" | "fototipo" | "other";
 
 export function subscriptionPlanKind(sub: Subscription): PlanKind {
   const limits = sub.plan.analysisLimits ?? {};
-  const derm = (limits.skiniver ?? 0) > 0;
+  const derm = (limits.analisisdermapiel360 ?? 0) > 0;
   const aesthetic = (limits.aesthetic ?? 0) > 0;
   if (derm && aesthetic) return "both";
   if (derm) return "derm";
   if (aesthetic) return "aesthetic";
   const slug = toInternalProviderSlug(sub.plan.provider.slug);
-  if (slug === "skiniver") return "derm";
-  if (slug === "youcam") return "aesthetic";
+  if (slug === "analisisdermapiel360") return "derm";
+  if (slug === "analisispiel360") return "aesthetic";
   if (slug === "fitzpatrick") return "fototipo";
   return "other";
 }
@@ -73,10 +73,10 @@ export function providerLabel(slug: string, fallbackName?: string) {
 export function maskVendorPoolMessage(message: string): string {
   return message
     .replace(/\bPerfect\s*Corp\b/gi, "Análisis Estético Piel 360")
-    .replace(/\bPerfectCorp\b/gi, "Análisis Estético Piel 360")
-    .replace(/\bYouCam\b/gi, "Análisis Estético Piel 360")
-    .replace(/\bYoucam\b/gi, "Análisis Estético Piel 360")
-    .replace(/\bSkiniver\b/gi, "Análisis Dermatológico Piel 360");
+    .replace(/\bAnalisisPiel360\b/gi, "Análisis Estético Piel 360")
+    .replace(/\bAnalisisPiel360\b/gi, "Análisis Estético Piel 360")
+    .replace(/\bAnalisisPiel360\b/gi, "Análisis Estético Piel 360")
+    .replace(/\bAnalisisDermaPiel360\b/gi, "Análisis Dermatológico Piel 360");
 }
 
 export function formatAdminDate(iso: string | null) {

@@ -21,13 +21,13 @@ import {
   type SkinReportSegmentsResponse,
   type SkinReportSegmentView,
   type SkinReportTrendPoint,
-  type SkiniverReport,
+  type AnalisisDermaPiel360Report,
 } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrgContextService } from '../organizations/org-context.service';
 import type { SkinHealthReportQueryDto } from './dto/skin-health-report-query.dto';
 import type { SkinSegmentsReportQueryDto } from './dto/skin-segments-report-query.dto';
-import type { SkiniverReportQueryDto } from './dto/skiniver-report-query.dto';
+import type { AnalisisDermaPiel360ReportQueryDto } from './dto/skiniver-report-query.dto';
 import {
   categoryRankingQuery,
   categoryTrendQuery,
@@ -46,7 +46,7 @@ import {
   type SummaryRow,
   type TrendRow,
 } from './doctor-reports.queries';
-import { SkiniverReportService } from './skiniver-report.service';
+import { AnalisisDermaPiel360ReportService } from './skiniver-report.service';
 
 const DEFAULT_RANGE_DAYS = 30;
 const DEFAULT_TREND_MONTHS = 6;
@@ -101,7 +101,7 @@ function monthKeys(end: Date, months: number): string[] {
  * proveedor (Fitzpatrick escribe `Patient.fitzpatrickType`), y así lo declaran
  * las vistas que consumen las consultas. Los análisis dermatológicos, que solo
  * dejan `ai_diagnosis` + `ai_raw_response`, se reportan aparte en
- * SkiniverReportService.
+ * AnalisisDermaPiel360ReportService.
  *
  * Un solo endpoint devuelve el bundle completo: las tres pantallas comparten
  * filtros, y partirlo obligaría a repetir el scope (1-2 queries de contexto)
@@ -112,7 +112,7 @@ export class DoctorReportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly orgContext: OrgContextService,
-    private readonly skiniverReport: SkiniverReportService,
+    private readonly analisisDermaPiel360Report: AnalisisDermaPiel360ReportService,
   ) {}
 
   /** Mismo contrato que PatientsService: solo el owner filtra por profesional. */
@@ -496,17 +496,17 @@ export class DoctorReportsService {
   }
 
   /** Reporte de análisis dermatológicos, acotado a los pacientes visibles del
-   * usuario. El armado vive en SkiniverReportService porque el panel de admin
+   * usuario. El armado vive en AnalisisDermaPiel360ReportService porque el panel de admin
    * usa el mismo reporte sin filtro de doctor. */
-  async getSkiniverReport(
+  async getAnalisisDermaPiel360Report(
     userId: string,
-    query: SkiniverReportQueryDto,
-  ): Promise<SkiniverReport> {
+    query: AnalisisDermaPiel360ReportQueryDto,
+  ): Promise<AnalisisDermaPiel360Report> {
     const doctorIds = await this.resolveDoctorIds(
       userId,
       query.professionalUserId,
     );
     const { from, to, toExclusive } = this.resolveRange(query);
-    return this.skiniverReport.build(doctorIds, { from, to, toExclusive });
+    return this.analisisDermaPiel360Report.build(doctorIds, { from, to, toExclusive });
   }
 }

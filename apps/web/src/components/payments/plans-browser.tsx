@@ -46,14 +46,14 @@ function sortProviderSlugs(slugs: string[]): string[] {
 
 function planVariant(plan: Plan): "aesthetic" | "dermatology" | "mixed" {
   const slugs = planProviderSlugs(plan);
-  const hasYoucam = slugs.some((slug) =>
-    providerSlugMatches(slug, ["youcam", "fitzpatrick"]),
+  const hasAnalisisPiel360 = slugs.some((slug) =>
+    providerSlugMatches(slug, ["analisispiel360", "fitzpatrick"]),
   );
-  const hasSkiniver = slugs.some((slug) =>
-    providerSlugMatches(slug, ["skiniver"]),
+  const hasAnalisisDermaPiel360 = slugs.some((slug) =>
+    providerSlugMatches(slug, ["analisisdermapiel360"]),
   );
-  if (hasSkiniver && !hasYoucam) return "dermatology";
-  if (hasYoucam && !hasSkiniver) return "aesthetic";
+  if (hasAnalisisDermaPiel360 && !hasAnalisisPiel360) return "dermatology";
+  if (hasAnalisisPiel360 && !hasAnalisisDermaPiel360) return "aesthetic";
   return "mixed";
 }
 
@@ -281,7 +281,7 @@ export function PlansBrowser({
   }, [catalog, providerSlug]);
 
   // const isDermFilter =
-  //   providerSlug != null && providerSlugMatches(providerSlug, ["skiniver"]);
+  //   providerSlug != null && providerSlugMatches(providerSlug, ["analisisdermapiel360"]);
 
   const active = subscriptions.data?.filter((s) => s.status === "active") ?? [];
 

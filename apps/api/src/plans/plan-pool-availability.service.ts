@@ -5,7 +5,7 @@ import {
   SubscriptionPoolService,
   type PoolProvider,
 } from '../subscriptions/subscription-pool.service';
-import { YouCamService } from '../youcam/youcam.service';
+import { AnalisisPiel360Service } from '../youcam/youcam.service';
 import {
   POOL_PUBLIC_ALIASES,
   toPublicPoolSlug,
@@ -35,12 +35,12 @@ export class PlanPoolAvailabilityService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly subscriptionPool: SubscriptionPoolService,
-    private readonly youcam: YouCamService,
+    private readonly youcam: AnalisisPiel360Service,
   ) {}
 
   async getBalances(): Promise<PoolBalances> {
-    const [skiniver, perfectcorpApi, committedPerfectcorp] = await Promise.all([
-      this.subscriptionPool.getSkiniverAvailable(),
+    const [skiniver, perfectcorpApi, committedAnalisisPiel360] = await Promise.all([
+      this.subscriptionPool.getAnalisisDermaPiel360Available(),
       this.youcam
         .getCreditBalances()
         .then((rows) => rows.reduce((sum, row) => sum + row.amount, 0))
@@ -50,7 +50,7 @@ export class PlanPoolAvailabilityService {
 
     return {
       skiniver,
-      perfectcorp: Math.max(0, perfectcorpApi - committedPerfectcorp),
+      perfectcorp: Math.max(0, perfectcorpApi - committedAnalisisPiel360),
     };
   }
 

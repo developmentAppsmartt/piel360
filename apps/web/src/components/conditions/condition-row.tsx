@@ -13,7 +13,7 @@ import {
   isSkinTypeMetric,
   type ConditionOperator,
 } from "@/lib/condition-labels";
-import { youcamRegionLabel, analisisPiel360SkinTypeLabel } from "@/lib/youcam-metric-labels";
+import { analisisPiel360RegionLabel, analisisPiel360SkinTypeLabel } from "@/lib/youcam-metric-labels";
 
 const inputCls =
   "w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-ring disabled:opacity-50";
@@ -84,7 +84,7 @@ export function ConditionRow({
           <select className={inputCls} {...register(`conditions.${index}.region`)}>
             {regions.map((region) => (
               <option key={region} value={region}>
-                {youcamRegionLabel(region)}
+                {analisisPiel360RegionLabel(region)}
               </option>
             ))}
           </select>

@@ -137,7 +137,7 @@ export function buildComparisonCategories(
   });
 }
 
-export function youcamOverallFromAnalysis(
+export function analisisPiel360OverallFromAnalysis(
   analysis: Analysis | undefined,
 ): number | null {
   if (!analysis?.aiRawResponse) return null;
@@ -148,8 +148,8 @@ export function youcamOverallFromAnalysis(
 
 const DEFAULT_REGION = "whole";
 
-/** Misma lógica que youcam-results-section: máscara por tipo + región. */
-export function findYoucamMaskUrl(
+/** Misma lógica que analisispiel360-results-section: máscara por tipo + región. */
+export function findAnalisisPiel360MaskUrl(
   masks: AnalysisDetail["masks"],
   type: string,
   region?: string | null,
@@ -204,7 +204,7 @@ function maskUrlFromRaw(
 }
 
 /** Imagen de la métrica priorizando la región general (`whole`). */
-export function youcamMetricMaskUrl(
+export function analisisPiel360MetricMaskUrl(
   detail: AnalysisDetail | undefined,
   metricType: string,
 ): string | null {
@@ -220,7 +220,7 @@ export function youcamMetricMaskUrl(
   const region = whole?.region ?? DEFAULT_REGION;
 
   if (detail.masks?.length) {
-    const url = findYoucamMaskUrl(detail.masks, metricType, region);
+    const url = findAnalisisPiel360MaskUrl(detail.masks, metricType, region);
     if (url) return url;
   }
 

@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { JwtPayload } from '../auth/types';
 import { SkinHealthReportQueryDto } from './dto/skin-health-report-query.dto';
 import { SkinSegmentsReportQueryDto } from './dto/skin-segments-report-query.dto';
-import { SkiniverReportQueryDto } from './dto/skiniver-report-query.dto';
+import { AnalisisDermaPiel360ReportQueryDto } from './dto/skiniver-report-query.dto';
 import { DoctorReportsService } from './doctor-reports.service';
 
 /**
@@ -37,8 +37,8 @@ export class DoctorReportsController {
   @Get('analisisdermapiel360')
   skiniver(
     @CurrentUser() user: JwtPayload,
-    @Query() query: SkiniverReportQueryDto,
+    @Query() query: AnalisisDermaPiel360ReportQueryDto,
   ) {
-    return this.doctorReports.getSkiniverReport(user.sub, query);
+    return this.doctorReports.getAnalisisDermaPiel360Report(user.sub, query);
   }
 }

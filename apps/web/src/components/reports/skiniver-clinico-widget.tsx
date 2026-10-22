@@ -31,7 +31,7 @@ type ClinicoTab = "imagenes" | "resultados";
  * separado, así que acá se arman con las mismas piezas, no se duplica su
  * lógica de estado.
  */
-export function SkiniverClinicoWidget() {
+export function AnalisisDermaPiel360ClinicoWidget() {
   const analyses = useAnalyses();
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -39,11 +39,11 @@ export function SkiniverClinicoWidget() {
   const [selectedDiagnosis, setSelectedDiagnosis] =
     useState<AnalisisDermaPiel360DiagnosisCandidate | null>(null);
 
-  const skiniverAnalyses = useMemo(() => {
+  const analisisDermaPiel360Analyses = useMemo(() => {
     // Por tipo de análisis y no por `provider.displayLabel`: esa etiqueta es
     // texto para el usuario y en producción quedó con el valor anterior al
     // seed, así que compararla dejaba la lista siempre vacía. Es el mismo
-    // criterio que el SQL del reporte (skiniver-reports.queries.ts).
+    // criterio que el SQL del reporte (analisisdermapiel360-reports.queries.ts).
     const rows = (analyses.data ?? []).filter(
       (a) => a.isValid && isDermatologicalAnalysis(a),
     );
@@ -81,12 +81,12 @@ export function SkiniverClinicoWidget() {
 
         {!analyses.isLoading && (
           <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto rounded-md border border-border/80 p-1">
-            {skiniverAnalyses.length === 0 && (
+            {analisisDermaPiel360Analyses.length === 0 && (
               <li className="px-2 py-1.5 text-sm text-muted-foreground">
                 Sin análisis dermatológicos {search ? "que coincidan" : "aún"}.
               </li>
             )}
-            {skiniverAnalyses.map((a) => (
+            {analisisDermaPiel360Analyses.map((a) => (
               <li key={a.id}>
                 <button
                   type="button"

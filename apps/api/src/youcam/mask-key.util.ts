@@ -8,7 +8,7 @@ import type { AnalisisPiel360OutputItem } from '@piel360/shared';
  * Usado tanto al subir (youcam-results.service.ts) como al firmar
  * (analyses.service.ts) para que ambos lados coincidan.
  */
-export function youcamMaskKey(
+export function analisisPiel360MaskKey(
   item: Pick<AnalisisPiel360OutputItem, 'type' | 'region'>,
 ): string {
   return item.region ? `${item.type}_${item.region}` : item.type;

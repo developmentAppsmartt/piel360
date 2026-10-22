@@ -19,7 +19,7 @@ export function toStringOrNull(value: unknown): string | null {
 }
 
 /**
- * Misma convención que `youcamMaskKey` en src/youcam/mask-key.util.ts: sin la
+ * Misma convención que `analisisPiel360MaskKey` en src/youcam/mask-key.util.ts: sin la
  * región, las distintas zonas de `hd_pore`/`hd_wrinkle`/`hd_skin_type`
  * comparten ruta y se pisan entre sí.
  */
@@ -39,7 +39,7 @@ export function readOutput(rawResponse: unknown): RawOutputItem[] {
  * por ON DELETE CASCADE) y reinserta desde el JSON, que sigue siendo la
  * fuente de verdad.
  */
-export async function normalizeYoucamResults(
+export async function normalizeAnalisisPiel360Results(
   tx: Prisma.TransactionClient,
   analysisId: bigint,
   providerId: bigint | null,

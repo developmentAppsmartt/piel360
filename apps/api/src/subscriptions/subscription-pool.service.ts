@@ -25,11 +25,11 @@ export class SubscriptionPoolService {
       .map((id) => providerSlugsById.get(id))
       .filter((s): s is string => Boolean(s));
 
-    const hasSkiniver = slugs.includes(SKINIVER_SLUG);
+    const hasAnalisisDermaPiel360 = slugs.includes(SKINIVER_SLUG);
     const hasAesthetic = slugs.some((s) => AESTHETIC_SLUGS.has(s));
 
-    if (hasSkiniver && !hasAesthetic) return 'skiniver';
-    if (hasAesthetic && !hasSkiniver) return 'perfectcorp';
+    if (hasAnalisisDermaPiel360 && !hasAesthetic) return 'skiniver';
+    if (hasAesthetic && !hasAnalisisDermaPiel360) return 'perfectcorp';
     if (hasAesthetic) return 'perfectcorp';
     return 'skiniver';
   }
@@ -43,7 +43,7 @@ export class SubscriptionPoolService {
   }
 
   /** Solo recargas admin (`kind=recharge`) alimentan el saldo de la bolsa. */
-  async getSkiniverRechargeTotal(db: Db = this.prisma): Promise<number> {
+  async getAnalisisDermaPiel360RechargeTotal(db: Db = this.prisma): Promise<number> {
     const now = Date.now();
     const recharges = await db.platformUnitRecharge.findMany({
       where: {
@@ -58,9 +58,9 @@ export class SubscriptionPoolService {
       .reduce((sum, r) => sum + r.quantity, 0);
   }
 
-  async getSkiniverAvailable(db: Db = this.prisma): Promise<number> {
+  async getAnalisisDermaPiel360Available(db: Db = this.prisma): Promise<number> {
     const [total, committed] = await Promise.all([
-      this.getSkiniverRechargeTotal(db),
+      this.getAnalisisDermaPiel360RechargeTotal(db),
       this.getCommittedCredits(db, 'skiniver'),
     ]);
     return Math.max(0, total - committed);
@@ -81,9 +81,9 @@ export class SubscriptionPoolService {
     return used._sum.quantity ?? 0;
   }
 
-  private async assertSkiniverAvailable(db: Db, required: number): Promise<void> {
+  private async assertAnalisisDermaPiel360Available(db: Db, required: number): Promise<void> {
     if (required <= 0) return;
-    const available = await this.getSkiniverAvailable(db);
+    const available = await this.getAnalisisDermaPiel360Available(db);
     if (available < required) {
       throw new BadRequestException(
         `Bolsa Análisis Dermatológico insuficiente: hay ${available} créditos disponibles y se requieren ${required}.`,
@@ -147,7 +147,7 @@ export class SubscriptionPoolService {
     if (existing && existing.returned > 0) {
       const toReserve = existing.returned;
       if (poolProvider === 'skiniver') {
-        await this.assertSkiniverAvailable(db, toReserve);
+        await this.assertAnalisisDermaPiel360Available(db, toReserve);
       }
       await db.subscriptionPoolAllocation.update({
         where: { subscriptionId },
@@ -175,7 +175,7 @@ export class SubscriptionPoolService {
 
     const toReserve = quantity - netCommitted;
     if (poolProvider === 'skiniver') {
-      await this.assertSkiniverAvailable(db, toReserve);
+      await this.assertAnalisisDermaPiel360Available(db, toReserve);
     }
 
     if (existing) {

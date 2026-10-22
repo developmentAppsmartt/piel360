@@ -8,7 +8,7 @@ import { PatientsModule } from '../patients/patients.module';
 import { ReportsModule } from '../reports/reports.module';
 import { RoutinesModule } from '../routines/routines.module';
 import { SkinAgeRulesModule } from '../skin-age-rules/skin-age-rules.module';
-import { SkiniverModule } from '../skiniver/skiniver.module';
+import { AnalisisDermaPiel360Module } from '../skiniver/skiniver.module';
 import { StorageModule } from '../storage/storage.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { TreatmentsModule } from '../treatments/treatments.module';
@@ -32,7 +32,7 @@ import { ANALYSIS_IMAGES_QUEUE, ENCYCLOPEDIA_QUEUE } from './queues';
     FitzpatrickRulesModule,
     RoutinesModule,
     TreatmentsModule,
-    SkiniverModule,
+    AnalisisDermaPiel360Module,
     SubscriptionsModule,
     StorageModule,
     ReportsModule,

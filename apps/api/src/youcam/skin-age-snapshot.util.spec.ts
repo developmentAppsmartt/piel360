@@ -1,7 +1,7 @@
 import {
   chronologicalAgeYears,
   computeSkinAgeSnapshot,
-  readYoucamSkinAgeYears,
+  readAnalisisPiel360SkinAgeYears,
   skinAgeDifferenceMessage,
 } from './skin-age-snapshot.util';
 
@@ -31,7 +31,7 @@ describe('skin-age-snapshot', () => {
 
   it('lee skin_age desde el output de YouCam', () => {
     expect(
-      readYoucamSkinAgeYears({
+      readAnalisisPiel360SkinAgeYears({
         output: [{ type: 'skin_age', score: 22 }],
       }),
     ).toBe(22);

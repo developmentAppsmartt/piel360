@@ -36,7 +36,7 @@ export type FitzpatrickCheckStatusResult =
  * PerfectCorp (docs/ai_fitzpatrick_skin_type.md) — API separada de la de
  * YouCam Skin Analysis (`/s2s/v2.0/...` en vez de `/s2s/v2.1/...`), mismo
  * servidor/cuenta, mismo esquema de auth Bearer. Mismo patrón de 2 pasos
- * para subir imagen que `YouCamService#uploadImage`.
+ * para subir imagen que `AnalisisPiel360Service#uploadImage`.
  */
 @Injectable()
 export class FitzpatrickService {

@@ -6,9 +6,9 @@ import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import { DOCTOR_PANEL_ACCESS } from "@/lib/doctor-panel-permissions";
 import {
   isPrimaryPanel,
-  providerSlugFromUsagePermission,
+  publicProviderSlugFromUsagePermission,
   resolveUserPrimaryPanel,
-  type AnalysisProviderSlug,
+  type PublicAnalysisProviderSlug,
   type PrimaryPanel,
 } from "@piel360/shared";
 
@@ -143,19 +143,19 @@ export function visibleClinicalNavLabels(
 }
 
 export type ProviderPreviewItem = {
-  slug: AnalysisProviderSlug;
+  slug: PublicAnalysisProviderSlug;
   label: string;
 };
 
 export function selectedAnalysisProviders(
   permissions: Pick<Permission, "name" | "slug" | "isActive">[],
 ): ProviderPreviewItem[] {
-  const bySlug = new Map<AnalysisProviderSlug, ProviderPreviewItem>();
+  const bySlug = new Map<PublicAnalysisProviderSlug, ProviderPreviewItem>();
   for (const permission of permissions) {
     if (permission.isActive === false) continue;
     const slug =
-      providerSlugFromUsagePermission(permission.name) ??
-      providerSlugFromUsagePermission(permission.slug);
+      publicProviderSlugFromUsagePermission(permission.name) ??
+      publicProviderSlugFromUsagePermission(permission.slug);
     if (!slug || bySlug.has(slug)) continue;
     bySlug.set(slug, {
       slug,

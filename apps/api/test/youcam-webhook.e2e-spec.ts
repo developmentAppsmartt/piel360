@@ -5,11 +5,11 @@ import { Webhook } from 'svix';
 import type { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { YouCamService } from '../src/youcam/youcam.service';
+import { AnalisisPiel360Service } from '../src/youcam/youcam.service';
 
 const TEST_WEBHOOK_SECRET = `whsec_${Buffer.from('test-youcam-webhook-secret-32by').toString('base64')}`;
 
-const youCamServiceStub: Partial<YouCamService> = {
+const youCamServiceStub: Partial<AnalisisPiel360Service> = {
   // Puerto sin listener en localhost -> ECONNREFUSED inmediato (sin
   // resolución DNS), a diferencia de un dominio inexistente que puede
   // tardar varios segundos en fallar bajo carga.
@@ -48,7 +48,7 @@ describe('YouCam webhook (e2e)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
-      .overrideProvider(YouCamService)
+      .overrideProvider(AnalisisPiel360Service)
       .useValue(youCamServiceStub)
       .compile();
 

@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import {
   computeSkinAgeSnapshot,
-  readYoucamSkinAgeYears,
+  readAnalisisPiel360SkinAgeYears,
   type SkinAgeSnapshot,
 } from './skin-age-snapshot.util';
 
@@ -15,7 +15,7 @@ export function snapshotFromAnalysis(input: {
   analysisDate: Date;
 }): SkinAgeSnapshot {
   return computeSkinAgeSnapshot({
-    skinAgeYears: readYoucamSkinAgeYears(input.aiRawResponse),
+    skinAgeYears: readAnalisisPiel360SkinAgeYears(input.aiRawResponse),
     birthDate: input.birthDate,
     analysisDate: input.analysisDate,
   });

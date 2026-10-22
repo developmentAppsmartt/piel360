@@ -19,9 +19,9 @@ import { StorageService } from '../storage/storage.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
 import { getAnalysisProviderIdBySlug } from '../plans/plan-providers.util';
-import type { CreateYoucamAnalysisDto } from './dto/create-youcam-analysis.dto';
-import { YOUCAM_POLL_QUEUE, type YoucamPollJobData } from './queues';
-import { YouCamService } from './youcam.service';
+import type { CreateAnalisisPiel360AnalysisDto } from './dto/create-youcam-analysis.dto';
+import { YOUCAM_POLL_QUEUE, type AnalisisPiel360PollJobData } from './queues';
+import { AnalisisPiel360Service } from './youcam.service';
 
 const YOUCAM_PROVIDER_SLUG = 'youcam';
 const POLL_ATTEMPTS = 20;
@@ -33,23 +33,23 @@ const POLL_INITIAL_DELAY_MS = 8_000;
 const POLL_BACKOFF_DELAY_MS = 15_000;
 
 @Injectable()
-export class YoucamAnalysesService {
-  private readonly logger = new Logger(YoucamAnalysesService.name);
+export class AnalisisPiel360AnalysesService {
+  private readonly logger = new Logger(AnalisisPiel360AnalysesService.name);
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly youcam: YouCamService,
+    private readonly youcam: AnalisisPiel360Service,
     private readonly subscriptions: SubscriptionsService,
     private readonly patients: PatientsService,
     private readonly storage: StorageService,
     @InjectQueue(YOUCAM_POLL_QUEUE)
-    private readonly pollQueue: Queue<YoucamPollJobData>,
+    private readonly pollQueue: Queue<AnalisisPiel360PollJobData>,
     private readonly specialtyAccess: SpecialtyAccessService,
   ) {}
 
   /** `POST /youcam/analyses` — MIGRACION.md §2.5/§4.2. */
   async createAnalysis(
-    dto: CreateYoucamAnalysisDto,
+    dto: CreateAnalisisPiel360AnalysisDto,
     image: Buffer,
     currentUser: JwtPayload,
   ) {
@@ -66,7 +66,7 @@ export class YoucamAnalysesService {
   }
 
   private async createAnalysisInner(
-    dto: CreateYoucamAnalysisDto,
+    dto: CreateAnalisisPiel360AnalysisDto,
     image: Buffer,
     currentUser: JwtPayload,
   ) {
@@ -170,7 +170,7 @@ export class YoucamAnalysesService {
       throw err;
     }
 
-    const youcamProviderId = await getAnalysisProviderIdBySlug(
+    const analisisPiel360ProviderId = await getAnalysisProviderIdBySlug(
       this.prisma,
       YOUCAM_PROVIDER_SLUG,
     );
@@ -179,7 +179,7 @@ export class YoucamAnalysesService {
       data: {
         patientId: BigInt(dto.patientId),
         userId,
-        providerId: youcamProviderId,
+        providerId: analisisPiel360ProviderId,
         analisisPiel360TaskId: taskId,
         imagePath: 'youcam',
         bodyRegion: dto.bodyRegion,

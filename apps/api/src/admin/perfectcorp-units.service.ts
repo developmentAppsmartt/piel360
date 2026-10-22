@@ -2,10 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ANALISIS_PIEL360_DST_ACTIONS } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-  YouCamService,
-  type PerfectCorpCreditBalance,
-  type PerfectCorpCreditHistoryItem,
-  type PerfectCorpFeatureSku,
+  AnalisisPiel360Service,
+  type AnalisisPiel360CreditBalance,
+  type AnalisisPiel360CreditHistoryItem,
+  type AnalisisPiel360FeatureSku,
 } from '../youcam/youcam.service';
 import { POOL_PUBLIC_ALIASES } from '@piel360/shared';
 
@@ -20,11 +20,11 @@ const FALLBACK_FEATURE_COSTS = {
 } as const;
 
 @Injectable()
-export class PerfectCorpUnitsService {
-  private readonly logger = new Logger(PerfectCorpUnitsService.name);
+export class AnalisisPiel360UnitsService {
+  private readonly logger = new Logger(AnalisisPiel360UnitsService.name);
 
   constructor(
-    private readonly youcam: YouCamService,
+    private readonly youcam: AnalisisPiel360Service,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -39,13 +39,13 @@ export class PerfectCorpUnitsService {
         this.logger.warn(
           `feature-cost no disponible: ${err instanceof Error ? err.message : String(err)}`,
         );
-        return [] as PerfectCorpFeatureSku[];
+        return [] as AnalisisPiel360FeatureSku[];
       }),
       this.youcam.getCreditHistory(30).catch((err) => {
         this.logger.warn(
           `credit/history no disponible: ${err instanceof Error ? err.message : String(err)}`,
         );
-        return [] as PerfectCorpCreditHistoryItem[];
+        return [] as AnalisisPiel360CreditHistoryItem[];
       }),
       this.prisma.platformUnitRecharge.findMany({
         where: {
@@ -121,7 +121,7 @@ function round2(n: number) {
   return Math.round(n * 100) / 100;
 }
 
-function serializeBalance(b: PerfectCorpCreditBalance) {
+function serializeBalance(b: AnalisisPiel360CreditBalance) {
   return {
     id: b.id,
     type: b.type,
@@ -130,7 +130,7 @@ function serializeBalance(b: PerfectCorpCreditBalance) {
   };
 }
 
-function serializeHistory(h: PerfectCorpCreditHistoryItem) {
+function serializeHistory(h: AnalisisPiel360CreditHistoryItem) {
   return {
     id: h.id,
     action: h.action,
@@ -143,7 +143,7 @@ function serializeHistory(h: PerfectCorpCreditHistoryItem) {
   };
 }
 
-function summarizeFeatureCosts(skus: PerfectCorpFeatureSku[]) {
+function summarizeFeatureCosts(skus: AnalisisPiel360FeatureSku[]) {
   const skin = skus.filter((s) =>
     /skin-analysis/i.test(s.runTaskUrl || s.description),
   );

@@ -1,7 +1,7 @@
 import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import type { Permission } from "@/lib/queries/roles";
 import { permissionScope, type PermissionScope } from "@/lib/role-permission-scope";
-import type { AnalysisProviderSlug } from "@piel360/shared";
+import type { PublicAnalysisProviderSlug } from "@piel360/shared";
 import {
   BarChart3,
   BookOpen,
@@ -115,7 +115,7 @@ export function parsePermissionName(name: string): { action: string; resource: s
 
 function permissionActionLabel(action: string, resource: string, name: string): string {
   if (name.startsWith("use_provider_")) {
-    const slug = name.replace("use_provider_", "") as AnalysisProviderSlug;
+    const slug = name.replace("use_provider_", "") as PublicAnalysisProviderSlug;
     return ANALYSIS_PROVIDER_STATIC_LABELS[slug] ?? slug;
   }
   if (name === "patient_run_youcam") {

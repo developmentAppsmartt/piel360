@@ -1,6 +1,6 @@
 "use client";
 
-import type { SkiniverCategorySlice } from "@piel360/shared";
+import type { AnalisisDermaPiel360CategorySlice } from "@piel360/shared";
 
 /**
  * Widget "Distribución de diagnósticos por edad": barras horizontales con el
@@ -11,7 +11,7 @@ import type { SkiniverCategorySlice } from "@piel360/shared";
 export function AgeDistributionBars({
   slices,
 }: {
-  slices: SkiniverCategorySlice[];
+  slices: AnalisisDermaPiel360CategorySlice[];
 }) {
   const max = Math.max(...slices.map((s) => s.count), 0);
 

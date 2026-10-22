@@ -351,7 +351,7 @@ export interface SkinReportSegmentsResponse {
 // (packages/shared/src/skiniver-diagnosis-taxonomy.ts define esos buckets),
 // más la distribución por tono de piel (fototipo).
 
-export interface SkiniverMonthlySeriesPoint {
+export interface AnalisisDermaPiel360MonthlySeriesPoint {
   period: string;
   /** Conteo por clave de bucket (clase, enfermedad o rango de edad). */
   counts: Record<string, number>;
@@ -362,13 +362,13 @@ export interface SkiniverMonthlySeriesPoint {
  * de edad son fijos y viven en el front; las enfermedades no, porque dependen
  * de qué se diagnosticó en el periodo, así que el reporte las trae consigo.
  */
-export interface SkiniverTrendSeriesDef {
+export interface AnalisisDermaPiel360TrendSeriesDef {
   key: string;
   label: string;
   color: string;
 }
 
-export interface SkiniverSkinToneBucket {
+export interface AnalisisDermaPiel360SkinToneBucket {
   key: string;
   label: string;
   color: string;
@@ -378,7 +378,7 @@ export interface SkiniverSkinToneBucket {
 }
 
 /** Porción de una distribución (donut de categorías, barras por edad). */
-export interface SkiniverCategorySlice {
+export interface AnalisisDermaPiel360CategorySlice {
   key: string;
   label: string;
   color: string;
@@ -387,7 +387,7 @@ export interface SkiniverCategorySlice {
   pct: number;
 }
 
-export interface SkiniverTopDiagnosis {
+export interface AnalisisDermaPiel360TopDiagnosis {
   diagnosis: string;
   /** `lesion_code` de la raíz de aiRawResponse; `topn[]` nunca lo trae. */
   icdCode: string | null;
@@ -396,7 +396,7 @@ export interface SkiniverTopDiagnosis {
   pct: number;
 }
 
-export interface SkiniverAgeGenderRow {
+export interface AnalisisDermaPiel360AgeGenderRow {
   key: string;
   label: string;
   male: number;
@@ -405,20 +405,20 @@ export interface SkiniverAgeGenderRow {
   unknown: number;
 }
 
-export interface SkiniverReport {
+export interface AnalisisDermaPiel360Report {
   range: { from: string; to: string };
   /** Diagnósticos "sin patología" excluidos — ver isNoPathologyDiagnosis(). */
   total: number;
-  byCategory: SkiniverCategorySlice[];
-  topDiagnoses: SkiniverTopDiagnosis[];
-  byAgeGender: SkiniverAgeGenderRow[];
-  ageDistribution: SkiniverCategorySlice[];
-  byClass: SkiniverMonthlySeriesPoint[];
+  byCategory: AnalisisDermaPiel360CategorySlice[];
+  topDiagnoses: AnalisisDermaPiel360TopDiagnosis[];
+  byAgeGender: AnalisisDermaPiel360AgeGenderRow[];
+  ageDistribution: AnalisisDermaPiel360CategorySlice[];
+  byClass: AnalisisDermaPiel360MonthlySeriesPoint[];
   /** Condiciones concretas: Top 8 del periodo + "Otras" — no grupos. */
-  byDisease: SkiniverMonthlySeriesPoint[];
+  byDisease: AnalisisDermaPiel360MonthlySeriesPoint[];
   /** Series de `byDisease`, en el orden en que deben leerse. */
-  diseaseSeries: SkiniverTrendSeriesDef[];
-  byAge: SkiniverMonthlySeriesPoint[];
-  bySkinTone: SkiniverSkinToneBucket[];
+  diseaseSeries: AnalisisDermaPiel360TrendSeriesDef[];
+  byAge: AnalisisDermaPiel360MonthlySeriesPoint[];
+  bySkinTone: AnalisisDermaPiel360SkinToneBucket[];
   skinToneTotal: number;
 }

@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AnalisisDermaPiel360Prediction, AnalisisPiel360Results } from "@piel360/shared";
 import { apiClientFetch } from "@/lib/api-client";
-import type { YouCamAnalysisError } from "@/lib/queries/analyses";
+import type { AnalisisPiel360AnalysisError } from "@/lib/queries/analyses";
 
 // Shapes de respuesta JSON de apps/api/src/patients — `id` es string porque el
 // backend serializa BigInt a string (apps/api/src/common/bigint-json.polyfill.ts).
@@ -81,7 +81,7 @@ export interface Analysis3D {
   zCoord: number;
   aiDiagnosis: string | null;
   finalDiagnosis: string | null;
-  aiRawResponse: AnalisisDermaPiel360Prediction | AnalisisPiel360Results | YouCamAnalysisError | null;
+  aiRawResponse: AnalisisDermaPiel360Prediction | AnalisisPiel360Results | AnalisisPiel360AnalysisError | null;
   imageUrl: string | null;
   coloredUrl: string | null;
   maskedUrl: string | null;

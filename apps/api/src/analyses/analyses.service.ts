@@ -16,7 +16,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PatientsService } from '../patients/patients.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReportPdfService } from '../reports/report-pdf.service';
-import { SkiniverService } from '../skiniver/skiniver.service';
+import { AnalisisDermaPiel360Service } from '../skiniver/skiniver.service';
 import { StorageService } from '../storage/storage.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { resolveSubscriptionEndsAt } from '../subscriptions/subscription-ends.util';
@@ -53,7 +53,7 @@ export class AnalysesService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly skiniver: SkiniverService,
+    private readonly skiniver: AnalisisDermaPiel360Service,
     private readonly subscriptions: SubscriptionsService,
     private readonly patients: PatientsService,
     private readonly orgContext: OrgContextService,
@@ -164,7 +164,7 @@ export class AnalysesService {
     }
 
     const analysis = await this.prisma.$transaction(async (tx) => {
-      const skiniverProviderId = await getAnalysisProviderIdBySlug(
+      const analisisDermaPiel360ProviderId = await getAnalysisProviderIdBySlug(
         tx,
         SKINIVER_PROVIDER_SLUG,
       );
@@ -183,7 +183,7 @@ export class AnalysesService {
         data: {
           patientId: BigInt(dto.patientId),
           userId,
-          providerId: skiniverProviderId,
+          providerId: analisisDermaPiel360ProviderId,
           imagePath: `analyses/pending/original.jpg`,
           bodyRegion: dto.bodyRegion,
           xCoord: dto.xCoord,
@@ -935,13 +935,13 @@ function planCreditBuckets(
   const slugs = ids
     .map((id) => slugById.get(id))
     .filter((s): s is string => Boolean(s));
-  const hasSkiniver = slugs.includes('skiniver');
+  const hasAnalisisDermaPiel360 = slugs.includes('skiniver');
   const hasAesthetic = slugs.some((s) => AESTHETIC_PROVIDER_SLUGS.has(s));
   const limit = Math.max(0, plan.analysisLimit);
 
-  if (hasSkiniver && !hasAesthetic)
+  if (hasAnalisisDermaPiel360 && !hasAesthetic)
     return { aesthetic: 0, derm: limit, shared: false };
-  if (hasAesthetic && !hasSkiniver)
+  if (hasAesthetic && !hasAnalisisDermaPiel360)
     return { aesthetic: limit, derm: 0, shared: false };
   // Plan que incluye ambos tipos sin desglose: `analysisLimit` es una sola
   // bolsa que alimenta las dos categorías (antes se asignaba todo a estético

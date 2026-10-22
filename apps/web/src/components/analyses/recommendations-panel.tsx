@@ -72,7 +72,7 @@ type CatalogKind = "routine" | "product" | "treatment" | "supplement";
 type RecoKind = "productos" | "rutinas" | "tratamientos" | "suplementos";
 
 /** Chip de fototipo del visor — no es una métrica YouCam, tiene su propio
- * motor de reglas (ver youcam-results-section.tsx). */
+ * motor de reglas (ver analisispiel360-results-section.tsx). */
 const FITZPATRICK_METRIC = "fitzpatrick";
 
 type CatalogDetail = {
@@ -116,7 +116,7 @@ function mentions(text: string | null | undefined, words: string[]): boolean {
 }
 
 /** Mañana/Noche detectados por palabras clave en el nombre/pasos de la
- * rutina — mismo criterio que la versión mobile (YoucamCatalogSection). */
+ * rutina — mismo criterio que la versión mobile (AnalisisPiel360CatalogSection). */
 function routineHasMoment(routine: AnalysisCareItem, kind: "am" | "pm") {
   const words =
     kind === "am"
@@ -162,7 +162,7 @@ function linkedProductsForRoutine(routine: AnalysisCareItem): CatalogDetail[] {
   for (const step of [...(routine.steps ?? [])].sort((a, b) => a.order - b.order)) {
     // `products` viene tipado como obligatorio, pero según el motor que
     // devuelva la rutina puede llegar ausente — la app móvil también lo
-    // tolera (mapRuleRoutines en YoucamCatalogSection).
+    // tolera (mapRuleRoutines en AnalisisPiel360CatalogSection).
     for (const product of step.products ?? []) {
       if (seen.has(product.id)) continue;
       seen.add(product.id);

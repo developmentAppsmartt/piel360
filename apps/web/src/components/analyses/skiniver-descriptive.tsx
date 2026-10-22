@@ -18,7 +18,7 @@ function Field({ label, value }: { label: string; value: string | null }) {
  * desglosado por el API. Lo comparten la tarjeta del diagnóstico principal y
  * el detalle de cada candidato de apoyo, que tiene el suyo propio.
  */
-export function SkiniverDescriptive({
+export function AnalisisDermaPiel360Descriptive({
   details,
   icdCode = null,
 }: {
@@ -43,7 +43,7 @@ export function hasRiskGuidance(risk: AnalisisDermaPiel360RiskGuidance | undefin
 }
 
 /** Textos que Skiniver manda como claves propias, fuera de `description`. */
-export function SkiniverRiskGuidanceBlock({
+export function AnalisisDermaPiel360RiskGuidanceBlock({
   risk,
 }: {
   risk: AnalisisDermaPiel360RiskGuidance;

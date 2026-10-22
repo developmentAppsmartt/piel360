@@ -4,11 +4,11 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { AnalysisResultsView } from "@/components/analyses/analysis-results-view";
 import { BodySelector } from "@/components/analyses/body-selector";
-import { YoucamCapture } from "@/components/analyses/youcam-capture";
+import { AnalisisPiel360Capture } from "@/components/analyses/youcam-capture";
 import { Button } from "@/components/ui/button";
 import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import { ApiError } from "@/lib/api-error";
-import { useCreateYoucamAnalysis } from "@/lib/queries/youcam";
+import { useCreateAnalisisPiel360Analysis } from "@/lib/queries/youcam";
 
 type Step = "consentimiento" | "captura" | "enviar" | "resultados";
 
@@ -19,7 +19,7 @@ interface BodySelection {
   zCoord: number;
 }
 
-export default function NuevoAnalisisYoucamPage() {
+export default function NuevoAnalisisAnalisisPiel360Page() {
   const { id: patientId } = useParams<{ id: string }>();
   const router = useRouter();
 
@@ -29,7 +29,7 @@ export default function NuevoAnalisisYoucamPage() {
   const [bodySelection, setBodySelection] = useState<BodySelection | null>(null);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
 
-  const createAnalysis = useCreateYoucamAnalysis();
+  const createAnalysis = useCreateAnalisisPiel360Analysis();
 
   async function handleSubmit() {
     if (!photo) return;
@@ -48,7 +48,7 @@ export default function NuevoAnalisisYoucamPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <h1>{ANALYSIS_PROVIDER_STATIC_LABELS.youcam}</h1>
+      <h1>{ANALYSIS_PROVIDER_STATIC_LABELS.analisispiel360}</h1>
 
       {step === "consentimiento" && (
         <div className="space-y-4">
@@ -73,7 +73,7 @@ export default function NuevoAnalisisYoucamPage() {
 
       {step === "captura" && (
         <div className="space-y-6">
-          <YoucamCapture onCapture={setPhoto} />
+          <AnalisisPiel360Capture onCapture={setPhoto} />
           {photo && <p className="text-sm text-muted-foreground">Foto capturada correctamente.</p>}
 
           <div className="space-y-2">

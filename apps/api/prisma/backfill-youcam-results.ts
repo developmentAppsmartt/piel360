@@ -5,7 +5,7 @@ import {
   snapshotFromAnalysis,
   snapshotHasValues,
 } from '../src/youcam/skin-age-persist.util';
-import { normalizeYoucamResults, readOutput } from '../src/youcam/youcam-normalize.util';
+import { normalizeAnalisisPiel360Results, readOutput } from '../src/youcam/youcam-normalize.util';
 
 // Prisma 7: el cliente necesita un driver adapter explícito (ver src/prisma/prisma.service.ts).
 const adapter = new PrismaPg({
@@ -46,7 +46,7 @@ async function backfillAnalysis(analysisId: bigint, providerId: bigint | null) {
         });
       }
 
-      const counts = await normalizeYoucamResults(
+      const counts = await normalizeAnalisisPiel360Results(
         tx,
         analysisId,
         providerId,

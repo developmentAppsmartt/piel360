@@ -82,7 +82,7 @@ export interface AnalisisDermaPiel360RiskGuidance {
 
 /** Estructurado a partir del texto libre de `description` — ver
  * `parseAnalisisDermaPiel360Description` en `skiniver-description.ts`. Expuesto por
- * `AnalysisImageUrlsService#withImageUrls` como `skiniverDiagnosis`. */
+ * `AnalysisImageUrlsService#withImageUrls` como `analisisDermaPiel360Diagnosis`. */
 export interface AnalisisDermaPiel360DiagnosisDetails extends AnalisisDermaPiel360DescriptiveText {
   conclusion: {
     category: string | null;

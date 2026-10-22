@@ -75,8 +75,8 @@ function PlanStatusBadge({
 
 function PlanAvatar({ slug }: { slug: string }) {
   const styles: Record<string, string> = {
-    skiniver: "bg-primary/15 text-primary",
-    youcam: "bg-fuchsia-100 text-fuchsia-700",
+    analisisdermapiel360: "bg-primary/15 text-primary",
+    analisispiel360: "bg-fuchsia-100 text-fuchsia-700",
     fitzpatrick: "bg-amber-100 text-amber-700",
   };
   return (

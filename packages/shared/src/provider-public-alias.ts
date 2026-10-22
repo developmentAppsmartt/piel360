@@ -12,6 +12,17 @@ export const PROVIDER_PUBLIC_ALIASES = {
   skiniver: "analisisdermapiel360",
 } as const;
 
+/** Los tres analisis tal y como los nombra el navegador. `fitzpatrick` no se
+ * enmascara: es una escala medica, no un proveedor. */
+export const PUBLIC_ANALYSIS_PROVIDER_SLUGS = [
+  "analisisdermapiel360",
+  "analisispiel360",
+  "fitzpatrick",
+] as const;
+
+export type PublicAnalysisProviderSlug =
+  (typeof PUBLIC_ANALYSIS_PROVIDER_SLUGS)[number];
+
 export type InternalMaskedProviderSlug = keyof typeof PROVIDER_PUBLIC_ALIASES;
 export type PublicProviderAlias =
   (typeof PROVIDER_PUBLIC_ALIASES)[InternalMaskedProviderSlug];
