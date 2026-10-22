@@ -30,7 +30,6 @@ const ARCHIVOS_LARGOS_HEREDADOS = [
   "src/components/auth/doctor-register-form.tsx",
   "src/components/auth/empresa-register-form.tsx",
   "src/components/doctor/doctor-billing-hub.tsx",
-  "src/components/email-templates/email-templates-workspace.tsx",
   "src/components/fitzpatrick-rules/fitzpatrick-rule-form.tsx",
   "src/components/layout/sidebar-nav.tsx",
   "src/components/maps/address-location-picker.tsx",
