@@ -3,6 +3,7 @@ import { Calendar, Mail, Pencil, Phone, Plus, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ModuleCard } from "@/components/ui/module-card";
+import { patientSkinTypeLabel } from "@/lib/patient-form-options";
 import type { Patient } from "@/lib/queries/patients";
 import { chronologicalAgeYears, formatSignedYears } from "@/lib/skin-age";
 import {
@@ -129,7 +130,7 @@ export function PatientProfileShell({
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Tipo de piel</p>
-                  <p className="font-medium">{patient.skinType ?? "—"}</p>
+                  <p className="font-medium">{patientSkinTypeLabel(patient.skinType)}</p>
                 </div>
                 {patient.importantNotes?.trim() ? (
                   <div className="sm:col-span-2 lg:col-span-3">
