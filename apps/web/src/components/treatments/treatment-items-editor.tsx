@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { FlaskConical, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CatalogChecklist, productCatalogOption } from "@/components/shared/catalog-checklist";
 import { SortableList, DragHandle } from "@/components/shared/sortable-list";
 import { useProducts } from "@/lib/queries/products";
 import {
@@ -24,7 +25,11 @@ export function TreatmentItemsEditor({
   /** "tratamiento" | "conjunto" — según el contexto donde se use el editor. */
   itemsLabel?: string;
 }) {
-  const { data: products } = useProducts();
+  const { data: products, isLoading: productsLoading } = useProducts();
+  const productOptions = useMemo(
+    () => (products ?? []).map((product) => productCatalogOption(product)),
+    [products],
+  );
   const createMutation = useCreateTreatmentItem(treatment.id);
   const deleteMutation = useDeleteTreatmentItem(treatment.id);
   const reorderMutation = useReorderTreatmentItems(treatment.id);
@@ -90,21 +95,18 @@ export function TreatmentItemsEditor({
         )}
       />
 
-      <div className="space-y-2 rounded-xl border border-border bg-muted/30 p-4">
-        <p className="text-sm font-medium text-foreground">Agregar producto</p>
-        <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-2">
-          <select
-            className={inputCls}
-            value={newProductId}
-            onChange={(e) => setNewProductId(e.target.value)}
-          >
-            <option value="">Selecciona un producto</option>
-            {products?.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.productName}
-              </option>
-            ))}
-          </select>
+      <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4">
+        <CatalogChecklist
+          title="Agregar producto"
+          icon={FlaskConical}
+          options={productOptions}
+          selectedIds={newProductId ? [newProductId] : []}
+          // Uno a la vez: el último que se marca reemplaza al anterior.
+          onChange={(ids) => setNewProductId(ids.at(-1) ?? "")}
+          emptyHint="No hay productos en el catálogo."
+          loading={productsLoading}
+        />
+        <div className="grid grid-cols-[1fr_auto] items-center gap-2">
           <input
             className={inputCls}
             placeholder="Nota (opcional)"

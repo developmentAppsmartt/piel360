@@ -15,10 +15,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { CatalogChecklist } from "@/components/shared/catalog-checklist";
 import { ApiError } from "@/lib/api-error";
 import type {
   SkinAgeRule,
-  SkinAgeRuleColorKey,
   SkinAgeRuleInput,
   SkinAgeRulePriority,
 } from "@/lib/queries/skin-age-rules";
@@ -26,156 +26,14 @@ import { useProducts } from "@/lib/queries/products";
 import { useRoutines } from "@/lib/queries/routines";
 import { useTreatments } from "@/lib/queries/treatments";
 import {
-  SKIN_AGE_RULE_PRIORITY_OPTIONS,
-  formatSkinAgeDifferenceRange,
-} from "@/lib/skin-age-rules-ui";
+  SCENARIOS,
+  defaultForm,
+  rangeError,
+  toDifferences,
+  type SkinAgeRuleFormState,
+} from "@/lib/skin-age-rule-range";
+import { SKIN_AGE_RULE_PRIORITY_OPTIONS } from "@/lib/skin-age-rules-ui";
 import { cn } from "@/lib/utils";
-
-type Scenario = "younger" | "similar" | "older";
-
-type FormState = {
-  scenario: Scenario;
-  fromYears: number;
-  toYears: number;
-  description: string;
-  priority: SkinAgeRulePriority;
-  colorKey: SkinAgeRuleColorKey;
-  routineIds: string[];
-  treatmentIds: string[];
-  productGroupIds: string[];
-  supplementGroupIds: string[];
-};
-
-const SCENARIOS: {
-  value: Scenario;
-  title: string;
-  hint: string;
-  colorKey: SkinAgeRuleColorKey;
-}[] = [
-  {
-    value: "younger",
-    title: "Piel más joven",
-    hint: "Edad del análisis menor que la edad del paciente",
-    colorKey: "green",
-  },
-  {
-    value: "similar",
-    title: "Edades similares",
-    hint: "Edad del análisis cercana a la edad del paciente",
-    colorKey: "orange",
-  },
-  {
-    value: "older",
-    title: "Piel más envejecida",
-    hint: "Edad del análisis mayor que la edad del paciente",
-    colorKey: "red",
-  },
-];
-
-function scenarioFromDiff(min: number, max: number): Scenario {
-  if (max < 0) return "younger";
-  if (min > 0) return "older";
-  return "similar";
-}
-
-function yearsFromDiff(min: number, max: number, scenario: Scenario) {
-  if (scenario === "younger") {
-    return {
-      fromYears: Math.abs(Math.min(max, -1)),
-      toYears: Math.abs(Math.max(min, -100)),
-    };
-  }
-  if (scenario === "older") {
-    return {
-      fromYears: Math.max(min, 1),
-      toYears: Math.max(max, 1),
-    };
-  }
-  return {
-    fromYears: Math.max(min, 0),
-    toYears: Math.max(max, 0),
-  };
-}
-
-function toDifferences(form: FormState): {
-  minDifference: number;
-  maxDifference: number;
-  label: string;
-  description: string;
-  colorKey: SkinAgeRuleColorKey;
-} {
-  const from = Math.min(form.fromYears, form.toYears);
-  const to = Math.max(form.fromYears, form.toYears);
-
-  if (form.scenario === "younger") {
-    const minDifference = -to;
-    const maxDifference = -from;
-    return {
-      minDifference,
-      maxDifference,
-      label: formatSkinAgeDifferenceRange(minDifference, maxDifference),
-      description:
-        form.description.trim() ||
-        `La edad de la piel (análisis) es ${from} a ${to} años menor que la edad del paciente.`,
-      colorKey: form.colorKey || "green",
-    };
-  }
-
-  if (form.scenario === "older") {
-    const minDifference = from;
-    const maxDifference = to;
-    return {
-      minDifference,
-      maxDifference,
-      label: formatSkinAgeDifferenceRange(minDifference, maxDifference),
-      description:
-        form.description.trim() ||
-        `La edad de la piel (análisis) es ${from} a ${to} años mayor que la edad del paciente.`,
-      colorKey: form.colorKey || "red",
-    };
-  }
-
-  return {
-    minDifference: from,
-    maxDifference: to,
-    label: formatSkinAgeDifferenceRange(from, to),
-    description:
-      form.description.trim() ||
-      `La edad de la piel (análisis) se parece a la edad del paciente (diferencia ${from} a ${to} años).`,
-    colorKey: form.colorKey || "orange",
-  };
-}
-
-function defaultForm(rule?: SkinAgeRule | null): FormState {
-  if (!rule) {
-    return {
-      scenario: "older",
-      fromYears: 4,
-      toYears: 7,
-      description: "",
-      priority: "high",
-      colorKey: "amber",
-      routineIds: [],
-      treatmentIds: [],
-      productGroupIds: [],
-      supplementGroupIds: [],
-    };
-  }
-  const scenario = scenarioFromDiff(rule.minDifference, rule.maxDifference);
-  const years = yearsFromDiff(rule.minDifference, rule.maxDifference, scenario);
-  return {
-    scenario,
-    fromYears: years.fromYears,
-    toYears: years.toYears,
-    description: rule.description ?? "",
-    priority: rule.priority,
-    colorKey: rule.colorKey,
-    routineIds: rule.routineIds,
-    treatmentIds: rule.treatmentIds,
-    productGroupIds: rule.productGroupIds,
-    supplementGroupIds: rule.supplementGroupIds,
-  };
-}
 
 export function SkinAgeRuleFormDialog({
   open,
@@ -190,7 +48,7 @@ export function SkinAgeRuleFormDialog({
   onClose: () => void;
   onSubmit: (input: SkinAgeRuleInput) => Promise<void>;
 }) {
-  const [form, setForm] = useState<FormState>(() => defaultForm(rule));
+  const [form, setForm] = useState<SkinAgeRuleFormState>(() => defaultForm(rule));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -216,6 +74,7 @@ export function SkinAgeRuleFormDialog({
         id: product.id,
         label: product.productName,
         hint: product.category?.categoryName ?? "Producto",
+        imageUrl: product.imageUrl,
       })),
     [catalogProducts.data],
   );
@@ -226,6 +85,7 @@ export function SkinAgeRuleFormDialog({
         id: product.id,
         label: product.productName,
         hint: product.category?.categoryName ?? "Suplemento",
+        imageUrl: product.imageUrl,
       })),
     [catalogSupplements.data],
   );
@@ -252,15 +112,12 @@ export function SkinAgeRuleFormDialog({
 
   async function handleSave() {
     setError(null);
-    if (form.fromYears < 0 || form.toYears < 0) {
-      setError("Los años de diferencia deben ser 0 o mayores.");
+    const invalid = rangeError(form);
+    if (invalid) {
+      setError(invalid);
       return;
     }
     const diff = toDifferences(form);
-    if (diff.minDifference > diff.maxDifference) {
-      setError("El rango de diferencia no es válido.");
-      return;
-    }
 
     setSaving(true);
     try {
@@ -289,6 +146,8 @@ export function SkinAgeRuleFormDialog({
       setSaving(false);
     }
   }
+
+  const similar = form.scenario === "similar";
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
@@ -354,22 +213,25 @@ export function SkinAgeRuleFormDialog({
                 <span className="font-medium text-muted-foreground">Desde</span>
                 <input
                   type="number"
-                  min={0}
+                  min={similar ? 0 : 1}
+                  step={1}
                   value={form.fromYears}
+                  disabled={similar}
                   onChange={(event) =>
                     setForm((current) => ({
                       ...current,
                       fromYears: Number(event.target.value),
                     }))
                   }
-                  className="h-10 w-full rounded-xl border border-border px-3"
+                  className="h-10 w-full rounded-xl border border-border px-3 disabled:bg-muted/40 disabled:text-muted-foreground"
                 />
               </label>
               <label className="space-y-1 text-sm">
                 <span className="font-medium text-muted-foreground">Hasta</span>
                 <input
                   type="number"
-                  min={0}
+                  min={similar ? 0 : 1}
+                  step={1}
                   value={form.toYears}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -381,6 +243,11 @@ export function SkinAgeRuleFormDialog({
                 />
               </label>
             </div>
+            {similar ? (
+              <p className="text-xs text-muted-foreground">
+                En edades similares el rango empieza en 0 años.
+              </p>
+            ) : null}
             <p className="rounded-lg bg-muted/40 px-3 py-2 text-sm">
               Se activará cuando la diferencia sea{" "}
               <strong>{preview.label}</strong>.
@@ -491,82 +358,5 @@ export function SkinAgeRuleFormDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function CatalogChecklist({
-  title,
-  icon: Icon,
-  options,
-  selectedIds,
-  onChange,
-  emptyHint,
-  loading,
-}: {
-  title: string;
-  icon: typeof FlaskConical;
-  options: { id: string; label: string; hint: string }[];
-  selectedIds: string[];
-  onChange: (ids: string[]) => void;
-  emptyHint: string;
-  loading?: boolean;
-}) {
-  function toggle(id: string) {
-    onChange(
-      selectedIds.includes(id)
-        ? selectedIds.filter((value) => value !== id)
-        : [...selectedIds, id],
-    );
-  }
-
-  return (
-    <div className="rounded-xl border border-border p-3">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="inline-flex items-center gap-2 text-sm font-medium">
-          <Icon className="size-4 text-primary" />
-          {title}
-        </p>
-        <span className="text-xs text-muted-foreground">
-          {selectedIds.length} seleccionado{selectedIds.length === 1 ? "" : "s"}
-        </span>
-      </div>
-      {loading ? (
-        <p className="py-3 text-center text-xs text-muted-foreground">Cargando…</p>
-      ) : options.length === 0 ? (
-        <p className="py-3 text-center text-xs text-muted-foreground">{emptyHint}</p>
-      ) : (
-        <div className="max-h-48 space-y-1.5 overflow-y-auto">
-          {options.map((option) => {
-            const active = selectedIds.includes(option.id);
-            return (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => toggle(option.id)}
-                className={cn(
-                  "flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
-                  active
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/30",
-                )}
-              >
-                <span>
-                  <span className="block font-medium">{option.label}</span>
-                  <span className="block text-xs text-muted-foreground">
-                    {option.hint}
-                  </span>
-                </span>
-                <span
-                  className={cn(
-                    "size-4 shrink-0 rounded border",
-                    active ? "border-primary bg-primary" : "border-muted-foreground/40",
-                  )}
-                />
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
   );
 }

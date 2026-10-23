@@ -157,7 +157,7 @@ function PanelLayoutInner({
     usePanelLayout();
 
   return (
-    <div className="flex min-h-full flex-1 overflow-x-hidden bg-[#F5F6FA] dark:bg-background">
+    <div className="flex min-h-full flex-1 overflow-x-clip bg-[#F5F6FA] dark:bg-background">
       <SidebarChrome
         items={resolvedNav}
         isMonitor={isMonitor}
@@ -203,7 +203,7 @@ function PanelLayoutInner({
           empresaReferida={user.empresaReferida}
           verificationStatus={user.verificationStatus}
         />
-        <main className="flex-1 overflow-x-hidden">
+        <main className="flex-1 overflow-x-clip">
           <div className="mx-auto w-full max-w-[1440px] space-y-6 p-4 sm:p-6 lg:p-8">
             {children}
           </div>

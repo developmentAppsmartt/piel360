@@ -39,7 +39,7 @@ export function PanelHeader({
   });
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-card/95 px-4 backdrop-blur sm:px-6">
+    <header className="z-10 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-card/95 px-4 backdrop-blur sm:px-6">
       <div className="flex items-center gap-3">
         {onMenuClick ? (
           <button

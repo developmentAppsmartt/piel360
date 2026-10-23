@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { normalizeText } from "@/lib/normalize-text";
 import { useParameters, type Parameter } from "@/lib/queries/parameters";
 
 const MAX_RESULTS = 50;
@@ -14,12 +15,6 @@ const MAX_RESULTS = 50;
  */
 const DROPDOWN_CLASS =
   "absolute z-[1200] mt-1 w-full rounded-xl border border-zinc-200 bg-white shadow-lg";
-
-const COMBINING_DIACRITICS = new RegExp("[\\u0300-\\u036f]", "g");
-
-function normalize(text: string): string {
-  return text.normalize("NFD").replace(COMBINING_DIACRITICS, "").toLowerCase();
-}
 
 /**
  * Combobox liviano (input + lista filtrada) respaldado por un catálogo de
@@ -77,9 +72,9 @@ export function CatalogCombobox({
 
   const results = useMemo(() => {
     const options = data ?? [];
-    const q = normalize(query.trim());
+    const q = normalizeText(query.trim());
     const filtered = q
-      ? options.filter((o) => normalize(o.label).includes(q))
+      ? options.filter((o) => normalizeText(o.label).includes(q))
       : options;
     return filtered.slice(0, MAX_RESULTS);
   }, [data, query]);

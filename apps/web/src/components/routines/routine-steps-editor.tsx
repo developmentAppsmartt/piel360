@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { FlaskConical, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ModuleCard } from "@/components/ui/module-card";
 import { RoutineStepMediaUpload } from "@/components/routines/routine-step-media-upload";
+import { CatalogChecklist, productCatalogOption } from "@/components/shared/catalog-checklist";
 import { DragHandle, SortableList } from "@/components/shared/sortable-list";
 import { useProducts } from "@/lib/queries/products";
 import {
@@ -30,7 +31,7 @@ function StepEditForm({
   nextOrder: number;
   onDone: () => void;
 }) {
-  const { data: products } = useProducts();
+  const { data: products, isLoading: productsLoading } = useProducts();
   const createStep = useCreateRoutineStep(routineId);
   const updateStep = useUpdateRoutineStep(routineId, step?.id ?? "");
   const [title, setTitle] = useState(step?.title ?? "");
@@ -40,12 +41,10 @@ function StepEditForm({
   );
 
   const isPending = createStep.isPending || updateStep.isPending;
-
-  function toggleProduct(id: string) {
-    setProductIds((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id],
-    );
-  }
+  const productOptions = useMemo(
+    () => (products ?? []).map((product) => productCatalogOption(product)),
+    [products],
+  );
 
   async function handleSave() {
     if (!title.trim()) return;
@@ -87,29 +86,18 @@ function StepEditForm({
         />
       </div>
       <div className="space-y-1">
-        <label className="block text-sm font-medium text-foreground">
-          Productos vinculados{" "}
-          <span className="text-xs font-normal text-muted-foreground">(opcional, puedes elegir varios)</span>
-        </label>
-        <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border border-border bg-background p-2">
-          {!products?.length && (
-            <p className="px-1 py-1 text-sm text-muted-foreground">No hay productos en el catálogo.</p>
-          )}
-          {products?.map((p) => (
-            <label
-              key={p.id}
-              className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm hover:bg-muted"
-            >
-              <input
-                type="checkbox"
-                className="size-4"
-                checked={productIds.includes(p.id)}
-                onChange={() => toggleProduct(p.id)}
-              />
-              {p.productName}
-            </label>
-          ))}
-        </div>
+        <p className="text-xs text-muted-foreground">
+          Productos vinculados: opcional, puedes elegir varios.
+        </p>
+        <CatalogChecklist
+          title="Productos vinculados"
+          icon={FlaskConical}
+          options={productOptions}
+          selectedIds={productIds}
+          onChange={setProductIds}
+          emptyHint="No hay productos en el catálogo."
+          loading={productsLoading}
+        />
       </div>
       {step && <RoutineStepMediaUpload routineId={routineId} stepId={step.id} currentMediaUrl={step.mediaUrl} currentMediaType={step.mediaType} />}
       {!step && (

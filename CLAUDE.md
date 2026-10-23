@@ -555,6 +555,12 @@ todavía agrupa por mes UTC.
   con `useMemo`, no lo sincronices en un efecto.
 - Cuidado con los contextos de apilamiento: `location-picker-section.tsx` usa
   `z-[1100]`, así que un desplegable hermano necesita más.
+- **`sticky` en el panel**: el layout (`panel-layout-client.tsx`) usa
+  `overflow-x-clip`, no `overflow-x-hidden`. `hidden` convierte al contenedor
+  en uno de scroll que nunca se desplaza y todo `sticky` de dentro deja de
+  funcionar en silencio (así estuvieron los simuladores de reglas). La
+  cabecera del panel no es fija: si se vuelve fija, los `sticky top-4` de
+  dentro quedarían debajo de ella.
 
 ---
 
