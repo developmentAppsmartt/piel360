@@ -117,8 +117,10 @@ export function AnalisisDermaPiel360ClinicoWidget({
                     {new Date(a.createdAt).toLocaleDateString("es-CO", {
                       timeZone: "America/Bogota",
                     })}
-                    {a.aiDiagnosis
-                      ? ` · ${analisisDermaPiel360DiagnosisLabel(a.aiDiagnosis)}`
+                    {/* El del profesional si lo hay, como en el historial
+                        del paciente: es el que cuentan los gráficos. */}
+                    {a.finalDiagnosis || a.aiDiagnosis
+                      ? ` · ${analisisDermaPiel360DiagnosisLabel(a.finalDiagnosis ?? a.aiDiagnosis)}`
                       : ""}
                   </span>
                 </button>

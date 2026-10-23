@@ -486,6 +486,9 @@ mano** con `select id, name from plans where name ~* 'skiniver|youcam|perfect'`.
   por código (web) o por nombre (móvil). Nulos = cuenta el de la IA. Las
   queries usan `DIAGNOSIS`/`CATEGORY`/`CLASS_RAW` de
   `skiniver-reports.queries.ts`: no vuelvas a leer `ai_diagnosis` a pelo.
+  Las correcciones guardadas antes de esas columnas se rellenan solas al
+  arrancar el API (`analyses/final-diagnosis-backfill.ts`); el log dice
+  cuántas («Relleno de diagnósticos corregidos»).
 - **Los nombres del JSON engañan: `desease` es la CLASE y `class` es la ENFERMEDAD.**
   Comprobado contra `GET /get_disease_classes?lang=es` (Basic con `SKINIVER_API_TOKEN`):
   `desease` coincide siempre con un `title_name` y `class` con un `diseases[].name`.

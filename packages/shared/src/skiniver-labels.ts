@@ -328,8 +328,9 @@ const CATEGORY_ENTRIES: [string, string[]][] = [
     ],
   ],
   [
-    "Enfermedades virales",
+    "Enfermedades Virales",
     [
+      "Enfermedades virales",
       "viral diseases",
       "Вирусные заболевания",
     ],

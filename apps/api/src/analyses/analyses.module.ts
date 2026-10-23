@@ -16,6 +16,7 @@ import { AnalysesService } from './analyses.service';
 import { AnalysesController } from './analyses.controller';
 import { AnalysisImagesProcessor } from './analysis-images.processor';
 import { AnalysisImageUrlsService } from './analysis-image-urls.service';
+import { FinalDiagnosisBackfill } from './final-diagnosis-backfill';
 import { ANALYSIS_IMAGES_QUEUE, ENCYCLOPEDIA_QUEUE } from './queues';
 
 @Module({
@@ -41,6 +42,7 @@ import { ANALYSIS_IMAGES_QUEUE, ENCYCLOPEDIA_QUEUE } from './queues';
     AnalysesService,
     AnalysisImagesProcessor,
     AnalysisImageUrlsService,
+    FinalDiagnosisBackfill,
   ],
   controllers: [AnalysesController],
 })

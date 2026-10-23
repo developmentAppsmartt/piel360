@@ -68,10 +68,10 @@ const ICD_CODE = Prisma.sql`(CASE WHEN ${CORRECTED} THEN NULL ELSE a.ai_raw_resp
 /**
  * El universo de los reportes de diagnóstico: un análisis con diagnóstico,
  * «Piel Sin Patología» incluida — el cliente la quiere ver como una clase más.
- * Está en un solo sitio porque las dos queries que lo usan (mensual y top)
- * tienen que contar exactamente las mismas filas: cuando cada una filtraba a
- * su manera, el total salía de un universo y los porcentajes de otro, y
- * pasaban del 100%.
+ * Lo usan todas las queries, también las de edad, sexo y tono, que cuentan
+ * diagnósticos según quién es el paciente: tienen que contar las mismas
+ * filas. Cuando cada una filtraba a su manera, el total salía de un universo
+ * y los porcentajes de otro, y pasaban del 100%.
  */
 function diagnosedFilter(): Prisma.Sql {
   return Prisma.sql`AND ${DIAGNOSIS} IS NOT NULL`;
@@ -153,6 +153,7 @@ export function analisisDermaPiel360AgeMonthlyQuery(
         date_part('year', age(a.created_at, p.birth_date))::int AS age_years
       ${baseJoin(doctorIds, from, toExclusive)}
         AND p.birth_date IS NOT NULL
+        ${diagnosedFilter()}
     )
     SELECT
       to_char(month, 'YYYY-MM') AS period,
@@ -212,6 +213,7 @@ export function analisisDermaPiel360AgeGenderQuery(
         p.gender AS gender
       ${baseJoin(doctorIds, from, toExclusive)}
         AND p.birth_date IS NOT NULL
+        ${diagnosedFilter()}
     )
     SELECT
       ${ageBucketCase()} AS age_bucket,
@@ -240,6 +242,7 @@ export function analisisDermaPiel360SkinToneQuery(
       COUNT(*)::int      AS count
     ${baseJoin(doctorIds, from, toExclusive)}
       AND p.fitzpatrick_type IS NOT NULL
+      ${diagnosedFilter()}
     GROUP BY 1
   `;
 }
