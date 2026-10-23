@@ -513,6 +513,17 @@ mano** con `select id, name from plans where name ~* 'skiniver|youcam|perfect'`.
   usables tiene que filtrar por fecha (`resolveSubscriptionEndsAt`), como
   hacen `findActiveForUser` y `analyses/analysis-consumption.service.ts`.
 
+### Facturación del admin
+
+- Las facturas (`subscription_invoices`) solo existen para pagos aprobados
+  **desde que hay facturación**: en producción hay suscripciones pagadas por
+  Wompi sin factura. El estado de una compra se deduce en
+  `billing/billing-dashboard.service.ts` (`purchaseStatus`): sin factura, la
+  señal de pago aprobado es `ends_at`, que solo se fija al activar.
+- Las metas mensuales viven en `sales_goals` (mes + tipo de plan). El tipo de
+  plan sale de sus proveedores (`billing/plan-sale-type.ts`), no de
+  `analysisLimits`: los planes de fototipo guardan su límite en `aesthetic`.
+
 ### Fechas de los reportes
 
 Los filtros «desde/hasta» son **días de Colombia**, no UTC:

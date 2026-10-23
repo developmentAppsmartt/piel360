@@ -13,7 +13,6 @@ const ARCHIVOS_LARGOS_HEREDADOS = [
   "src/app/doctor/(panel)/configuracion/equipos/team-member-assign-panel.tsx",
   "src/app/doctor/(panel)/configuracion/personalizacion/identidad-corporativa/identidad-corporativa-view.tsx",
   "src/app/doctor/(panel)/configuracion/personalizacion/rangos-puntuacion/rangos-puntuacion-view.tsx",
-  "src/components/admin/billing-dashboard.tsx",
   "src/components/admin/labor-technician-profiles-manager.tsx",
   "src/components/admin/plan-wizard-form.tsx",
   "src/components/admin/plans-manager.tsx",

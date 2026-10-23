@@ -1388,3 +1388,19 @@ model Appointment {
   @@index([status])
   @@map("appointments")
 }
+
+/** Meta mensual de ventas por tipo de plan (módulo Facturación del admin). */
+model SalesGoal {
+  id        BigInt   @id @default(autoincrement())
+  /** YYYY-MM, mes de Colombia. */
+  month     String   @db.VarChar(7)
+  /** aesthetic | derm | fototipo */
+  planType  String   @map("plan_type")
+  /** Planes vendidos que se esperan en el mes. */
+  target    Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([month, planType])
+  @@map("sales_goals")
+}

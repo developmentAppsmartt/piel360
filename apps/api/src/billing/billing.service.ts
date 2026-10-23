@@ -22,6 +22,7 @@ import {
   WompiPayoutsClient,
   type WompiPayoutCredentials,
 } from './wompi-payouts.client';
+import { INVOICE_INCLUDE, serializeInvoice } from './invoice-serializer';
 
 function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;
@@ -109,9 +110,7 @@ export class BillingService {
       where: { id: input.planId },
       select: { price: true, ivaEnabled: true, apiCosts: true },
     });
-    const planPrice = roundMoney(
-      Number(plan?.price ?? input.planPrice),
-    );
+    const planPrice = roundMoney(Number(plan?.price ?? input.planPrice));
 
     const gateway = await this.prisma.gatewayConfig.findFirst({
       where: { isActive: true },
@@ -120,7 +119,8 @@ export class BillingService {
 
     let feePercent = input.gatewayFeePercent;
     if (feePercent == null) {
-      feePercent = gateway?.feePercent != null ? Number(gateway.feePercent) : 2.99;
+      feePercent =
+        gateway?.feePercent != null ? Number(gateway.feePercent) : 2.99;
     }
 
     const rates = await this.getBillingRates();
@@ -193,7 +193,9 @@ export class BillingService {
         apiTokenCostAmount: new Prisma.Decimal(economics.apiTokenCostAmount),
         usdRateSnapshot: new Prisma.Decimal(rates.usdToCop),
         eurRateSnapshot: new Prisma.Decimal(rates.eurToCop),
-        commissionBaseAmount: new Prisma.Decimal(economics.commissionBaseAmount),
+        commissionBaseAmount: new Prisma.Decimal(
+          economics.commissionBaseAmount,
+        ),
         isReferredSale: economics.isReferredSale,
         alliedCommissionPercent: economics.isReferredSale
           ? new Prisma.Decimal(economics.alliedCommissionPercent as number)
@@ -209,107 +211,12 @@ export class BillingService {
     });
   }
 
-  async getAdminDashboard() {
-    const invoices = await this.prisma.subscriptionInvoice.findMany({
-      include: {
-        plan: { select: { id: true, name: true } },
-        user: { select: { id: true, name: true, email: true } },
-        organization: { select: { id: true, name: true } },
-        subscription: { select: { id: true, status: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const money = (v: Prisma.Decimal | number) => Number(v);
-
-    let grossTotal = 0;
-    let gatewayFeesTotal = 0;
-    let platformNetTotal = 0;
-    let alliedCommissionsTotal = 0;
-    let alliedPendingTotal = 0;
-    let alliedDispersedTotal = 0;
-    let referredSalesCount = 0;
-    let commonSalesCount = 0;
-
-    const byPlan = new Map<
-      string,
-      {
-        planId: string;
-        planName: string;
-        salesCount: number;
-        grossTotal: number;
-        platformNetTotal: number;
-        alliedCommissionTotal: number;
-        referredSalesCount: number;
-      }
-    >();
-
-    for (const inv of invoices) {
-      const gross = money(inv.grossAmount);
-      const fee = money(inv.gatewayFeeAmount);
-      const platform = money(inv.platformNetAmount);
-      const allied = money(inv.alliedCommissionAmount);
-
-      grossTotal += gross;
-      gatewayFeesTotal += fee;
-      platformNetTotal += platform;
-      alliedCommissionsTotal += allied;
-      if (inv.alliedPayoutStatus === 'pending') alliedPendingTotal += allied;
-      if (inv.alliedPayoutStatus === 'dispersed') alliedDispersedTotal += allied;
-      if (inv.isReferredSale) referredSalesCount += 1;
-      else commonSalesCount += 1;
-
-      const planKey = inv.planId.toString();
-      const current = byPlan.get(planKey) ?? {
-        planId: planKey,
-        planName: inv.plan.name,
-        salesCount: 0,
-        grossTotal: 0,
-        platformNetTotal: 0,
-        alliedCommissionTotal: 0,
-        referredSalesCount: 0,
-      };
-      current.salesCount += 1;
-      current.grossTotal += gross;
-      current.platformNetTotal += platform;
-      current.alliedCommissionTotal += allied;
-      if (inv.isReferredSale) current.referredSalesCount += 1;
-      byPlan.set(planKey, current);
-    }
-
-    return {
-      metrics: {
-        invoiceCount: invoices.length,
-        grossTotal: roundMoney(grossTotal),
-        gatewayFeesTotal: roundMoney(gatewayFeesTotal),
-        platformNetTotal: roundMoney(platformNetTotal),
-        alliedCommissionsTotal: roundMoney(alliedCommissionsTotal),
-        alliedPendingTotal: roundMoney(alliedPendingTotal),
-        alliedDispersedTotal: roundMoney(alliedDispersedTotal),
-        referredSalesCount,
-        commonSalesCount,
-      },
-      byPlan: [...byPlan.values()].map((row) => ({
-        ...row,
-        grossTotal: roundMoney(row.grossTotal),
-        platformNetTotal: roundMoney(row.platformNetTotal),
-        alliedCommissionTotal: roundMoney(row.alliedCommissionTotal),
-      })),
-      invoices: invoices.map((inv) => this.serializeInvoice(inv)),
-    };
-  }
-
   async listInvoices() {
     const invoices = await this.prisma.subscriptionInvoice.findMany({
-      include: {
-        plan: { select: { id: true, name: true } },
-        user: { select: { id: true, name: true, email: true } },
-        organization: { select: { id: true, name: true } },
-        subscription: { select: { id: true, status: true } },
-      },
+      include: INVOICE_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
-    return invoices.map((inv) => this.serializeInvoice(inv));
+    return invoices.map(serializeInvoice);
   }
 
   async getAlliedBalances() {
@@ -515,9 +422,7 @@ export class BillingService {
           data: {
             alliedPayoutStatus: 'dispersed',
             alliedDispersedAt: now,
-            alliedDispersedByUserId: adminUserId
-              ? BigInt(adminUserId)
-              : null,
+            alliedDispersedByUserId: adminUserId ? BigInt(adminUserId) : null,
           },
         });
       } else if (finalized.invoiceStatus === 'pending') {
@@ -628,7 +533,10 @@ export class BillingService {
       if (pending.length === 0) continue;
 
       const amount = roundMoney(
-        pending.reduce((sum, inv) => sum + Number(inv.alliedCommissionAmount), 0),
+        pending.reduce(
+          (sum, inv) => sum + Number(inv.alliedCommissionAmount),
+          0,
+        ),
       );
       if (amount <= 0) continue;
 
@@ -735,9 +643,7 @@ export class BillingService {
             data: {
               alliedPayoutStatus: 'dispersed',
               alliedDispersedAt: now,
-              alliedDispersedByUserId: adminUserId
-                ? BigInt(adminUserId)
-                : null,
+              alliedDispersedByUserId: adminUserId ? BigInt(adminUserId) : null,
             },
           });
         } else if (finalized.invoiceStatus === 'pending') {
@@ -799,7 +705,9 @@ export class BillingService {
   async reconcileProcessingPayouts() {
     const batches = await this.prisma.alliedPayoutBatch.findMany({
       where: {
-        status: { in: ['submitted', 'processing', 'PENDING', 'PENDING_APPROVAL'] },
+        status: {
+          in: ['submitted', 'processing', 'PENDING', 'PENDING_APPROVAL'],
+        },
         wompiPayoutId: { not: null },
       },
       take: 50,
@@ -873,11 +781,11 @@ export class BillingService {
   }) {
     return Boolean(
       org.bankId?.trim() &&
-        org.bankAccountNumber?.trim() &&
-        org.bankAccountType?.trim() &&
-        org.payoutBeneficiaryName?.trim() &&
-        org.payoutBeneficiaryEmail?.trim() &&
-        org.payoutLegalId?.trim(),
+      org.bankAccountNumber?.trim() &&
+      org.bankAccountType?.trim() &&
+      org.payoutBeneficiaryName?.trim() &&
+      org.payoutBeneficiaryEmail?.trim() &&
+      org.payoutLegalId?.trim(),
     );
   }
 
@@ -917,7 +825,9 @@ export class BillingService {
     return { batchStatus: 'processing', invoiceStatus: 'processing' };
   }
 
-  private async getActiveGatewayEnvironment(): Promise<'sandbox' | 'production'> {
+  private async getActiveGatewayEnvironment(): Promise<
+    'sandbox' | 'production'
+  > {
     const gateway = await this.prisma.gatewayConfig.findFirst({
       where: { isActive: true },
       orderBy: { id: 'desc' },
@@ -961,67 +871,5 @@ export class BillingService {
 
   private async getPayoutsClient() {
     return new WompiPayoutsClient(await this.getPayoutCredentials());
-  }
-
-  private serializeInvoice(
-    inv: Prisma.SubscriptionInvoiceGetPayload<{
-      include: {
-        plan: { select: { id: true; name: true } };
-        user: { select: { id: true; name: true; email: true } };
-        organization: { select: { id: true; name: true } };
-        subscription: { select: { id: true; status: true } };
-      };
-    }>,
-  ) {
-    return {
-      id: inv.id.toString(),
-      subscriptionId: inv.subscriptionId.toString(),
-      subscriptionStatus: inv.subscription.status,
-      user: {
-        id: inv.user.id.toString(),
-        name: inv.user.name,
-        email: inv.user.email,
-      },
-      plan: {
-        id: inv.plan.id.toString(),
-        name: inv.plan.name,
-      },
-      organization: inv.organization
-        ? {
-            id: inv.organization.id.toString(),
-            name: inv.organization.name,
-          }
-        : null,
-      grossAmount: Number(inv.grossAmount),
-      planBaseAmount: Number(inv.planBaseAmount ?? inv.grossAmount),
-      ivaPercent: Number(inv.ivaPercent ?? 0),
-      ivaAmount: Number(inv.ivaAmount ?? 0),
-      gatewayFeePercent: Number(inv.gatewayFeePercent),
-      gatewayFeeAmount: Number(inv.gatewayFeeAmount),
-      netAfterGateway: Number(inv.netAfterGateway),
-      operationalCostPercent: Number(inv.operationalCostPercent ?? 0),
-      operationalCostAmount: Number(inv.operationalCostAmount),
-      apiTokenCostAmount: Number(inv.apiTokenCostAmount ?? 0),
-      usdRateSnapshot:
-        inv.usdRateSnapshot != null ? Number(inv.usdRateSnapshot) : null,
-      eurRateSnapshot:
-        inv.eurRateSnapshot != null ? Number(inv.eurRateSnapshot) : null,
-      commissionBaseAmount: Number(inv.commissionBaseAmount),
-      isReferredSale: inv.isReferredSale,
-      alliedCommissionPercent:
-        inv.alliedCommissionPercent != null
-          ? Number(inv.alliedCommissionPercent)
-          : null,
-      alliedCommissionAmount: Number(inv.alliedCommissionAmount),
-      platformNetAmount: Number(inv.platformNetAmount),
-      currency: inv.currency,
-      wompiTransactionId: inv.wompiTransactionId,
-      alliedPayoutStatus: inv.alliedPayoutStatus as
-        | 'none'
-        | 'pending'
-        | 'dispersed',
-      alliedDispersedAt: inv.alliedDispersedAt?.toISOString() ?? null,
-      createdAt: inv.createdAt.toISOString(),
-    };
   }
 }
