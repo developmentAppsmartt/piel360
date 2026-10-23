@@ -22,6 +22,7 @@ import {
   scoreTrendQuery,
   summaryQuery,
   type CategoryRow,
+  type DoctorIds,
   type CategoryTrendRow,
   type DerivedKpiRow,
   type LifestyleSegmentRow,
@@ -88,11 +89,19 @@ export class DoctorReportsService {
       userId,
       query.professionalUserId,
     );
+    return this.skinHealthFor(doctorIds, query);
+  }
+
+  /** `doctorIds` en `null` = toda la plataforma (panel de admin). */
+  async skinHealthFor(
+    doctorIds: DoctorIds,
+    query: SkinHealthReportQueryDto,
+  ): Promise<SkinHealthReport> {
     const range = resolveReportRange(query, DEFAULT_RANGE_DAYS);
     const { from, toExclusive, prevFrom, trendMonths } = range;
     const { types, regions } = reportableCategorySqlPairs();
 
-    const empty = doctorIds.length === 0;
+    const empty = doctorIds?.length === 0;
     const [
       summaryRows,
       trendRows,
@@ -156,12 +165,17 @@ export class DoctorReportsService {
       userId,
       query.professionalUserId,
     );
+    return this.lifestyleFor(doctorIds, query);
+  }
+
+  /** `doctorIds` en `null` = toda la plataforma (panel de admin). */
+  async lifestyleFor(doctorIds: DoctorIds, query: SkinHealthReportQueryDto) {
     const { from, to, toExclusive } = resolveReportRange(
       query,
       DEFAULT_RANGE_DAYS,
     );
 
-    const empty = doctorIds.length === 0;
+    const empty = doctorIds?.length === 0;
     const [birthRows, petRows, activityRows, providerRows] = empty
       ? [[], [], [], []]
       : await Promise.all([

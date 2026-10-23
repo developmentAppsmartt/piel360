@@ -23,8 +23,16 @@ import { Prisma } from '@prisma/client';
  *    `FILTER (WHERE created_at >= from)`. Evita duplicar el trabajo.
  */
 
-/** doctorIds viaja como string[] + ::bigint[] para no depender del binder de BigInt. */
-type DoctorIds = string[];
+/** doctorIds viaja como string[] + ::bigint[] para no depender del binder de BigInt.
+ * `null` = sin filtro por doctor: el panel de admin ve toda la plataforma
+ * (mismo contrato que skiniver-reports.queries.ts). */
+export type DoctorIds = string[] | null;
+
+function doctorFilter(column: string, doctorIds: DoctorIds): Prisma.Sql {
+  return doctorIds
+    ? Prisma.sql`${Prisma.raw(column)} = ANY(${doctorIds}::bigint[])`
+    : Prisma.sql`TRUE`;
+}
 
 export interface SummaryRow {
   analyses_current: number;
@@ -59,7 +67,7 @@ export function summaryQuery(
       SELECT patient_id, overall_score, skin_age_years, skin_age_difference,
              (created_at >= ${from}) AS is_current
       FROM v_report_analyses
-      WHERE doctor_id = ANY(${doctorIds}::bigint[])
+      WHERE ${doctorFilter('doctor_id', doctorIds)}
         AND created_at >= ${prevFrom}
         AND created_at <  ${toExclusive}
     )
@@ -105,7 +113,7 @@ export function scoreTrendQuery(
       AVG(overall_score)::float8                          AS avg_score,
       COUNT(*)::int                                       AS analyses
     FROM v_report_analyses
-    WHERE doctor_id = ANY(${doctorIds}::bigint[])
+    WHERE ${doctorFilter('doctor_id', doctorIds)}
       AND created_at >= date_trunc('month', ${toExclusive}::timestamp)
                         - make_interval(months => ${trendMonths}::int - 1)
       AND created_at <  ${toExclusive}
@@ -147,7 +155,7 @@ export function categoryRankingQuery(
       JOIN unnest(${catTypes}::text[], ${catRegions}::text[]) AS cat(type, region)
         ON cat.type = s.type
        AND ((cat.region = '' AND s.is_general) OR cat.region = s.region)
-      WHERE s.doctor_id = ANY(${doctorIds}::bigint[])
+      WHERE ${doctorFilter('s.doctor_id', doctorIds)}
         AND s.created_at >= ${prevFrom}
         AND s.created_at <  ${toExclusive}
     )
@@ -194,7 +202,7 @@ export function categoryTrendQuery(
       JOIN unnest(${catTypes}::text[], ${catRegions}::text[]) AS cat(type, region)
         ON cat.type = s.type
        AND ((cat.region = '' AND s.is_general) OR cat.region = s.region)
-      WHERE s.doctor_id = ANY(${doctorIds}::bigint[])
+      WHERE ${doctorFilter('s.doctor_id', doctorIds)}
         AND s.created_at >= date_trunc('month', ${toExclusive}::timestamp)
                             - make_interval(months => ${trendMonths}::int - 1)
         AND s.created_at <  ${toExclusive}
@@ -242,7 +250,7 @@ export function segmentDistributionQuery(
       COUNT(*)::int                       AS analyses,
       AVG(overall_score)::float8          AS avg_score
     FROM v_report_analyses
-    WHERE doctor_id = ANY(${doctorIds}::bigint[])
+    WHERE ${doctorFilter('doctor_id', doctorIds)}
       AND created_at >= ${from}
       AND created_at <  ${toExclusive}
       AND ${col} IS NOT NULL
@@ -280,7 +288,7 @@ export function segmentCategoryQuery(
     JOIN unnest(${catTypes}::text[], ${catRegions}::text[]) AS cat(type, region)
       ON cat.type = s.type
      AND ((cat.region = '' AND s.is_general) OR cat.region = s.region)
-    WHERE s.doctor_id = ANY(${doctorIds}::bigint[])
+    WHERE ${doctorFilter('s.doctor_id', doctorIds)}
       AND s.created_at >= ${from}
       AND s.created_at <  ${toExclusive}
       AND s.${col} IS NOT NULL
@@ -320,7 +328,7 @@ export function derivedKpiQuery(
       JOIN unnest(${catTypes}::text[], ${catRegions}::text[]) AS cat(type, region)
         ON cat.type = s.type
        AND ((cat.region = '' AND s.is_general) OR cat.region = s.region)
-      WHERE s.doctor_id = ANY(${doctorIds}::bigint[])
+      WHERE ${doctorFilter('s.doctor_id', doctorIds)}
         AND s.created_at >= ${prevFrom}
         AND s.created_at <  ${toExclusive}
     ),
@@ -372,7 +380,7 @@ export function lifestyleSegmentQuery(
              a.patient_id,
              a.overall_score
       FROM v_report_analyses a
-      WHERE a.doctor_id = ANY(${doctorIds}::bigint[])
+      WHERE ${doctorFilter('a.doctor_id', doctorIds)}
         AND a.created_at >= ${from}
         AND a.created_at <  ${toExclusive}
       ORDER BY a.patient_id, a.created_at DESC
@@ -409,7 +417,7 @@ export function providerVolumeQuery(
     FROM analyses a
     INNER JOIN patients p ON p.id = a.patient_id
     LEFT JOIN analysis_providers ap ON ap.id = a.provider_id
-    WHERE p.doctor_id = ANY(${doctorIds}::bigint[])
+    WHERE ${doctorFilter('p.doctor_id', doctorIds)}
       AND a.created_at >= ${from}
       AND a.created_at <  ${toExclusive}
     GROUP BY 1

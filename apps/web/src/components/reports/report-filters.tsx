@@ -1,11 +1,9 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { CalendarDays, Download } from "lucide-react";
 import { colombiaDateKey } from "@piel360/shared";
 import { Button } from "@/components/ui/button";
-import { PatientsProfessionalFilter } from "@/components/patients/patients-table";
-import type { OrgTeamMember } from "@/lib/queries/organizations";
 import type { DoctorReportsFilters } from "@/lib/queries/doctor-reports";
 import { cn } from "@/lib/utils";
 
@@ -67,7 +65,10 @@ function CalendarField({
         onClick={openPicker}
         className="relative flex h-9 min-w-[10.5rem] cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-3 text-left text-sm outline-none transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-primary/30"
       >
-        <CalendarDays className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <CalendarDays
+          className="size-4 shrink-0 text-muted-foreground"
+          aria-hidden
+        />
         <span className="truncate font-medium tabular-nums text-foreground">
           {displayDate(value) || "Seleccionar"}
         </span>
@@ -90,15 +91,14 @@ function CalendarField({
 export function ReportFilters({
   filters,
   onChange,
-  members,
-  showProfessionalFilter,
+  scopeFilter,
   onExport,
   exportDisabled,
 }: {
   filters: DoctorReportsFilters;
   onChange: (next: DoctorReportsFilters) => void;
-  members: OrgTeamMember[];
-  showProfessionalFilter: boolean;
+  /** Filtro de alcance: profesional del equipo (doctor) o empresa/profesional (admin). */
+  scopeFilter?: ReactNode;
   onExport?: () => void;
   exportDisabled?: boolean;
 }) {
@@ -152,15 +152,7 @@ export function ReportFilters({
         onChange={(to) => onChange({ ...filters, to })}
       />
 
-      {showProfessionalFilter ? (
-        <PatientsProfessionalFilter
-          members={members}
-          value={filters.professionalUserId ?? "all"}
-          onChange={(professionalUserId) =>
-            onChange({ ...filters, professionalUserId })
-          }
-        />
-      ) : null}
+      {scopeFilter}
 
       {onExport ? (
         <Button

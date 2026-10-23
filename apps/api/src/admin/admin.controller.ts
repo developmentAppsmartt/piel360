@@ -66,17 +66,6 @@ export class AdminController {
     return this.adminService.getReports(startDate, endDate, granularity);
   }
 
-  /** Mismo reporte dermatológico del panel del doctor, con alcance global
-   * (sin filtro por doctor). */
-  @Get('reports/analisisdermapiel360')
-  @RequirePermission('admin.reports')
-  getAnalisisDermaPiel360Report(
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-  ) {
-    return this.adminService.getAnalisisDermaPiel360Report(startDate, endDate);
-  }
-
   @Get('map-markers')
   @RequirePermission('admin.maps')
   getMapMarkers(@Query('kind') kind?: 'doctor' | 'patient') {

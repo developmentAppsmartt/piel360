@@ -6,47 +6,28 @@ import {
   colombiaDayStart,
 } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
-import { AnalisisDermaPiel360ReportService } from '../doctor-reports/skiniver-report.service';
 import {
   CATEGORY,
   CLASS_RAW,
 } from '../doctor-reports/skiniver-reports.queries';
-import { DAY_MS, resolveReportRange } from '../doctor-reports/report-range';
+import { DAY_MS } from '../doctor-reports/report-range';
 
 const AGE_BUCKET_LABELS = ['Menores', 'Adultos', 'Seniors'] as const;
 type AgeBucket = (typeof AGE_BUCKET_LABELS)[number];
 
 const TOP_DIAGNOSIS_CLASSES = 8;
 
-/** Ventana por defecto del reporte dermatológico de admin cuando no se
- * mandan fechas — el mismo "últimos 6 meses" que muestra la UI. */
-const DEFAULT_SKINIVER_RANGE_DAYS = 180;
-
 /** Rango semiabierto en días de Colombia, como el de los reportes del doctor. */
 type CreatedAtRange = { gte?: Date; lt?: Date };
 
 type Granularity = 'day' | 'month' | 'year';
 
+/** Métricas de plataforma del admin (pestaña «General» de Reportes). Los
+ * reportes que ven doctores y empresas, con su alcance, están en
+ * doctor-reports/admin-reports.controller.ts. */
 @Injectable()
 export class AdminService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly analisisDermaPiel360Report: AnalisisDermaPiel360ReportService,
-  ) {}
-
-  /** Reporte dermatológico global: mismo armado que el del panel del doctor
-   * (AnalisisDermaPiel360ReportService), con `doctorIds = null` para no filtrar. */
-  async getAnalisisDermaPiel360Report(startDate?: string, endDate?: string) {
-    const { from, to, toExclusive } = resolveReportRange(
-      { from: startDate, to: endDate },
-      DEFAULT_SKINIVER_RANGE_DAYS,
-    );
-    return this.analisisDermaPiel360Report.build(null, {
-      from,
-      to,
-      toExclusive,
-    });
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   /** Port de SubscriptionStats.php + RiskChart.php (Filament, sistema viejo).
    * `SubscriptionStatus` acá no tiene un estado `expired` explícito (a
