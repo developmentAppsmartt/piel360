@@ -11,10 +11,10 @@ import {
 } from "@/components/auth/auth-form-primitives";
 import { PasswordRequirements } from "@/components/ui/password-requirements";
 import {
-  resetPasswordAction,
-  sendPasswordResetOtpAction,
-  verifyPasswordResetOtpAction,
-} from "@/lib/actions/forgot-password";
+  sendEmailOtpAction,
+  verifyEmailOtpAction,
+} from "@/lib/actions/email-otp";
+import { resetPasswordAction } from "@/lib/actions/forgot-password";
 
 export type ForgotPasswordStep = "email" | "otp" | "password" | "done";
 
@@ -49,7 +49,7 @@ export function ForgotPasswordForm({
       return;
     }
     setIsPending(true);
-    const result = await sendPasswordResetOtpAction(email);
+    const result = await sendEmailOtpAction(email, "reset");
     setIsPending(false);
     if (!result.ok) {
       setError(result.error ?? "No se pudo enviar el código.");
@@ -65,7 +65,7 @@ export function ForgotPasswordForm({
       return;
     }
     setIsPending(true);
-    const result = await verifyPasswordResetOtpAction(email, code);
+    const result = await verifyEmailOtpAction(email, code, "reset");
     setIsPending(false);
     if (!result.ok || !result.token) {
       setError(result.error ?? "No se pudo verificar el código.");
@@ -169,7 +169,10 @@ export function ForgotPasswordForm({
     return (
       <div className="space-y-4">
         <p className="text-sm text-zinc-500">
-          Te enviamos un código de 5 dígitos a <strong>{email}</strong>.
+          {/* Genérico a propósito: decir «te enviamos» a un correo que no
+              está registrado delataría cuáles sí lo están. */}
+          Si <strong>{email}</strong> está registrado, te enviamos un código
+          de 5 dígitos.
         </p>
         <Field label="Código de verificación" required>
           <input

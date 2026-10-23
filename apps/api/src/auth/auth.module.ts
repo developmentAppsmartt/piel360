@@ -6,6 +6,9 @@ import { SpecialtiesModule } from '../specialties/specialties.module';
 import { AccountStatusService } from './account-status.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { EmailOtpService } from './email-otp.service';
+import { OtpStore } from './otp-store.service';
+import { PhoneOtpService } from './phone-otp.service';
 import { GoogleStrategy } from './google.strategy';
 import { JwtStrategy } from './jwt.strategy';
 import { RecaptchaService } from './recaptcha.service';
@@ -24,6 +27,9 @@ import { RecaptchaService } from './recaptcha.service';
   ],
   providers: [
     AuthService,
+    OtpStore,
+    EmailOtpService,
+    PhoneOtpService,
     AccountStatusService,
     RecaptchaService,
     JwtStrategy,

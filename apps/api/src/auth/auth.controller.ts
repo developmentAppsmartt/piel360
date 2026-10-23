@@ -16,6 +16,8 @@ import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AccountStatusService } from './account-status.service';
 import { AuthService } from './auth.service';
+import { EmailOtpService } from './email-otp.service';
+import { PhoneOtpService } from './phone-otp.service';
 import { CurrentUser } from './current-user.decorator';
 import {
   SendChangePasswordOtpDto,
@@ -51,6 +53,8 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly accountStatus: AccountStatusService,
     private readonly config: ConfigService,
+    private readonly emailOtp: EmailOtpService,
+    private readonly phoneOtp: PhoneOtpService,
   ) {}
 
   @Post('register/doctor')
@@ -124,20 +128,20 @@ export class AuthController {
   @HttpCode(200)
   @Throttle({ default: { limit: 3, ttl: 60_000 } })
   sendOtp(@Body() dto: SendOtpDto) {
-    return this.authService.sendOtp(dto);
+    return this.emailOtp.send(dto);
   }
 
   @Post('otp/verify')
   @HttpCode(200)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   verifyOtp(@Body() dto: VerifyOtpDto) {
-    return this.authService.verifyOtp(dto);
+    return this.emailOtp.verify(dto);
   }
 
   @Post('otp/phone/send')
   @HttpCode(200)
   sendPhoneOtp(@Body() dto: SendPhoneOtpDto) {
-    return this.authService.sendPhoneOtp(dto);
+    return this.phoneOtp.send(dto);
   }
 
   @Post('me/otp/phone/send')
@@ -147,7 +151,7 @@ export class AuthController {
     @CurrentUser() user: JwtPayload,
     @Body() dto: SendPhoneOtpDto,
   ) {
-    return this.authService.sendPhoneOtpForAuthenticatedUser(user.sub, dto);
+    return this.phoneOtp.send(dto, BigInt(user.sub));
   }
 
   @Post('me/phone/confirm')
@@ -212,14 +216,14 @@ export class AuthController {
   @Post('otp/phone/verify')
   @HttpCode(200)
   verifyPhoneOtp(@Body() dto: VerifyPhoneOtpDto) {
-    return this.authService.verifyPhoneOtp(dto);
+    return this.phoneOtp.verify(dto);
   }
 
   @Post('forgot-password')
   @HttpCode(200)
   @Throttle({ default: { limit: 3, ttl: 60_000 } })
   forgotPassword(@Body() dto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(dto);
+    return this.emailOtp.forgotPassword(dto);
   }
 
   @Post('reset-password')
