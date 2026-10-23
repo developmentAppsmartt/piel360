@@ -1,18 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Trash2 } from "lucide-react";
 import { EmailEditor } from "@/components/email-templates/email-editor";
 import { EmailIntegrations } from "@/components/email-templates/email-integrations";
 import { EmailPreview } from "@/components/email-templates/email-preview";
 import { TemplateFields } from "@/components/email-templates/template-fields";
 import { TemplatePicker } from "@/components/email-templates/template-picker";
+import { TemplateEditorHeader, type EditorTab } from "@/components/email-templates/template-editor-header";
 import { TemplateSaveBar } from "@/components/email-templates/template-save-bar";
 import { TemplatesPageHeader } from "@/components/email-templates/templates-page-header";
 import { VariableManager } from "@/components/email-templates/variable-manager";
-import { Button } from "@/components/ui/button";
 import { ModuleCard } from "@/components/ui/module-card";
-import { cn } from "@/lib/utils";
 import {
   useCreateEmailTemplate,
   useDeleteEmailTemplate,
@@ -27,8 +25,6 @@ import {
 const EMPTY_BODY_HTML = `<p style="margin:0 0 12px;font-size:16px;">Hola {nombre},</p>
 <p style="margin:0;line-height:1.55;font-size:15px;">Escribe aquí el contenido de tu correo. Usa el botón de imagen para insertar un banner.</p>`;
 
-type EditorTab = "edit" | "preview" | "variables";
-
 /** Los eventos del panel clínico que disparan un envío hoy (ver
  * report-email.service, appointment-email.service, patient-invite.service
  * —que manda los dos del alta de paciente— y team-invite-email.service en la
@@ -41,6 +37,7 @@ type EditorTab = "edit" | "preview" | "variables";
  * administra un equipo. */
 export const DOCTOR_EVENT_KIND_IDS = [
   "appointment_scheduled",
+  "appointment_reminder",
   "report_ready",
   "patient_account_created",
   "patient_invitation",
@@ -68,6 +65,8 @@ export function EmailTemplatesWorkspace({
   const [preheader, setPreheader] = useState("");
   const [bodyHtml, setBodyHtml] = useState("");
   const [isActive, setIsActive] = useState(true);
+  // Solo el recordatorio de cita lo tiene; en las demás plantillas es null.
+  const [daysBefore, setDaysBefore] = useState<number | null>(null);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const syncingRef = useRef(false);
@@ -125,6 +124,7 @@ export function EmailTemplatesWorkspace({
     setSubject(selected.subject);
     setPreheader(selected.preheader ?? "");
     setIsActive(selected.isActive);
+    setDaysBefore(selected.daysBefore);
     setDirty(false);
     setSaveMsg(null);
     hydrateEditor(selected.bodyHtml);
@@ -199,6 +199,7 @@ export function EmailTemplatesWorkspace({
       preheader: preheader.trim() || null,
       bodyHtml: html,
       isActive,
+      ...(daysBefore != null ? { daysBefore } : {}),
     };
     try {
       if (selected.id == null) {
@@ -230,6 +231,7 @@ export function EmailTemplatesWorkspace({
     setSubject(tpl.subject);
     setPreheader(tpl.preheader ?? "");
     setIsActive(tpl.isActive);
+    setDaysBefore(tpl.daysBefore);
     hydrateEditor(tpl.bodyHtml);
   }
 
@@ -294,53 +296,16 @@ export function EmailTemplatesWorkspace({
         ) : null
       ) : (
         <div className="space-y-5">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-semibold">
-                Editar «{selected.name}»
-              </h2>
-              {"isDefault" in selected && selected.isDefault ? (
-                <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                  Contenido por defecto — aún no personalizado
-                </span>
-              ) : null}
-              {selected.id != null ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => void handleDelete()}
-                disabled={deleteMutation.isPending}
-              >
-                <Trash2 className="size-3.5" />
-                {mode === "event" ? "Volver al default" : "Eliminar"}
-              </Button>
-              ) : null}
-            </div>
-            <div className="flex flex-wrap gap-1 rounded-xl bg-muted p-1 w-fit">
-              {(
-                [
-                  { id: "edit", label: "Editar plantilla" },
-                  { id: "preview", label: "Vista previa" },
-                  { id: "variables", label: "Variables disponibles" },
-                ] as const
-              ).map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setTab(item.id)}
-                  className={cn(
-                    "rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
-                    tab === item.id
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <TemplateEditorHeader
+            name={selected.name}
+            isDefault={"isDefault" in selected && selected.isDefault}
+            canDelete={selected.id != null}
+            deleteLabel={mode === "event" ? "Volver al default" : "Eliminar"}
+            deleting={deleteMutation.isPending}
+            onDelete={() => void handleDelete()}
+            tab={tab}
+            onTab={setTab}
+          />
 
           {tab === "variables" ? (
             <VariableManager variables={variables} />
@@ -367,6 +332,11 @@ export function EmailTemplatesWorkspace({
               name={name}
               onName={(valor) => {
                 setName(valor);
+                markDirty();
+              }}
+              daysBefore={daysBefore}
+              onDaysBefore={(valor) => {
+                setDaysBefore(valor);
                 markDirty();
               }}
             >

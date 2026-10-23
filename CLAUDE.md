@@ -524,6 +524,21 @@ mano** con `select id, name from plans where name ~* 'skiniver|youcam|perfect'`.
   plan sale de sus proveedores (`billing/plan-sale-type.ts`), no de
   `analysisLimits`: los planes de fototipo guardan su límite en `aesthetic`.
 
+### Correos de cita
+
+- «Cita agendada» sale al crear la cita; el **recordatorio** lo manda
+  `agenda/appointment-reminders.cron.ts` a las 8:00 de Colombia, al paciente,
+  solo de citas `confirmed`, N días antes (`email_templates.days_before` de la
+  plantilla `appointment_reminder`, 1 a 30; sin plantilla = 1, con la
+  plantilla desactivada no sale). Una cita agendada con menos anticipación
+  sale en la siguiente ronda si no ha pasado.
+- `appointments.reminder_sent_at` se marca **antes** de enviar: nunca se
+  repite, aunque falle el envío. Las citas no cambian de fecha (la agenda solo
+  cambia el estado), así que no hay que reiniciarlo.
+- `{fecha_cita}`/`{hora_cita}` se formatean con `timeZone: 'America/Bogota'`
+  (`appointmentEmailValues`): sin eso salían 5 horas corridas, porque el
+  contenedor corre en UTC.
+
 ### Fechas de los reportes
 
 Los filtros «desde/hasta» son **días de Colombia**, no UTC:

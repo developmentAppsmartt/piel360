@@ -6,6 +6,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AgendaController } from './agenda.controller';
 import { AgendaService } from './agenda.service';
 import { AppointmentEmailService } from './appointment-email.service';
+import { AppointmentRemindersCron } from './appointment-reminders.cron';
 import { AppointmentsDailySummaryCron } from './appointments-daily-summary.cron';
 
 @Module({
@@ -20,6 +21,7 @@ import { AppointmentsDailySummaryCron } from './appointments-daily-summary.cron'
     AgendaService,
     AppointmentEmailService,
     AppointmentsDailySummaryCron,
+    AppointmentRemindersCron,
   ],
   exports: [AgendaService],
 })

@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -8,7 +7,6 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { extname } from 'path';
-import { SYSTEM_EMAIL_VARIABLES } from '@piel360/shared';
 import type { JwtPayload } from '../auth/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrgContextService } from '../organizations/org-context.service';
@@ -20,13 +18,15 @@ import {
 } from './banner-urls';
 import type {
   CreateEmailTemplateDto,
-  CreateEmailTemplateVariableDto,
   UpdateEmailTemplateDto,
-  UpdateEmailTemplateVariableDto,
 } from './dto/email-template.dto';
+import { EmailTemplateVariablesService } from './email-template-variables.service';
+import { templateScopeDoctorId } from './email-template-scope';
 import {
+  APPOINTMENT_REMINDER_KIND,
   EMAIL_TEMPLATE_DEFAULTS,
   EMAIL_TEMPLATE_KIND_LABELS,
+  REMINDER_DEFAULT_DAYS,
 } from './email-templates.defaults';
 
 type TemplateRow = {
@@ -37,6 +37,7 @@ type TemplateRow = {
   subject: string;
   preheader: string | null;
   bodyHtml: string;
+  daysBefore: number | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -44,19 +45,6 @@ type TemplateRow = {
 
 const EMPTY_BODY_HTML = `<p style="margin:0 0 12px;font-size:16px;">Hola {nombre},</p>
 <p style="margin:0;line-height:1.55;font-size:15px;">Escribe aquí el contenido de tu correo.</p>`;
-
-function normalizeVariableKey(raw: string): string {
-  let key = raw.trim().toLowerCase();
-  key = key.replace(/^\{|\}$/g, '');
-  key = key
-    .replace(/[^a-z0-9_]/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_|_$/g, '');
-  if (!key) {
-    throw new BadRequestException('La clave de la variable no es válida');
-  }
-  return `{${key}}`;
-}
 
 function slugifyKind(raw: string): string {
   const base = raw
@@ -70,6 +58,18 @@ function slugifyKind(raw: string): string {
   return base || 'plantilla';
 }
 
+/** Los días de anticipación solo tienen sentido en el recordatorio de cita:
+ * en cualquier otra plantilla se ignoran en vez de guardarse sin uso. */
+function daysBeforeFor(kind: string, daysBefore: number | undefined) {
+  if (daysBefore === undefined) return {};
+  if (kind !== APPOINTMENT_REMINDER_KIND) {
+    throw new BadRequestException(
+      'Los días de anticipación solo aplican al recordatorio de cita',
+    );
+  }
+  return { daysBefore };
+}
+
 @Injectable()
 export class EmailTemplatesService {
   constructor(
@@ -77,22 +77,11 @@ export class EmailTemplatesService {
     private readonly orgContext: OrgContextService,
     private readonly storage: StorageService,
     private readonly config: ConfigService,
+    private readonly variables: EmailTemplateVariablesService,
   ) {}
 
-  /**
-   * De quién son las plantillas que ve este usuario.
-   *
-   * `null` = plataforma: las de moderación del registro no pertenecen a nadie
-   * y un moderador ni siquiera tiene ficha de doctor, así que antes el módulo
-   * entero le respondía «El usuario no tiene un perfil de doctor».
-   */
-  private async scopeDoctorId(user: JwtPayload): Promise<bigint | null> {
-    if (user.role === 'superadmin' || user.role === 'monitor') return null;
-    const ctx = await this.orgContext.assertTeamPermissionForUser(
-      user.sub,
-      'billing',
-    );
-    return ctx.catalogDoctorId;
+  private scopeDoctorId(user: JwtPayload) {
+    return templateScopeDoctorId(this.orgContext, user);
   }
 
   private serialize(row: TemplateRow) {
@@ -107,28 +96,11 @@ export class EmailTemplatesService {
       // Las plantillas guardadas antes llevan la URL firmada del banner, que
       // caduca a los 7 días: se le devuelve al editor ya reescrita.
       bodyHtml: conBannersEstables(row.bodyHtml, baseApiPublica(this.config)),
+      daysBefore:
+        row.kind === APPOINTMENT_REMINDER_KIND
+          ? (row.daysBefore ?? REMINDER_DEFAULT_DAYS)
+          : null,
       isActive: row.isActive,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    };
-  }
-
-  private serializeVariable(row: {
-    id: bigint;
-    doctorId: bigint | null;
-    key: string;
-    description: string;
-    sampleValue: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-  }) {
-    return {
-      id: row.id.toString(),
-      doctorId: row.doctorId?.toString() ?? null,
-      key: row.key,
-      description: row.description,
-      sampleValue: row.sampleValue,
-      isSystem: false as const,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };
@@ -143,41 +115,6 @@ export class EmailTemplatesService {
     return row;
   }
 
-  private async ensureVariableOwner(id: bigint, doctorId: bigint | null) {
-    const row = await this.prisma.emailTemplateVariable.findUnique({
-      where: { id },
-    });
-    if (!row) throw new NotFoundException('Variable no encontrada');
-    if (row.doctorId !== doctorId) {
-      throw new ForbiddenException('No tienes acceso a esta variable');
-    }
-    return row;
-  }
-
-  private async listMergedVariables(doctorId: bigint | null) {
-    const custom = await this.prisma.emailTemplateVariable.findMany({
-      where: { doctorId },
-      orderBy: [{ key: 'asc' }],
-    });
-    const system = SYSTEM_EMAIL_VARIABLES.map((v) => ({
-      id: null as string | null,
-      key: v.key,
-      description: v.description,
-      sampleValue: v.sampleValue,
-      isSystem: true as const,
-    }));
-    return [
-      ...system,
-      ...custom.map((row) => ({
-        id: row.id.toString(),
-        key: row.key,
-        description: row.description,
-        sampleValue: row.sampleValue,
-        isSystem: false as const,
-      })),
-    ];
-  }
-
   async meta(user: JwtPayload) {
     const doctorId = await this.scopeDoctorId(user);
     return {
@@ -185,7 +122,7 @@ export class EmailTemplatesService {
         id,
         label,
       })),
-      variables: await this.listMergedVariables(doctorId),
+      variables: await this.variables.listMerged(doctorId),
       integrations: {
         google: {
           connected: false,
@@ -202,84 +139,6 @@ export class EmailTemplatesService {
         },
       },
     };
-  }
-
-  async listVariables(user: JwtPayload) {
-    const doctorId = await this.scopeDoctorId(user);
-    return this.listMergedVariables(doctorId);
-  }
-
-  async createVariable(user: JwtPayload, dto: CreateEmailTemplateVariableDto) {
-    const doctorId = await this.scopeDoctorId(user);
-    const key = normalizeVariableKey(dto.key);
-    if (SYSTEM_EMAIL_VARIABLES.some((v) => v.key === key)) {
-      throw new ConflictException(`«${key}» es una variable del sistema — no se puede redefinir`);
-    }
-    // findFirst y no findUnique: el índice `(doctor_id, key)` no sirve de
-    // nada cuando `doctor_id` es NULL, porque en Postgres dos NULL no chocan.
-    const existing = await this.prisma.emailTemplateVariable.findFirst({
-      where: { doctorId, key },
-    });
-    if (existing) {
-      throw new ConflictException(`Ya existe la variable «${key}»`);
-    }
-
-    const row = await this.prisma.emailTemplateVariable.create({
-      data: {
-        doctorId,
-        key,
-        description: dto.description.trim(),
-        sampleValue: dto.sampleValue?.trim() || null,
-      },
-    });
-    return this.serializeVariable(row);
-  }
-
-  async updateVariable(
-    user: JwtPayload,
-    id: string,
-    dto: UpdateEmailTemplateVariableDto,
-  ) {
-    const doctorId = await this.scopeDoctorId(user);
-    await this.ensureVariableOwner(BigInt(id), doctorId);
-
-    let nextKey: string | undefined;
-    if (dto.key != null) {
-      nextKey = normalizeVariableKey(dto.key);
-      const clash = await this.prisma.emailTemplateVariable.findFirst({
-        where: {
-          doctorId,
-          key: nextKey,
-          NOT: { id: BigInt(id) },
-        },
-      });
-      if (clash) {
-        throw new ConflictException(`Ya existe la variable «${nextKey}»`);
-      }
-    }
-
-    const row = await this.prisma.emailTemplateVariable.update({
-      where: { id: BigInt(id) },
-      data: {
-        ...(nextKey != null ? { key: nextKey } : {}),
-        ...(dto.description != null
-          ? { description: dto.description.trim() }
-          : {}),
-        ...(dto.sampleValue !== undefined
-          ? { sampleValue: dto.sampleValue?.trim() || null }
-          : {}),
-      },
-    });
-    return this.serializeVariable(row);
-  }
-
-  async deleteVariable(user: JwtPayload, id: string) {
-    const doctorId = await this.scopeDoctorId(user);
-    await this.ensureVariableOwner(BigInt(id), doctorId);
-    await this.prisma.emailTemplateVariable.delete({
-      where: { id: BigInt(id) },
-    });
-    return { ok: true };
   }
 
   async list(user: JwtPayload) {
@@ -321,6 +180,7 @@ export class EmailTemplatesService {
         preheader: dto.preheader?.trim() || null,
         bodyHtml: dto.bodyHtml?.trim() || EMPTY_BODY_HTML,
         isActive: dto.isActive ?? true,
+        ...daysBeforeFor(kind, dto.daysBefore),
       },
     });
     return this.serialize(row);
@@ -328,7 +188,7 @@ export class EmailTemplatesService {
 
   async update(user: JwtPayload, id: string, dto: UpdateEmailTemplateDto) {
     const doctorId = await this.scopeDoctorId(user);
-    await this.ensureOwner(BigInt(id), doctorId);
+    const current = await this.ensureOwner(BigInt(id), doctorId);
 
     const row = await this.prisma.emailTemplate.update({
       where: { id: BigInt(id) },
@@ -340,6 +200,7 @@ export class EmailTemplatesService {
           : {}),
         ...(dto.bodyHtml != null ? { bodyHtml: dto.bodyHtml } : {}),
         ...(dto.isActive != null ? { isActive: dto.isActive } : {}),
+        ...daysBeforeFor(current.kind, dto.daysBefore),
       },
     });
     return this.serialize(row);
@@ -376,7 +237,9 @@ export class EmailTemplatesService {
 
     const defaults = EMAIL_TEMPLATE_DEFAULTS[kind];
     if (!defaults) {
-      throw new NotFoundException(`No hay contenido por defecto para «${kind}»`);
+      throw new NotFoundException(
+        `No hay contenido por defecto para «${kind}»`,
+      );
     }
     return {
       id: null as string | null,
@@ -387,6 +250,8 @@ export class EmailTemplatesService {
       subject: defaults.subject,
       preheader: null as string | null,
       bodyHtml: defaults.bodyHtml,
+      daysBefore:
+        kind === APPOINTMENT_REMINDER_KIND ? REMINDER_DEFAULT_DAYS : null,
       isActive: true,
       createdAt: null as string | null,
       updatedAt: null as string | null,
