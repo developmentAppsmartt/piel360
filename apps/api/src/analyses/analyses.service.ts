@@ -18,7 +18,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ReportPdfService } from '../reports/report-pdf.service';
 import { AnalisisDermaPiel360Service } from '../skiniver/skiniver.service';
 import { StorageService } from '../storage/storage.service';
-import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { SubscriptionCreditsService } from '../subscriptions/subscription-credits.service';
 import { resolveSubscriptionEndsAt } from '../subscriptions/subscription-ends.util';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
 import {
@@ -59,7 +59,7 @@ export class AnalysesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly skiniver: AnalisisDermaPiel360Service,
-    private readonly subscriptions: SubscriptionsService,
+    private readonly subscriptions: SubscriptionCreditsService,
     private readonly patients: PatientsService,
     private readonly orgContext: OrgContextService,
     private readonly doctors: DoctorsService,

@@ -22,7 +22,6 @@ const ARCHIVOS_LARGOS_HEREDADOS = [
   "src/reports/report-pdf.service.ts",
   "src/routines/routines.service.ts",
   "src/skin-age-rules/skin-age-rules.service.ts",
-  "src/subscriptions/subscriptions.service.ts",
 ];
 
 export default tseslint.config(

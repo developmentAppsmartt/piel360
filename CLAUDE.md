@@ -498,6 +498,16 @@ mano** con `select id, name from plans where name ~* 'skiniver|youcam|perfect'`.
 - La lista de «Corregir resultado» es `packages/shared/src/nosology-catalog.ts`;
   el móvil tiene su espejo en `views/nosologies/data/nosologies.ts`.
 
+### Planes y créditos
+
+- **Un profesional puede tener varios planes activos del mismo análisis.**
+  Comprar uno nuevo ya no cancela los anteriores (lo pidió el cliente: si le
+  quedan créditos, siguen activos). Se descuenta primero del que **vence
+  antes** (`SubscriptionCreditsService.findActiveForUser`).
+- Los que se cancelaron antes del arreglo se reactivan solos al arrancar el
+  API (`subscriptions/overlap-cancel-restore.ts`); el log dice cuántos
+  («Planes reactivados»).
+
 ### Fechas de los reportes
 
 Los filtros «desde/hasta» son **días de Colombia**, no UTC:
