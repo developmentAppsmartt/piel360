@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Calendar, Mail, Pencil, Phone, Plus, User } from "lucide-react";
+import { Calendar, Mail, Pencil, Phone, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ModuleCard } from "@/components/ui/module-card";
@@ -12,6 +12,7 @@ import {
   type PatientsPanel,
 } from "@/lib/patients-panel";
 import { AssignPatientDoctorButton } from "./assign-patient-doctor-button";
+import { NewAnalysisDialog } from "./new-analysis-dialog";
 import { PatientDetailTabs } from "./patient-detail-tabs";
 
 function initials(first: string, last: string) {
@@ -177,16 +178,7 @@ export function PatientProfileShell({
 
           <div className="flex flex-wrap gap-2 lg:justify-end">
             {showNewAnalysis && panel === "doctor" ? (
-              <Button
-                nativeButton={false}
-                render={
-                  <Link href={`/doctor/pacientes/${patient.id}/nuevo-analisis-analisispiel360`} />
-                }
-                className="gap-1.5"
-              >
-                <Plus className="size-4" />
-                Nuevo análisis
-              </Button>
+              <NewAnalysisDialog patientId={patient.id} />
             ) : null}
             {panel === "admin" ? (
               <AssignPatientDoctorButton patient={patient} />

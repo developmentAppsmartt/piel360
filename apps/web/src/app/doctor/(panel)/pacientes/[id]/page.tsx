@@ -1,19 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import { ModuleCard } from "@/components/ui/module-card";
 import { PatientAnalysesTable } from "@/components/patients/patient-analyses-table";
 import { PatientProfileShell } from "@/components/patients/patient-profile-shell";
-import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
+import { PatientQuickActions } from "@/components/patients/patient-quick-actions";
 import { ApiError } from "@/lib/api-error";
 import { usePatient, usePatientAnalyses } from "@/lib/queries/patients";
-import { useMyDoctorProfile } from "@/lib/queries/doctors";
-import {
-  PUBLIC_ANALYSIS_PROVIDER_SLUGS,
-} from "@piel360/shared";
 
 export default function PacienteDetallePage() {
   const { id } = useParams<{ id: string }>();
@@ -22,12 +16,6 @@ export default function PacienteDetallePage() {
   const correoFallido = useSearchParams().get("correo") === "fallo";
   const patient = usePatient(id);
   const analyses = usePatientAnalyses(id);
-  const doctorProfile = useMyDoctorProfile();
-
-  // El API ya manda los slugs públicos, así que basta comparar.
-  const allowedProviders: readonly string[] =
-    doctorProfile.data?.allowedProviderSlugs ?? PUBLIC_ANALYSIS_PROVIDER_SLUGS;
-  const allows = (slug: string) => allowedProviders.includes(slug);
 
   const authError =
     (patient.error instanceof ApiError && patient.error.status === 401) ||
@@ -56,57 +44,7 @@ export default function PacienteDetallePage() {
           {p.userId ? " y pásale su clave de acceso" : ""}.
         </p>
       ) : null}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant="outline"
-          nativeButton={false}
-          render={<Link href={`/doctor/pacientes/${p.id}/editar`} />}
-        >
-          Editar
-        </Button>
-        {allows("analisisdermapiel360") ? (
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link href={`/doctor/pacientes/${p.id}/nuevo-analisis`} />}
-          >
-            {ANALYSIS_PROVIDER_STATIC_LABELS.analisisdermapiel360}
-          </Button>
-        ) : null}
-        {allows("analisispiel360") ? (
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={
-              <Link
-                href={`/doctor/pacientes/${p.id}/nuevo-analisis-analisispiel360`}
-              />
-            }
-          >
-            {ANALYSIS_PROVIDER_STATIC_LABELS.analisispiel360}
-          </Button>
-        ) : null}
-        {allows("fitzpatrick") ? (
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={
-              <Link
-                href={`/doctor/pacientes/${p.id}/nuevo-analisis-fitzpatrick`}
-              />
-            }
-          >
-            {ANALYSIS_PROVIDER_STATIC_LABELS.fitzpatrick}
-          </Button>
-        ) : null}
-        <Button
-          variant="outline"
-          nativeButton={false}
-          render={<Link href={`/doctor/pacientes/${p.id}/historial-3d`} />}
-        >
-          Historial 3D análisis dermatológico
-        </Button>
-      </div>
+      <PatientQuickActions patientId={p.id} />
 
       {analyses.isLoading || (!authError && analyses.error) ? (
         <ModuleCard className="p-4">

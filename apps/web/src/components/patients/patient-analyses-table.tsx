@@ -16,6 +16,13 @@ import type { Analysis } from "@/lib/queries/patients";
 
 type AnalysisStatus = "Inválido" | "Corregido" | "Confirmado" | "Pendiente";
 
+const STATUS_PILL: Record<AnalysisStatus, string> = {
+  Pendiente: "bg-sky-100 text-sky-800",
+  Confirmado: "bg-emerald-100 text-emerald-800",
+  Corregido: "bg-amber-100 text-amber-800",
+  Inválido: "bg-red-100 text-red-800",
+};
+
 function analysisStatus(a: Analysis): AnalysisStatus {
   if (!a.isValid) return "Inválido";
   if (!a.isConfirmed) return "Pendiente";
@@ -28,7 +35,9 @@ const columns = [
   columnHelper.accessor((row) => analysisProviderLabel(row), {
     id: "provider",
     header: "Tipo de análisis",
-    cell: (info) => <Badge variant="outline">{info.getValue()}</Badge>,
+    cell: (info) => (
+      <Badge className="bg-primary/10 text-primary">{info.getValue()}</Badge>
+    ),
   }),
   columnHelper.accessor((row) => bodyRegionLabel(row.bodyRegion) ?? "—", {
     id: "bodyRegion",
@@ -42,16 +51,9 @@ const columns = [
   columnHelper.accessor(analysisStatus, {
     id: "status",
     header: "Estado",
-    cell: (info) => {
-      const status = info.getValue();
-      if (status === "Inválido") {
-        return <Badge variant="destructive">Inválido</Badge>;
-      }
-      if (status === "Pendiente") {
-        return <Badge variant="secondary">Pendiente</Badge>;
-      }
-      return <Badge>{status}</Badge>;
-    },
+    cell: (info) => (
+      <Badge className={STATUS_PILL[info.getValue()]}>{info.getValue()}</Badge>
+    ),
   }),
   // El accessor devuelve el ISO crudo, que ordena cronológicamente; el `cell`
   // es el que lo formatea.
