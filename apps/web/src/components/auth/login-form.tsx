@@ -2,12 +2,14 @@
 
 import { useActionState, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import Script from "next/script";
 import { SESSION_REPLACED_MESSAGE, type Role } from "@piel360/shared";
 import { ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { loginAction, type AuthActionState } from "@/lib/actions/auth";
 import { useClearClientQueryCache } from "@/lib/clear-client-query-cache";
 import { googleOAuthRole } from "@/lib/google-auth";
 import { SESSION_REPLACED_REASON } from "@/lib/login-path";
+import { getRecaptchaToken, RECAPTCHA_SCRIPT_URL } from "@/lib/recaptcha";
 import { GoogleContinueButton } from "./google-continue-button";
 import { LoginIconField } from "./login-icon-field";
 
@@ -31,6 +33,9 @@ export function LoginForm({
     formData: FormData,
   ) => {
     clearClientCache();
+    // El token se pide al enviar: caduca a los 2 minutos.
+    const captchaToken = await getRecaptchaToken("login");
+    if (captchaToken) formData.set("captchaToken", captchaToken);
     return loginAction(role, prevState, formData);
   };
   const [state, formAction, isPending] = useActionState(
@@ -52,6 +57,9 @@ export function LoginForm({
 
   return (
     <form action={formAction} className="w-full space-y-5">
+      {RECAPTCHA_SCRIPT_URL ? (
+        <Script src={RECAPTCHA_SCRIPT_URL} strategy="afterInteractive" />
+      ) : null}
       {sessionReplaced ? (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           {SESSION_REPLACED_MESSAGE}

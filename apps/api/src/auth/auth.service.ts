@@ -600,12 +600,14 @@ export class AuthService implements OnModuleDestroy {
     client: 'mobile' | 'web' = 'web',
     devicePlatform?: string,
   ): Promise<AuthResult> {
-    if (client === 'mobile' && this.recaptcha.isEnabled()) {
+    // Web y móvil usan la acción "login" (SDK móvil: RecaptchaAction.LOGIN;
+    // web: grecaptcha.enterprise.execute). El web se verifica con la site key
+    // web (RECAPTCHA_SITE_KEY); el móvil, con la de su plataforma.
+    if (this.recaptcha.isEnabled()) {
       await this.recaptcha.assertValid(dto.captchaToken, {
         required: true,
-        // SDK móvil: RecaptchaAction.LOGIN → "login"
         action: 'login',
-        platform: devicePlatform,
+        platform: client === 'mobile' ? devicePlatform : undefined,
       });
     }
 

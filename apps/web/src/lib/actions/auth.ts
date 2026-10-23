@@ -39,12 +39,17 @@ export async function loginAction(
 ): Promise<AuthActionState> {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
+  const captchaToken = formData.get("captchaToken");
 
   let result: AuthResponse;
   try {
     result = await apiFetch<AuthResponse>("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({
+        email,
+        password,
+        ...(typeof captchaToken === "string" ? { captchaToken } : {}),
+      }),
     });
   } catch (err) {
     if (err instanceof ApiError) return { error: err.message };

@@ -6,6 +6,7 @@ import { LoginPageShell } from "@/components/auth/login-page-shell";
 export default function ModeradorLoginPage() {
   return (
     <LoginPageShell
+      legal
       title="Soy Moderador"
       description="Revisa, modera y supervisa contenido y análisis dentro de la plataforma."
       icon={Star}
