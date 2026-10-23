@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { RoutineOnboarding } from "@/components/routines/routine-onboarding";
+import { ScoreGuideDialog } from "@/components/treatments/score-guide-dialog";
 import { TreatmentsListTab } from "@/components/treatments/treatments-list-tab";
 import { TreatmentCategoriesTab } from "@/components/treatments/treatment-categories-tab";
 import { ApiError } from "@/lib/api-error";
@@ -98,7 +98,6 @@ export default function RutinasPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <RoutineOnboarding />
           <Button variant="outline" nativeButton={false} render={<Link href="/doctor/reglas-edad-piel" />}>
             <Sparkles className="mr-2 size-4" />
             Reglas por edad de piel
@@ -150,6 +149,7 @@ export default function RutinasPage() {
               columns={columns}
               data={routines}
               searchPlaceholder="Buscar rutina..."
+              searchAside={<ScoreGuideDialog kind="routine" />}
               emptyMessage="No hay rutinas aún. Crea una para empezar."
               getRowHref={(row) => `/doctor/rutinas/${row.id}`}
             />
