@@ -13,6 +13,7 @@ import {
 import { DiagnosisDetailDialog } from "@/components/analyses/diagnosis-detail-dialog";
 import { DiagnosisList } from "@/components/analyses/diagnosis-list";
 import { ImageCarousel } from "@/components/analyses/image-carousel";
+import { gaugePercent } from "@/components/analyses/derma-risk";
 import { RiskGauge } from "@/components/analyses/risk-gauge";
 import { isDermatologicalAnalysis } from "@/lib/patient-comparison";
 import { useAnalyses, useAnalysis } from "@/lib/queries/analyses";
@@ -183,12 +184,7 @@ export function AnalisisDermaPiel360ClinicoWidget({
           {tab === "resultados" && (
             <div className="space-y-4">
               <RiskGauge
-                percent={(() => {
-                  const raw = prediction?.high_risk_prob;
-                  if (raw == null || !Number.isFinite(Number(raw))) return 0;
-                  const n = Number(raw);
-                  return n <= 1 ? n * 100 : n;
-                })()}
+                percent={gaugePercent(prediction)}
                 riskLabel={riskLabel}
               />
 

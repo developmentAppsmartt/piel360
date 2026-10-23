@@ -4,12 +4,7 @@ import {
   type AnalisisDermaPiel360DiagnosisCandidate,
 } from "@piel360/shared";
 import { cn } from "@/lib/utils";
-
-const RISK_COLORS: Record<string, string> = {
-  low: "#22c55e",
-  medium: "#facc15",
-  high: "#ef4444",
-};
+import { RISK_COLORS, riskColor } from "./derma-risk";
 
 function normalizedProb(prob: number) {
   return prob <= 1 ? prob * 100 : prob;
@@ -64,7 +59,7 @@ export function DiagnosisList({
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {items.map((item, index) => {
-        const color = RISK_COLORS[item.risk_level] ?? RISK_COLORS.low;
+        const color = riskColor(item.risk_level) ?? RISK_COLORS.low;
         const prob = normalizedProb(item.prob);
         const selected = selectedKey != null && candidateKey(item) === selectedKey;
         return (

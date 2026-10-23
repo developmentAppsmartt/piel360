@@ -1,3 +1,5 @@
+import { useGLTF } from "@react-three/drei";
+import { useMemo } from "react";
 import * as THREE from "three";
 import { normalizeMeshName } from "@/lib/body-regions";
 
@@ -35,9 +37,30 @@ export function normalizeModel(scene: THREE.Object3D) {
   scene.position.y += 1.05;
 }
 
+/**
+ * Modelo listo para pintar: un clon propio de la escena que cachea `useGLTF`.
+ *
+ * Montar la escena cacheada tal cual hacía desaparecer la figura: al cambiar
+ * de Mujer a Hombre y volver, o al volver a la página, el lienzo recibía la
+ * misma escena que el montaje anterior ya había desligado al desmontarse, y
+ * solo recargar la página la recuperaba. El clon comparte geometrías y
+ * materiales (no duplica memoria), pero cada montaje tiene su propio árbol, y
+ * normalizarlo aquí evita mutar la caché.
+ */
+export function useBodyModel(gender: Gender): THREE.Object3D {
+  const { scene } = useGLTF(MODEL_PATHS[gender]);
+  return useMemo(() => {
+    const model = scene.clone(true);
+    normalizeModel(model);
+    return model;
+  }, [scene]);
+}
+
 /** Mismo criterio que `ViewPatient3DHistory.php` (sistema viejo) para
  * decidir el modelo GLB inicial a partir del género del paciente. */
 export function genderFromPatient(gender: string | null | undefined): Gender {
   const normalized = (gender ?? "").toLowerCase();
-  return ["female", "f", "femenino", "femenina"].includes(normalized) ? "female" : "male";
+  return ["female", "f", "femenino", "femenina"].includes(normalized)
+    ? "female"
+    : "male";
 }

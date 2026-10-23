@@ -22,6 +22,7 @@ import {
 import { ImageCarousel } from "@/components/analyses/image-carousel";
 import { NosologyPickerDialog } from "@/components/analyses/nosology-picker-dialog";
 import { ProfessionalOutcomeCard } from "@/components/analyses/professional-outcome-card";
+import { gaugePercent, percent } from "@/components/analyses/derma-risk";
 import { RiskGauge } from "@/components/analyses/risk-gauge";
 import {
   AnalisisDermaPiel360Descriptive,
@@ -31,17 +32,6 @@ import { ModuleCard } from "@/components/ui/module-card";
 import type { AnalysisDetail, ConfirmAnalysisInput } from "@/lib/queries/analyses";
 
 type Candidate = AnalisisDermaPiel360DiagnosisCandidate;
-
-function percent(prob: number) {
-  return prob <= 1 ? prob * 100 : prob;
-}
-
-/** Solo `high_risk_prob`: `aiProbability` es la probabilidad de la clase. */
-function gaugePercent(prediction: AnalisisDermaPiel360Prediction | undefined) {
-  const raw = prediction?.high_risk_prob;
-  if (raw == null || !Number.isFinite(Number(raw))) return 0;
-  return percent(Number(raw));
-}
 
 function candidateLabel(item: Candidate) {
   return analisisDermaPiel360DiagnosisLabel(item.class, item.class_raw);

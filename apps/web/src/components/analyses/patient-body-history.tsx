@@ -1,47 +1,68 @@
 "use client";
 
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, useGLTF } from "@react-three/drei";
-import { useEffect, useState } from "react";
+import { OrbitControls } from "@react-three/drei";
+import { useMemo, useState } from "react";
 import {
+  analisisDermaPiel360CategoryLabel,
   analisisDermaPiel360DiagnosisLabel,
   analisisDermaPiel360RiskLabel,
-  type RiskLevel,
   type AnalisisDermaPiel360Prediction,
 } from "@piel360/shared";
+import {
+  dermPrediction,
+  gaugePercent,
+  riskColor,
+} from "@/components/analyses/derma-risk";
+import { RiskLegend } from "@/components/analyses/diagnosis-list";
 import { ImageCarousel } from "@/components/analyses/image-carousel";
+import { RiskGauge } from "@/components/analyses/risk-gauge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { type Gender, MODEL_PATHS, normalizeModel } from "@/lib/body-model";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { type Gender, useBodyModel } from "@/lib/body-model";
 import type { Analysis3D } from "@/lib/queries/patients";
 
-const RISK_COLORS: Record<RiskLevel, string> = {
-  low: "#22c55e",
-  medium: "#facc15",
-  high: "#ef4444",
-};
 const DEFAULT_MARKER_COLOR = "#94a3b8";
 
-function riskLevel(analysis: Analysis3D): RiskLevel | null {
-  const prediction = analysis.aiRawResponse as AnalisisDermaPiel360Prediction | null;
-  return prediction?.topn?.[0]?.risk_level ?? null;
-}
-
-function markerColor(analysis: Analysis3D): string {
-  const level = riskLevel(analysis);
-  return level ? RISK_COLORS[level] : DEFAULT_MARKER_COLOR;
-}
+type DermAnalysis3D = Analysis3D & {
+  prediction: AnalisisDermaPiel360Prediction;
+};
 
 function BodyModel({ gender }: { gender: Gender }) {
-  const { scene } = useGLTF(MODEL_PATHS[gender]);
-
-  useEffect(() => {
-    normalizeModel(scene);
-  }, [scene]);
-
-  return <primitive object={scene} />;
+  return <primitive object={useBodyModel(gender)} />;
 }
 
+/** El riesgo del diagnóstico principal, con el color de su nivel. */
+function RiskPill({
+  prediction,
+}: {
+  prediction: AnalisisDermaPiel360Prediction;
+}) {
+  const top = prediction.topn?.[0];
+  const color = riskColor(top?.risk_level) ?? DEFAULT_MARKER_COLOR;
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-sm font-medium">
+      <span
+        aria-hidden
+        className="size-3 rounded-full"
+        style={{ background: color }}
+      />
+      Riesgo{" "}
+      {analisisDermaPiel360RiskLabel(
+        prediction.risk ?? top?.risk,
+        top?.risk_level,
+      ).toLowerCase()}
+    </span>
+  );
+}
+
+/** Historial 3D de los análisis dermatológicos: un marcador por análisis con
+ * ubicación, del color de su riesgo (los mismos del resultado del análisis). */
 export function PatientBodyHistory({
   analyses,
   initialGender,
@@ -50,9 +71,19 @@ export function PatientBodyHistory({
   initialGender?: Gender;
 }) {
   const [gender, setGender] = useState<Gender>(initialGender ?? "female");
-  const [selected, setSelected] = useState<Analysis3D | null>(null);
+  const [selected, setSelected] = useState<DermAnalysis3D | null>(null);
 
-  const selectedPrediction = selected?.aiRawResponse as AnalisisDermaPiel360Prediction | null | undefined;
+  // Los estéticos también guardan ubicación, pero no tienen riesgo.
+  const dermAnalyses = useMemo(
+    () =>
+      analyses.flatMap((a) => {
+        const prediction = dermPrediction(a.aiRawResponse);
+        return prediction ? [{ ...a, prediction }] : [];
+      }),
+    [analyses],
+  );
+
+  const top = selected?.prediction.topn?.[0];
 
   return (
     <div className="space-y-3">
@@ -80,7 +111,7 @@ export function PatientBodyHistory({
           <ambientLight intensity={0.7} />
           <directionalLight position={[2, 3, 4]} intensity={1} />
           <BodyModel key={gender} gender={gender} />
-          {analyses.map((analysis) => (
+          {dermAnalyses.map((analysis) => (
             <mesh
               key={analysis.id}
               position={[analysis.xCoord, analysis.yCoord, analysis.zCoord]}
@@ -90,20 +121,35 @@ export function PatientBodyHistory({
               }}
             >
               <sphereGeometry args={[0.025, 16, 16]} />
-              <meshBasicMaterial color={markerColor(analysis)} />
+              <meshBasicMaterial
+                color={
+                  riskColor(analysis.prediction.topn?.[0]?.risk_level) ??
+                  DEFAULT_MARKER_COLOR
+                }
+              />
             </mesh>
           ))}
-          <OrbitControls enablePan={false} minDistance={1} maxDistance={5} target={[0, 1.2, 0]} />
+          <OrbitControls
+            enablePan={false}
+            minDistance={1}
+            maxDistance={5}
+            target={[0, 1.2, 0]}
+          />
         </Canvas>
       </div>
 
+      <RiskLegend />
+
       <p className="text-sm text-muted-foreground">
-        {analyses.length > 0
-          ? `${analyses.length} análisis con ubicación registrada. Haz click en un marcador para ver el detalle.`
-          : "Este paciente no tiene análisis con ubicación registrada todavía."}
+        {dermAnalyses.length > 0
+          ? `${dermAnalyses.length} análisis dermatológicos con ubicación registrada. Haz click en un marcador para ver el detalle.`
+          : "Este paciente no tiene análisis dermatológicos con ubicación registrada todavía."}
       </p>
 
-      <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
+      <Dialog
+        open={!!selected}
+        onOpenChange={(open) => !open && setSelected(null)}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
@@ -117,6 +163,21 @@ export function PatientBodyHistory({
           </DialogHeader>
           {selected && (
             <div className="space-y-3">
+              <RiskGauge
+                percent={gaugePercent(selected.prediction)}
+                riskLabel={analisisDermaPiel360RiskLabel(
+                  selected.prediction.risk,
+                  top?.risk_level,
+                )}
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <RiskPill prediction={selected.prediction} />
+                {top?.desease ? (
+                  <span className="text-sm text-muted-foreground">
+                    {analisisDermaPiel360CategoryLabel(top.desease)}
+                  </span>
+                ) : null}
+              </div>
               <ImageCarousel
                 images={[
                   { label: "Original", url: selected.imageUrl },
@@ -125,17 +186,11 @@ export function PatientBodyHistory({
                   ...selected.masks.map((m) => ({ label: m.type, url: m.url })),
                 ]}
               />
-              <p className="text-sm">
-                Riesgo:{" "}
-                <span className="font-medium">
-                  {analisisDermaPiel360RiskLabel(
-                    selectedPrediction?.risk,
-                    selectedPrediction?.topn?.[0]?.risk_level,
-                  )}
-                </span>
-              </p>
               <p className="text-sm text-muted-foreground">
-                {new Date(selected.createdAt).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}
+                {new Date(selected.createdAt).toLocaleString("es-CO", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
               </p>
             </div>
           )}

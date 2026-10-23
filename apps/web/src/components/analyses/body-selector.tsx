@@ -1,11 +1,11 @@
 "use client";
 
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
-import { OrbitControls, useGLTF } from "@react-three/drei";
-import { useEffect, useMemo, useState } from "react";
+import { OrbitControls } from "@react-three/drei";
+import { useMemo, useState } from "react";
 import type * as THREE from "three";
 import { Button } from "@/components/ui/button";
-import { type Gender, MODEL_PATHS, normalizeModel } from "@/lib/body-model";
+import { type Gender, useBodyModel } from "@/lib/body-model";
 import { BODY_PARTS_INFO, inferBodyPartFromPoint, normalizeMeshName } from "@/lib/body-regions";
 
 function BodyModel({
@@ -15,11 +15,7 @@ function BodyModel({
   gender: Gender;
   onSelect: (region: string, point: THREE.Vector3) => void;
 }) {
-  const { scene } = useGLTF(MODEL_PATHS[gender]);
-
-  useEffect(() => {
-    normalizeModel(scene);
-  }, [scene]);
+  const model = useBodyModel(gender);
 
   function handleClick(event: ThreeEvent<MouseEvent>) {
     event.stopPropagation();
@@ -28,7 +24,7 @@ function BodyModel({
     onSelect(region, event.point);
   }
 
-  return <primitive object={scene} onClick={handleClick} />;
+  return <primitive object={model} onClick={handleClick} />;
 }
 
 export function BodySelector({

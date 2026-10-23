@@ -104,7 +104,7 @@ export default function PacienteDetallePage() {
           nativeButton={false}
           render={<Link href={`/doctor/pacientes/${p.id}/historial-3d`} />}
         >
-          Historial 3D
+          Historial 3D análisis dermatológico
         </Button>
       </div>
 
