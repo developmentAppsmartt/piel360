@@ -1,8 +1,11 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Droplet, Sun } from "lucide-react";
-import { ImageWatermark } from "@/components/analyses/image-watermark";
+import { useMemo, useState } from "react";
+import { Droplet, Sun } from "lucide-react";
+import {
+  configuredAnalisisPiel360Advice,
+  configuredAnalisisPiel360ScoreBand,
+} from "@piel360/shared";
 import { ModuleCard } from "@/components/ui/module-card";
 import { RecommendationsPanel } from "@/components/analyses/recommendations-panel";
 import {
@@ -10,17 +13,14 @@ import {
   resolveFitzpatrickScale,
 } from "@/components/analyses/fitzpatrick-results-section";
 import { FITZPATRICK_TYPES } from "@/lib/fitzpatrick-labels";
+import { useEffectiveScoreConfig } from "@/lib/queries/score-config";
 import { analisisPiel360MetricCopy } from "@/lib/youcam-metric-copy";
-import { ANALISIS_PIEL360_METRIC_LABELS, analisisPiel360RegionLabel, analisisPiel360SkinTypeLabel } from "@/lib/youcam-metric-labels";
 import type { AnalysisDetail } from "@/lib/queries/analyses";
 import {
   parseAnalisisPiel360Metrics,
-  ANALISIS_PIEL360_MAIN_METRIC_TYPES,
-  analisisPiel360MetricValue,
   analisisPiel360OverallScore,
   analisisPiel360SkinAge,
   analisisPiel360SkinType,
-  type AnalisisPiel360Metric,
   type AnalisisPiel360RawResponse,
 } from "@/lib/youcam-metrics";
 import { cn } from "@/lib/utils";
@@ -28,326 +28,21 @@ import {
   chronologicalAgeYears,
   formatSignedYears,
   skinAgeDifference,
-  skinAgeDifferenceMessage,
 } from "@/lib/skin-age";
+import {
+  DEFAULT_REGION,
+  FITZPATRICK_TYPE,
+  SKIN_AGE_TYPE,
+  buildChips,
+  buildOverviewMaskUrls,
+  regionPillLabel,
+} from "./analisis-piel360-chips";
+import { AnalisisPiel360Summary } from "./analisis-piel360-summary";
+import { AnalisisPiel360Viewer } from "./analisis-piel360-viewer";
+import { RegionCarousel } from "./region-carousel";
 
-// hd_pore/hd_wrinkle/hd_skin_type traen varias regiones bajo el mismo `type`
-// (ej. hd_wrinkle: forehead/glabellar/crowfeet/periocular/nasolabial/marionette/whole).
-// El chip principal sigue mostrando "whole" (como antes), pero además expone
-// `regions` para que el usuario pueda ver cada subcategoría — antes se perdían
-// por completo, colapsadas a un solo chip por `type`.
-const MULTI_REGION_TYPES = new Set(["hd_wrinkle", "hd_pore", "hd_skin_type"]);
-const DEFAULT_REGION = "whole";
-/** Chips que no son máscaras YouCam: muestran la foto limpia. */
-const SKIN_AGE_TYPE = "skin_age";
-const FITZPATRICK_TYPE = "fitzpatrick";
-const MIN_IMAGE_ZOOM = 1;
-const MAX_IMAGE_ZOOM = 2.5;
-const IMAGE_ZOOM_STEP = 0.25;
-const ZERO_PAN = { x: 0, y: 0 };
-
-function clampImagePan(
-  pan: { x: number; y: number },
-  zoom: number,
-  width: number,
-  height: number,
-) {
-  if (zoom <= MIN_IMAGE_ZOOM || width <= 0 || height <= 0) return ZERO_PAN;
-  const maxX = (width * zoom - width) / 2;
-  const maxY = (height * zoom - height) / 2;
-  return {
-    x: Math.min(maxX, Math.max(-maxX, pan.x)),
-    y: Math.min(maxY, Math.max(-maxY, pan.y)),
-  };
-}
-
-// Capas superpuestas en el chip "Salud de la piel" (overview) — ojeras,
-// firmeza, eritema, bolsas, surco, poros/manchas/arrugas general.
-const OVERVIEW_LAYER_TYPES = [
-  "hd_dark_circle",
-  "hd_firmness",
-  "hd_redness",
-  "hd_eye_bag",
-  "hd_tear_trough",
-  "hd_pore",
-  "hd_age_spot",
-  "hd_wrinkle",
-];
-
-type MetricRegionOption = {
-  region: string;
-  label: string;
-  score: number | null;
-  skinType: string | null;
-  maskUrl: string | null;
-};
-
-type MetricChip = {
-  type: string;
-  label: string;
-  score: number | null;
-  maskUrl: string | null;
-  regions?: MetricRegionOption[];
-};
-
-function shortLabel(type: string): string {
-  const full = ANALISIS_PIEL360_METRIC_LABELS[type] ?? type;
-  if (full.length <= 12) return full;
-  return full.split(" ")[0] ?? full;
-}
-
-/** A diferencia de `masks.find((x) => x.type === type)` (el bug original: toma
- * el primer mask con ese `type` sin mirar la región, mezclando por ejemplo la
- * imagen de "frente" con el puntaje de "general"), esto siempre matchea la
- * región exacta. */
-function findMaskUrl(
-  masks: AnalysisDetail["masks"],
-  type: string,
-  region: string | undefined,
-): string | null {
-  return masks.find((m) => m.type === type && m.region === region)?.url ?? null;
-}
-
-function buildRegionOptions(
-  type: string,
-  candidates: AnalisisPiel360Metric[],
-  masks: AnalysisDetail["masks"],
-  preferRaw: boolean,
-): MetricRegionOption[] {
-  const sorted = [...candidates].sort((a, b) => {
-    const aWhole = (a.region ?? DEFAULT_REGION) === DEFAULT_REGION;
-    const bWhole = (b.region ?? DEFAULT_REGION) === DEFAULT_REGION;
-    if (aWhole === bWhole) return 0;
-    return aWhole ? -1 : 1;
-  });
-  return sorted.map((m) => {
-    const region = m.region ?? DEFAULT_REGION;
-    return {
-      region,
-      label: analisisPiel360RegionLabel(region),
-      score: analisisPiel360MetricValue(m, preferRaw),
-      skinType: m.skinType,
-      maskUrl: findMaskUrl(masks, type, m.region),
-    };
-  });
-}
-
-/** Mismo orden que la app móvil (AnalisisPiel360ResultsSection.tsx): Edad de la piel,
- * Puntaje de la piel, Biotipo, Fototipo y luego las métricas principales. */
-function buildChips(
-  metrics: AnalisisPiel360Metric[],
-  masks: AnalysisDetail["masks"],
-  preferRaw: boolean,
-  skinAge: number | null,
-): MetricChip[] {
-  const chips: MetricChip[] = [
-    {
-      type: SKIN_AGE_TYPE,
-      label: "Edad de la piel",
-      score: skinAge,
-      maskUrl: null,
-    },
-    {
-      type: "overview",
-      label: "Puntaje de la piel",
-      score: analisisPiel360OverallScore(metrics),
-      maskUrl: null,
-    },
-  ];
-
-  const skinTypeCandidates = metrics.filter((m) => m.type === "hd_skin_type");
-  if (skinTypeCandidates.length > 0) {
-    const whole =
-      skinTypeCandidates.find((m) => !m.region || m.region === DEFAULT_REGION) ??
-      skinTypeCandidates[0];
-    chips.push({
-      type: "hd_skin_type",
-      label: "Biotipo",
-      score: analisisPiel360MetricValue(whole, preferRaw),
-      maskUrl: findMaskUrl(masks, "hd_skin_type", whole.region),
-      regions:
-        skinTypeCandidates.length > 1
-          ? buildRegionOptions("hd_skin_type", skinTypeCandidates, masks, preferRaw)
-          : undefined,
-    });
-  }
-
-  // Siempre presente, aunque el paciente no tenga fototipo: mantiene el mismo
-  // orden de categorías en todos los pacientes (igual que la app).
-  chips.push({
-    type: FITZPATRICK_TYPE,
-    label: "Fototipo",
-    score: null,
-    maskUrl: null,
-  });
-
-  for (const type of ANALISIS_PIEL360_MAIN_METRIC_TYPES) {
-    const candidates = metrics.filter((m) => m.type === type);
-    if (candidates.length === 0) continue;
-    const whole =
-      candidates.find((m) => !m.region || m.region === DEFAULT_REGION) ?? candidates[0];
-    chips.push({
-      type,
-      label: shortLabel(type),
-      score: analisisPiel360MetricValue(whole, preferRaw),
-      maskUrl: findMaskUrl(masks, type, whole.region),
-      regions:
-        MULTI_REGION_TYPES.has(type) && candidates.length > 1
-          ? buildRegionOptions(type, candidates, masks, preferRaw)
-          : undefined,
-    });
-  }
-
-  return chips;
-}
-
-/** URLs de las capas superpuestas del chip "Salud de la piel" — mismo
- * criterio whole/default que buildChips para elegir la región de cada tipo. */
-function buildOverviewMaskUrls(
-  metrics: AnalisisPiel360Metric[],
-  masks: AnalysisDetail["masks"],
-): string[] {
-  const urls: string[] = [];
-  for (const type of OVERVIEW_LAYER_TYPES) {
-    const candidates = metrics.filter((m) => m.type === type);
-    if (candidates.length === 0) continue;
-    const whole =
-      candidates.find((m) => !m.region || m.region === DEFAULT_REGION) ?? candidates[0];
-    const url = findMaskUrl(masks, type, whole.region);
-    if (url) urls.push(url);
-  }
-  return urls;
-}
-
-/** Tarjetas de zona: la miniatura es la foto base con la máscara de ESA zona
- * encima, igual que el visor grande. Sin la foto base (análisis sin original)
- * se muestra la máscara sola, que es lo único que hay. */
-function RegionCarousel({
-  options,
-  selectedRegion,
-  onSelect,
-  title,
-  baseImageUrl,
-}: {
-  options: MetricRegionOption[];
-  selectedRegion: string;
-  onSelect: (region: string) => void;
-  title: string;
-  baseImageUrl: string | null;
-}) {
-  const trackRef = useRef<HTMLDivElement>(null);
-
-  // Las flechas no se deshabilitan en los extremos a propósito: medir el
-  // desbordamiento exigía re-medir en cada cambio de métrica y de ancho, y el
-  // navegador ya acota el scroll, así que en el extremo el botón no hace nada.
-  function scrollBy(direction: 1 | -1) {
-    trackRef.current?.scrollBy({
-      left: direction * 240,
-      behavior: "smooth",
-    });
-  }
-
-  return (
-    <ModuleCard className="space-y-3 p-4">
-      <div>
-        <p className="text-sm font-semibold text-foreground">{title}</p>
-        <p className="text-xs text-muted-foreground">
-          Selecciona la zona del rostro para ver el detalle del análisis.
-        </p>
-      </div>
-
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => scrollBy(-1)}
-          aria-label="Ver zonas anteriores"
-          className="absolute top-1/2 -left-1 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm"
-        >
-          <ChevronLeft className="size-4" />
-        </button>
-
-        <div
-          ref={trackRef}
-          className="flex gap-3 overflow-x-auto scroll-smooth px-8 py-1"
-        >
-          {options.map((option) => {
-            const active = option.region === selectedRegion;
-            return (
-              <button
-                key={option.region}
-                type="button"
-                onClick={() => onSelect(option.region)}
-                className={cn(
-                  "flex w-24 shrink-0 flex-col items-center gap-2 rounded-xl border p-2 transition-colors",
-                  active
-                    ? "border-primary bg-primary/5"
-                    : "border-border bg-card hover:bg-muted/40",
-                )}
-              >
-                <span className="relative block size-16 overflow-hidden rounded-lg bg-muted">
-                  {baseImageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={baseImageUrl}
-                      alt=""
-                      className="absolute inset-0 size-full object-cover"
-                    />
-                  ) : null}
-                  {option.maskUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={option.maskUrl}
-                      alt=""
-                      className="absolute inset-0 size-full object-cover"
-                    />
-                  ) : null}
-                  <ImageWatermark className="right-0.5 bottom-0.5 w-[55%] min-w-0" />
-                </span>
-                <span
-                  className={cn(
-                    "text-center text-[11px] leading-tight",
-                    active ? "font-semibold text-primary" : "text-muted-foreground",
-                  )}
-                >
-                  {option.label}
-                </span>
-                <span
-                  className={cn(
-                    "rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums",
-                    active
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground",
-                  )}
-                >
-                  {option.skinType
-                    ? analisisPiel360SkinTypeLabel(option.skinType)
-                    : option.score != null
-                      ? Math.round(option.score)
-                      : "·"}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => scrollBy(1)}
-          aria-label="Ver más zonas"
-          className="absolute top-1/2 -right-1 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm"
-        >
-          <ChevronRight className="size-4" />
-        </button>
-      </div>
-    </ModuleCard>
-  );
-}
-
-function regionPillLabel(option: MetricRegionOption): string {
-  if (option.skinType) return `${option.label} · ${analisisPiel360SkinTypeLabel(option.skinType)}`;
-  if (option.score != null) return `${option.label} ${Math.round(option.score)}`;
-  return option.label;
-}
+/** Puntuación ajustada (uiScore): la elige el doctor; sin toggle en el análisis. */
+const PREFER_RAW = false;
 
 export function AnalisisPiel360ResultsSection({
   analysis,
@@ -363,6 +58,9 @@ export function AnalisisPiel360ResultsSection({
       parseAnalisisPiel360Metrics(analysis.aiRawResponse as AnalisisPiel360RawResponse | null),
     [analysis.aiRawResponse],
   );
+  // Rangos y textos de la cuenta (Configuración › Rangos de puntuación): los
+  // mismos que aplica la app móvil.
+  const { data: scoreConfig } = useEffectiveScoreConfig();
   const overall = analisisPiel360OverallScore(metrics);
   const skinAge = analysis.skinAgeYears ?? analisisPiel360SkinAge(metrics);
   const chronologicalAge =
@@ -376,10 +74,8 @@ export function AnalisisPiel360ResultsSection({
     () => resolveFitzpatrickScale(analysis),
     [analysis],
   );
-  // Puntuación ajustada (uiScore): la elige el doctor; sin toggle en el análisis.
-  const preferRaw = false;
   const chips = useMemo(
-    () => buildChips(metrics, analysis.masks, preferRaw, skinAge),
+    () => buildChips(metrics, analysis.masks, PREFER_RAW, skinAge),
     [metrics, analysis.masks, skinAge],
   );
   const overviewMaskUrls = useMemo(
@@ -389,16 +85,6 @@ export function AnalisisPiel360ResultsSection({
 
   const [selectedType, setSelectedType] = useState(SKIN_AGE_TYPE);
   const [selectedRegion, setSelectedRegion] = useState(DEFAULT_REGION);
-  const [imageZoom, setImageZoom] = useState(MIN_IMAGE_ZOOM);
-  const [imagePan, setImagePan] = useState(ZERO_PAN);
-  const viewerRef = useRef<HTMLDivElement>(null);
-  const dragging = useRef(false);
-  const lastPos = useRef({ x: 0, y: 0 });
-  const panRef = useRef(imagePan);
-  const zoomRef = useRef(imageZoom);
-  panRef.current = imagePan;
-  zoomRef.current = imageZoom;
-  const canPan = imageZoom > MIN_IMAGE_ZOOM;
   const selected = chips.find((c) => c.type === selectedType) ?? chips[0] ?? null;
   const activeRegion = selected?.regions?.find((r) => r.region === selectedRegion) ?? null;
   const isOverview = selected?.type === "overview";
@@ -409,7 +95,6 @@ export function AnalisisPiel360ResultsSection({
   // propio motor. Mismo criterio que la app móvil.
   const metricType = isOverview || isSkinAge ? null : (selected?.type ?? null);
 
-  const showBase = analysis.hasOriginalPhoto && !!analysis.imageUrl;
   const maskUrl =
     isOverview || isSkinAge || isFitzpatrick
       ? null
@@ -423,54 +108,6 @@ export function AnalisisPiel360ResultsSection({
   function selectChip(type: string) {
     setSelectedType(type);
     setSelectedRegion(DEFAULT_REGION);
-  }
-
-  function changeImageZoom(next: number) {
-    const zoom = Math.min(
-      MAX_IMAGE_ZOOM,
-      Math.max(MIN_IMAGE_ZOOM, +next.toFixed(2)),
-    );
-    const rect = viewerRef.current?.getBoundingClientRect();
-    setImageZoom(zoom);
-    setImagePan((pan) =>
-      clampImagePan(
-        zoom <= MIN_IMAGE_ZOOM ? ZERO_PAN : pan,
-        zoom,
-        rect?.width ?? 0,
-        rect?.height ?? 0,
-      ),
-    );
-  }
-
-  function onViewerPointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    if (!canPan || e.button !== 0) return;
-    dragging.current = true;
-    lastPos.current = { x: e.clientX, y: e.clientY };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  }
-
-  function onViewerPointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (!dragging.current) return;
-    const dx = e.clientX - lastPos.current.x;
-    const dy = e.clientY - lastPos.current.y;
-    lastPos.current = { x: e.clientX, y: e.clientY };
-    const rect = viewerRef.current?.getBoundingClientRect();
-    setImagePan(
-      clampImagePan(
-        { x: panRef.current.x + dx, y: panRef.current.y + dy },
-        zoomRef.current,
-        rect?.width ?? 0,
-        rect?.height ?? 0,
-      ),
-    );
-  }
-
-  function endViewerDrag(e: React.PointerEvent<HTMLDivElement>) {
-    if (!dragging.current) return;
-    dragging.current = false;
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    }
   }
 
   const fitzpatrickDetail = fitzpatrickScale
@@ -491,179 +128,40 @@ export function AnalisisPiel360ResultsSection({
         : "El fototipo describe cómo reacciona tu piel al sol según la escala de Fitzpatrick. Este paciente aún no tiene un fototipo registrado."
       : analisisPiel360MetricCopy(isOverview ? "all" : selected?.type);
 
-  const scorePct =
-    overall != null ? Math.max(0, Math.min(100, overall)) : 0;
-  const diffClass =
-    ageDiff == null
-      ? "text-muted-foreground"
-      : ageDiff < 0
-        ? "text-emerald-600 dark:text-emerald-400"
-        : ageDiff > 0
-          ? "text-red-600 dark:text-red-400"
-          : "text-muted-foreground";
+  // Texto del nivel en que cae el puntaje de la zona activa, con los rangos y
+  // textos de Rangos de puntuación. Antes el web solo mostraba la descripción
+  // fija de la métrica y lo configurado no aparecía en ninguna parte.
+  const activeScore = activeRegion?.score ?? selected?.score ?? null;
+  const adviceText =
+    selected && !isOverview && !isSkinAge && !isFitzpatrick && activeScore != null
+      ? `${
+          activeRegion && activeRegion.region !== DEFAULT_REGION
+            ? `${activeRegion.label}: `
+            : ""
+        }${configuredAnalisisPiel360Advice(
+          selected.type,
+          configuredAnalisisPiel360ScoreBand(activeScore, selected.type, scoreConfig),
+          scoreConfig,
+        )}`
+      : null;
 
   return (
     <div className="space-y-4">
-      <ModuleCard className="space-y-2 bg-sky-50/80 p-4 dark:bg-sky-950/20">
-        <p className="text-sm">
-          Salud de la piel (años):{" "}
-          <span className="font-semibold text-primary">
-            {skinAge != null ? `${Math.round(skinAge)} años` : "—"}
-          </span>
-          <span className="font-semibold text-muted-foreground">
-            {" "}
-            (Edad cronológica):{" "}
-            {chronologicalAge != null ? `${chronologicalAge} años` : "—"}
-          </span>
-        </p>
-        <p className="text-sm">
-          Puntaje de la piel:{" "}
-          <span className="font-semibold text-muted-foreground">
-            {overall != null ? `${Math.round(overall)} / 100` : "—"}
-          </span>
-        </p>
-        {overall != null ? (
-          <div className="space-y-1">
-            <div className="relative h-4">
-              {scorePct < 96 ? (
-                <span
-                  className="absolute top-0 -translate-x-1/2 text-[11px] font-bold text-primary"
-                  style={{ left: `${scorePct}%` }}
-                >
-                  {Math.round(overall)}
-                </span>
-              ) : null}
-              <span className="absolute top-0 right-0 text-[11px] font-bold text-muted-foreground">
-                100
-              </span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-primary transition-all"
-                style={{ width: `${scorePct}%` }}
-              />
-            </div>
-          </div>
-        ) : null}
-        {ageDiff != null ? (
-          <>
-            <p className={cn("text-sm font-semibold", diffClass)}>
-              Diferencia: {formatSignedYears(ageDiff)}
-            </p>
-            <p className={cn("text-sm font-medium", diffClass)}>
-              {skinAgeDifferenceMessage(ageDiff)}
-            </p>
-          </>
-        ) : null}
-        <p className="text-sm">
-          Biotipo:{" "}
-          <span className="font-semibold text-muted-foreground">
-            {skinType ? analisisPiel360SkinTypeLabel(skinType) : "—"}
-          </span>
-        </p>
-        {fitzpatrickDetail ? (
-          <p className="text-sm">
-            Fototipo:{" "}
-            <span className="font-semibold text-muted-foreground">
-              {fitzpatrickDetail}
-            </span>
-          </p>
-        ) : null}
-      </ModuleCard>
+      <AnalisisPiel360Summary
+        skinAge={skinAge}
+        chronologicalAge={chronologicalAge}
+        overall={overall}
+        ageDiff={ageDiff}
+        skinType={skinType}
+        fitzpatrickDetail={fitzpatrickDetail}
+      />
 
-      <ModuleCard className="overflow-hidden p-0">
-        <div
-          ref={viewerRef}
-          className={cn(
-            "relative aspect-[4/5] max-h-[420px] w-full overflow-hidden bg-muted touch-none select-none",
-            canPan ? "cursor-grab active:cursor-grabbing" : "cursor-default",
-          )}
-          onPointerDown={onViewerPointerDown}
-          onPointerMove={onViewerPointerMove}
-          onPointerUp={endViewerDrag}
-          onPointerCancel={endViewerDrag}
-        >
-          <div
-            className="absolute inset-0 origin-center"
-            style={{
-              transform: `translate(${imagePan.x}px, ${imagePan.y}px) scale(${imageZoom})`,
-            }}
-          >
-          {showBase ? (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={analysis.imageUrl!}
-                alt="Foto del análisis"
-                className="absolute inset-0 size-full object-cover"
-              />
-              {isOverview
-                ? overviewMaskUrls.map((url) => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={url}
-                      src={url}
-                      alt=""
-                      className="absolute inset-0 size-full object-cover"
-                    />
-                  ))
-                : maskUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={maskUrl}
-                      alt={badgeLabel ?? "Máscara"}
-                      className="absolute inset-0 size-full object-cover"
-                    />
-                  )}
-            </>
-          ) : maskUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={maskUrl}
-              alt={badgeLabel ?? "Máscara"}
-              className="absolute inset-0 size-full object-contain"
-            />
-          ) : (
-            <div className="flex size-full items-center justify-center p-6 text-center text-sm text-muted-foreground">
-              No hay foto original disponible para este análisis. Puedes revisar
-              las métricas y el reporte.
-            </div>
-          )}
-          </div>
-          {showBase || maskUrl ? (
-            <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={() => changeImageZoom(imageZoom + IMAGE_ZOOM_STEP)}
-                disabled={imageZoom >= MAX_IMAGE_ZOOM}
-                aria-label="Acercar imagen"
-                className="flex size-9 items-center justify-center rounded-full border border-black/10 bg-white/90 text-lg font-bold text-foreground shadow-sm disabled:opacity-40"
-              >
-                +
-              </button>
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={() => changeImageZoom(imageZoom - IMAGE_ZOOM_STEP)}
-                disabled={imageZoom <= MIN_IMAGE_ZOOM}
-                aria-label="Alejar imagen"
-                className="flex size-9 items-center justify-center rounded-full border border-black/10 bg-white/90 text-lg font-bold text-foreground shadow-sm disabled:opacity-40"
-              >
-                −
-              </button>
-            </div>
-          ) : null}
-          {badgeLabel ? (
-            <span className="absolute bottom-3 left-3 z-10 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
-              {badgeLabel}
-            </span>
-          ) : null}
-          {/* Fuera del contenedor que se escala: con el zoom la marca crecería
-              y podría salirse del encuadre. */}
-          {showBase || maskUrl ? <ImageWatermark className="bottom-3 right-3" /> : null}
-        </div>
-      </ModuleCard>
+      <AnalisisPiel360Viewer
+        imageUrl={analysis.hasOriginalPhoto ? analysis.imageUrl : null}
+        overviewMaskUrls={isOverview ? overviewMaskUrls : null}
+        maskUrl={maskUrl}
+        badgeLabel={badgeLabel}
+      />
 
       <div className="flex flex-wrap gap-2">
         <button
@@ -736,7 +234,9 @@ export function AnalisisPiel360ResultsSection({
             selectedRegion={selectedRegion}
             onSelect={setSelectedRegion}
             title={`Análisis de ${selected.label}`}
-            baseImageUrl={showBase ? analysis.imageUrl : null}
+            baseImageUrl={
+              analysis.hasOriginalPhoto ? analysis.imageUrl : null
+            }
           />
           <div className="-mx-1 flex flex-wrap gap-2 px-1">
           {selected.regions.map((option) => {
@@ -761,8 +261,11 @@ export function AnalisisPiel360ResultsSection({
         </>
       ) : null}
 
-      <ModuleCard className="p-4">
+      <ModuleCard className="space-y-2 p-4">
         <p className="text-sm leading-relaxed text-muted-foreground">{copyText}</p>
+        {adviceText ? (
+          <p className="text-sm leading-relaxed text-foreground">{adviceText}</p>
+        ) : null}
       </ModuleCard>
 
       <RecommendationsPanel analysisId={analysis.id} metricType={metricType} />

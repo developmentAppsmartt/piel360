@@ -23,7 +23,6 @@ const ARCHIVOS_LARGOS_HEREDADOS = [
   "src/components/analyses/analysis-consumption-view.tsx",
   "src/components/analyses/recommendations-panel.tsx",
   "src/components/analyses/youcam-report-view.tsx",
-  "src/components/analyses/youcam-results-section.tsx",
   "src/components/auth/doctor-register-form.tsx",
   "src/components/auth/empresa-register-form.tsx",
   "src/components/doctor/doctor-billing-hub.tsx",
