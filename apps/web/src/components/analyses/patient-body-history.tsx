@@ -150,7 +150,7 @@ export function PatientBodyHistory({
         open={!!selected}
         onOpenChange={(open) => !open && setSelected(null)}
       >
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
               {/* `finalDiagnosis` lo escribe el médico (ya en español); solo el
@@ -163,12 +163,16 @@ export function PatientBodyHistory({
           </DialogHeader>
           {selected && (
             <div className="space-y-3">
-              <RiskGauge
-                percent={gaugePercent(selected.prediction)}
-                riskLabel={analisisDermaPiel360RiskLabel(
-                  selected.prediction.risk,
-                  top?.risk_level,
-                )}
+              {/* La foto primero y el medidor compacto: en un portátil el
+                  medidor a tamaño completo empujaba los botones del carrusel
+                  fuera de la pantalla. */}
+              <ImageCarousel
+                images={[
+                  { label: "Original", url: selected.imageUrl },
+                  { label: "Coloreada", url: selected.coloredUrl },
+                  { label: "Máscara", url: selected.maskedUrl },
+                  ...selected.masks.map((m) => ({ label: m.type, url: m.url })),
+                ]}
               />
               <div className="flex flex-wrap items-center gap-2">
                 <RiskPill prediction={selected.prediction} />
@@ -178,13 +182,13 @@ export function PatientBodyHistory({
                   </span>
                 ) : null}
               </div>
-              <ImageCarousel
-                images={[
-                  { label: "Original", url: selected.imageUrl },
-                  { label: "Coloreada", url: selected.coloredUrl },
-                  { label: "Máscara", url: selected.maskedUrl },
-                  ...selected.masks.map((m) => ({ label: m.type, url: m.url })),
-                ]}
+              <RiskGauge
+                className="max-w-[180px]"
+                percent={gaugePercent(selected.prediction)}
+                riskLabel={analisisDermaPiel360RiskLabel(
+                  selected.prediction.risk,
+                  top?.risk_level,
+                )}
               />
               <p className="text-sm text-muted-foreground">
                 {new Date(selected.createdAt).toLocaleString("es-CO", {
