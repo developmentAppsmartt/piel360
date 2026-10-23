@@ -8,20 +8,20 @@ import { SubscriptionPoolService } from './subscription-pool.service';
  * la activación reserva en bolsa justo después de cerrar la transacción. */
 const PAREJA_MAX_MS = 2 * 60_000;
 
-type Movimiento = { kind: string; at: number };
-
 /**
  * Hasta que se arregló, activar un plan cancelaba los demás activos del
  * usuario que compartían algún análisis, aunque les quedaran créditos. Al
  * arrancar, reactiva esos planes si siguen vigentes y con créditos.
  *
- * No hay columna que diga por qué se canceló un plan; lo delata el historial
- * de la bolsa: la cancelación por solapamiento deja «Cancelación suscripción
- * #A» y, segundos después, «Activación suscripción #B» de otro plan del mismo
- * usuario. Una cancelación del admin no deja esa pareja. Solo cuenta la
- * **última** cancelación de cada plan, así que uno que el admin vuelva a
- * cancelar después no se reactiva otra vez. Como ya no se generan parejas
- * nuevas, el relleno se queda sin trabajo solo.
+ * No hay columna que diga por qué se canceló un plan. Lo delata la hora: la
+ * cancelación por solapamiento deja el `updated_at` del plan viejo a
+ * milisegundos de la «Activación suscripción #B» de otro plan del mismo
+ * usuario en el historial de la bolsa. No se usa el movimiento «Cancelación»
+ * del plan viejo porque no siempre se registra (en producción faltaba en uno
+ * de los tres casos). Una cancelación del admin no cae junto a una
+ * activación, y si después el admin vuelve a tocar el plan, su `updated_at`
+ * se mueve y deja de emparejar. Como ya no se generan parejas nuevas, el
+ * relleno se queda sin trabajo solo.
  */
 @Injectable()
 export class OverlapCancelRestore implements OnApplicationBootstrap {
@@ -62,18 +62,10 @@ export class OverlapCancelRestore implements OnApplicationBootstrap {
     );
     if (conCreditos.length === 0) return 0;
 
-    const movimientos = await this.movimientosPorSuscripcion();
+    const activaciones = await this.activacionesPorSuscripcion();
     let reactivadas = 0;
     for (const sub of conCreditos) {
-      const cancelacion = movimientos
-        .get(sub.id)
-        ?.filter((m) => m.kind === 'subscription_return')
-        .at(-1);
-      if (!cancelacion) continue;
-      if (
-        !(await this.huboActivacionSolapada(sub, cancelacion.at, movimientos))
-      )
-        continue;
+      if (!(await this.huboActivacionSolapada(sub, activaciones))) continue;
 
       try {
         await this.subscriptionPool.allocateForSubscription(
@@ -105,22 +97,19 @@ export class OverlapCancelRestore implements OnApplicationBootstrap {
     return reactivadas;
   }
 
-  /** Movimientos de suscripción de la bolsa, en orden, por id de suscripción
-   * (el id solo está en la nota: «Cancelación suscripción #12 (5 créditos)»). */
-  private async movimientosPorSuscripcion(): Promise<
-    Map<bigint, Movimiento[]>
-  > {
+  /** Horas de «Activación suscripción #id» del historial de la bolsa, por id
+   * (el id solo está en la nota: «Activación suscripción #12 (5 créditos)»). */
+  private async activacionesPorSuscripcion(): Promise<Map<bigint, number[]>> {
     const filas = await this.prisma.platformUnitRecharge.findMany({
-      where: { kind: { in: ['subscription_return', 'subscription_reserve'] } },
-      select: { kind: true, note: true, createdAt: true },
-      orderBy: { createdAt: 'asc' },
+      where: { kind: 'subscription_reserve' },
+      select: { note: true, createdAt: true },
     });
-    const porId = new Map<bigint, Movimiento[]>();
+    const porId = new Map<bigint, number[]>();
     for (const fila of filas) {
       const id = /suscripción #(\d+)/.exec(fila.note ?? '')?.[1];
       if (!id) continue;
       const lista = porId.get(BigInt(id)) ?? [];
-      lista.push({ kind: fila.kind, at: fila.createdAt.getTime() });
+      lista.push(fila.createdAt.getTime());
       porId.set(BigInt(id), lista);
     }
     return porId;
@@ -130,11 +119,12 @@ export class OverlapCancelRestore implements OnApplicationBootstrap {
     sub: {
       id: bigint;
       userId: bigint;
+      updatedAt: Date;
       plan: Parameters<typeof parsePlanProviderIds>[0];
     },
-    canceladaEn: number,
-    movimientos: Map<bigint, Movimiento[]>,
+    activaciones: Map<bigint, number[]>,
   ): Promise<boolean> {
+    const canceladaEn = sub.updatedAt.getTime();
     const proveedores = new Set(parsePlanProviderIds(sub.plan));
     const otras = await this.prisma.subscription.findMany({
       where: { userId: sub.userId, id: { not: sub.id } },
@@ -143,10 +133,8 @@ export class OverlapCancelRestore implements OnApplicationBootstrap {
     return otras.some(
       (otra) =>
         parsePlanProviderIds(otra.plan).some((id) => proveedores.has(id)) &&
-        (movimientos.get(otra.id) ?? []).some(
-          (m) =>
-            m.kind === 'subscription_reserve' &&
-            Math.abs(m.at - canceladaEn) <= PAREJA_MAX_MS,
+        (activaciones.get(otra.id) ?? []).some(
+          (at) => Math.abs(at - canceladaEn) <= PAREJA_MAX_MS,
         ),
     );
   }

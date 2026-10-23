@@ -24,6 +24,7 @@ import { RoutinesService } from '../routines/routines.service';
 import { SkinAgeRulesService } from '../skin-age-rules/skin-age-rules.service';
 import { TreatmentsService } from '../treatments/treatments.service';
 import { AnalysesService } from './analyses.service';
+import { AnalysisConsumptionService } from './analysis-consumption.service';
 import { ConfirmAnalysisDto } from './dto/confirm-analysis.dto';
 import { CreateAnalysisDto } from './dto/create-analysis.dto';
 
@@ -36,6 +37,7 @@ interface UploadedImage {
 export class AnalysesController {
   constructor(
     private readonly analysesService: AnalysesService,
+    private readonly consumptionService: AnalysisConsumptionService,
     private readonly skinAgeRulesService: SkinAgeRulesService,
     private readonly fitzpatrickRulesService: FitzpatrickRulesService,
     private readonly routinesService: RoutinesService,
@@ -72,7 +74,7 @@ export class AnalysesController {
     @Query('to') to?: string,
     @Query('professionalUserId') professionalUserId?: string,
   ) {
-    return this.analysesService.getConsumption(user, {
+    return this.consumptionService.getConsumption(user, {
       from,
       to,
       professionalUserId,
@@ -81,10 +83,7 @@ export class AnalysesController {
 
   /** Poll de captura: isValid/error sin exponer el resultado clínico. */
   @Get(':id/processing-status')
-  processingStatus(
-    @Param('id') id: string,
-    @CurrentUser() user: JwtPayload,
-  ) {
+  processingStatus(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.analysesService.getProcessingStatus(id, user);
   }
 

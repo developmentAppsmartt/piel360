@@ -12,6 +12,9 @@ export type ConsumptionPool = {
   periodDone: number;
   /** El límite del plan es una bolsa compartida con la otra categoría. */
   shared: boolean;
+  /** Vencimiento del plan vigente de esta categoría que vence primero (del
+   * que se descuenta). `null` si no hay planes vigentes de esta categoría. */
+  endsAt: string | null;
 };
 
 export type DailyConsumptionPoint = {
@@ -34,8 +37,6 @@ export type DailyConsumptionRow = {
 export type AnalysisConsumptionResponse = {
   from: string;
   to: string;
-  /** Vigencia de la suscripción contra la que corre el límite (si es una sola). */
-  subscriptionEndsAt: string | null;
   aesthetic: ConsumptionPool;
   derm: ConsumptionPool;
   daily: DailyConsumptionPoint[];

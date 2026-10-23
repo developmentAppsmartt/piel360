@@ -506,7 +506,12 @@ mano** con `select id, name from plans where name ~* 'skiniver|youcam|perfect'`.
   antes** (`SubscriptionCreditsService.findActiveForUser`).
 - Los que se cancelaron antes del arreglo se reactivan solos al arrancar el
   API (`subscriptions/overlap-cancel-restore.ts`); el log dice cuántos
-  («Planes reactivados»).
+  («Planes reactivados»). Se detectan por el `updated_at` del plan cancelado
+  junto a la «Activación» del nuevo: el movimiento «Cancelación» no siempre
+  quedó registrado.
+- **Un plan vencido sigue en `active`**: nada lo cambia. Quien cuente créditos
+  usables tiene que filtrar por fecha (`resolveSubscriptionEndsAt`), como
+  hacen `findActiveForUser` y `analyses/analysis-consumption.service.ts`.
 
 ### Fechas de los reportes
 
