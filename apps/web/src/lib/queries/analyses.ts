@@ -44,6 +44,9 @@ export interface AnalysisDetail {
     | FitzpatrickResult
     | null;
   finalDiagnosis: string | null;
+  /** Id del clasificador del diagnóstico del profesional (`3C_melanoma`);
+   * `null` = cuenta el de la IA. */
+  finalDiagnosisCode: string | null;
   isConfirmed: boolean;
   isCorrected: boolean;
   doctorNotes: string | null;
@@ -88,6 +91,8 @@ export interface CreateAnalysisInput {
 export interface ConfirmAnalysisInput {
   isCorrected: boolean;
   finalDiagnosis?: string;
+  /** Dermatológico: id de la condición elegida, para que cuente en reportes. */
+  finalDiagnosisCode?: string;
   doctorNotes?: string;
 }
 

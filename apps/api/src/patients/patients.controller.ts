@@ -12,7 +12,7 @@ import {
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { JwtPayload } from '../auth/types';
-import { SkinAgeRulesService } from '../skin-age-rules/skin-age-rules.service';
+import { SkinAgeRecommendationsService } from '../skin-age-rules/skin-age-recommendations.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { CreateAnalysisRequestDto } from './dto/create-analysis-request.dto';
 import { AssignPatientDoctorDto } from './dto/assign-patient-doctor.dto';
@@ -26,7 +26,7 @@ import { PatientsService } from './patients.service';
 export class PatientsController {
   constructor(
     private readonly patientsService: PatientsService,
-    private readonly skinAgeRulesService: SkinAgeRulesService,
+    private readonly skinAgeRecommendations: SkinAgeRecommendationsService,
     private readonly patientInviteService: PatientInviteService,
   ) {}
 
@@ -43,7 +43,7 @@ export class PatientsController {
   /** Consejos según reglas de edad de piel del médico (app paciente). */
   @Get('me/skin-care-tips')
   getMySkinCareTips(@CurrentUser() user: JwtPayload) {
-    return this.skinAgeRulesService.recommendForPatientUser(user.sub);
+    return this.skinAgeRecommendations.recommendForPatientUser(user.sub);
   }
 
   @Get('me/analysis-requests/pending')

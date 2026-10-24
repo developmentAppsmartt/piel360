@@ -167,13 +167,16 @@ export type SkiniverAgeGenderRow = {
 
 export type SkiniverReport = {
   range: { from: string; to: string };
-  /** Diagnósticos con patología del periodo (denominador de donut y top 10). */
+  /** Diagnósticos del periodo, «Piel Sin Patología» incluida (denominador de donut y top 10). */
   total?: number;
   byCategory?: SkiniverCategorySlice[];
   topDiagnoses?: SkiniverTopDiagnosis[];
   byAgeGender?: SkiniverAgeGenderRow[];
   ageDistribution?: SkiniverCategorySlice[];
+  /** Clases del API (`desease`): Top 8 del periodo + "Otras". */
   byClass: SkiniverMonthlySeriesPoint[];
+  /** Series de `byClass`. Opcional: un API anterior no lo manda. */
+  classSeries?: SkiniverTrendSeriesDef[];
   /** Condiciones concretas: Top 8 del periodo + "Otras" — no grupos. */
   byDisease: SkiniverMonthlySeriesPoint[];
   /** Series de `byDisease`: dependen del periodo, por eso no son constantes. */
@@ -182,14 +185,6 @@ export type SkiniverReport = {
   bySkinTone: SkiniverSkinToneBucket[];
   skinToneTotal: number;
 };
-
-export const SKINIVER_CLASS_SERIES = [
-  { key: 'inflammatory', label: 'Enfermedades inflamatorias', color: '#f97316' },
-  { key: 'infectious', label: 'Enfermedades infecciosas', color: '#3b82f6' },
-  { key: 'tumors', label: 'Tumores de la piel', color: '#22c55e' },
-  { key: 'annex', label: 'Trastornos de anexos', color: '#a855f7' },
-  { key: 'other', label: 'Otras clases', color: '#94a3b8' },
-] as const;
 
 export const SKINIVER_AGE_SERIES = [
   { key: '0-12', label: '0 - 12 años', color: '#22c55e' },

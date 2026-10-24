@@ -101,7 +101,6 @@ export function TreatmentsListTab({
             : "Configura grupos de productos sugeridos automáticamente por puntaje."}
         </p>
         <div className="flex items-center gap-2">
-          <ScoreGuideDialog kind={kind} />
           <Button nativeButton={false} render={<Link href={`${basePath}/nueva`} />}>
             <PlusIcon className="mr-2 size-4" />
             {kind === "treatment" ? "Nuevo tratamiento" : "Nuevo grupo sugerido"}
@@ -115,6 +114,7 @@ export function TreatmentsListTab({
           columns={columns}
           data={treatments}
           searchPlaceholder="Buscar..."
+          searchAside={<ScoreGuideDialog kind={kind} />}
           emptyMessage="No hay registros aún. Crea uno para empezar."
           getRowHref={(row) => `${basePath}/${row.id}`}
         />

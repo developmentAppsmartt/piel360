@@ -35,6 +35,7 @@ import {
   SKIN_AGE_RULE_COLOR_STYLES,
   formatSkinAgeDifferenceRange,
   priorityLabel,
+  skinAgeRuleScopeText,
 } from "@/lib/skin-age-rules-ui";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +63,8 @@ export function SkinAgeRulesConfigurator() {
 
   const [birthDate, setBirthDate] = useState("1987-03-15");
   const [skinAgeYears, setSkinAgeYears] = useState(46);
+  const [simSkinType, setSimSkinType] = useState("");
+  const [simFitzpatrickScale, setSimFitzpatrickScale] = useState("");
   const [simulation, setSimulation] = useState<SkinAgeSimulationResult | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<SkinAgeRule | null>(null);
@@ -114,7 +117,12 @@ export function SkinAgeRulesConfigurator() {
   }
 
   async function handleSimulate() {
-    const result = await simulate.mutateAsync({ birthDate, skinAgeYears });
+    const result = await simulate.mutateAsync({
+      birthDate,
+      skinAgeYears,
+      skinType: simSkinType || undefined,
+      fitzpatrickScale: simFitzpatrickScale || undefined,
+    });
     setSimulation(result);
   }
 
@@ -187,6 +195,10 @@ export function SkinAgeRulesConfigurator() {
           skinAgeYears={skinAgeYears}
           onBirthDateChange={setBirthDate}
           onSkinAgeChange={setSkinAgeYears}
+          skinType={simSkinType}
+          fitzpatrickScale={simFitzpatrickScale}
+          onSkinTypeChange={setSimSkinType}
+          onFitzpatrickScaleChange={setSimFitzpatrickScale}
           onSimulate={() => void handleSimulate()}
           loading={simulate.isPending}
           result={simulation}
@@ -225,15 +237,20 @@ export function SkinAgeRulesConfigurator() {
         </ModuleCard>
       </div>
 
-      <SkinAgeRuleFormDialog
-        open={formOpen}
-        rule={editingRule}
-        onClose={() => {
-          setFormOpen(false);
-          setEditingRule(null);
-        }}
-        onSubmit={handleSubmit}
-      />
+      {/* Se monta al abrir y con `key` por regla: el formulario arranca de la
+          regla que se edita sin sincronizarlo en un efecto. */}
+      {formOpen ? (
+        <SkinAgeRuleFormDialog
+          key={editingRule?.id ?? "nueva"}
+          open
+          rule={editingRule}
+          onClose={() => {
+            setFormOpen(false);
+            setEditingRule(null);
+          }}
+          onSubmit={handleSubmit}
+        />
+      ) : null}
     </div>
   );
 }
@@ -267,12 +284,16 @@ function RuleSummaryCard({
               <p className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
                 SI
               </p>
-              <p className={cn("text-base font-semibold", colors.text)}>
+              <p className="text-base font-semibold text-foreground">{rule.label}</p>
+              <p className={cn("text-sm font-semibold", colors.text)}>
                 Diferencia{" "}
                 {formatSkinAgeDifferenceRange(rule.minDifference, rule.maxDifference)}
               </p>
               <p className="text-sm text-muted-foreground">
                 {rule.description ?? "Sin descripción clínica."}
+              </p>
+              <p className="text-xs font-medium text-foreground">
+                {skinAgeRuleScopeText(rule)}
               </p>
               <p className="text-xs text-muted-foreground">
                 Prioridad: {priorityLabel(rule.priority)}

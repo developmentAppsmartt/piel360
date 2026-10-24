@@ -4,11 +4,11 @@ import type { AnalisisDermaPiel360CategorySlice } from "@piel360/shared";
 import { SegmentDistributionDonut } from "@/components/reports/segment-distribution-donut";
 
 /**
- * Widget "Enfermedades de la piel por categorías". Reusa
+ * Widget "Enfermedades de la piel por Clases". Reusa
  * SegmentDistributionDonut mapeando `count` → `patients` (ese componente no le
  * da otro uso al campo), igual que hace skin-tone-widget.tsx.
  *
- * Las categorías son las que la IA ya devuelve en `aiRawResponse.desease`, no
+ * Las clases son las que la IA ya devuelve en `aiRawResponse.desease`, no
  * una deducción sobre el nombre del diagnóstico.
  */
 export function DiagnosisCategoryDonut({

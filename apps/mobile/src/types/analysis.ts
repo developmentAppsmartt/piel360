@@ -166,6 +166,12 @@ function asFiniteNumber(value: unknown): number | undefined {
   return undefined;
 }
 
+/** Unica condicion de la clase "Piel Sin Patologia". */
+const NO_PATHOLOGY_CLASS_RAW = '1B_skin';
+const NO_PATHOLOGY_ADVICE = 'Realizar nuevo análisis con Piel 360 periódicamente';
+/** "Skinive", como sale en el texto, y el nombre completo. */
+const PROVIDER_NAME = /\bskinive(?:r)?\b/gi;
+
 /**
  * ESPEJO de packages/shared/src/skiniver-description.ts — mobile no importa
  * @piel360/shared (misma convencion que types/skiniver-labels.ts). Si se toca
@@ -185,9 +191,13 @@ function asFiniteNumber(value: unknown): number | undefined {
  * Ojo con `Diagnostico preciso`: NO es el nombre de una enfermedad, es como se
  * llegaria al diagnostico definitivo ("despues de la dermatoscopia"). No sirve
  * para decidir a que candidato pertenece un texto.
+ *
+ * El texto nombra al proveedor ("Consejo: nueva revision ..."): se cambia por
+ * la marca. Con `classRaw` de "Piel Sin Patologia" el consejo es el del cliente.
  */
 export function parseSkiniverDescription(
-  description: string | null | undefined,
+  rawDescription: string | null | undefined,
+  classRaw?: string | null,
 ): {
   riskEvaluation: string;
   conclusionText: string;
@@ -195,7 +205,8 @@ export function parseSkiniverDescription(
   treatment: string;
   advice: string;
 } | null {
-  if (!description?.trim()) return null;
+  if (!rawDescription?.trim()) return null;
+  const description = rawDescription.replace(PROVIDER_NAME, 'Piel 360');
 
   const riskEvaluation =
     description
@@ -213,7 +224,10 @@ export function parseSkiniverDescription(
       ?.trim() ?? '';
   const treatment =
     description.match(/Tratamiento:\s*([^\n]+)/i)?.[1]?.trim() ?? '';
-  const advice = description.match(/Consejo:\s*([^\n]+)/i)?.[1]?.trim() ?? '';
+  const advice =
+    classRaw?.trim() === NO_PATHOLOGY_CLASS_RAW
+      ? NO_PATHOLOGY_ADVICE
+      : (description.match(/Consejo:\s*([^\n]+)/i)?.[1]?.trim() ?? '');
 
   if (
     !riskEvaluation &&
@@ -294,7 +308,7 @@ function normalizeCandidate(
   // "Diagnostico preciso" era el nombre de la clase; en los datos reales ahi
   // viene un metodo ("despues de la dermatoscopia"), nunca coincidia y los
   // diagnosticos de apoyo se quedaban sin texto.
-  const parsed = parseSkiniverDescription(description);
+  const parsed = parseSkiniverDescription(description, classRaw);
   const itemProb = prob ?? 0;
 
   return {
@@ -365,7 +379,10 @@ export function extractSkiniverSupportDiagnoses(
   const rootDescription = asTrimmedString(
     readField(root, ['description', 'descripcion']),
   );
-  const rootParsed = parseSkiniverDescription(rootDescription);
+  const rootParsed = parseSkiniverDescription(
+    rootDescription,
+    asTrimmedString(readField(root, ['class_raw', 'classRaw'])),
+  );
 
   const topnRaw = Array.isArray(prediction.topn) ? prediction.topn : [];
   let items = topnRaw

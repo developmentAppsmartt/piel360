@@ -104,7 +104,10 @@ export class AnalysisImageUrlsService {
     prediction: AnalisisDermaPiel360Prediction,
     aiProbability: number | null,
   ): AnalisisDermaPiel360DiagnosisDetails {
-    const parsed = parseAnalisisDermaPiel360Description(prediction.description);
+    const parsed = parseAnalisisDermaPiel360Description(
+      prediction.description,
+      prediction.class_raw,
+    );
     return {
       description: parsed?.riskEvaluation ?? null,
       conclusion: {
@@ -139,7 +142,10 @@ export class AnalysisImageUrlsService {
     return topn.flatMap((item) => {
       const className = item?.class?.trim();
       if (!className) return [];
-      const parsed = parseAnalisisDermaPiel360Description(item.description);
+      const parsed = parseAnalisisDermaPiel360Description(
+        item.description,
+        item.class_raw,
+      );
       const prob = Number(item.prob);
       const safeProb = Number.isFinite(prob) ? prob : 0;
       return [

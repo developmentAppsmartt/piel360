@@ -16,11 +16,14 @@ import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AccountStatusService } from './account-status.service';
 import { AuthService } from './auth.service';
+import { EmailOtpService } from './email-otp.service';
+import { PhoneOtpService } from './phone-otp.service';
 import { CurrentUser } from './current-user.decorator';
 import {
   SendChangePasswordOtpDto,
   VerifyChangePasswordOtpDto,
 } from './dto/change-password-otp.dto';
+import { ConfirmEmailChangeDto } from './dto/confirm-email-change.dto';
 import { ConfirmPhoneVerificationDto } from './dto/confirm-phone-verification.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
@@ -29,6 +32,7 @@ import { RegisterEmpresaDto } from './dto/register-empresa.dto';
 import { RegisterPatientDto } from './dto/register-patient.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyCurrentPasswordDto } from './dto/verify-current-password.dto';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { SendPhoneOtpDto } from './dto/send-phone-otp.dto';
@@ -49,6 +53,8 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly accountStatus: AccountStatusService,
     private readonly config: ConfigService,
+    private readonly emailOtp: EmailOtpService,
+    private readonly phoneOtp: PhoneOtpService,
   ) {}
 
   @Post('register/doctor')
@@ -122,20 +128,20 @@ export class AuthController {
   @HttpCode(200)
   @Throttle({ default: { limit: 3, ttl: 60_000 } })
   sendOtp(@Body() dto: SendOtpDto) {
-    return this.authService.sendOtp(dto);
+    return this.emailOtp.send(dto);
   }
 
   @Post('otp/verify')
   @HttpCode(200)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   verifyOtp(@Body() dto: VerifyOtpDto) {
-    return this.authService.verifyOtp(dto);
+    return this.emailOtp.verify(dto);
   }
 
   @Post('otp/phone/send')
   @HttpCode(200)
   sendPhoneOtp(@Body() dto: SendPhoneOtpDto) {
-    return this.authService.sendPhoneOtp(dto);
+    return this.phoneOtp.send(dto);
   }
 
   @Post('me/otp/phone/send')
@@ -145,7 +151,7 @@ export class AuthController {
     @CurrentUser() user: JwtPayload,
     @Body() dto: SendPhoneOtpDto,
   ) {
-    return this.authService.sendPhoneOtpForAuthenticatedUser(user.sub, dto);
+    return this.phoneOtp.send(dto, BigInt(user.sub));
   }
 
   @Post('me/phone/confirm')
@@ -181,17 +187,43 @@ export class AuthController {
     return this.authService.verifyChangePasswordOtp(user.sub, dto);
   }
 
+  /** Camino por defecto del cambio de contraseña con sesión abierta: en vez
+   * de un código, la contraseña actual. Devuelve el mismo token que el OTP. */
+  @Post('me/password/verify')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  verifyCurrentPassword(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: VerifyCurrentPasswordDto,
+  ) {
+    return this.authService.verifyCurrentPassword(user.sub, dto);
+  }
+
+  /** Último paso del cambio de correo: el código ya se verificó contra el
+   * correo NUEVO con `otp/send` + `otp/verify` (`purpose: 'register'`). */
+  @Post('me/email/confirm')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  confirmEmailChange(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: ConfirmEmailChangeDto,
+  ) {
+    return this.authService.confirmEmailChange(user.sub, dto);
+  }
+
   @Post('otp/phone/verify')
   @HttpCode(200)
   verifyPhoneOtp(@Body() dto: VerifyPhoneOtpDto) {
-    return this.authService.verifyPhoneOtp(dto);
+    return this.phoneOtp.verify(dto);
   }
 
   @Post('forgot-password')
   @HttpCode(200)
   @Throttle({ default: { limit: 3, ttl: 60_000 } })
   forgotPassword(@Body() dto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(dto);
+    return this.emailOtp.forgotPassword(dto);
   }
 
   @Post('reset-password')

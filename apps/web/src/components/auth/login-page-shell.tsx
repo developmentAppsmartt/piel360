@@ -1,6 +1,7 @@
 import Image from "next/image";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { LoginLegalFooter } from "./login-legal-footer";
 
 const HERO_IMAGE = {
   src: "/landin-home.png",
@@ -15,6 +16,7 @@ export function LoginPageShell({
   children,
   footer,
   accountPrompt,
+  legal = false,
 }: {
   title: string;
   /** Opcional: en Recuperar contraseña el texto deja de aplicar cuando ya se
@@ -24,6 +26,9 @@ export function LoginPageShell({
   children: ReactNode;
   footer?: ReactNode;
   accountPrompt?: ReactNode;
+  /** Aviso de reCAPTCHA y copyright: solo en los inicios de sesión, que son
+   * los que llevan reCAPTCHA. */
+  legal?: boolean;
 }) {
   return (
     <main className="flex min-h-dvh flex-col items-center bg-[#f4f7fb] px-4 py-6 sm:py-10">
@@ -75,6 +80,11 @@ export function LoginPageShell({
           ) : null}
           {footer ? (
             <div className="mt-4 text-center text-sm text-slate-500">{footer}</div>
+          ) : null}
+          {legal ? (
+            <div className="mt-6 border-t border-slate-100 pt-4">
+              <LoginLegalFooter />
+            </div>
           ) : null}
         </div>
       </div>

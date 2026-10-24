@@ -4,7 +4,7 @@ import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReportEmailService } from '../reports/report-email.service';
 import { StorageService } from '../storage/storage.service';
-import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { SubscriptionCreditsService } from '../subscriptions/subscription-credits.service';
 import { analisisPiel360MaskKey } from './mask-key.util';
 import { normalizeAnalisisPiel360Results } from './youcam-normalize.util';
 import {
@@ -26,7 +26,7 @@ export class AnalisisPiel360ResultsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
-    private readonly subscriptions: SubscriptionsService,
+    private readonly subscriptions: SubscriptionCreditsService,
     private readonly reportEmail: ReportEmailService,
   ) {}
 
@@ -36,7 +36,9 @@ export class AnalisisPiel360ResultsService {
   ): Promise<void> {
     const analysis = await this.prisma.analysis.findUniqueOrThrow({
       where: { id: analysisId },
-      include: { patient: { select: { birthDate: true, lastSkinAgeAt: true } } },
+      include: {
+        patient: { select: { birthDate: true, lastSkinAgeAt: true } },
+      },
     });
     if (analysis.isValid) return; // ya lo procesó la otra vía
 
@@ -86,7 +88,12 @@ export class AnalisisPiel360ResultsService {
     try {
       await this.prisma.$transaction(
         (tx) =>
-          normalizeAnalisisPiel360Results(tx, analysisId, analysis.providerId, results),
+          normalizeAnalisisPiel360Results(
+            tx,
+            analysisId,
+            analysis.providerId,
+            results,
+          ),
         // ~30 métricas × (resultado + máscara) supera el timeout de 5s por defecto.
         { timeout: 30_000 },
       );

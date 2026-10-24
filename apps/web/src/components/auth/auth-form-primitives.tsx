@@ -1,3 +1,4 @@
+import { Eye, EyeOff } from "lucide-react";
 import { CountryPhoneSelect } from "@/components/auth/country-phone-select";
 
 export function digitsOnly(value: string) {
@@ -154,5 +155,26 @@ export function PhoneSplitInputs({
       {prefixControl}
       {nationalControl}
     </div>
+  );
+}
+
+/** Ojito de mostrar/ocultar contraseña. Se apoya en que el input esté dentro
+ * de un contenedor `relative` y lleve `pr-11`. */
+export function PasswordVisibilityToggle({
+  visible,
+  onToggle,
+}: {
+  visible: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="absolute top-0 right-3 flex h-11 items-center text-slate-400 hover:text-slate-600"
+      aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+    >
+      {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+    </button>
   );
 }

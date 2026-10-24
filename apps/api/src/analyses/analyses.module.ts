@@ -16,6 +16,8 @@ import { AnalysesService } from './analyses.service';
 import { AnalysesController } from './analyses.controller';
 import { AnalysisImagesProcessor } from './analysis-images.processor';
 import { AnalysisImageUrlsService } from './analysis-image-urls.service';
+import { AnalysisConsumptionService } from './analysis-consumption.service';
+import { FinalDiagnosisBackfill } from './final-diagnosis-backfill';
 import { ANALYSIS_IMAGES_QUEUE, ENCYCLOPEDIA_QUEUE } from './queues';
 
 @Module({
@@ -39,8 +41,10 @@ import { ANALYSIS_IMAGES_QUEUE, ENCYCLOPEDIA_QUEUE } from './queues';
   ],
   providers: [
     AnalysesService,
+    AnalysisConsumptionService,
     AnalysisImagesProcessor,
     AnalysisImageUrlsService,
+    FinalDiagnosisBackfill,
   ],
   controllers: [AnalysesController],
 })

@@ -88,7 +88,6 @@ export function AnalysisConsumptionScreen({
       derm={data.derm}
       daily={data.daily}
       rows={data.rows}
-      subscriptionEndsAt={data.subscriptionEndsAt}
       subtitle={subtitle}
       headerExtra={headerExtra}
       members={members}

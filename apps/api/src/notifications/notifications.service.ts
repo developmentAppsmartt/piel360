@@ -10,7 +10,9 @@ export type NotificationType =
   | 'appointment_requested'
   | 'appointment_confirmed'
   | 'appointment_declined'
-  | 'appointment_cancelled';
+  | 'appointment_cancelled'
+  /** Resumen diario de las citas de hoy (appointments-daily-summary.cron.ts). */
+  | 'appointment_daily_summary';
 
 @Injectable()
 export class NotificationsService {

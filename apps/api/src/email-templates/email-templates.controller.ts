@@ -23,6 +23,7 @@ import {
   UpdateEmailTemplateDto,
   UpdateEmailTemplateVariableDto,
 } from './dto/email-template.dto';
+import { EmailTemplateVariablesService } from './email-template-variables.service';
 import { EmailTemplatesService } from './email-templates.service';
 
 @Controller('email-templates')
@@ -31,7 +32,10 @@ import { EmailTemplatesService } from './email-templates.service';
 // que son de plataforma (ver `scopeDoctorId` en el servicio).
 @Roles('doctor', 'empresa', 'superadmin', 'monitor')
 export class EmailTemplatesController {
-  constructor(private readonly emailTemplatesService: EmailTemplatesService) {}
+  constructor(
+    private readonly emailTemplatesService: EmailTemplatesService,
+    private readonly variablesService: EmailTemplateVariablesService,
+  ) {}
 
   @Get('meta')
   meta(@CurrentUser() user: JwtPayload) {
@@ -40,7 +44,7 @@ export class EmailTemplatesController {
 
   @Get('variables')
   listVariables(@CurrentUser() user: JwtPayload) {
-    return this.emailTemplatesService.listVariables(user);
+    return this.variablesService.list(user);
   }
 
   /** Plantilla activa de ese kind, o su contenido por defecto si el doctor
@@ -55,7 +59,7 @@ export class EmailTemplatesController {
     @CurrentUser() user: JwtPayload,
     @Body() dto: CreateEmailTemplateVariableDto,
   ) {
-    return this.emailTemplatesService.createVariable(user, dto);
+    return this.variablesService.create(user, dto);
   }
 
   @Patch('variables/:id')
@@ -64,12 +68,12 @@ export class EmailTemplatesController {
     @Param('id') id: string,
     @Body() dto: UpdateEmailTemplateVariableDto,
   ) {
-    return this.emailTemplatesService.updateVariable(user, id, dto);
+    return this.variablesService.update(user, id, dto);
   }
 
   @Delete('variables/:id')
   deleteVariable(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    return this.emailTemplatesService.deleteVariable(user, id);
+    return this.variablesService.remove(user, id);
   }
 
   @Post('banners')
@@ -92,10 +96,7 @@ export class EmailTemplatesController {
   }
 
   @Post()
-  create(
-    @CurrentUser() user: JwtPayload,
-    @Body() dto: CreateEmailTemplateDto,
-  ) {
+  create(@CurrentUser() user: JwtPayload, @Body() dto: CreateEmailTemplateDto) {
     return this.emailTemplatesService.create(user, dto);
   }
 

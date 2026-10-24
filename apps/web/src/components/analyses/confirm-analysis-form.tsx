@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/auth/text-field";
+import { DoctorNotesField } from "@/components/analyses/doctor-notes-field";
 import { ApiError } from "@/lib/api-error";
 import type { ConfirmAnalysisInput } from "@/lib/queries/analyses";
 
@@ -82,23 +83,11 @@ export function ConfirmAnalysisForm({
   }
 
   const notesField = (
-    <div className="space-y-2">
-      <label htmlFor="doctorNotes" className="text-sm font-medium">
-        Observaciones{requireNotes ? "" : " (opcional)"}
-      </label>
-      <textarea
-        id="doctorNotes"
-        value={doctorNotes}
-        onChange={(e) => setDoctorNotes(e.target.value)}
-        rows={3}
-        maxLength={500}
-        placeholder="Describe el diagnóstico del médico"
-        className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
-      />
-      <p className="text-right text-xs text-muted-foreground">
-        {doctorNotes.length}/500
-      </p>
-    </div>
+    <DoctorNotesField
+      value={doctorNotes}
+      onChange={setDoctorNotes}
+      required={requireNotes}
+    />
   );
 
   if (!correcting) {

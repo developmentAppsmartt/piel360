@@ -12,6 +12,8 @@ export interface EmailTemplate {
   subject: string;
   preheader: string | null;
   bodyHtml: string;
+  /** Días de anticipación: solo el recordatorio de cita; en las demás, null. */
+  daysBefore: number | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -61,6 +63,7 @@ export type EmailTemplateCreateInput = {
   preheader?: string;
   bodyHtml?: string;
   isActive?: boolean;
+  daysBefore?: number;
   /** Kind reservado explícito (ej. "appointment_scheduled") — se guarda tal
    * cual, sin sufijo, para poder buscarlo después por evento. */
   kind?: string;
@@ -72,6 +75,7 @@ export type EmailTemplateUpdate = {
   preheader?: string | null;
   bodyHtml?: string;
   isActive?: boolean;
+  daysBefore?: number;
 };
 
 export type EmailTemplateVariableInput = {

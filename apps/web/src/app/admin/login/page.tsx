@@ -6,6 +6,7 @@ import { LoginPageShell } from "@/components/auth/login-page-shell";
 export default function AdminLoginPage() {
   return (
     <LoginPageShell
+      legal
       title="Soy Administrador"
       description="Gestiona usuarios, planes, configuraciones y permisos de la plataforma."
       icon={ShieldCheck}

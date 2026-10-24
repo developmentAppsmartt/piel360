@@ -16,7 +16,7 @@ import type { JwtPayload } from '../auth/types';
 import { PatientsService } from '../patients/patients.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
-import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { SubscriptionCreditsService } from '../subscriptions/subscription-credits.service';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
 import { getAnalysisProviderIdBySlug } from '../plans/plan-providers.util';
 import type { CreateAnalisisPiel360AnalysisDto } from './dto/create-youcam-analysis.dto';
@@ -39,7 +39,7 @@ export class AnalisisPiel360AnalysesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly youcam: AnalisisPiel360Service,
-    private readonly subscriptions: SubscriptionsService,
+    private readonly subscriptions: SubscriptionCreditsService,
     private readonly patients: PatientsService,
     private readonly storage: StorageService,
     @InjectQueue(YOUCAM_POLL_QUEUE)
@@ -73,13 +73,18 @@ export class AnalisisPiel360AnalysesService {
     await this.patients.findOne(dto.patientId, currentUser); // scoping, igual que Skiniver
 
     const userId = BigInt(currentUser.sub);
-    await this.specialtyAccess.assertCanUseProvider(userId, YOUCAM_PROVIDER_SLUG, {
-      patientId: dto.patientId,
-    });
-    const billingUserId = await this.subscriptions.resolveBillingUserIdForAnalysis(
+    await this.specialtyAccess.assertCanUseProvider(
       userId,
-      dto.patientId,
+      YOUCAM_PROVIDER_SLUG,
+      {
+        patientId: dto.patientId,
+      },
     );
+    const billingUserId =
+      await this.subscriptions.resolveBillingUserIdForAnalysis(
+        userId,
+        dto.patientId,
+      );
     const subscription = await this.subscriptions.findActiveForUser(
       this.prisma,
       billingUserId,

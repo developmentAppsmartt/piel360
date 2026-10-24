@@ -1,84 +1,135 @@
 "use client";
 
 import { useState } from "react";
+import { AdminReportScopeSelect } from "@/components/admin/admin-report-scope-select";
 import { AnalysesTimeSeriesChart } from "@/components/admin/analyses-time-series-chart";
 import { DiagnosisByAgeChart } from "@/components/admin/diagnosis-by-age-chart";
 import { DiagnosisByClassChart } from "@/components/admin/diagnosis-by-class-chart";
-import { ReportsDateFilter } from "@/components/admin/reports-date-filter";
+import { ReportGranularitySelect } from "@/components/admin/report-granularity-select";
 import { SubscriptionStatusChart } from "@/components/admin/subscription-status-chart";
-import { AnalisisDermaPiel360ReportView } from "@/components/reports/skiniver-report-view";
+import {
+  canExportReport,
+  exportReportCsv,
+  type ReportTab,
+} from "@/components/reports/report-csv";
+import {
+  ReportFilters,
+  rangeForDays,
+} from "@/components/reports/report-filters";
+import { ReportsWorkspace } from "@/components/reports/reports-workspace";
+import type { TopProblemsSort } from "@/components/reports/top-problems-table";
 import {
   useAdminReports,
-  useAdminAnalisisDermaPiel360Report,
-  type ReportsFilters,
+  type ReportGranularity,
 } from "@/lib/queries/admin-reports";
-import { cn } from "@/lib/utils";
+import {
+  useAnalisisDermaPiel360Report,
+  useLifestyleReport,
+  useSkinHealthReport,
+  type DoctorReportsFilters,
+} from "@/lib/queries/doctor-reports";
 
-type AdminReportTab = "general" | "dermatologico";
+type AdminTab = "general" | ReportTab;
 
-const TABS: { key: AdminReportTab; label: string }[] = [
-  { key: "general", label: "General" },
-  { key: "dermatologico", label: "Análisis dermatológico" },
-];
-
+/**
+ * «General» son las métricas de plataforma del admin; el resto, los mismos
+ * reportes que ven doctores y empresas, para toda la plataforma o para una
+ * empresa o un profesional.
+ */
 export default function ReportesPage() {
-  const [filters, setFilters] = useState<ReportsFilters>({ granularity: "month" });
-  const [tab, setTab] = useState<AdminReportTab>("general");
+  const [filters, setFilters] = useState<DoctorReportsFilters>({
+    ...rangeForDays(180),
+    trendMonths: 6,
+  });
+  const [granularity, setGranularity] = useState<ReportGranularity>("month");
+  const [tab, setTab] = useState<AdminTab>("general");
+  const [sort, setSort] = useState<TopProblemsSort>("score");
 
-  const isDerm = tab === "dermatologico";
-  const reports = useAdminReports(filters);
-  const analisisdermapiel360 = useAdminAnalisisDermaPiel360Report(filters, isDerm);
-  const active = isDerm ? analisisdermapiel360 : reports;
+  const isGeneral = tab === "general";
+  const general = useAdminReports({
+    startDate: filters.from,
+    endDate: filters.to,
+    granularity,
+  });
+  const skin = useSkinHealthReport(filters, "admin");
+  const lifestyle = useLifestyleReport(filters, "admin");
+  const derm = useAnalisisDermaPiel360Report(
+    filters,
+    tab === "dermatologico",
+    "admin",
+  );
+  const data = { skin: skin.data, lifestyle: lifestyle.data, derm: derm.data };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Reportes</h1>
-
-      <ReportsDateFilter filters={filters} onChange={setFilters} />
-
-      <div
-        role="tablist"
-        aria-label="Vista del reporte"
-        className="inline-flex flex-wrap gap-1 rounded-lg border border-border bg-muted/40 p-0.5"
-      >
-        {TABS.map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            role="tab"
-            aria-selected={tab === item.key}
-            onClick={() => setTab(item.key)}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              tab === item.key
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {item.label}
-          </button>
-        ))}
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-semibold">Reportes</h1>
+        <p className="mt-1.5 max-w-3xl text-sm text-muted-foreground">
+          Métricas de la plataforma y los mismos reportes que ven doctores y
+          empresas.
+        </p>
       </div>
 
-      {active.isLoading && <p className="text-muted-foreground">Cargando...</p>}
-      {active.error && (
-        <p className="text-destructive">No se pudieron cargar los reportes.</p>
-      )}
+      <ReportFilters
+        filters={filters}
+        onChange={setFilters}
+        // Las métricas de «General» son de toda la plataforma: el alcance no aplica.
+        scopeFilter={
+          isGeneral ? null : (
+            <AdminReportScopeSelect
+              value={filters}
+              onChange={(scope) => setFilters({ ...filters, ...scope })}
+            />
+          )
+        }
+        onExport={
+          isGeneral ? undefined : () => exportReportCsv(tab, data, sort)
+        }
+        exportDisabled={isGeneral || !canExportReport(tab, data)}
+      />
 
-      {!isDerm && reports.data && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <SubscriptionStatusChart subscriptionStatus={reports.data.subscriptionStatus} />
-          <DiagnosisByAgeChart diagnosisByAge={reports.data.diagnosisByAge} />
-          <DiagnosisByClassChart diagnosisByClass={reports.data.diagnosisByClass} />
-          <AnalysesTimeSeriesChart timeSeries={reports.data.timeSeries} />
+      <ReportsWorkspace
+        tab={tab}
+        onTabChange={(next) => setTab(next as AdminTab)}
+        sort={sort}
+        onSortChange={setSort}
+        skin={skin}
+        lifestyle={lifestyle}
+        derm={derm}
+        leadingTabs={[{ key: "general", label: "General" }]}
+        showClinicalBrowser={false}
+      />
+
+      {isGeneral ? (
+        <div className="space-y-4">
+          <ReportGranularitySelect
+            value={granularity}
+            onChange={setGranularity}
+          />
+          {general.isLoading && (
+            <p className="text-sm text-muted-foreground">Cargando…</p>
+          )}
+          {general.error && (
+            <p className="text-sm text-destructive">
+              No se pudieron cargar los reportes.
+            </p>
+          )}
+          {general.data && (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <SubscriptionStatusChart
+                subscriptionStatus={general.data.subscriptionStatus}
+              />
+              <DiagnosisByAgeChart
+                diagnosisByAge={general.data.diagnosisByAge}
+              />
+              <DiagnosisByClassChart
+                diagnosisByClass={general.data.diagnosisByClass}
+              />
+              <AnalysesTimeSeriesChart timeSeries={general.data.timeSeries} />
+            </div>
+          )}
         </div>
-      )}
-
-      {/* Sin el buscador clínico: carga el listado completo de análisis para
-          filtrar en cliente, y a escala de plataforma eso no es viable. */}
-      {isDerm && analisisdermapiel360.data && (
-        <AnalisisDermaPiel360ReportView report={analisisdermapiel360.data} showClinicalBrowser={false} />
-      )}
+      ) : null}
     </div>
   );
 }

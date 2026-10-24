@@ -23,6 +23,7 @@ import {
 } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { baseApiPublica } from '../email-templates/banner-urls';
 
 const BRAND_PRIMARY = '#1e5a9e';
 const BRAND_DARK = '#0f3d73';
@@ -363,10 +364,7 @@ export class ReportPdfService {
 
     // FRONTEND_URL como respaldo por compatibilidad: en despliegues donde el
     // front sí proxye /api/* el enlace sigue siendo válido.
-    const baseUrl = (
-      this.config.get<string>('PUBLIC_API_URL') ??
-      this.config.getOrThrow<string>('FRONTEND_URL')
-    ).replace(/\/$/, '');
+    const baseUrl = baseApiPublica(this.config);
 
     if (analysis.reportToken && analysis.reportPdfKey) {
       return `${baseUrl}/api/public/reports/${analysis.reportToken}`;

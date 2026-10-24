@@ -172,7 +172,7 @@ export function formatSignedYears(diff: number): string {
 /** Etiquetas usadas por el reporte (radar chart, resumen) — subconjunto de
  * `apps/web/src/lib/youcam-metric-labels.ts` que necesita el PDF server-side. */
 export const ANALISIS_PIEL360_METRIC_LABELS: Record<string, string> = {
-  hd_redness: "Enrojecimiento",
+  hd_redness: "Eritema",
   hd_oiliness: "Grasa",
   hd_age_spot: "Manchas de edad",
   hd_radiance: "Luminosidad",

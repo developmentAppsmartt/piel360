@@ -130,12 +130,10 @@ function PoolCard({
   title,
   accent,
   pool,
-  endsAt,
 }: {
   title: string;
   accent: "aesthetic" | "derm";
   pool: ConsumptionPool;
-  endsAt: string | null;
 }) {
   const consumedPct = pool.limit > 0 ? (pool.done / pool.limit) * 100 : 0;
   const availablePct = pool.limit > 0 ? (pool.available / pool.limit) * 100 : 0;
@@ -197,9 +195,9 @@ function PoolCard({
             Límite compartido con la otra bolsa de análisis.
           </p>
         ) : null}
-        {endsAt ? (
+        {pool.endsAt ? (
           <p className="mt-2 text-xs text-muted-foreground">
-            Vigente hasta {formatIsoDateTime(endsAt)}
+            Próximo vencimiento: {formatIsoDateTime(pool.endsAt)}
           </p>
         ) : null}
       </div>
@@ -304,7 +302,6 @@ export function AnalysisConsumptionView({
   derm,
   daily,
   rows,
-  subscriptionEndsAt,
   subtitle = "Consulta el consumo detallado de análisis de piel estéticos y análisis de imágenes dermatológicas.",
   headerExtra,
   members = [],
@@ -326,7 +323,6 @@ export function AnalysisConsumptionView({
   derm: ConsumptionPool;
   daily: DailyConsumptionPoint[];
   rows: DailyConsumptionRow[];
-  subscriptionEndsAt: string | null;
   subtitle?: string;
   headerExtra?: React.ReactNode;
   members?: OrgTeamMember[];
@@ -452,13 +448,11 @@ export function AnalysisConsumptionView({
           title="Análisis de piel estéticos"
           accent="aesthetic"
           pool={aesthetic}
-          endsAt={subscriptionEndsAt}
         />
         <PoolCard
           title="Análisis de imágenes dermatológicas"
           accent="derm"
           pool={derm}
-          endsAt={subscriptionEndsAt}
         />
       </div>
 

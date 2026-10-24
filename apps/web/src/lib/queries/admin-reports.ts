@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { AnalisisDermaPiel360Report } from "@piel360/shared";
 import { apiClientFetch } from "@/lib/api-client";
 
 export type ReportGranularity = "day" | "month" | "year";
@@ -28,24 +27,26 @@ export function useAdminReports(filters: ReportsFilters) {
 
   return useQuery({
     queryKey: ["admin", "reports", filters],
-    queryFn: () => apiClientFetch<AdminReports>(`/admin/reports${query ? `?${query}` : ""}`),
+    queryFn: () =>
+      apiClientFetch<AdminReports>(`/admin/reports${query ? `?${query}` : ""}`),
   });
 }
 
-/** Mismo reporte dermatológico del panel del doctor, con alcance global.
- * La granularidad no aplica: sus series siempre son mensuales. */
-export function useAdminAnalisisDermaPiel360Report(filters: ReportsFilters, enabled = true) {
-  const params = new URLSearchParams();
-  if (filters.startDate) params.set("startDate", filters.startDate);
-  if (filters.endDate) params.set("endDate", filters.endDate);
-  const query = params.toString();
+export type AdminReportScopes = {
+  organizations: { id: string; name: string }[];
+  professionals: {
+    userId: string;
+    name: string;
+    organizationName: string | null;
+  }[];
+};
 
+/** Empresas y profesionales para el selector de alcance de Reportes. Los
+ * reportes en sí usan los hooks de `doctor-reports.ts` con `source: "admin"`. */
+export function useAdminReportScopes() {
   return useQuery({
-    queryKey: ["admin", "reports", "analisisdermapiel360", filters.startDate, filters.endDate],
-    queryFn: () =>
-      apiClientFetch<AnalisisDermaPiel360Report>(
-        `/admin/reports/analisisdermapiel360${query ? `?${query}` : ""}`,
-      ),
-    enabled,
+    queryKey: ["admin", "reports", "scopes"],
+    queryFn: () => apiClientFetch<AdminReportScopes>("/admin/reports/scopes"),
+    staleTime: 5 * 60_000,
   });
 }

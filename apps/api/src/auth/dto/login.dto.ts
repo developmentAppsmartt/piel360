@@ -7,7 +7,7 @@ export class LoginDto {
   @IsString()
   password!: string;
 
-  /** Token de reCAPTCHA v2 (login móvil). */
+  /** Token de reCAPTCHA (login web y móvil). */
   @IsOptional()
   @IsString()
   captchaToken?: string;

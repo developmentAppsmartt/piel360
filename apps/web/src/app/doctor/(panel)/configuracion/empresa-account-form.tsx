@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { AccountSecuritySection } from "@/components/auth/account-security-section";
 import { Button } from "@/components/ui/button";
 import { useMyDoctorProfile } from "@/lib/queries/doctors";
 import {
@@ -57,7 +58,8 @@ export function EmpresaAccountForm() {
   const account = profile.data;
 
   return (
-    <form onSubmit={onSubmit} className="max-w-4xl space-y-6">
+    <div className="max-w-4xl space-y-6">
+    <form onSubmit={onSubmit} className="space-y-6">
       <div className="space-y-1">
         <h2 className="text-lg font-semibold text-foreground">Cuenta empresa</h2>
         <p className="text-sm text-muted-foreground">
@@ -95,8 +97,8 @@ export function EmpresaAccountForm() {
           </span>
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          El correo de acceso no se puede cambiar desde aquí. Los datos
-          comerciales y del representante legal se editan abajo.
+          Se cambia abajo, en Acceso y seguridad. Los datos comerciales y del
+          representante legal se editan aquí.
         </p>
       </div>
 
@@ -111,5 +113,12 @@ export function EmpresaAccountForm() {
         </Button>
       </div>
     </form>
+
+    <AccountSecuritySection
+      email={account.user?.email ?? ""}
+      phone={account.phone ?? ""}
+      onEmailChanged={() => void profile.refetch()}
+    />
+    </div>
   );
 }

@@ -143,6 +143,18 @@ export class RecaptchaService {
     return ready;
   }
 
+  /**
+   * Si el login de este cliente exige token. El móvil solo cuando su
+   * plataforma tiene site key propia: encender reCAPTCHA para el web no puede
+   * dejar sin login a una app compilada sin reCAPTCHA (no manda token).
+   */
+  appliesTo(client: 'web' | 'mobile', platform?: string): boolean {
+    if (!this.isEnabled()) return false;
+    if (client === 'web') return true;
+    const p = platform?.trim().toLowerCase();
+    return (p === 'android' || p === 'ios') && Boolean(this.siteKey(p));
+  }
+
   async assertValid(
     token: string | undefined,
     options?: {

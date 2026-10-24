@@ -10,6 +10,15 @@ variables y los commits también van en español, siguiendo lo que ya hay.
 ## Cómo trabajar en este repo
 
 Estas reglas van primero porque aplican a cada cambio, no solo a los grandes.
+**No son sugerencias: un cambio que las incumpla se devuelve.**
+
+Si te sirven las siglas: lo de abajo es **KISS**, **DRY** y **SOLID** escritos
+en concreto y con los casos reales de este proyecto. Están desarrollados ahí,
+no repetidos aquí — la **S** de SOLID es «Responsabilidad única», **DRY** vive
+en «Nada de boilerplate» y **KISS** en «Nada de sobreingeniería». De las otras
+cuatro de SOLID, las que de verdad se aplican seguido son la **O** (extender
+sin tener que reescribir lo que ya funciona) y la **D** (depender de una
+función o un tipo, no de un detalle interno de otro módulo).
 
 ### No alucines: pregunta
 
@@ -46,6 +55,33 @@ necesitas un "y", probablemente son dos.
 - Un componente que calcula, filtra y además pinta, se parte.
 - Un servicio del API que orquesta y además formatea, se parte.
 
+**Ningún archivo pasa de 400 líneas**, y lo verifica ESLint (`max-lines`, en
+`packages/config/eslint.max-lines.mjs`). No es una regla de formato: un archivo
+que crece así casi siempre está haciendo más de una cosa.
+
+Cuando salte, **parte por responsabilidad**. No aprietes el código ni metas el
+archivo en `ARCHIVOS_LARGOS_HEREDADOS` de `eslint.config.mjs`: esa lista son
+los archivos que ya estaban largos el día que entró la regla —deuda reconocida,
+no permiso— y **solo puede encoger**. Si tocas uno de ellos, pártelo y bórralo
+de la lista. Nunca se añade un archivo nuevo.
+
+### Nada de espagueti
+
+Lo contrario de sobreingeniería no es desorden. Está prohibido:
+
+- Funciones que se llaman en cadena por media app sin que se vea quién manda.
+- Estado compartido que cualquiera muta desde cualquier sitio.
+- Condicionales anidados de tres o más niveles: saca una función con nombre, o
+  invierte la condición y sal temprano.
+- Un `useEffect` que arregla lo que debería haberse calculado bien de entrada
+  (en este repo `react-hooks/set-state-in-effect` es **error**: deriva con
+  `useMemo`).
+- Copiar un bloque "y le cambio dos cosas". Eso es el origen de los bugs que
+  solo se arreglan en una de las dos copias.
+
+Si para entender un cambio hay que saltar por cinco archivos, está mal
+repartido.
+
 ### Nada de sobreingeniería
 
 - Resuelve **lo que se pidió**, en el alcance que se pidió. Ni más ni menos.
@@ -61,6 +97,18 @@ necesitas un "y", probablemente son dos.
   pantalla gemela (crear/editar, web/mobile), **díselo y propón**; no lo amplíes
   en silencio ni lo ignores.
 - Los commits los crea el asistente; **el `push` lo hace siempre el usuario**.
+- **Antes de dar por terminado un cambio hay que compilarlo.** Sin excepción:
+
+  ```bash
+  pnpm turbo run build
+  pnpm turbo run lint
+  ```
+
+  **Ojo: el `lint` del API lleva `--fix`** y reformatea con Prettier todo
+  `apps/api` (decenas de archivos). Tras correrlo, revisa `git status` y
+  deshaz lo que no sea tuyo antes de hacer commit.
+  A producción no llega código roto. Que compile no es que funcione: el build
+  es el mínimo, encima van las comprobaciones de «No alucines».
 - Al terminar, di qué quedó sin hacer y por qué, y qué hace falta para desplegar.
 
 ---
@@ -431,6 +479,90 @@ mano** con `select id, name from plans where name ~* 'skiniver|youcam|perfect'`.
 - Si Skiniver falla, la excepción salta **antes** de crear el análisis: no queda
   fila en `analyses` y **no se consume crédito**. Los logs son la única evidencia.
   Busca `POST /analyses falló` y `Skiniver /predict`.
+- **Los reportes cuentan el diagnóstico del profesional**, no siempre el de la
+  IA. Al confirmar o corregir se guardan `final_diagnosis_code` (el
+  `class_raw`) y `final_diagnosis_category` (el grupo, con el nombre de la
+  categoría de la IA); `apps/api/src/analyses/final-diagnosis.ts` los resuelve
+  por código (web) o por nombre (móvil). Nulos = cuenta el de la IA. Las
+  queries usan `DIAGNOSIS`/`CATEGORY`/`CLASS_RAW` de
+  `skiniver-reports.queries.ts`: no vuelvas a leer `ai_diagnosis` a pelo.
+  Las correcciones guardadas antes de esas columnas se rellenan solas al
+  arrancar el API (`analyses/final-diagnosis-backfill.ts`); el log dice
+  cuántas («Relleno de diagnósticos corregidos»).
+- **Los nombres del JSON engañan: `desease` es la CLASE y `class` es la ENFERMEDAD.**
+  Comprobado contra `GET /get_disease_classes?lang=es` (Basic con `SKINIVER_API_TOKEN`):
+  `desease` coincide siempre con un `title_name` y `class` con un `diseases[].name`.
+  Las clases de los reportes son las de ese endpoint, con su nombre oficial;
+  `analisisDermaPiel360ClassLabel` las resuelve por `class_raw` primero.
+  «Piel Sin Patología» cuenta como una clase más en todos los gráficos (lo pidió el cliente).
+- La lista de «Corregir resultado» es `packages/shared/src/nosology-catalog.ts`;
+  el móvil tiene su espejo en `views/nosologies/data/nosologies.ts`.
+
+### Planes y créditos
+
+- **Un profesional puede tener varios planes activos del mismo análisis.**
+  Comprar uno nuevo ya no cancela los anteriores (lo pidió el cliente: si le
+  quedan créditos, siguen activos). Se descuenta primero del que **vence
+  antes** (`SubscriptionCreditsService.findActiveForUser`).
+- Los que se cancelaron antes del arreglo se reactivan solos al arrancar el
+  API (`subscriptions/overlap-cancel-restore.ts`); el log dice cuántos
+  («Planes reactivados»). Se detectan por el `updated_at` del plan cancelado
+  junto a la «Activación» del nuevo: el movimiento «Cancelación» no siempre
+  quedó registrado.
+- **Un plan vencido sigue en `active`**: nada lo cambia. Quien cuente créditos
+  usables tiene que filtrar por fecha (`resolveSubscriptionEndsAt`), como
+  hacen `findActiveForUser` y `analyses/analysis-consumption.service.ts`.
+
+### Facturación del admin
+
+- Las facturas (`subscription_invoices`) solo existen para pagos aprobados
+  **desde que hay facturación**: en producción hay suscripciones pagadas por
+  Wompi sin factura. El estado de una compra se deduce en
+  `billing/billing-dashboard.service.ts` (`purchaseStatus`): sin factura, la
+  señal de pago aprobado es `ends_at`, que solo se fija al activar.
+- Las metas mensuales viven en `sales_goals` (mes + tipo de plan). El tipo de
+  plan sale de sus proveedores (`billing/plan-sale-type.ts`), no de
+  `analysisLimits`: los planes de fototipo guardan su límite en `aesthetic`.
+
+### Correos de cita
+
+- «Cita agendada» sale al crear la cita; el **recordatorio** lo manda
+  `agenda/appointment-reminders.cron.ts` a las 8:00 de Colombia, al paciente,
+  solo de citas `confirmed`, N días antes (`email_templates.days_before` de la
+  plantilla `appointment_reminder`, 1 a 30; sin plantilla = 1, con la
+  plantilla desactivada no sale). Una cita agendada con menos anticipación
+  sale en la siguiente ronda si no ha pasado.
+- `appointments.reminder_sent_at` se marca **antes** de enviar: nunca se
+  repite, aunque falle el envío. Las citas no cambian de fecha (la agenda solo
+  cambia el estado), así que no hay que reiniciarlo.
+- `{fecha_cita}`/`{hora_cita}` se formatean con `timeZone: 'America/Bogota'`
+  (`appointmentEmailValues`): sin eso salían 5 horas corridas, porque el
+  contenedor corre en UTC.
+
+### Reglas de edad de piel
+
+- Una regla aplica por **diferencia de edad + biotipo + fototipo**
+  (`skin_age_rules.skin_types` / `fitzpatrick_scales`, vacío = todos). El
+  biotipo sale del análisis estético (`analisisPiel360SkinType`); el fototipo,
+  de `patients.fitzpatrick_type`, porque el análisis estético no lo trae.
+- Si la regla pide un biotipo o fototipo que del paciente no se conoce, **no
+  aplica**. Entre varias que coinciden gana la **más específica** y, si
+  empatan, la prioridad (`pickBestMatchingRule`).
+- Reglas y catálogo viven en el **dueño de la cuenta**: las recomendaciones de
+  un análisis resuelven ese doctor (`catalogDoctorIdFor`). Con el doctor del
+  paciente a secas, los pacientes de un profesional de equipo no veían nada.
+  El motor de fototipo (`fitzpatrick-rules.service.ts`) todavía usa el doctor
+  del paciente.
+
+### Fechas de los reportes
+
+Los filtros «desde/hasta» son **días de Colombia**, no UTC:
+`apps/api/src/doctor-reports/report-range.ts` (`resolveReportRange`) y
+`colombiaDateKey`/`colombiaDayStart` de `packages/shared/src/colombia-date.ts`.
+Antes «del 10/10 al 10/10» iba del 9/10 a las 19:00 al 10/10 a las 19:00 de
+Bogotá. Las series mensuales del reporte dermatológico agrupan por mes de
+Colombia; la tendencia del reporte estético (`doctor-reports.queries.ts`)
+todavía agrupa por mes UTC.
 
 ### Front
 
@@ -438,6 +570,12 @@ mano** con `select id, name from plans where name ~* 'skiniver|youcam|perfect'`.
   con `useMemo`, no lo sincronices en un efecto.
 - Cuidado con los contextos de apilamiento: `location-picker-section.tsx` usa
   `z-[1100]`, así que un desplegable hermano necesita más.
+- **`sticky` en el panel**: el layout (`panel-layout-client.tsx`) usa
+  `overflow-x-clip`, no `overflow-x-hidden`. `hidden` convierte al contenedor
+  en uno de scroll que nunca se desplaza y todo `sticky` de dentro deja de
+  funcionar en silencio (así estuvieron los simuladores de reglas). La
+  cabecera del panel no es fija: si se vuelve fija, los `sticky top-4` de
+  dentro quedarían debajo de ella.
 
 ---
 
@@ -447,6 +585,11 @@ mano** con `select id, name from plans where name ~* 'skiniver|youcam|perfect'`.
 - Pendiente de despliegue: reconstruir la imagen del API (cambió
   `packages/shared`) y confirmar con `npx prisma migrate status` que producción
   está al día.
+- Los banners de las plantillas de correo se sirven por
+  `/api/public/email-assets/<key>`, que redirige a una firma nueva: la URL
+  firmada que se guardaba antes caducaba a los 7 días. Esa ruta y el link del
+  reporte se arman con **`PUBLIC_API_URL`** (dominio público del API, sin
+  `/api`): comprobar que está bien en `/opt/piel360/.env.production`.
 - **El web y el API tienen que desplegarse juntos**: cambiaron las rutas
   (`/api/analisispiel360/*`, `/api/analisisdermapiel360/*`,
   `/api/admin/bolsa-unidades/analisis*`) y un web viejo contra un API nuevo

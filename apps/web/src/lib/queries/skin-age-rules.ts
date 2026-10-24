@@ -21,6 +21,10 @@ export interface SkinAgeRule {
   treatmentIds: string[];
   productGroupIds: string[];
   supplementGroupIds: string[];
+  /** Biotipos a los que aplica; vacío = todos. */
+  skinTypes: string[];
+  /** Fototipos a los que aplica; vacío = todos. */
+  fitzpatrickScales: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -38,6 +42,8 @@ export interface SkinAgeRuleInput {
   treatmentIds?: string[];
   productGroupIds?: string[];
   supplementGroupIds?: string[];
+  skinTypes?: string[];
+  fitzpatrickScales?: string[];
 }
 
 export interface SkinAgeRuleGroupPreview {
@@ -59,6 +65,9 @@ export interface SkinAgeSimulationResult {
     skinAgeYears: number | null;
     chronologicalAgeYears: number | null;
     skinAgeDifference: number | null;
+    /** Biotipo y fototipo con los que se eligió la regla; null = no se conoce. */
+    skinType?: string | null;
+    fitzpatrickScale?: string | null;
     message: string | null;
   };
   matchedRule: SkinAgeRule | null;
@@ -112,9 +121,16 @@ export function useDeleteSkinAgeRule() {
   });
 }
 
+export interface SkinAgeSimulationInput {
+  birthDate: string;
+  skinAgeYears: number;
+  skinType?: string;
+  fitzpatrickScale?: string;
+}
+
 export function useSimulateSkinAgeRule() {
   return useMutation({
-    mutationFn: (input: { birthDate: string; skinAgeYears: number }) =>
+    mutationFn: (input: SkinAgeSimulationInput) =>
       apiClientFetch<SkinAgeSimulationResult>("/skin-age-rules/simulate", {
         method: "POST",
         body: JSON.stringify(input),

@@ -48,6 +48,12 @@ export const PATIENT_SKIN_OPTIONS = [
   { value: "mixed", label: "Mixta" },
 ] as const;
 
+/** `patients.skin_type` guarda el valor del formulario en inglés (`oily`). */
+export function patientSkinTypeLabel(value: string | null): string {
+  if (!value) return "—";
+  return PATIENT_SKIN_OPTIONS.find((o) => o.value === value)?.label ?? value;
+}
+
 export const PATIENT_FITZ_OPTIONS = [
   {
     value: "I",

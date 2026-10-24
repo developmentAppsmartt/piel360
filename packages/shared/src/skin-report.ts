@@ -111,7 +111,7 @@ export const REPORTABLE_SKIN_CATEGORIES: readonly ReportableSkinCategory[] = [
   { key: "hd_acne", type: "hd_acne", region: null, label: "Acné" },
   { key: "hd_pore", type: "hd_pore", region: null, label: "Poros" },
   { key: "hd_texture", type: "hd_texture", region: null, label: "Textura" },
-  { key: "hd_redness", type: "hd_redness", region: null, label: "Enrojecimiento" },
+  { key: "hd_redness", type: "hd_redness", region: null, label: "Eritema" },
   { key: "hd_age_spot", type: "hd_age_spot", region: null, label: "Pigmentación" },
   { key: "hd_radiance", type: "hd_radiance", region: null, label: "Luminosidad" },
   { key: "hd_dark_circle", type: "hd_dark_circle", region: null, label: "Ojeras" },
@@ -407,13 +407,16 @@ export interface AnalisisDermaPiel360AgeGenderRow {
 
 export interface AnalisisDermaPiel360Report {
   range: { from: string; to: string };
-  /** Diagnósticos "sin patología" excluidos — ver isNoPathologyDiagnosis(). */
+  /** Todos los análisis con diagnóstico, «Piel Sin Patología» incluida. */
   total: number;
   byCategory: AnalisisDermaPiel360CategorySlice[];
   topDiagnoses: AnalisisDermaPiel360TopDiagnosis[];
   byAgeGender: AnalisisDermaPiel360AgeGenderRow[];
   ageDistribution: AnalisisDermaPiel360CategorySlice[];
+  /** Clases del API (`desease`): Top 8 del periodo + "Otras". */
   byClass: AnalisisDermaPiel360MonthlySeriesPoint[];
+  /** Series de `byClass`, en el orden en que deben leerse. */
+  classSeries: AnalisisDermaPiel360TrendSeriesDef[];
   /** Condiciones concretas: Top 8 del periodo + "Otras" — no grupos. */
   byDisease: AnalisisDermaPiel360MonthlySeriesPoint[];
   /** Series de `byDisease`, en el orden en que deben leerse. */

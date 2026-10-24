@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import {
+  baseApiPublica,
+  conBannersEstables,
+} from '../email-templates/banner-urls';
 import { renderBrandedEmail } from './mail-template.util';
 
 interface SendMailInput {
@@ -49,7 +53,12 @@ export class MailService {
     }
 
     const frontendUrl = this.config.getOrThrow<string>('FRONTEND_URL');
-    const htmlContent = renderBrandedEmail({ frontendUrl, bodyHtml: html });
+    // Por aquí salen todos los correos: también las plantillas guardadas con
+    // la URL firmada vieja del banner que nadie ha vuelto a abrir.
+    const htmlContent = renderBrandedEmail({
+      frontendUrl,
+      bodyHtml: conBannersEstables(html, baseApiPublica(this.config)),
+    });
 
     const response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
