@@ -88,10 +88,13 @@ export class RecaptchaService {
     return a;
   }
 
+  /** La clave web del cliente es de casilla: el filtro es el reto que
+   * resuelve el usuario, así que por defecto no se exige puntuación. Una clave
+   * de puntuación (p. ej. la del móvil) pide subirla con la variable. */
   private minScore(): number {
     const raw = this.config.get<string>('RECAPTCHA_MIN_SCORE')?.trim();
-    const n = raw ? Number(raw) : 0.5;
-    return Number.isFinite(n) ? n : 0.5;
+    const n = raw ? Number(raw) : 0;
+    return Number.isFinite(n) ? n : 0;
   }
 
   private serviceAccountPath(): string {

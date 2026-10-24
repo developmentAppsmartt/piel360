@@ -152,9 +152,3 @@
     @apply text-base font-semibold;
   }
 }
-
-/* reCAPTCHA: la insignia flotante se oculta porque los inicios de sesión
-   muestran el aviso que Google exige en su lugar (login-legal-footer.tsx). */
-.grecaptcha-badge {
-  visibility: hidden;
-}
