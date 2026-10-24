@@ -8,6 +8,7 @@ import { formatSkinAgeDifferenceRange } from "@/lib/skin-age-rules-ui";
 export type Scenario = "younger" | "similar" | "older";
 
 export type SkinAgeRuleFormState = {
+  name: string;
   scenario: Scenario;
   fromYears: number;
   toYears: number;
@@ -18,6 +19,9 @@ export type SkinAgeRuleFormState = {
   treatmentIds: string[];
   productGroupIds: string[];
   supplementGroupIds: string[];
+  /** null = todos; [] = «específico» todavía sin elegir ninguno. */
+  skinTypes: string[] | null;
+  fitzpatrickScales: string[] | null;
 };
 
 export const SCENARIOS: {
@@ -47,7 +51,7 @@ export const SCENARIOS: {
 ];
 
 /** El escenario sale del signo del rango guardado: no se guarda aparte. Por
- * eso los años de cada escenario no pueden pisarse (ver `rangeError`). */
+ * eso los años de cada escenario no pueden pisarse (ver `formError`). */
 function scenarioFromDiff(min: number, max: number): Scenario {
   if (max <= 0 && min < 0) return "younger";
   if (min > 0) return "older";
@@ -60,12 +64,13 @@ function yearsFromDiff(min: number, max: number, scenario: Scenario) {
   return { fromYears: Math.max(min, 0), toYears: Math.max(max, 0) };
 }
 
-/** Por qué el rango no se puede guardar, o null. Una regla «más joven» que
+/** Por qué la regla no se puede guardar, o null. Una regla «más joven» que
  * empezaba en 0 años se guardaba bien (-6..0), pero al reabrirla salía como
  * «Edades similares 0 a 0» y al guardar de nuevo se perdía el rango. Del otro
  * lado, «Edades similares» siempre empieza en 0 (el formulario fija el campo):
  * una desde 2 años reabría como «más envejecida». */
-export function rangeError(form: SkinAgeRuleFormState): string | null {
+export function formError(form: SkinAgeRuleFormState): string | null {
+  if (!form.name.trim()) return "Escribe el nombre de la regla.";
   if (form.fromYears < 0 || form.toYears < 0) {
     return "Los años de diferencia deben ser 0 o mayores.";
   }
@@ -75,6 +80,8 @@ export function rangeError(form: SkinAgeRuleFormState): string | null {
   if (form.scenario !== "similar" && form.fromYears < 1) {
     return "En este escenario el rango empieza en 1 año: la diferencia de 0 años es de «Edades similares».";
   }
+  if (form.skinTypes?.length === 0) return "Elige al menos un biotipo.";
+  if (form.fitzpatrickScales?.length === 0) return "Elige al menos un fototipo.";
   return null;
 }
 
@@ -130,6 +137,7 @@ export function toDifferences(form: SkinAgeRuleFormState): {
 export function defaultForm(rule?: SkinAgeRule | null): SkinAgeRuleFormState {
   if (!rule) {
     return {
+      name: "",
       scenario: "older",
       fromYears: 4,
       toYears: 7,
@@ -140,11 +148,14 @@ export function defaultForm(rule?: SkinAgeRule | null): SkinAgeRuleFormState {
       treatmentIds: [],
       productGroupIds: [],
       supplementGroupIds: [],
+      skinTypes: null,
+      fitzpatrickScales: null,
     };
   }
   const scenario = scenarioFromDiff(rule.minDifference, rule.maxDifference);
   const years = yearsFromDiff(rule.minDifference, rule.maxDifference, scenario);
   return {
+    name: rule.label,
     scenario,
     fromYears: years.fromYears,
     toYears: years.toYears,
@@ -155,5 +166,8 @@ export function defaultForm(rule?: SkinAgeRule | null): SkinAgeRuleFormState {
     treatmentIds: rule.treatmentIds,
     productGroupIds: rule.productGroupIds,
     supplementGroupIds: rule.supplementGroupIds,
+    skinTypes: rule.skinTypes.length > 0 ? rule.skinTypes : null,
+    fitzpatrickScales:
+      rule.fitzpatrickScales.length > 0 ? rule.fitzpatrickScales : null,
   };
 }

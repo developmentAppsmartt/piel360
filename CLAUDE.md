@@ -539,6 +539,21 @@ mano** con `select id, name from plans where name ~* 'skiniver|youcam|perfect'`.
   (`appointmentEmailValues`): sin eso salían 5 horas corridas, porque el
   contenedor corre en UTC.
 
+### Reglas de edad de piel
+
+- Una regla aplica por **diferencia de edad + biotipo + fototipo**
+  (`skin_age_rules.skin_types` / `fitzpatrick_scales`, vacío = todos). El
+  biotipo sale del análisis estético (`analisisPiel360SkinType`); el fototipo,
+  de `patients.fitzpatrick_type`, porque el análisis estético no lo trae.
+- Si la regla pide un biotipo o fototipo que del paciente no se conoce, **no
+  aplica**. Entre varias que coinciden gana la **más específica** y, si
+  empatan, la prioridad (`pickBestMatchingRule`).
+- Reglas y catálogo viven en el **dueño de la cuenta**: las recomendaciones de
+  un análisis resuelven ese doctor (`catalogDoctorIdFor`). Con el doctor del
+  paciente a secas, los pacientes de un profesional de equipo no veían nada.
+  El motor de fototipo (`fitzpatrick-rules.service.ts`) todavía usa el doctor
+  del paciente.
+
 ### Fechas de los reportes
 
 Los filtros «desde/hasta» son **días de Colombia**, no UTC:

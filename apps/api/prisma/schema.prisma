@@ -1225,6 +1225,10 @@ model SkinAgeRule {
   treatmentIds         Json     @default("[]") @map("treatment_ids")
   productGroupIds      Json     @default("[]") @map("product_group_ids")
   supplementGroupIds   Json     @default("[]") @map("supplement_group_ids")
+  /** Biotipos (`hd_skin_type`) a los que aplica; vacío = todos. */
+  skinTypes            Json     @default("[]") @map("skin_types")
+  /** Fototipos (I-VI) a los que aplica; vacío = todos. */
+  fitzpatrickScales    Json     @default("[]") @map("fitzpatrick_scales")
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
 

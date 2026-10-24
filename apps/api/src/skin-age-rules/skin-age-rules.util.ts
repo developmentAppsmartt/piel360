@@ -1,4 +1,9 @@
 import {
+  analisisPiel360SkinType,
+  parseAnalisisPiel360Metrics,
+  type AnalisisPiel360RawResponse,
+} from '@piel360/shared';
+import {
   chronologicalAgeYears,
   computeSkinAgeSnapshot,
   skinAgeDifferenceMessage,
@@ -12,9 +17,12 @@ export const PRIORITY_WEIGHT: Record<string, number> = {
   very_high: 4,
 };
 
+/** Lista de strings no vacíos de una columna JSON (ids, biotipos, fototipos). */
 export function parseIdList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
-  return value.filter((id): id is string => typeof id === 'string' && id.length > 0);
+  return value.filter(
+    (id): id is string => typeof id === 'string' && id.length > 0,
+  );
 }
 
 export function formatDifferenceRange(
@@ -84,33 +92,143 @@ export const DEFAULT_SKIN_AGE_RULES: Omit<
   },
 ];
 
-export function matchesSkinAgeRule(
-  difference: number,
-  rule: { minDifference: number; maxDifference: number; isActive: boolean },
-): boolean {
-  if (!rule.isActive) return false;
-  return difference >= rule.minDifference && difference <= rule.maxDifference;
+/** Biotipo y fototipo del paciente con los que se elige la regla; null =
+ * no se conoce. */
+export type SkinAgeRuleContext = {
+  skinType: string | null;
+  fitzpatrickScale: string | null;
+};
+
+export const NO_RULE_CONTEXT: SkinAgeRuleContext = {
+  skinType: null,
+  fitzpatrickScale: null,
+};
+
+type MatchableRule = {
+  minDifference: number;
+  maxDifference: number;
+  isActive: boolean;
+  priority: string;
+  sortOrder: number;
+  skinTypes: string[];
+  fitzpatrickScales: string[];
+};
+
+/** Lista vacía = aplica a todos. Con valores, solo si el dato se conoce y
+ * está en ella: una regla para piel grasa no se recomienda a quien no se le
+ * sabe el biotipo. */
+function scopeMatches(scope: string[], value: string | null): boolean {
+  if (scope.length === 0) return true;
+  if (!value) return false;
+  return scope.some((item) => item.toLowerCase() === value.toLowerCase());
 }
 
-export function pickBestMatchingRule<
-  T extends {
-    minDifference: number;
-    maxDifference: number;
-    isActive: boolean;
-    priority: string;
-    sortOrder: number;
-  },
->(rules: T[], difference: number): T | null {
-  const matches = rules.filter((rule) => matchesSkinAgeRule(difference, rule));
+/** Cuántos alcances restringe la regla: con varias coincidiendo, gana la
+ * más específica (pedido del cliente); si empatan, la prioridad. */
+function specificity(rule: MatchableRule): number {
+  return (
+    (rule.skinTypes.length > 0 ? 1 : 0) +
+    (rule.fitzpatrickScales.length > 0 ? 1 : 0)
+  );
+}
+
+export function matchesSkinAgeRule(
+  difference: number,
+  rule: MatchableRule,
+  context: SkinAgeRuleContext,
+): boolean {
+  if (!rule.isActive) return false;
+  return (
+    difference >= rule.minDifference &&
+    difference <= rule.maxDifference &&
+    scopeMatches(rule.skinTypes, context.skinType) &&
+    scopeMatches(rule.fitzpatrickScales, context.fitzpatrickScale)
+  );
+}
+
+export function pickBestMatchingRule<T extends MatchableRule>(
+  rules: T[],
+  difference: number,
+  context: SkinAgeRuleContext,
+): T | null {
+  const matches = rules.filter((rule) =>
+    matchesSkinAgeRule(difference, rule, context),
+  );
   if (matches.length === 0) return null;
   return matches.sort(
     (a, b) =>
+      specificity(b) - specificity(a) ||
       (PRIORITY_WEIGHT[b.priority] ?? 0) - (PRIORITY_WEIGHT[a.priority] ?? 0) ||
       a.sortOrder - b.sortOrder,
   )[0];
 }
 
-export function buildSimulationSnapshot(birthDate: string, skinAgeYears: number) {
+/** Biotipo del análisis estético (el general, ver `analisisPiel360SkinType`)
+ * y fototipo del paciente. El análisis estético no trae fototipo: lo deja en
+ * `patients.fitzpatrick_type` el análisis de fototipo al completarse. */
+export function skinAgeRuleContext(
+  aiRawResponse: unknown,
+  patientFitzpatrickType: string | null,
+): SkinAgeRuleContext {
+  const metrics = parseAnalisisPiel360Metrics(
+    aiRawResponse as AnalisisPiel360RawResponse | null,
+  );
+  return {
+    skinType: analisisPiel360SkinType(metrics),
+    fitzpatrickScale: patientFitzpatrickType,
+  };
+}
+
+export type SkinAgeRuleRow = {
+  id: bigint;
+  doctorId: bigint;
+  label: string;
+  description: string | null;
+  minDifference: number;
+  maxDifference: number;
+  priority: string;
+  colorKey: string;
+  sortOrder: number;
+  isActive: boolean;
+  routineIds: unknown;
+  treatmentIds: unknown;
+  productGroupIds: unknown;
+  supplementGroupIds: unknown;
+  skinTypes: unknown;
+  fitzpatrickScales: unknown;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export function serializeSkinAgeRule(rule: SkinAgeRuleRow) {
+  return {
+    id: rule.id.toString(),
+    doctorId: rule.doctorId.toString(),
+    label: rule.label,
+    description: rule.description,
+    minDifference: rule.minDifference,
+    maxDifference: rule.maxDifference,
+    priority: rule.priority,
+    colorKey: rule.colorKey,
+    sortOrder: rule.sortOrder,
+    isActive: rule.isActive,
+    routineIds: parseIdList(rule.routineIds),
+    treatmentIds: parseIdList(rule.treatmentIds),
+    productGroupIds: parseIdList(rule.productGroupIds),
+    supplementGroupIds: parseIdList(rule.supplementGroupIds),
+    skinTypes: parseIdList(rule.skinTypes),
+    fitzpatrickScales: parseIdList(rule.fitzpatrickScales),
+    createdAt: rule.createdAt.toISOString(),
+    updatedAt: rule.updatedAt.toISOString(),
+  };
+}
+
+export type SerializedSkinAgeRule = ReturnType<typeof serializeSkinAgeRule>;
+
+export function buildSimulationSnapshot(
+  birthDate: string,
+  skinAgeYears: number,
+) {
   const birth = new Date(birthDate);
   const at = new Date();
   const snap = computeSkinAgeSnapshot({

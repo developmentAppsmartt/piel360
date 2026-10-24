@@ -1,4 +1,5 @@
 import type { SkinAgeRuleColorKey, SkinAgeRulePriority } from "@/lib/queries/skin-age-rules";
+import { analisisPiel360SkinTypeLabel } from "@/lib/youcam-metric-labels";
 
 export const SKIN_AGE_RULE_PRIORITY_OPTIONS: {
   value: SkinAgeRulePriority;
@@ -65,4 +66,21 @@ export function priorityLabel(priority: SkinAgeRulePriority): string {
     SKIN_AGE_RULE_PRIORITY_OPTIONS.find((option) => option.value === priority)?.label ??
     priority
   );
+}
+
+/** A qué biotipos y fototipos aplica una regla (lista vacía = todos). */
+export function skinAgeRuleScopeText(rule: {
+  skinTypes: string[];
+  fitzpatrickScales: string[];
+}): string {
+  if (rule.skinTypes.length === 0 && rule.fitzpatrickScales.length === 0) {
+    return "Todos los biotipos y fototipos";
+  }
+  const skinTypes = rule.skinTypes.length
+    ? `Biotipo: ${rule.skinTypes.map((value) => analisisPiel360SkinTypeLabel(value)).join(", ")}`
+    : "Todos los biotipos";
+  const scales = rule.fitzpatrickScales.length
+    ? `Fototipo: ${rule.fitzpatrickScales.join(", ")}`
+    : "todos los fototipos";
+  return `${skinTypes} · ${scales}`;
 }

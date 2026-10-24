@@ -21,7 +21,6 @@ const ARCHIVOS_LARGOS_HEREDADOS = [
   "src/components/agenda/agenda-workspace.tsx",
   "src/components/agenda/patient-agenda-workspace.tsx",
   "src/components/analyses/analysis-consumption-view.tsx",
-  "src/components/analyses/recommendations-panel.tsx",
   "src/components/analyses/youcam-report-view.tsx",
   "src/components/auth/doctor-register-form.tsx",
   "src/components/auth/empresa-register-form.tsx",

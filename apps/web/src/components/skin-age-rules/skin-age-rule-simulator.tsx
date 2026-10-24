@@ -2,12 +2,15 @@
 
 import {
   CalendarDays,
-  FlaskConical,
   Layers3,
   Pill,
   Play,
   Sparkles,
 } from "lucide-react";
+import {
+  ANALISIS_PIEL360_SKIN_TYPE_VALUES,
+  FITZPATRICK_SCALES,
+} from "@piel360/shared";
 import { Button } from "@/components/ui/button";
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import {
@@ -16,13 +19,22 @@ import {
   skinAgeDifference,
 } from "@/lib/skin-age";
 import type { SkinAgeSimulationResult } from "@/lib/queries/skin-age-rules";
-import { priorityLabel } from "@/lib/skin-age-rules-ui";
+import { FITZPATRICK_TYPES } from "@/lib/fitzpatrick-labels";
+import { priorityLabel, skinAgeRuleScopeText } from "@/lib/skin-age-rules-ui";
+import { analisisPiel360SkinTypeLabel } from "@/lib/youcam-metric-labels";
+
+const selectCls =
+  "h-10 w-full rounded-xl border border-border bg-background px-3 outline-none focus:border-primary/50";
 
 export function SkinAgeRuleSimulator({
   birthDate,
   skinAgeYears,
   onBirthDateChange,
   onSkinAgeChange,
+  skinType,
+  fitzpatrickScale,
+  onSkinTypeChange,
+  onFitzpatrickScaleChange,
   onSimulate,
   loading,
   result,
@@ -31,6 +43,11 @@ export function SkinAgeRuleSimulator({
   skinAgeYears: number;
   onBirthDateChange: (value: string) => void;
   onSkinAgeChange: (value: number) => void;
+  /** "" = no se conoce: solo aplican las reglas de «todos». */
+  skinType: string;
+  fitzpatrickScale: string;
+  onSkinTypeChange: (value: string) => void;
+  onFitzpatrickScaleChange: (value: string) => void;
   onSimulate: () => void;
   loading?: boolean;
   result?: SkinAgeSimulationResult | null;
@@ -75,6 +92,39 @@ export function SkinAgeRuleSimulator({
         />
       </div>
 
+      <div className="grid grid-cols-2 gap-3">
+        <label className="block space-y-1.5 text-sm">
+          <span className="font-medium">Biotipo</span>
+          <select
+            value={skinType}
+            onChange={(event) => onSkinTypeChange(event.target.value)}
+            className={selectCls}
+          >
+            <option value="">Sin dato</option>
+            {ANALISIS_PIEL360_SKIN_TYPE_VALUES.map((value) => (
+              <option key={value} value={value}>
+                {analisisPiel360SkinTypeLabel(value)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block space-y-1.5 text-sm">
+          <span className="font-medium">Fototipo</span>
+          <select
+            value={fitzpatrickScale}
+            onChange={(event) => onFitzpatrickScaleChange(event.target.value)}
+            className={selectCls}
+          >
+            <option value="">Sin dato</option>
+            {FITZPATRICK_SCALES.map((scale) => (
+              <option key={scale} value={scale}>
+                {scale} · {FITZPATRICK_TYPES[scale].label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
       <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
         <p className="text-muted-foreground">Edad cronológica</p>
         <p className="text-lg font-semibold">
@@ -103,12 +153,15 @@ export function SkinAgeRuleSimulator({
             <div className="rounded-xl border border-border bg-muted/20 px-3 py-2 text-sm">
               <p className="font-medium">{result.matchedRule.label}</p>
               <p className="text-xs text-muted-foreground">
+                {skinAgeRuleScopeText(result.matchedRule)}
+              </p>
+              <p className="text-xs text-muted-foreground">
                 Prioridad: {priorityLabel(result.matchedRule.priority)}
               </p>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Ninguna regla coincide con esta diferencia.
+              Ninguna regla coincide con esta diferencia, biotipo y fototipo.
             </p>
           )}
 

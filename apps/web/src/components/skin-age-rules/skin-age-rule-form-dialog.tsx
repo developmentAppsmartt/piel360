@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { Droplet, Sun } from "lucide-react";
 import {
-  CalendarDays,
-  FlaskConical,
-  Layers3,
-  Pill,
-} from "lucide-react";
+  ANALISIS_PIEL360_SKIN_TYPE_VALUES,
+  FITZPATRICK_SCALES,
+} from "@piel360/shared";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,25 +14,36 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { CatalogChecklist } from "@/components/shared/catalog-checklist";
 import { ApiError } from "@/lib/api-error";
+import { FITZPATRICK_TYPES } from "@/lib/fitzpatrick-labels";
 import type {
   SkinAgeRule,
   SkinAgeRuleInput,
   SkinAgeRulePriority,
 } from "@/lib/queries/skin-age-rules";
-import { useProducts } from "@/lib/queries/products";
-import { useRoutines } from "@/lib/queries/routines";
-import { useTreatments } from "@/lib/queries/treatments";
 import {
   SCENARIOS,
   defaultForm,
-  rangeError,
+  formError,
   toDifferences,
   type SkinAgeRuleFormState,
 } from "@/lib/skin-age-rule-range";
 import { SKIN_AGE_RULE_PRIORITY_OPTIONS } from "@/lib/skin-age-rules-ui";
 import { cn } from "@/lib/utils";
+import { analisisPiel360SkinTypeLabel } from "@/lib/youcam-metric-labels";
+import { RuleScopePicker } from "./rule-scope-picker";
+import { SkinAgeRuleCatalogFields } from "./skin-age-rule-catalog-fields";
+
+const SKIN_TYPE_OPTIONS = ANALISIS_PIEL360_SKIN_TYPE_VALUES.map((value) => ({
+  value,
+  label: analisisPiel360SkinTypeLabel(value),
+}));
+
+const FITZPATRICK_OPTIONS = FITZPATRICK_SCALES.map((scale) => ({
+  value: scale,
+  label: `${scale} · ${FITZPATRICK_TYPES[scale].label}`,
+  colorHex: FITZPATRICK_TYPES[scale].colorHex,
+}));
 
 export function SkinAgeRuleFormDialog({
   open,
@@ -52,67 +62,15 @@ export function SkinAgeRuleFormDialog({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const routines = useRoutines(open);
-  const treatments = useTreatments(open ? { kind: "treatment" } : undefined);
-  const catalogProducts = useProducts(undefined, "product", { enabled: open });
-  const catalogSupplements = useProducts(undefined, "supplement", {
-    enabled: open,
-  });
-
-  useEffect(() => {
-    if (open) {
-      setForm(defaultForm(rule));
-      setError(null);
-    }
-  }, [open, rule]);
-
   const preview = useMemo(() => toDifferences(form), [form]);
 
-  const productOptions = useMemo(
-    () =>
-      (catalogProducts.data ?? []).map((product) => ({
-        id: product.id,
-        label: product.productName,
-        hint: product.category?.categoryName ?? "Producto",
-        imageUrl: product.imageUrl,
-      })),
-    [catalogProducts.data],
-  );
-
-  const supplementOptions = useMemo(
-    () =>
-      (catalogSupplements.data ?? []).map((product) => ({
-        id: product.id,
-        label: product.productName,
-        hint: product.category?.categoryName ?? "Suplemento",
-        imageUrl: product.imageUrl,
-      })),
-    [catalogSupplements.data],
-  );
-
-  const routineOptions = useMemo(
-    () =>
-      (routines.data ?? []).map((routine) => ({
-        id: routine.id,
-        label: routine.name,
-        hint: `${routine.steps.length} paso${routine.steps.length === 1 ? "" : "s"}`,
-      })),
-    [routines.data],
-  );
-
-  const treatmentOptions = useMemo(
-    () =>
-      (treatments.data ?? []).map((treatment) => ({
-        id: treatment.id,
-        label: treatment.name,
-        hint: treatment.category?.categoryName ?? "Tratamiento",
-      })),
-    [treatments.data],
-  );
+  function patch(next: Partial<SkinAgeRuleFormState>) {
+    setForm((current) => ({ ...current, ...next }));
+  }
 
   async function handleSave() {
     setError(null);
-    const invalid = rangeError(form);
+    const invalid = formError(form);
     if (invalid) {
       setError(invalid);
       return;
@@ -122,7 +80,7 @@ export function SkinAgeRuleFormDialog({
     setSaving(true);
     try {
       await onSubmit({
-        label: diff.label,
+        label: form.name.trim(),
         description: diff.description,
         minDifference: diff.minDifference,
         maxDifference: diff.maxDifference,
@@ -134,6 +92,8 @@ export function SkinAgeRuleFormDialog({
         treatmentIds: form.treatmentIds,
         productGroupIds: form.productGroupIds,
         supplementGroupIds: form.supplementGroupIds,
+        skinTypes: form.skinTypes ?? [],
+        fitzpatrickScales: form.fitzpatrickScales ?? [],
       });
       onClose();
     } catch (err) {
@@ -163,9 +123,22 @@ export function SkinAgeRuleFormDialog({
             Se compara la <strong className="text-foreground">edad del paciente</strong>{" "}
             (cronológica, según fecha de nacimiento) con la{" "}
             <strong className="text-foreground">edad de la piel del análisis</strong>{" "}
-            (resultado IA). Según esa diferencia se recomiendan productos, rutinas,
-            tratamientos y suplementos ya creados.
+            (resultado IA). Según esa diferencia, el biotipo y el fototipo se
+            recomiendan productos, rutinas, tratamientos y suplementos ya creados.
           </div>
+
+          <label className="block space-y-1 text-sm">
+            <span className="font-medium">
+              Nombre de la regla <span className="text-destructive">*</span>
+            </span>
+            <input
+              value={form.name}
+              maxLength={120}
+              onChange={(event) => patch({ name: event.target.value })}
+              placeholder="Ej. Antienvejecimiento para piel grasa"
+              className="h-10 w-full rounded-xl border border-border px-3"
+            />
+          </label>
 
           <section className="space-y-2">
             <p className="text-sm font-semibold">1. Escenario de comparación</p>
@@ -217,12 +190,7 @@ export function SkinAgeRuleFormDialog({
                   step={1}
                   value={form.fromYears}
                   disabled={similar}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      fromYears: Number(event.target.value),
-                    }))
-                  }
+                  onChange={(event) => patch({ fromYears: Number(event.target.value) })}
                   className="h-10 w-full rounded-xl border border-border px-3 disabled:bg-muted/40 disabled:text-muted-foreground"
                 />
               </label>
@@ -233,12 +201,7 @@ export function SkinAgeRuleFormDialog({
                   min={similar ? 0 : 1}
                   step={1}
                   value={form.toYears}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      toYears: Number(event.target.value),
-                    }))
-                  }
+                  onChange={(event) => patch({ toYears: Number(event.target.value) })}
                   className="h-10 w-full rounded-xl border border-border px-3"
                 />
               </label>
@@ -254,16 +217,41 @@ export function SkinAgeRuleFormDialog({
             </p>
           </section>
 
+          <section className="space-y-2">
+            <p className="text-sm font-semibold">3. Biotipo y fototipo</p>
+            <div className="grid gap-3 lg:grid-cols-2">
+              <RuleScopePicker
+                name="alcance-biotipo"
+                icon={Droplet}
+                title="Alcance por biotipo"
+                hint="Aplica a todos los biotipos o solo a los que elijas."
+                allLabel="Aplicar a todos los biotipos"
+                specificLabel="Aplicar a biotipos específicos"
+                options={SKIN_TYPE_OPTIONS}
+                value={form.skinTypes}
+                onChange={(skinTypes) => patch({ skinTypes })}
+              />
+              <RuleScopePicker
+                name="alcance-fototipo"
+                icon={Sun}
+                title="Alcance por fototipo"
+                hint="Aplica a todos los fototipos o solo a los que elijas."
+                allLabel="Aplicar a todos los fototipos"
+                specificLabel="Aplicar a fototipos específicos"
+                options={FITZPATRICK_OPTIONS}
+                value={form.fitzpatrickScales}
+                onChange={(fitzpatrickScales) => patch({ fitzpatrickScales })}
+              />
+            </div>
+          </section>
+
           <section className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1 text-sm">
               <span className="font-medium text-muted-foreground">Prioridad</span>
               <select
                 value={form.priority}
                 onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    priority: event.target.value as SkinAgeRulePriority,
-                  }))
+                  patch({ priority: event.target.value as SkinAgeRulePriority })
                 }
                 className="h-10 w-full rounded-xl border border-border px-3"
               >
@@ -281,12 +269,7 @@ export function SkinAgeRuleFormDialog({
               <textarea
                 rows={2}
                 value={form.description}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    description: event.target.value,
-                  }))
-                }
+                onChange={(event) => patch({ description: event.target.value })}
                 placeholder={preview.description}
                 className="w-full rounded-xl border border-border px-3 py-2"
               />
@@ -295,54 +278,9 @@ export function SkinAgeRuleFormDialog({
 
           <section className="space-y-3">
             <p className="text-sm font-semibold">
-              3. Entonces recomendar (selecciona lo ya creado)
+              4. Entonces recomendar (selecciona lo ya creado)
             </p>
-            <div className="grid gap-3 lg:grid-cols-2">
-              <CatalogChecklist
-                title="Productos"
-                icon={FlaskConical}
-                options={productOptions}
-                selectedIds={form.productGroupIds}
-                onChange={(ids) =>
-                  setForm((current) => ({ ...current, productGroupIds: ids }))
-                }
-                emptyHint="Crea productos en el módulo Productos."
-                loading={catalogProducts.isLoading}
-              />
-              <CatalogChecklist
-                title="Rutinas"
-                icon={CalendarDays}
-                options={routineOptions}
-                selectedIds={form.routineIds}
-                onChange={(ids) =>
-                  setForm((current) => ({ ...current, routineIds: ids }))
-                }
-                emptyHint="Crea rutinas en Rutinas y tratamientos."
-                loading={routines.isLoading}
-              />
-              <CatalogChecklist
-                title="Tratamientos"
-                icon={Layers3}
-                options={treatmentOptions}
-                selectedIds={form.treatmentIds}
-                onChange={(ids) =>
-                  setForm((current) => ({ ...current, treatmentIds: ids }))
-                }
-                emptyHint="Crea tratamientos en Rutinas y tratamientos."
-                loading={treatments.isLoading}
-              />
-              <CatalogChecklist
-                title="Suplementos"
-                icon={Pill}
-                options={supplementOptions}
-                selectedIds={form.supplementGroupIds}
-                onChange={(ids) =>
-                  setForm((current) => ({ ...current, supplementGroupIds: ids }))
-                }
-                emptyHint="Crea suplementos en el módulo Productos."
-                loading={catalogSupplements.isLoading}
-              />
-            </div>
+            <SkinAgeRuleCatalogFields enabled={open} value={form} onChange={patch} />
           </section>
 
           {error ? <p className="text-sm text-destructive">{error}</p> : null}

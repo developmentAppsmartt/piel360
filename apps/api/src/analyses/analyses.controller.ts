@@ -21,7 +21,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import type { JwtPayload } from '../auth/types';
 import { FitzpatrickRulesService } from '../fitzpatrick-rules/fitzpatrick-rules.service';
 import { RoutinesService } from '../routines/routines.service';
-import { SkinAgeRulesService } from '../skin-age-rules/skin-age-rules.service';
+import { SkinAgeRecommendationsService } from '../skin-age-rules/skin-age-recommendations.service';
 import { TreatmentsService } from '../treatments/treatments.service';
 import { AnalysesService } from './analyses.service';
 import { AnalysisConsumptionService } from './analysis-consumption.service';
@@ -38,7 +38,7 @@ export class AnalysesController {
   constructor(
     private readonly analysesService: AnalysesService,
     private readonly consumptionService: AnalysisConsumptionService,
-    private readonly skinAgeRulesService: SkinAgeRulesService,
+    private readonly skinAgeRecommendations: SkinAgeRecommendationsService,
     private readonly fitzpatrickRulesService: FitzpatrickRulesService,
     private readonly routinesService: RoutinesService,
     private readonly treatmentsService: TreatmentsService,
@@ -93,7 +93,7 @@ export class AnalysesController {
     @Param('id') id: string,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.skinAgeRulesService.careRecommendationsForAnalysis(
+    return this.skinAgeRecommendations.careRecommendationsForAnalysis(
       user.sub,
       id,
     );
