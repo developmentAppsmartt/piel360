@@ -1,17 +1,17 @@
 "use client";
 
-import { useActionState, useState, useSyncExternalStore } from "react";
+import { useActionState, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import Script from "next/script";
 import { SESSION_REPLACED_MESSAGE, type Role } from "@piel360/shared";
 import { ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { loginAction, type AuthActionState } from "@/lib/actions/auth";
 import { useClearClientQueryCache } from "@/lib/clear-client-query-cache";
 import { googleOAuthRole } from "@/lib/google-auth";
 import { SESSION_REPLACED_REASON } from "@/lib/login-path";
-import { getRecaptchaToken, RECAPTCHA_SCRIPT_URL } from "@/lib/recaptcha";
+import { RECAPTCHA_SITE_KEY, resetRecaptcha } from "@/lib/recaptcha";
 import { GoogleContinueButton } from "./google-continue-button";
 import { LoginIconField } from "./login-icon-field";
+import { RecaptchaCheckbox } from "./recaptcha-checkbox";
 
 const initialState: AuthActionState = {};
 
@@ -28,15 +28,22 @@ export function LoginForm({
   showForgotPassword?: boolean;
 }) {
   const clearClientCache = useClearClientQueryCache();
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaWidgetId = useRef<number | null>(null);
   const boundAction = async (
     prevState: AuthActionState,
     formData: FormData,
   ) => {
+    if (RECAPTCHA_SITE_KEY && !formData.get("captchaToken")) {
+      return { error: "Marca la casilla «No soy un robot»." };
+    }
     clearClientCache();
-    // El token se pide al enviar: caduca a los 2 minutos.
-    const captchaToken = await getRecaptchaToken("login");
-    if (captchaToken) formData.set("captchaToken", captchaToken);
-    return loginAction(role, prevState, formData);
+    const result = await loginAction(role, prevState, formData);
+    // Si vuelve, el login falló (al entrar redirige): el token ya se gastó en
+    // el API y no sirve para otro intento.
+    resetRecaptcha(captchaWidgetId.current);
+    setCaptchaToken(null);
+    return result;
   };
   const [state, formAction, isPending] = useActionState(
     boundAction,
@@ -57,9 +64,6 @@ export function LoginForm({
 
   return (
     <form action={formAction} className="w-full space-y-5">
-      {RECAPTCHA_SCRIPT_URL ? (
-        <Script src={RECAPTCHA_SCRIPT_URL} strategy="afterInteractive" />
-      ) : null}
       {sessionReplaced ? (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           {SESSION_REPLACED_MESSAGE}
@@ -118,6 +122,15 @@ export function LoginForm({
           </Link>
         ) : null}
       </div>
+
+      <RecaptchaCheckbox
+        action="login"
+        widgetIdRef={captchaWidgetId}
+        onToken={setCaptchaToken}
+      />
+      {captchaToken ? (
+        <input type="hidden" name="captchaToken" value={captchaToken} />
+      ) : null}
 
       {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}
 

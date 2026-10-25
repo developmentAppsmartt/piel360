@@ -582,6 +582,9 @@ todavía agrupa por mes UTC.
 ## Estado actual (actualizar cuando cambie)
 
 - Rama de trabajo: `feature/correos-moderacion`.
+- reCAPTCHA del login web: clave Enterprise de **casilla** («No soy un robot»),
+  apagado en todos los entornos y sin probar con la clave real. Pasos,
+  variables y pendientes en `docs/recaptcha-pendiente.md`.
 - Pendiente de despliegue: reconstruir la imagen del API (cambió
   `packages/shared`) y confirmar con `npx prisma migrate status` que producción
   está al día.

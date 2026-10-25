@@ -1,7 +1,7 @@
 const linkClass = "text-primary underline-offset-2 hover:underline";
 
-/** Pie de los inicios de sesión. El aviso de reCAPTCHA es el texto que Google
- * exige cuando se oculta su insignia (`.grecaptcha-badge` en globals.css). */
+/** Pie de los inicios de sesión: copyright y el aviso de reCAPTCHA con los
+ * enlaces de Google (texto que pidió el cliente). */
 export function LoginLegalFooter() {
   return (
     <div className="space-y-1.5 text-center text-xs leading-relaxed text-slate-400">
