@@ -594,6 +594,8 @@ model Plan {
   apiCosts           Json     @default("{}") @map("api_costs")
   /** Si true, se suma IVA (% global) al precio en checkout y facturación. */
   ivaEnabled         Boolean  @default(false) @map("iva_enabled")
+  /** Si true, el catálogo muestra el precio del plan convertido a USDT. */
+  showUsdtPrice      Boolean  @default(false) @map("show_usdt_price")
   isActive           Boolean  @default(true) @map("is_active")
   description        String?  @db.Text
   createdAt          DateTime @default(now()) @map("created_at")
@@ -618,6 +620,8 @@ model Subscription {
   planId             BigInt             @map("plan_id")
   wompiTransactionId String?            @map("wompi_transaction_id")
   status             SubscriptionStatus
+  /** Pago confirmado; espera créditos en la bolsa para pasar a activa. */
+  awaitingPool       Boolean            @default(false) @map("awaiting_pool")
   endsAt             DateTime?          @map("ends_at")
   createdAt          DateTime           @default(now()) @map("created_at")
   updatedAt          DateTime           @updatedAt @map("updated_at")

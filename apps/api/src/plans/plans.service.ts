@@ -3,6 +3,7 @@ import type { Plan, Prisma } from '@prisma/client';
 import {
   BILLING_CONFIG_KEYS,
   DEFAULT_BILLING_RATES,
+  copToUsdt,
   parsePlanApiCosts,
   toInternalProviderKeys,
   parsePlanCoverage,
@@ -77,20 +78,32 @@ export class PlansService {
       : DEFAULT_BILLING_RATES.ivaPercentDefault;
   }
 
-  private withCustomerPrice<T extends { price: unknown; ivaEnabled?: boolean }>(
-    plan: T,
-    ivaPercent: number,
-  ) {
+  /** 1 USDT = cotización USD de dolarapi. Esa API no publica USDT. */
+  private async getUsdtToCop(): Promise<number> {
+    const row = await this.prisma.appConfig.findUnique({
+      where: { key: BILLING_CONFIG_KEYS.usdToCop },
+    });
+    const n = row != null ? Number(row.value) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+
+  private withCustomerPrice<
+    T extends { price: unknown; ivaEnabled?: boolean; showUsdtPrice?: boolean },
+  >(plan: T, ivaPercent: number, usdtToCop: number) {
     const base = Number(plan.price);
     const customer = planCustomerPrice(
       Number.isFinite(base) ? base : 0,
       Boolean(plan.ivaEnabled),
       ivaPercent,
     );
+    const showUsdtPrice = Boolean(plan.showUsdtPrice);
+    const usdt = showUsdtPrice ? copToUsdt(customer, usdtToCop) : null;
     return {
       ...plan,
       ivaPercent,
       customerPrice: String(customer),
+      showUsdtPrice,
+      usdtPrice: usdt == null ? null : String(usdt),
     };
   }
 
@@ -107,20 +120,21 @@ export class PlansService {
 
   /** `GET /plans` — catálogo para el selector de planes (checkout Wompi). */
   async findAll(user?: JwtPayload) {
-    const [plans, ivaPercent] = await Promise.all([
+    const [plans, ivaPercent, usdtToCop] = await Promise.all([
       this.prisma.plan.findMany({
         where: { isActive: true },
         include: { provider: true },
         orderBy: { price: 'asc' },
       }),
       this.getIvaPercentDefault(),
+      this.getUsdtToCop(),
     ]);
     const enriched = await this.enrichPlans(plans);
     const withPool = await this.planPool.enrichPlans(enriched);
 
     const toPublic = <T extends (typeof withPool)[number]>(list: T[]) =>
       list.map((plan) =>
-        toPublicPlanProviders(this.withCustomerPrice(plan, ivaPercent)),
+        toPublicPlanProviders(this.withCustomerPrice(plan, ivaPercent, usdtToCop)),
       );
 
     if (!user || user.role !== 'doctor') return toPublic(withPool);
@@ -147,16 +161,18 @@ export class PlansService {
 
   /** `GET /admin/plans` */
   async findAllAdmin() {
-    const [plans, ivaPercent] = await Promise.all([
+    const [plans, ivaPercent, usdtToCop] = await Promise.all([
       this.prisma.plan.findMany({
         include: { provider: true, _count: { select: { subscriptions: true } } },
         orderBy: { id: 'asc' },
       }),
       this.getIvaPercentDefault(),
+      this.getUsdtToCop(),
     ]);
     const enriched = await this.enrichPlans(plans);
     const withPool = await this.planPool.enrichPlans(enriched);
     return withPool.map((plan) =>
+      this.withCustomerPrice(plan, ivaPercent, usdtToCop),
       toPublicPlanProviders(this.withCustomerPrice(plan, ivaPercent)),
     );
   }
@@ -209,6 +225,7 @@ export class PlansService {
         headerColor: dto.headerColor?.trim() || 'brand',
         apiCosts: normalizeApiCosts(dto.apiCosts) ?? {},
         ivaEnabled: dto.ivaEnabled ?? false,
+        showUsdtPrice: dto.showUsdtPrice ?? false,
       },
       include: { provider: true },
     });
@@ -267,6 +284,9 @@ export class PlansService {
           ? { apiCosts: normalizeApiCosts(dto.apiCosts) ?? {} }
           : {}),
         ...(dto.ivaEnabled !== undefined ? { ivaEnabled: dto.ivaEnabled } : {}),
+        ...(dto.showUsdtPrice !== undefined
+          ? { showUsdtPrice: dto.showUsdtPrice }
+          : {}),
       },
       include: { provider: true },
     });

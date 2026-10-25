@@ -4,6 +4,7 @@ import { MailModule } from '../mail/mail.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { PlanPoolAvailabilityModule } from '../plans/plan-pool-availability.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { PrebolsaCronService } from './prebolsa.cron';
 import { OverlapCancelRestore } from './overlap-cancel-restore';
 import { SubscriptionCreditsService } from './subscription-credits.service';
 import { SubscriptionPoolService } from './subscription-pool.service';
@@ -19,6 +20,7 @@ import { SubscriptionsController } from './subscriptions.controller';
     BillingModule,
     forwardRef(() => PlanPoolAvailabilityModule),
   ],
+  providers: [SubscriptionsService, SubscriptionPoolService, PrebolsaCronService],
   providers: [
     SubscriptionsService,
     SubscriptionsAdminService,

@@ -55,6 +55,7 @@ export interface PlanInput {
     fitzpatrick?: { units: number; unitPrice: number };
   };
   ivaEnabled?: boolean;
+  showUsdtPrice?: boolean;
 }
 
 export interface AnalysisProvider {

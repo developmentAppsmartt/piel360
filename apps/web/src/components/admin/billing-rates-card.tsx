@@ -158,8 +158,9 @@ export function BillingRatesCard() {
             dolarapi.com
           </a>{" "}
           (máximo entre compra, venta y último cierre). El balance se suma a ese
-          valor para los cálculos de tokens. Actualización automática a las 6:00
-          (Colombia).
+          valor para los cálculos de tokens. El equivalente en USDT del catálogo
+          usa esa misma cotización del dólar (1 USDT = 1 USD). Actualización
+          automática a las 6:00 (Colombia).
         </p>
         {fxUpdatedAt ? (
           <p className="mt-1 text-xs text-muted-foreground">
@@ -200,6 +201,18 @@ export function BillingRatesCard() {
               />
               <span className="text-xs text-muted-foreground">
                 Dermatológico · solo lectura
+              </span>
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm">
+              <span className="font-medium">USDT → COP (API)</span>
+              <input
+                type="text"
+                readOnly
+                className="h-10 rounded-xl border border-border bg-muted/40 px-3 text-sm tabular-nums text-muted-foreground"
+                value={formatMoney(usdMarket)}
+              />
+              <span className="text-xs text-muted-foreground">
+                Misma cotización del dólar en dolarapi · solo lectura
               </span>
             </label>
             <label className="flex flex-col gap-1.5 text-sm">

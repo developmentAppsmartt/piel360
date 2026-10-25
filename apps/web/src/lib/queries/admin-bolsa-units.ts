@@ -107,6 +107,40 @@ export type PlanPoolAlertsResponse = {
   unavailablePlans: PlanPoolAlertPlan[];
 };
 
+export type PrebolsaStage = "pendingPayment" | "awaitingCredits" | "ready";
+
+export type PrebolsaItem = {
+  id: string;
+  stage: PrebolsaStage;
+  createdAt: string;
+  user: { id: string; name: string; email: string };
+  plan: { id: string; name: string; analysisLimit: number };
+  poolProvider: "skiniver" | "perfectcorp";
+  poolLabel: string;
+  poolAvailable: number;
+  poolRequired: number;
+};
+
+export type PrebolsaResponse = {
+  fetchedAt: string;
+  balances: { skiniver: number; perfectcorp: number };
+  counts: {
+    pendingPayment: number;
+    awaitingCredits: number;
+    ready: number;
+  };
+  items: PrebolsaItem[];
+};
+
+export function usePrebolsa() {
+  return useQuery({
+    queryKey: ["admin", "bolsa-unidades", "prebolsa"],
+    queryFn: () =>
+      apiClientFetch<PrebolsaResponse>("/admin/bolsa-unidades/prebolsa"),
+    staleTime: 15_000,
+  });
+}
+
 export function usePlanPoolAlerts() {
   return useQuery({
     queryKey: ["admin", "bolsa-unidades", "plan-alerts"],
@@ -150,6 +184,9 @@ export function useCreateAnalisisDermaPiel360Recharge() {
       });
       await queryClient.invalidateQueries({
         queryKey: ["admin", "bolsa-unidades", "plan-alerts"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "bolsa-unidades", "prebolsa"],
       });
       await queryClient.invalidateQueries({ queryKey: ["admin", "plans"] });
       await queryClient.invalidateQueries({ queryKey: ["plans"] });

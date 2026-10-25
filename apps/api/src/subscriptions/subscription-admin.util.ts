@@ -115,6 +115,7 @@ export function serializeUserSubscription(
   return {
     id: row.id.toString(),
     status: row.status,
+    awaitingPool: row.awaitingPool,
     endsAt: endsAt?.toISOString() ?? null,
     wompiTransactionId: row.wompiTransactionId,
     createdAt: row.createdAt.toISOString(),

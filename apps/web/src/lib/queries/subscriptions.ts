@@ -6,6 +6,8 @@ import { apiClientFetch } from "@/lib/api-client";
 export interface Subscription {
   id: string;
   status: "active" | "pending" | "cancelled";
+  /** Pago confirmado; el plan espera créditos en la bolsa. */
+  awaitingPool?: boolean;
   endsAt: string | null;
   wompiTransactionId: string | null;
   createdAt: string;

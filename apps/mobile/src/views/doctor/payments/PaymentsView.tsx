@@ -115,14 +115,6 @@ export function PaymentsView({
   );
 
   function openContract(plan: CatalogPlan) {
-    if (plan.poolPurchasable === false) {
-      Alert.alert(
-        plan.name,
-        plan.poolUnavailableReason?.trim() ||
-          'Este plan no está disponible para contratación en este momento.',
-      );
-      return;
-    }
     Alert.alert(
       plan.name,
       `${formatPrice(plan.customerPrice ?? plan.price)} · ${plan.analysisLimit} análisis · ${plan.durationDays} días.\n\nLa contratación se completa en el panel web de profesionales.`,

@@ -138,6 +138,59 @@ export class PlanPoolAvailabilityService {
     };
   }
 
+  /** Compras pendientes: sin pagar, pagadas esperando créditos, o listas para el cron. */
+  async listPrebolsa() {
+    const rows = await this.prisma.subscription.findMany({
+      where: { status: 'pending' },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        plan: true,
+      },
+      orderBy: { id: 'asc' },
+    });
+    const balances = await this.getBalances();
+    const items = await Promise.all(
+      rows.map(async (row) => {
+        const pool = await this.evaluatePlan(row.plan, balances);
+        const stage = !row.awaitingPool
+          ? 'pendingPayment'
+          : pool.poolPurchasable
+            ? 'ready'
+            : 'awaitingCredits';
+        return {
+          id: row.id.toString(),
+          stage,
+          createdAt: row.createdAt.toISOString(),
+          user: {
+            id: row.user.id.toString(),
+            name: row.user.name,
+            email: row.user.email,
+          },
+          plan: {
+            id: row.plan.id.toString(),
+            name: row.plan.name,
+            analysisLimit: row.plan.analysisLimit,
+          },
+          poolProvider: pool.poolProvider,
+          poolLabel: POOL_LABELS[pool.poolProvider],
+          poolAvailable: pool.poolAvailable,
+          poolRequired: pool.poolRequired,
+        };
+      }),
+    );
+
+    return {
+      fetchedAt: new Date().toISOString(),
+      balances,
+      counts: {
+        pendingPayment: items.filter((item) => item.stage === 'pendingPayment').length,
+        awaitingCredits: items.filter((item) => item.stage === 'awaitingCredits').length,
+        ready: items.filter((item) => item.stage === 'ready').length,
+      },
+      items,
+    };
+  }
+
   async assertPlanPurchasable(
     plan: Pick<Plan, 'analysisProviderIds' | 'analysisProviderId' | 'analysisLimit' | 'isActive'>,
   ): Promise<void> {
