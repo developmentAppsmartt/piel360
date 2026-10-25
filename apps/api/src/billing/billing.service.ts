@@ -82,6 +82,7 @@ export class BillingService {
       eurBalance,
       usdToCop: resolveEffectiveFxRate(usdMarket, usdBalance),
       eurToCop: resolveEffectiveFxRate(eurMarket, eurBalance),
+      usdtToCop: usdMarket,
       ivaPercentDefault: Math.max(
         0,
         num(

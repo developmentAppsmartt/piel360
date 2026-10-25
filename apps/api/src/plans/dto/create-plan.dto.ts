@@ -173,4 +173,8 @@ export class CreatePlanDto {
   @IsOptional()
   @IsBoolean()
   ivaEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  showUsdtPrice?: boolean;
 }

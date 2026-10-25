@@ -35,10 +35,10 @@ export function PoolCreditsAlert({ className }: { className?: string }) {
           </p>
           <p className="text-amber-900/90">
             {unavailablePlans.length === 1
-              ? "Hay 1 plan activo que no puede contratarse"
-              : `Hay ${unavailablePlans.length} planes activos que no pueden contratarse`}{" "}
-            porque la bolsa no alcanza para cubrir sus créditos. Los doctores no verán estos
-            planes en el catálogo hasta que recargues la bolsa correspondiente.
+              ? "Hay 1 plan cuya bolsa no cubre los créditos."
+              : `Hay ${unavailablePlans.length} planes cuya bolsa no cubre los créditos.`}{" "}
+            Las compras igual se pueden hacer: quedan en prebolsa hasta que recargues
+            el tipo de análisis y el cron las active.
           </p>
           <ul className="list-inside list-disc space-y-1 text-amber-900/90">
             {unavailablePlans.map((plan) => (

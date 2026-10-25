@@ -35,6 +35,7 @@ import {
   useCreateSkiniverRecharge,
 } from "@/lib/queries/admin-bolsa-units";
 import { PoolCreditsAlert } from "@/components/admin/pool-credits-alert";
+import { PrebolsaCreditsCard } from "@/components/admin/prebolsa-credits-card";
 import { ApiError } from "@/lib/api-error";
 import { cn } from "@/lib/utils";
 
@@ -724,6 +725,7 @@ export default function BolsaUnidadesPage() {
   return (
     <div className="space-y-6">
       <PoolCreditsAlert />
+      <PrebolsaCreditsCard />
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>

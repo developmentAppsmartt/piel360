@@ -99,4 +99,8 @@ export class UpdatePlanDto {
   @IsOptional()
   @IsBoolean()
   ivaEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  showUsdtPrice?: boolean;
 }

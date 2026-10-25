@@ -30,6 +30,7 @@ import {
   API_UNITS_PER_ANALYSIS,
   computeApiTokenCostCop,
   computeSaleEconomics,
+  copToUsdt,
   parsePlanApiCosts,
   parsePlanCoverage,
   planCustomerPrice,
@@ -98,6 +99,7 @@ export type PlanWizardState = {
   maxUsers: string;
   roleLimits: Record<string, number>;
   ivaEnabled: boolean;
+  showUsdtPrice: boolean;
   /** Campos de costo API como texto para poder borrarlos al editar. */
   skiniverUnits: string;
   skiniverUnitPrice: string;
@@ -110,6 +112,7 @@ export type PlanWizardState = {
 function emptyApiCostState() {
   return {
     ivaEnabled: false,
+    showUsdtPrice: false,
     skiniverUnits: "",
     skiniverUnitPrice: "",
     youcamUnits: "",
@@ -141,6 +144,7 @@ function apiCostsFromPlan(plan: PlanAdmin) {
   const costs = parsePlanApiCosts(plan.apiCosts);
   return {
     ivaEnabled: Boolean(plan.ivaEnabled),
+    showUsdtPrice: Boolean(plan.showUsdtPrice),
     skiniverUnits: formatCostField(costs.skiniver?.units),
     skiniverUnitPrice: formatCostField(costs.skiniver?.unitPrice),
     youcamUnits: formatCostField(costs.youcam?.units),
@@ -319,6 +323,7 @@ function toPlanInput(
     headerColor: state.headerColor || DEFAULT_PLAN_HEADER_COLOR,
     planType,
     ivaEnabled: state.ivaEnabled,
+    showUsdtPrice: state.showUsdtPrice,
     apiCosts: apiCostsFromState(state, selectedSlugs, planType),
   };
 
@@ -484,6 +489,7 @@ export function PlanWizardForm({
           headerColor: DEFAULT_PLAN_HEADER_COLOR,
           maxUsers: isIndividual ? "1" : "10",
           roleLimits: emptyRoleLimits(PLAN_ROLE_OPTIONS),
+          showUsdtPrice: false,
           ...emptyApiCostState(),
         },
   );
@@ -549,6 +555,7 @@ export function PlanWizardForm({
       eurBalance,
       usdToCop: resolveEffectiveFxRate(usdMarket, usdBalance),
       eurToCop: resolveEffectiveFxRate(eurMarket, eurBalance),
+      usdtToCop: usdMarket,
       ivaPercentDefault: Math.max(
         0,
         get(
@@ -676,6 +683,11 @@ export function PlanWizardForm({
     planType,
     previewAllyPercent,
   ]);
+
+  const usdtPreview = copToUsdt(
+    parseCostNumber(state.price),
+    billingRates.usdtToCop,
+  );
 
   const providerLabels = useMemo(() => {
     return selectedSlugs.map((slug) => {
@@ -1004,7 +1016,7 @@ export function PlanWizardForm({
                 </>
               )}
 
-              <label className="flex flex-col gap-1.5 text-sm">
+              <div className="flex flex-col gap-1.5 text-sm">
                 <span className="font-medium">
                   Precio (COP) <span className="text-destructive">*</span>
                 </span>
@@ -1021,7 +1033,25 @@ export function PlanWizardForm({
                     ? `Precio del plan (incluye IVA ${billingRates.ivaPercentDefault}%). Es el que se muestra en el catálogo.`
                     : "Precio del plan en el catálogo. Activa IVA para sumarlo aquí."}
                 </span>
-              </label>
+                <label className="mt-1 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="size-4 accent-primary"
+                    checked={state.showUsdtPrice}
+                    onChange={(e) =>
+                      setState({ ...state, showUsdtPrice: e.target.checked })
+                    }
+                  />
+                  <span>Mostrar en USDT</span>
+                </label>
+                {state.showUsdtPrice ? (
+                  <span className="text-xs text-muted-foreground">
+                    {usdtPreview == null
+                      ? "Aún no hay tasa USDT. Actualiza la TRM en configuración de facturación."
+                      : `En el catálogo: ≈ USDT ${usdtPreview.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (1 USDT = ${billingRates.usdtToCop.toLocaleString("es-CO")} COP, dolarapi).`}
+                  </span>
+                ) : null}
+              </div>
               <label className="flex items-center gap-2 text-sm md:col-span-2">
                 <input
                   type="checkbox"
@@ -1657,6 +1687,16 @@ export function PlanWizardForm({
                     }).format(parseCostNumber(state.price))}
                   </dd>
                 </div>
+                {state.showUsdtPrice ? (
+                  <div className="flex justify-between gap-4">
+                    <dt>USDT</dt>
+                    <dd className="text-right font-medium text-foreground">
+                      {usdtPreview == null
+                        ? "Sin tasa"
+                        : `≈ USDT ${usdtPreview.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                    </dd>
+                  </div>
+                ) : null}
                 <div className="flex justify-between gap-4">
                   <dt>Duración</dt>
                   <dd className="text-right font-medium text-foreground">

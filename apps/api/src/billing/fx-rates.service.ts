@@ -19,6 +19,8 @@ type DolarApiCotizacion = {
 export type FxRefreshResult = {
   usdMarket: number;
   eurMarket: number;
+  /** Igual a usdMarket: dolarapi no publica USDT y 1 USDT = 1 USD. */
+  usdtToCop: number;
   usdSource: DolarApiCotizacion;
   eurSource: DolarApiCotizacion;
   updatedAt: string;
@@ -51,7 +53,7 @@ export class FxRatesService {
     return data;
   }
 
-  /** Descarga USD/EUR, toma el máx. de compra/venta/cierre y persiste en AppConfig. */
+  /** Descarga USD/EUR desde dolarapi y persiste en AppConfig. */
   async refreshFromDolarApi(): Promise<FxRefreshResult> {
     const [usdSource, eurSource] = await Promise.all([
       this.fetchCotizacion('usd'),
@@ -89,7 +91,14 @@ export class FxRatesService {
       `TRM actualizada desde dolarapi: USD ${usdMarket} · EUR ${eurMarket}`,
     );
 
-    return { usdMarket, eurMarket, usdSource, eurSource, updatedAt };
+    return {
+      usdMarket,
+      eurMarket,
+      usdtToCop: usdMarket,
+      usdSource,
+      eurSource,
+      updatedAt,
+    };
   }
 
   private async ensureBalanceKeys() {

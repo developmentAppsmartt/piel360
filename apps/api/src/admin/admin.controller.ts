@@ -49,6 +49,13 @@ export class AdminController {
     return this.skiniverUnits.createRecharge(dto, BigInt(user.sub));
   }
 
+  /** Compras en prebolsa: sin pagar, pagadas esperando créditos, listas para activar. */
+  @Get('bolsa-unidades/prebolsa')
+  @RequirePermission('admin.unit_wallet')
+  getPrebolsa() {
+    return this.planPool.listPrebolsa();
+  }
+
   /** Planes activos sin créditos suficientes en la bolsa correspondiente. */
   @Get('bolsa-unidades/plan-alerts')
   @RequirePermission('view_any_plan')

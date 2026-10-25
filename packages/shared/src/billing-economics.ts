@@ -17,6 +17,8 @@ export type BillingRates = {
   usdToCop: number;
   /** TRM efectiva EUR→COP (mercado API + balance). */
   eurToCop: number;
+  /** COP por 1 USDT. Igual a la cotización USD de dolarapi. */
+  usdtToCop: number;
   /** Valor de mercado desde dolarapi (máx. compra/venta/cierre). */
   usdMarket: number;
   eurMarket: number;
@@ -32,6 +34,7 @@ export type BillingRates = {
 export const DEFAULT_BILLING_RATES: BillingRates = {
   usdToCop: 3500,
   eurToCop: 3800,
+  usdtToCop: 0,
   usdMarket: 3500,
   eurMarket: 3800,
   usdBalance: 0,
@@ -69,6 +72,13 @@ export function pickHighestCotizacion(parts: {
     Number(parts.venta) || 0,
     Number(parts.ultimoCierre) || 0,
   );
+}
+
+/** Precio del plan en COP convertido a USDT con la tasa guardada. */
+export function copToUsdt(cop: number, usdtToCop: number): number | null {
+  if (!Number.isFinite(cop) || cop < 0) return null;
+  if (!Number.isFinite(usdtToCop) || usdtToCop <= 0) return null;
+  return Math.round((cop / usdtToCop) * 100) / 100;
 }
 
 export function resolveEffectiveFxRate(

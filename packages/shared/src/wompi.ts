@@ -118,6 +118,10 @@ export interface Plan extends PlanPoolAvailability {
   };
   /** Si true, el checkout suma IVA (% global). */
   ivaEnabled?: boolean;
+  /** Si true, el catálogo muestra el precio convertido a USDT. */
+  showUsdtPrice?: boolean;
+  /** Precio al cliente en USDT, solo si `showUsdtPrice` y hay tasa. */
+  usdtPrice?: string | null;
   /** % IVA usado para calcular `customerPrice` (config global). */
   ivaPercent?: number;
   /**

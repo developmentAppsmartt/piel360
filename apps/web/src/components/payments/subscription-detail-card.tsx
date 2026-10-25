@@ -21,7 +21,20 @@ import {
   subscriptionUsage,
 } from "./subscription-utils";
 
-function StatusBadge({ status }: { status: Subscription["status"] }) {
+function StatusBadge({
+  status,
+  awaitingPool,
+}: {
+  status: Subscription["status"];
+  awaitingPool?: boolean;
+}) {
+  if (status === "pending" && awaitingPool) {
+    return (
+      <span className="inline-flex rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+        En prebolsa
+      </span>
+    );
+  }
   if (status === "active") {
     return (
       <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
@@ -72,7 +85,10 @@ export function SubscriptionDetailCard({
             </p>
           </div>
         </div>
-        <StatusBadge status={subscription.status} />
+        <StatusBadge
+          status={subscription.status}
+          awaitingPool={subscription.awaitingPool}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-3 text-sm">
@@ -183,7 +199,10 @@ export function SubscriptionDetailBody({
             {providerLabel(slug, subscription.plan.provider.name)}
           </p>
         </div>
-        <StatusBadge status={subscription.status} />
+        <StatusBadge
+          status={subscription.status}
+          awaitingPool={subscription.awaitingPool}
+        />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">

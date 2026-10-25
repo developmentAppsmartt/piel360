@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { Check, Microscope, ScanFace } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { WompiCheckoutButton } from "@/components/payments/wompi-checkout-button";
 import { PlanCoverageIconButton } from "@/components/payments/plan-coverage-modal";
 // import { DermatologyConditionsInfo } from "@/components/payments/dermatology-conditions-info";
@@ -85,7 +84,6 @@ function PlanPricingCard({
   const accent = header.hex;
   const accentSoft = mixWithWhite(accent, 0.88);
   const accentMid = mixWithWhite(accent, 0.55);
-  const canPurchase = plan.poolPurchasable !== false;
   const features = planFeatures(plan).filter((f) => f.included);
   const variant = planVariant(plan);
   const isDerm = variant === "dermatology";
@@ -155,6 +153,18 @@ function PlanPricingCard({
           >
             {formatCOP(plan.customerPrice ?? plan.price)}
           </p>
+          {plan.showUsdtPrice && plan.usdtPrice ? (
+            <p
+              className="text-base font-semibold"
+              style={{ color: mixWithWhite(accent, 0.25) }}
+            >
+              ≈ USDT{" "}
+              {Number(plan.usdtPrice).toLocaleString("es-CO", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </p>
+          ) : null}
           <p
             className="text-sm font-semibold"
             style={{ color: mixWithWhite(accent, 0.3) }}
@@ -176,12 +186,6 @@ function PlanPricingCard({
           <BadgeIcon className="size-3.5" />
           {badgeLabel}
         </div>
-
-        {!canPurchase ? (
-          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-            Temporalmente no disponible. Contáctanos para más información.
-          </p>
-        ) : null}
 
         {features.length > 0 ? (
           <ul className="w-full max-w-xs space-y-2.5 text-left">
@@ -211,19 +215,13 @@ function PlanPricingCard({
         ) : null}
 
         <div className="mt-auto w-full pt-2">
-          {canPurchase ? (
-            <WompiCheckoutButton
-              planId={plan.id}
-              successHref={successHref}
-              label={featured ? `Elegir ${plan.name}` : "Seleccionar plan"}
-              className="h-11 w-full rounded-full font-semibold text-white shadow-none hover:opacity-90"
-              style={{ backgroundColor: accent }}
-            />
-          ) : (
-            <Button type="button" disabled className="h-11 w-full rounded-full">
-              No disponible
-            </Button>
-          )}
+          <WompiCheckoutButton
+            planId={plan.id}
+            successHref={successHref}
+            label={featured ? `Elegir ${plan.name}` : "Seleccionar plan"}
+            className="h-11 w-full rounded-full font-semibold text-white shadow-none hover:opacity-90"
+            style={{ backgroundColor: accent }}
+          />
         </div>
       </div>
     </article>
