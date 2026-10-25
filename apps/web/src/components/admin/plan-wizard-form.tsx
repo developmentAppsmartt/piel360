@@ -113,10 +113,6 @@ function emptyApiCostState() {
   return {
     ivaEnabled: false,
     showUsdtPrice: false,
-    skiniverUnits: "",
-    skiniverUnitPrice: "",
-    youcamUnits: "",
-    youcamUnitPrice: "",
     analisisDermaPiel360Units: "",
     analisisDermaPiel360UnitPrice: "",
     analisisPiel360Units: "",
@@ -149,10 +145,6 @@ function apiCostsFromPlan(plan: PlanAdmin) {
   return {
     ivaEnabled: Boolean(plan.ivaEnabled),
     showUsdtPrice: Boolean(plan.showUsdtPrice),
-    skiniverUnits: formatCostField(costs.skiniver?.units),
-    skiniverUnitPrice: formatCostField(costs.skiniver?.unitPrice),
-    youcamUnits: formatCostField(costs.youcam?.units),
-    youcamUnitPrice: formatCostField(costs.youcam?.unitPrice),
     analisisDermaPiel360Units: formatCostField(costs.analisisdermapiel360?.units),
     analisisDermaPiel360UnitPrice: formatCostField(costs.analisisdermapiel360?.unitPrice),
     analisisPiel360Units: formatCostField(costs.analisispiel360?.units),
@@ -497,7 +489,6 @@ export function PlanWizardForm({
           headerColor: DEFAULT_PLAN_HEADER_COLOR,
           maxUsers: isIndividual ? "1" : "10",
           roleLimits: emptyRoleLimits(PLAN_ROLE_OPTIONS),
-          showUsdtPrice: false,
           ...emptyApiCostState(),
         },
   );

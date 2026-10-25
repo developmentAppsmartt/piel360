@@ -171,7 +171,7 @@ export class PlanPoolAvailabilityService {
             name: row.plan.name,
             analysisLimit: row.plan.analysisLimit,
           },
-          poolProvider: pool.poolProvider,
+          poolProvider: toPublicPoolSlug(pool.poolProvider),
           poolLabel: POOL_LABELS[pool.poolProvider],
           poolAvailable: pool.poolAvailable,
           poolRequired: pool.poolRequired,
@@ -181,7 +181,10 @@ export class PlanPoolAvailabilityService {
 
     return {
       fetchedAt: new Date().toISOString(),
-      balances,
+      balances: {
+        [POOL_PUBLIC_ALIASES.skiniver]: balances.skiniver,
+        [POOL_PUBLIC_ALIASES.perfectcorp]: balances.perfectcorp,
+      },
       counts: {
         pendingPayment: items.filter((item) => item.stage === 'pendingPayment').length,
         awaitingCredits: items.filter((item) => item.stage === 'awaitingCredits').length,
