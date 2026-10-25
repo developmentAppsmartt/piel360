@@ -13,7 +13,7 @@ import {
 } from "@tanstack/react-table";
 import { ChevronRight, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -36,6 +36,7 @@ export function DataTable<TData>({
   initialSorting = [],
   variant = "default",
   title,
+  searchAside,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columns: ColumnDef<TData, any>[];
@@ -46,6 +47,8 @@ export function DataTable<TData>({
   initialSorting?: SortingState;
   variant?: "default" | "modern";
   title?: string;
+  /** Algo junto al buscador, a su derecha (p. ej. el botón de ayuda). */
+  searchAside?: ReactNode;
 }) {
   const router = useRouter();
   const modern = variant === "modern";
@@ -72,7 +75,7 @@ export function DataTable<TData>({
   const filteredCount = table.getFilteredRowModel().rows.length;
   const totalCount = data.length;
 
-  const searchInput = (
+  const searchField = (
     <div
       className={cn(
         "relative",
@@ -97,6 +100,14 @@ export function DataTable<TData>({
         )}
       />
     </div>
+  );
+  const searchInput = searchAside ? (
+    <div className="flex flex-wrap items-center gap-2">
+      {searchField}
+      {searchAside}
+    </div>
+  ) : (
+    searchField
   );
 
   const tableContent = (

@@ -5,9 +5,9 @@ import { RequirePermission } from '../auth/permissions.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/types';
 import { AdminService } from './admin.service';
-import { CreateSkiniverRechargeDto } from './dto/create-skiniver-recharge.dto';
-import { PerfectCorpUnitsService } from './perfectcorp-units.service';
-import { SkiniverUnitsService } from './skiniver-units.service';
+import { CreateAnalisisDermaPiel360RechargeDto } from './dto/create-skiniver-recharge.dto';
+import { AnalisisPiel360UnitsService } from './perfectcorp-units.service';
+import { AnalisisDermaPiel360UnitsService } from './skiniver-units.service';
 import { PlanPoolAvailabilityService } from '../plans/plan-pool-availability.service';
 
 @Controller('admin')
@@ -15,8 +15,8 @@ import { PlanPoolAvailabilityService } from '../plans/plan-pool-availability.ser
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
-    private readonly perfectCorpUnits: PerfectCorpUnitsService,
-    private readonly skiniverUnits: SkiniverUnitsService,
+    private readonly analisisPiel360Units: AnalisisPiel360UnitsService,
+    private readonly analisisDermaPiel360Units: AnalisisDermaPiel360UnitsService,
     private readonly planPool: PlanPoolAvailabilityService,
   ) {}
 
@@ -26,27 +26,27 @@ export class AdminController {
     return this.adminService.getDashboardStats();
   }
 
-  /** Saldo Perfect Corp (YouCam + Fitzpatrick) + costos por SKU. */
-  @Get('bolsa-unidades/perfectcorp')
+  /** Saldo de la bolsa estetica (estetico + fototipo) + costos por SKU. */
+  @Get('bolsa-unidades/analisispiel360')
   @RequirePermission('admin.unit_wallet')
-  getPerfectCorpUnits() {
-    return this.perfectCorpUnits.getAestheticUnitPool();
+  getAnalisisPiel360Units() {
+    return this.analisisPiel360Units.getAestheticUnitPool();
   }
 
-  /** Bolsa dermatológica (Skiniver) — recargas registradas en plataforma. */
-  @Get('bolsa-unidades/skiniver')
+  /** Bolsa dermatológica — recargas registradas en plataforma. */
+  @Get('bolsa-unidades/analisisdermapiel360')
   @RequirePermission('admin.unit_wallet')
-  getSkiniverUnits() {
-    return this.skiniverUnits.getDermUnitPool();
+  getAnalisisDermaPiel360Units() {
+    return this.analisisDermaPiel360Units.getDermUnitPool();
   }
 
-  @Post('bolsa-unidades/skiniver/recharge')
+  @Post('bolsa-unidades/analisisdermapiel360/recharge')
   @RequirePermission('admin.unit_wallet')
-  rechargeSkiniverUnits(
-    @Body() dto: CreateSkiniverRechargeDto,
+  rechargeAnalisisDermaPiel360Units(
+    @Body() dto: CreateAnalisisDermaPiel360RechargeDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.skiniverUnits.createRecharge(dto, BigInt(user.sub));
+    return this.analisisDermaPiel360Units.createRecharge(dto, BigInt(user.sub));
   }
 
   /** Compras en prebolsa: sin pagar, pagadas esperando créditos, listas para activar. */
@@ -71,17 +71,6 @@ export class AdminController {
     @Query('granularity') granularity?: 'day' | 'month' | 'year',
   ) {
     return this.adminService.getReports(startDate, endDate, granularity);
-  }
-
-  /** Mismo reporte dermatológico del panel del doctor, con alcance global
-   * (sin filtro por doctor). */
-  @Get('reports/skiniver')
-  @RequirePermission('admin.reports')
-  getSkiniverReport(
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-  ) {
-    return this.adminService.getSkiniverReport(startDate, endDate);
   }
 
   @Get('map-markers')

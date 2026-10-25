@@ -3,15 +3,17 @@
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import {
-  skiniverCategoryLabel,
-  skiniverDiagnosisLabel,
-  skiniverRiskLabel,
-  type SkiniverDiagnosisCandidate,
-  type SkiniverPrediction,
+  analisisDermaPiel360CategoryLabel,
+  analisisDermaPiel360DiagnosisLabel,
+  analisisDermaPiel360RiskLabel,
+  colombiaDateKey,
+  type AnalisisDermaPiel360DiagnosisCandidate,
+  type AnalisisDermaPiel360Prediction,
 } from "@piel360/shared";
 import { DiagnosisDetailDialog } from "@/components/analyses/diagnosis-detail-dialog";
 import { DiagnosisList } from "@/components/analyses/diagnosis-list";
 import { ImageCarousel } from "@/components/analyses/image-carousel";
+import { gaugePercent } from "@/components/analyses/derma-risk";
 import { RiskGauge } from "@/components/analyses/risk-gauge";
 import { isDermatologicalAnalysis } from "@/lib/patient-comparison";
 import { useAnalyses, useAnalysis } from "@/lib/queries/analyses";
@@ -31,22 +33,34 @@ type ClinicoTab = "imagenes" | "resultados";
  * separado, así que acá se arman con las mismas piezas, no se duplica su
  * lógica de estado.
  */
-export function SkiniverClinicoWidget() {
+export function AnalisisDermaPiel360ClinicoWidget({
+  range,
+}: {
+  /** El periodo del reporte (`YYYY-MM-DD`, días de Colombia): la lista
+   * muestra los mismos análisis que cuentan los gráficos. */
+  range: { from: string; to: string };
+}) {
   const analyses = useAnalyses();
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<ClinicoTab>("imagenes");
   const [selectedDiagnosis, setSelectedDiagnosis] =
-    useState<SkiniverDiagnosisCandidate | null>(null);
+    useState<AnalisisDermaPiel360DiagnosisCandidate | null>(null);
 
-  const skiniverAnalyses = useMemo(() => {
+  const analisisDermaPiel360Analyses = useMemo(() => {
     // Por tipo de análisis y no por `provider.displayLabel`: esa etiqueta es
     // texto para el usuario y en producción quedó con el valor anterior al
     // seed, así que compararla dejaba la lista siempre vacía. Es el mismo
-    // criterio que el SQL del reporte (skiniver-reports.queries.ts).
-    const rows = (analyses.data ?? []).filter(
-      (a) => a.isValid && isDermatologicalAnalysis(a),
-    );
+    // criterio que el SQL del reporte (analisisdermapiel360-reports.queries.ts).
+    const rows = (analyses.data ?? []).filter((a) => {
+      const day = colombiaDateKey(new Date(a.createdAt));
+      return (
+        a.isValid &&
+        isDermatologicalAnalysis(a) &&
+        day >= range.from &&
+        day <= range.to
+      );
+    });
     const q = search.trim().toLowerCase();
     const filtered = q
       ? rows.filter((a) =>
@@ -54,13 +68,13 @@ export function SkiniverClinicoWidget() {
         )
       : rows;
     return filtered.slice(0, 20);
-  }, [analyses.data, search]);
+  }, [analyses.data, search, range.from, range.to]);
 
   const selected = useAnalysis(selectedId ?? "", { enabled: !!selectedId });
 
-  const prediction = selected.data?.aiRawResponse as SkiniverPrediction | undefined;
+  const prediction = selected.data?.aiRawResponse as AnalisisDermaPiel360Prediction | undefined;
   const topDiagnosis = prediction?.topn?.[0];
-  const riskLabel = skiniverRiskLabel(prediction?.risk, topDiagnosis?.risk_level);
+  const riskLabel = analisisDermaPiel360RiskLabel(prediction?.risk, topDiagnosis?.risk_level);
 
   return (
     <div className="space-y-4">
@@ -81,12 +95,13 @@ export function SkiniverClinicoWidget() {
 
         {!analyses.isLoading && (
           <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto rounded-md border border-border/80 p-1">
-            {skiniverAnalyses.length === 0 && (
+            {analisisDermaPiel360Analyses.length === 0 && (
               <li className="px-2 py-1.5 text-sm text-muted-foreground">
-                Sin análisis dermatológicos {search ? "que coincidan" : "aún"}.
+                Sin análisis dermatológicos{" "}
+                {search ? "que coincidan" : "en el periodo"}.
               </li>
             )}
-            {skiniverAnalyses.map((a) => (
+            {analisisDermaPiel360Analyses.map((a) => (
               <li key={a.id}>
                 <button
                   type="button"
@@ -100,9 +115,13 @@ export function SkiniverClinicoWidget() {
                     {a.patient.firstName} {a.patient.lastName}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {new Date(a.createdAt).toLocaleDateString("es-CO")}
-                    {a.aiDiagnosis
-                      ? ` · ${skiniverDiagnosisLabel(a.aiDiagnosis)}`
+                    {new Date(a.createdAt).toLocaleDateString("es-CO", {
+                      timeZone: "America/Bogota",
+                    })}
+                    {/* El del profesional si lo hay, como en el historial
+                        del paciente: es el que cuentan los gráficos. */}
+                    {a.finalDiagnosis || a.aiDiagnosis
+                      ? ` · ${analisisDermaPiel360DiagnosisLabel(a.finalDiagnosis ?? a.aiDiagnosis)}`
                       : ""}
                   </span>
                 </button>
@@ -165,12 +184,7 @@ export function SkiniverClinicoWidget() {
           {tab === "resultados" && (
             <div className="space-y-4">
               <RiskGauge
-                percent={(() => {
-                  const raw = prediction?.high_risk_prob;
-                  if (raw == null || !Number.isFinite(Number(raw))) return 0;
-                  const n = Number(raw);
-                  return n <= 1 ? n * 100 : n;
-                })()}
+                percent={gaugePercent(prediction)}
                 riskLabel={riskLabel}
               />
 
@@ -183,11 +197,11 @@ export function SkiniverClinicoWidget() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-muted-foreground">
-                      {skiniverCategoryLabel(topDiagnosis.desease) ||
+                      {analisisDermaPiel360CategoryLabel(topDiagnosis.desease) ||
                         "Diagnóstico principal"}
                     </p>
                     <p className="truncate text-base font-semibold">
-                      {skiniverDiagnosisLabel(
+                      {analisisDermaPiel360DiagnosisLabel(
                         topDiagnosis.class,
                         topDiagnosis.class_raw,
                       )}
@@ -195,7 +209,7 @@ export function SkiniverClinicoWidget() {
                     {topDiagnosis.risk ? (
                       <p className="text-sm text-muted-foreground">
                         Riesgo:{" "}
-                        {skiniverRiskLabel(
+                        {analisisDermaPiel360RiskLabel(
                           topDiagnosis.risk,
                           topDiagnosis.risk_level,
                         )}

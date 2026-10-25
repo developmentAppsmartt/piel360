@@ -7,9 +7,9 @@ export type AnalysisProviderSlug = (typeof ANALYSIS_PROVIDER_SLUGS)[number];
 
 /**
  * Las 16 métricas HD solicitadas a YouCam en `dst_actions`
- * (INTEGRACIONES-IA.md §2.3 — YouCamService.startAnalysis).
+ * (INTEGRACIONES-IA.md §2.3 — AnalisisPiel360Service.startAnalysis).
  */
-export const YOUCAM_DST_ACTIONS = [
+export const ANALISIS_PIEL360_DST_ACTIONS = [
   "hd_redness",
   "hd_oiliness",
   "hd_age_spot",
@@ -28,18 +28,18 @@ export const YOUCAM_DST_ACTIONS = [
   "hd_skin_type",
 ] as const;
 
-export type YouCamAction = (typeof YOUCAM_DST_ACTIONS)[number];
+export type AnalisisPiel360Action = (typeof ANALISIS_PIEL360_DST_ACTIONS)[number];
 
 /**
  * Métricas condicionables en Rutinas/Tratamientos (AnalysisConditionsService)
- * — las 16 de `YOUCAM_DST_ACTIONS` más dos salidas *derivadas*: `all`
+ * — las 16 de `ANALISIS_PIEL360_DST_ACTIONS` más dos salidas *derivadas*: `all`
  * (puntaje global, "Salud de la piel") y `patient_age` (edad cronológica
  * real del paciente, vía `Patient.birthDate` — no viene de YouCam).
  * `skin_age` ("edad de piel") ya no vive acá — tiene su propio módulo
  * dedicado, ver apps/api/src/skin-age-rules.
  */
 export const CONDITIONABLE_METRIC_TYPES = [
-  ...YOUCAM_DST_ACTIONS,
+  ...ANALISIS_PIEL360_DST_ACTIONS,
   "all",
   "patient_age",
 ] as const;
@@ -47,11 +47,11 @@ export const CONDITIONABLE_METRIC_TYPES = [
 /**
  * Los 8 valores posibles de `hd_skin_type[].skin_type` según la doc de
  * YouCam (en minúsculas — la API no garantiza la misma capitalización byte a
- * byte, ver `youcamSkinTypeLabel`). Única fuente de verdad: valida el DTO de
+ * byte, ver `analisisPiel360SkinTypeLabel`). Única fuente de verdad: valida el DTO de
  * condiciones en el backend y alimenta el selector de valor en el frontend
  * (que solo tenía las etiquetas, en apps/web/src/lib/youcam-metric-labels.ts).
  */
-export const YOUCAM_SKIN_TYPE_VALUES = [
+export const ANALISIS_PIEL360_SKIN_TYPE_VALUES = [
   "normal",
   "oily",
   "dry",
@@ -69,18 +69,18 @@ export const YOUCAM_SKIN_TYPE_VALUES = [
  * (validación/upscale antes de subir) y frontend (chequeo en la captura de
  * YouCam) para que ambos usen el mismo umbral.
  */
-export const YOUCAM_HD_MIN_SHORT_SIDE_PX = 1080;
+export const ANALISIS_PIEL360_HD_MIN_SHORT_SIDE_PX = 1080;
 
 /**
  * Piso por debajo del cual NO se intenta escalar la imagen hacia arriba —
  * capturas más chicas que esto son una foto genuinamente de baja calidad
  * (recorte/zoom/cámara pobre), no solo un recorte marginal por redondeo de
- * aspecto. Entre este piso y `YOUCAM_HD_MIN_SHORT_SIDE_PX`, el backend
+ * aspecto. Entre este piso y `ANALISIS_PIEL360_HD_MIN_SHORT_SIDE_PX`, el backend
  * redimensiona la imagen en vez de rechazarla (casos vistos en producción:
  * capturas de 1058px, ~2% por debajo del mínimo).
  */
-export const YOUCAM_UPSCALE_MIN_SHORT_SIDE_PX = 1000;
+export const ANALISIS_PIEL360_UPSCALE_MIN_SHORT_SIDE_PX = 1000;
 
 /** Margen sobre el mínimo real al redimensionar, para no quedar en el límite
  * exacto por errores de redondeo al escalar ambos lados. */
-export const YOUCAM_UPSCALE_TARGET_SHORT_SIDE_PX = 1088;
+export const ANALISIS_PIEL360_UPSCALE_TARGET_SHORT_SIDE_PX = 1088;

@@ -3,44 +3,26 @@
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-error";
 import { ConditionRow, defaultConditionRow } from "@/components/conditions/condition-row";
-import { CONDITION_METRICS, isSkinTypeMetric } from "@/lib/condition-labels";
+import {
+  conditionKey,
+  conditionRowError,
+  conditionsSchema,
+  firstFreeMetric,
+  toConditionFormValues,
+  toConditionInput,
+} from "@/components/conditions/condition-schema";
+import { ConditionsFormFooter } from "@/components/conditions/conditions-form-footer";
 import { useTreatmentCategories } from "@/lib/queries/treatments";
 import type { CreateTreatmentInput, Treatment } from "@/lib/queries/treatments";
-
-const conditionSchema = z
-  .object({
-    metricType: z.string().min(1, "Selecciona una métrica"),
-    region: z.string().optional(),
-    operator: z.enum(["lt", "lte", "eq", "gte", "gt", "between"]),
-    value: z.string().optional(),
-    valueTo: z.string().optional(),
-    textValue: z.string().optional(),
-  })
-  .refine(
-    (c) => {
-      if (isSkinTypeMetric(c.metricType)) return !!c.textValue;
-      if (!c.value || Number.isNaN(parseFloat(c.value))) return false;
-      if (c.operator === "between") {
-        return !!c.valueTo && !Number.isNaN(parseFloat(c.valueTo));
-      }
-      return true;
-    },
-    {
-      message: "Selecciona un valor",
-      path: ["value"],
-    },
-  );
 
 const schema = z.object({
   name: z.string().min(1, "Requerido").max(200),
   description: z.string().optional(),
   categoryId: z.string().optional(),
   isActive: z.boolean(),
-  conditions: z.array(conditionSchema),
+  conditions: conditionsSchema,
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -71,6 +53,7 @@ export function TreatmentForm({
     control,
     handleSubmit,
     watch,
+    setValue,
     setError,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
@@ -80,25 +63,16 @@ export function TreatmentForm({
       description: defaultValues?.description ?? "",
       categoryId: defaultValues?.categoryId ?? "",
       isActive: defaultValues?.isActive ?? true,
-      conditions:
-        defaultValues?.conditions.map((c) => ({
-          metricType: c.metricType,
-          region: c.region ?? "",
-          operator: c.operator,
-          value: c.value != null ? String(c.value) : "",
-          valueTo: c.valueTo != null ? String(c.valueTo) : "",
-          textValue: c.textValue ?? "",
-        })) ?? [],
+      conditions: defaultValues?.conditions.map(toConditionFormValues) ?? [],
     },
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "conditions" });
   const watchedConditions = watch("conditions");
+  const conditionKeys = watchedConditions.map(conditionKey);
+  const nextMetric = firstFreeMetric(conditionKeys, excludedMetrics);
 
   const subjectPhrase = forceCategoryPicker ? "este tratamiento" : "este producto sugerido";
-  const firstAllowedMetric = CONDITION_METRICS.find(
-    (type) => !excludedMetrics?.includes(type),
-  );
 
   const submit = handleSubmit(async (values) => {
     try {
@@ -107,23 +81,7 @@ export function TreatmentForm({
         description: values.description || undefined,
         categoryId: forceCategoryPicker ? values.categoryId || undefined : null,
         isActive: values.isActive,
-        conditions: values.conditions.map((c) =>
-          isSkinTypeMetric(c.metricType)
-            ? {
-                metricType: c.metricType,
-                region: c.region || undefined,
-                operator: "eq" as const,
-                value: null,
-                textValue: c.textValue,
-              }
-            : {
-                metricType: c.metricType,
-                region: c.region || undefined,
-                operator: c.operator,
-                value: parseFloat(c.value ?? ""),
-                valueTo: c.operator === "between" ? parseFloat(c.valueTo ?? "") : undefined,
-              },
-        ),
+        conditions: values.conditions.map(toConditionInput),
       });
     } catch (err) {
       setError("root", {
@@ -133,7 +91,7 @@ export function TreatmentForm({
   });
 
   return (
-    <form onSubmit={submit} className="space-y-5">
+    <form onSubmit={submit} noValidate className="space-y-5">
       <div className="space-y-1">
         <label htmlFor="name" className="block text-sm font-medium text-foreground">
           Nombre
@@ -184,18 +142,7 @@ export function TreatmentForm({
       </div>
 
       <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-medium text-foreground">Condiciones</p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => append(defaultConditionRow(firstAllowedMetric))}
-          >
-            <Plus className="mr-1 size-4" />
-            Agregar condición
-          </Button>
-        </div>
+        <p className="text-sm font-medium text-foreground">Condiciones</p>
 
         {fields.length === 0 && (
           <p className="text-sm text-muted-foreground">
@@ -217,12 +164,11 @@ export function TreatmentForm({
             index={index}
             register={register}
             watched={watchedConditions[index]}
-            error={
-              errors.conditions?.[index]?.value?.message ??
-              errors.conditions?.[index]?.metricType?.message
-            }
+            error={conditionRowError(errors.conditions?.[index])}
             subjectPhrase={subjectPhrase}
             excludedMetrics={excludedMetrics}
+            usedKeys={conditionKeys.filter((_, i) => i !== index)}
+            onMetricChange={() => setValue(`conditions.${index}.region`, "")}
             onRemove={() => remove(index)}
           />
         ))}
@@ -230,11 +176,12 @@ export function TreatmentForm({
 
       {errors.root && <p className="text-sm text-destructive">{errors.root.message}</p>}
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Guardando..." : submitLabel}
-        </Button>
-      </div>
+      <ConditionsFormFooter
+        onAddCondition={() => nextMetric && append(defaultConditionRow(nextMetric))}
+        canAddCondition={nextMetric != null}
+        isSubmitting={isSubmitting}
+        submitLabel={submitLabel}
+      />
     </form>
   );
 }

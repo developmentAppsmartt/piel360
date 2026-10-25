@@ -8,7 +8,7 @@ import {
   Min,
 } from 'class-validator';
 
-export class CreateSkiniverRechargeDto {
+export class CreateAnalisisDermaPiel360RechargeDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)

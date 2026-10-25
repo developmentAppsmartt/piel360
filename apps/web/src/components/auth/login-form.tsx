@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useSyncExternalStore } from "react";
+import { useActionState, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { SESSION_REPLACED_MESSAGE, type Role } from "@piel360/shared";
 import { ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
@@ -8,8 +8,10 @@ import { loginAction, type AuthActionState } from "@/lib/actions/auth";
 import { useClearClientQueryCache } from "@/lib/clear-client-query-cache";
 import { googleOAuthRole } from "@/lib/google-auth";
 import { SESSION_REPLACED_REASON } from "@/lib/login-path";
+import { RECAPTCHA_SITE_KEY, resetRecaptcha } from "@/lib/recaptcha";
 import { GoogleContinueButton } from "./google-continue-button";
 import { LoginIconField } from "./login-icon-field";
+import { RecaptchaCheckbox } from "./recaptcha-checkbox";
 
 const initialState: AuthActionState = {};
 
@@ -26,12 +28,22 @@ export function LoginForm({
   showForgotPassword?: boolean;
 }) {
   const clearClientCache = useClearClientQueryCache();
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaWidgetId = useRef<number | null>(null);
   const boundAction = async (
     prevState: AuthActionState,
     formData: FormData,
   ) => {
+    if (RECAPTCHA_SITE_KEY && !formData.get("captchaToken")) {
+      return { error: "Marca la casilla «No soy un robot»." };
+    }
     clearClientCache();
-    return loginAction(role, prevState, formData);
+    const result = await loginAction(role, prevState, formData);
+    // Si vuelve, el login falló (al entrar redirige): el token ya se gastó en
+    // el API y no sirve para otro intento.
+    resetRecaptcha(captchaWidgetId.current);
+    setCaptchaToken(null);
+    return result;
   };
   const [state, formAction, isPending] = useActionState(
     boundAction,
@@ -110,6 +122,15 @@ export function LoginForm({
           </Link>
         ) : null}
       </div>
+
+      <RecaptchaCheckbox
+        action="login"
+        widgetIdRef={captchaWidgetId}
+        onToken={setCaptchaToken}
+      />
+      {captchaToken ? (
+        <input type="hidden" name="captchaToken" value={captchaToken} />
+      ) : null}
 
       {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}
 

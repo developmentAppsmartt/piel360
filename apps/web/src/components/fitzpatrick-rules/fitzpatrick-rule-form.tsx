@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { FitzpatrickScale } from "@piel360/shared";
 import { FITZPATRICK_SCALES } from "@piel360/shared";
+import { CatalogChecklist } from "@/components/shared/catalog-checklist";
 import { Button } from "@/components/ui/button";
 import { ModuleCard, ModuleCardDescription, ModuleCardTitle } from "@/components/ui/module-card";
 import { ApiError } from "@/lib/api-error";
@@ -100,6 +101,7 @@ export function FitzpatrickRuleForm({
         id: product.id,
         label: product.productName,
         hint: product.category?.categoryName ?? "Producto",
+        imageUrl: product.imageUrl,
       })),
     [catalogProducts.data],
   );
@@ -110,6 +112,7 @@ export function FitzpatrickRuleForm({
         id: product.id,
         label: product.productName,
         hint: product.category?.categoryName ?? "Suplemento",
+        imageUrl: product.imageUrl,
       })),
     [catalogSupplements.data],
   );
@@ -383,81 +386,6 @@ export function FitzpatrickRuleForm({
           </p>
         </ModuleCard>
       </div>
-    </div>
-  );
-}
-
-function CatalogChecklist({
-  title,
-  icon: Icon,
-  options,
-  selectedIds,
-  onChange,
-  emptyHint,
-  loading,
-}: {
-  title: string;
-  icon: typeof FlaskConical;
-  options: { id: string; label: string; hint: string }[];
-  selectedIds: string[];
-  onChange: (ids: string[]) => void;
-  emptyHint: string;
-  loading?: boolean;
-}) {
-  function toggle(id: string) {
-    onChange(
-      selectedIds.includes(id)
-        ? selectedIds.filter((value) => value !== id)
-        : [...selectedIds, id],
-    );
-  }
-
-  return (
-    <div className="rounded-xl border border-border p-3">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="inline-flex items-center gap-2 text-sm font-medium">
-          <Icon className="size-4 text-primary" />
-          {title}
-        </p>
-        <span className="text-xs text-muted-foreground">
-          {selectedIds.length} seleccionado{selectedIds.length === 1 ? "" : "s"}
-        </span>
-      </div>
-      {loading ? (
-        <p className="py-3 text-center text-xs text-muted-foreground">Cargando…</p>
-      ) : options.length === 0 ? (
-        <p className="py-3 text-center text-xs text-muted-foreground">{emptyHint}</p>
-      ) : (
-        <div className="max-h-48 space-y-1.5 overflow-y-auto">
-          {options.map((option) => {
-            const active = selectedIds.includes(option.id);
-            return (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => toggle(option.id)}
-                className={cn(
-                  "flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
-                  active
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/30",
-                )}
-              >
-                <span>
-                  <span className="block font-medium">{option.label}</span>
-                  <span className="block text-xs text-muted-foreground">{option.hint}</span>
-                </span>
-                <span
-                  className={cn(
-                    "size-4 shrink-0 rounded border",
-                    active ? "border-primary bg-primary" : "border-muted-foreground/40",
-                  )}
-                />
-              </button>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }

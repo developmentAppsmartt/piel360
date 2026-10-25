@@ -1,17 +1,17 @@
 "use client";
 
-import { YOUCAM_HD_MIN_SHORT_SIDE_PX, YOUCAM_UPSCALE_MIN_SHORT_SIDE_PX } from "@piel360/shared";
+import { ANALISIS_PIEL360_HD_MIN_SHORT_SIDE_PX, ANALISIS_PIEL360_UPSCALE_MIN_SHORT_SIDE_PX } from "@piel360/shared";
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
 
 const YMK_SDK_URL = "https://plugins-media.makeupar.com/v2.5-camera-kit/sdk.js";
-// Piso real de bloqueo — el mismo que usa el backend (youcam-analyses.service.ts):
+// Piso real de bloqueo — el mismo que usa el backend (analisispiel360-analyses.service.ts):
 // por debajo de esto no se intenta escalar la imagen, es una foto genuinamente
-// de baja calidad. Entre este piso y YOUCAM_HD_MIN_SHORT_SIDE_PX (1080, el
+// de baja calidad. Entre este piso y ANALISIS_PIEL360_HD_MIN_SHORT_SIDE_PX (1080, el
 // mínimo real de YouCam), el backend redimensiona en vez de rechazar — bloquear
 // acá con el mismo umbral que el backend evita rechazar en el navegador algo
 // que el servidor de todos modos aceptaría.
-const MIN_CAPTURE_SHORT_SIDE = YOUCAM_UPSCALE_MIN_SHORT_SIDE_PX;
+const MIN_CAPTURE_SHORT_SIDE = ANALISIS_PIEL360_UPSCALE_MIN_SHORT_SIDE_PX;
 
 interface YMKCapturedResult {
   images: { image: string; width: number; height: number }[];
@@ -45,7 +45,7 @@ async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
   return res.blob();
 }
 
-export function YoucamCapture({
+export function AnalisisPiel360Capture({
   onCapture,
 }: {
   onCapture: (blob: Blob) => void;
@@ -94,7 +94,7 @@ export function YoucamCapture({
 
     YMK.addEventListener("cameraOpened", () => {
       const video = containerRef.current?.querySelector("video");
-      if (video && video.videoHeight && video.videoHeight < YOUCAM_HD_MIN_SHORT_SIDE_PX) {
+      if (video && video.videoHeight && video.videoHeight < ANALISIS_PIEL360_HD_MIN_SHORT_SIDE_PX) {
         setLowResWarning(true);
       }
     });

@@ -89,9 +89,10 @@ export interface Plan extends PlanPoolAvailability {
   maxUsers: number;
   modules: string[];
   roleLimits: Record<string, number>;
-  /** Límites por bolsa (Skiniver vs Estético/Fototipo). */
+  /** Límites por bolsa (dermatológica vs estética/fototipo). Claves con el
+   * slug público: esta forma es la que viaja al navegador. */
   analysisLimits?: {
-    skiniver?: number;
+    analisisdermapiel360?: number;
     aesthetic?: number;
   };
   /** Virtudes comerciales (✓ / ✗) para la card del catálogo. */

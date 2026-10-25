@@ -8,7 +8,7 @@ import { PatientsModule } from '../patients/patients.module';
 import { ReportsModule } from '../reports/reports.module';
 import { RoutinesModule } from '../routines/routines.module';
 import { SkinAgeRulesModule } from '../skin-age-rules/skin-age-rules.module';
-import { SkiniverModule } from '../skiniver/skiniver.module';
+import { AnalisisDermaPiel360Module } from '../skiniver/skiniver.module';
 import { StorageModule } from '../storage/storage.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { TreatmentsModule } from '../treatments/treatments.module';
@@ -16,6 +16,8 @@ import { AnalysesService } from './analyses.service';
 import { AnalysesController } from './analyses.controller';
 import { AnalysisImagesProcessor } from './analysis-images.processor';
 import { AnalysisImageUrlsService } from './analysis-image-urls.service';
+import { AnalysisConsumptionService } from './analysis-consumption.service';
+import { FinalDiagnosisBackfill } from './final-diagnosis-backfill';
 import { ANALYSIS_IMAGES_QUEUE, ENCYCLOPEDIA_QUEUE } from './queues';
 
 @Module({
@@ -32,15 +34,17 @@ import { ANALYSIS_IMAGES_QUEUE, ENCYCLOPEDIA_QUEUE } from './queues';
     FitzpatrickRulesModule,
     RoutinesModule,
     TreatmentsModule,
-    SkiniverModule,
+    AnalisisDermaPiel360Module,
     SubscriptionsModule,
     StorageModule,
     ReportsModule,
   ],
   providers: [
     AnalysesService,
+    AnalysisConsumptionService,
     AnalysisImagesProcessor,
     AnalysisImageUrlsService,
+    FinalDiagnosisBackfill,
   ],
   controllers: [AnalysesController],
 })

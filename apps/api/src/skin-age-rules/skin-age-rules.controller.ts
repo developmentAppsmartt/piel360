@@ -18,13 +18,17 @@ import {
   SimulateSkinAgeRuleDto,
   UpdateSkinAgeRuleDto,
 } from './dto/skin-age-rule.dto';
+import { SkinAgeRecommendationsService } from './skin-age-recommendations.service';
 import { SkinAgeRulesService } from './skin-age-rules.service';
 
 @Controller('skin-age-rules')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ClinicalPanelOrSuperadminRoles()
 export class SkinAgeRulesController {
-  constructor(private readonly skinAgeRulesService: SkinAgeRulesService) {}
+  constructor(
+    private readonly skinAgeRulesService: SkinAgeRulesService,
+    private readonly recommendations: SkinAgeRecommendationsService,
+  ) {}
 
   @Get()
   list(@CurrentUser() user: JwtPayload) {
@@ -36,7 +40,7 @@ export class SkinAgeRulesController {
     @CurrentUser() user: JwtPayload,
     @Body() dto: SimulateSkinAgeRuleDto,
   ) {
-    return this.skinAgeRulesService.simulate(user.sub, dto);
+    return this.recommendations.simulate(user.sub, dto);
   }
 
   @Get('recommended/:analysisId')
@@ -44,7 +48,7 @@ export class SkinAgeRulesController {
     @CurrentUser() user: JwtPayload,
     @Param('analysisId') analysisId: string,
   ) {
-    return this.skinAgeRulesService.recommendForAnalysis(user.sub, analysisId);
+    return this.recommendations.recommendForAnalysis(user.sub, analysisId);
   }
 
   @Post()

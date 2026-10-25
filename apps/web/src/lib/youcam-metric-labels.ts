@@ -1,5 +1,5 @@
-export const YOUCAM_METRIC_LABELS: Record<string, string> = {
-  hd_redness: "Enrojecimiento",
+export const ANALISIS_PIEL360_METRIC_LABELS: Record<string, string> = {
+  hd_redness: "Eritema",
   hd_oiliness: "Grasa",
   hd_age_spot: "Manchas de edad",
   hd_radiance: "Luminosidad",
@@ -23,7 +23,7 @@ export const YOUCAM_METRIC_LABELS: Record<string, string> = {
 
 // Algunas métricas (hd_pore, hd_wrinkle, hd_skin_type) traen varias regiones
 // bajo el mismo `type` — se usa para distinguirlas en el carrusel y en el
-// selector de subcategorías de YoucamResultsSection.
+// selector de subcategorías de AnalisisPiel360ResultsSection.
 export const YOUCAM_REGION_LABELS: Record<string, string> = {
   whole: "Cara completa",
   forehead: "Frente",
@@ -38,20 +38,20 @@ export const YOUCAM_REGION_LABELS: Record<string, string> = {
   u_zone: "Zona U",
 };
 
-export function youcamRegionLabel(region: string): string {
+export function analisisPiel360RegionLabel(region: string): string {
   return YOUCAM_REGION_LABELS[region] ?? region;
 }
 
-export function youcamMaskLabel(type: string, region?: string): string {
-  const base = YOUCAM_METRIC_LABELS[type] ?? type;
+export function analisisPiel360MaskLabel(type: string, region?: string): string {
+  const base = ANALISIS_PIEL360_METRIC_LABELS[type] ?? type;
   if (!region) return base;
-  return `${base} — ${youcamRegionLabel(region)}`;
+  return `${base} — ${analisisPiel360RegionLabel(region)}`;
 }
 
 // Los 8 valores posibles de `skin_type`/`hd_skin_type[].skin_type` según la
 // doc de YouCam — clave en minúsculas porque la API no garantiza la misma
 // capitalización de la doc byte a byte.
-export const YOUCAM_SKIN_TYPE_LABELS: Record<string, string> = {
+export const ANALISIS_PIEL360_SKIN_TYPE_LABELS: Record<string, string> = {
   normal: "Normal",
   oily: "Grasa",
   dry: "Seca",
@@ -62,6 +62,6 @@ export const YOUCAM_SKIN_TYPE_LABELS: Record<string, string> = {
   "combination & redness": "Mixta y enrojecida",
 };
 
-export function youcamSkinTypeLabel(value: string): string {
-  return YOUCAM_SKIN_TYPE_LABELS[value.toLowerCase()] ?? value;
+export function analisisPiel360SkinTypeLabel(value: string): string {
+  return ANALISIS_PIEL360_SKIN_TYPE_LABELS[value.toLowerCase()] ?? value;
 }

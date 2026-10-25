@@ -59,10 +59,10 @@ export class UpdatePlanDto {
   @IsObject()
   roleLimits?: Record<string, number>;
 
-  /** { skiniver?: number, aesthetic?: number } */
+  /** { analisisdermapiel360?: number, aesthetic?: number } */
   @IsOptional()
   @IsObject()
-  analysisLimits?: { skiniver?: number; aesthetic?: number };
+  analysisLimits?: { analisisdermapiel360?: number; aesthetic?: number };
 
   @IsOptional()
   @IsBoolean()

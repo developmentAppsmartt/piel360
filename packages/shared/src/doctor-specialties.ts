@@ -10,7 +10,7 @@ export const PROVIDER_USAGE_PERMISSIONS: Record<
   fitzpatrick: "use_provider_fitzpatrick",
 };
 
-export const PROVIDER_USAGE_PERMISSION_NAMES = Object.values(
+export const PROVIDER_USAGE_PERMISSION_NAMES = /* @__PURE__ */ Object.values(
   PROVIDER_USAGE_PERMISSIONS,
 ) as readonly (typeof PROVIDER_USAGE_PERMISSIONS)[AnalysisProviderSlug][];
 
@@ -25,7 +25,7 @@ export const PATIENT_PROVIDER_RUN_PERMISSIONS: Partial<
   fitzpatrick: "patient_run_fitzpatrick",
 };
 
-export const PATIENT_PROVIDER_RUN_PERMISSION_NAMES = Object.values(
+export const PATIENT_PROVIDER_RUN_PERMISSION_NAMES = /* @__PURE__ */ Object.values(
   PATIENT_PROVIDER_RUN_PERMISSIONS,
 ) as readonly string[];
 

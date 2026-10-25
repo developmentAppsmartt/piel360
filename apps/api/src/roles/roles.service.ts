@@ -1,6 +1,9 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { inferPrimaryPanelFromPermissions } from '@piel360/shared';
+import {
+  inferPrimaryPanelFromPermissions,
+  toPublicProviderPermission,
+} from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateRoleDto } from './dto/create-role.dto';
 import type { UpdateRoleDto } from './dto/update-role.dto';
@@ -48,10 +51,13 @@ export class RolesService {
           roleId: link.doctorSpecialty.roleId.toString(),
         },
       })),
+      // El panel se descarga al navegador: los permisos salen con el slug
+      // publico. Se guarda por `permissionIds`, asi que no hay vuelta atras.
       permissions: role.permissions.map((permission) => ({
         ...permission,
         id: permission.id.toString(),
-        slug: permission.slug,
+        name: toPublicProviderPermission(permission.name),
+        slug: toPublicProviderPermission(permission.slug),
         label: permission.label,
         isActive: permission.isActive,
         kind: permission.kind,
@@ -90,8 +96,8 @@ export class RolesService {
     });
     return permissions.map((permission) => ({
       id: permission.id.toString(),
-      name: permission.name,
-      slug: permission.slug,
+      name: toPublicProviderPermission(permission.name),
+      slug: toPublicProviderPermission(permission.slug),
       label: permission.label,
       description: permission.description,
       isActive: permission.isActive,

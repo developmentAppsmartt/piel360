@@ -6,6 +6,7 @@ import { LoginPageShell } from "@/components/auth/login-page-shell";
 export default function PatientLoginPage() {
   return (
     <LoginPageShell
+      legal
       title="Soy Paciente"
       description="Consulta tus análisis y resultados dermatológicos."
       icon={UserRound}

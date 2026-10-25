@@ -5,8 +5,8 @@ import { ArrowLeft, Download } from "lucide-react";
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api-error";
-import { type AnalysisDetail, useDownloadYoucamReport } from "@/lib/queries/analyses";
-import { YOUCAM_METRIC_LABELS, youcamSkinTypeLabel } from "@/lib/youcam-metric-labels";
+import { type AnalysisDetail, useDownloadAnalisisPiel360Report } from "@/lib/queries/analyses";
+import { ANALISIS_PIEL360_METRIC_LABELS, analisisPiel360SkinTypeLabel } from "@/lib/youcam-metric-labels";
 import {
   chronologicalAgeYears,
   formatSignedYears,
@@ -14,15 +14,15 @@ import {
   skinAgeDifferenceMessage,
 } from "@/lib/skin-age";
 import {
-  parseYoucamMetrics,
-  YOUCAM_MAIN_METRIC_TYPES,
-  youcamOverallScore,
-  youcamScoreBand,
-  youcamScoreBandLabel,
-  youcamScoresByType,
-  youcamSkinAge,
-  youcamSkinType,
-  type YoucamRawResponse,
+  parseAnalisisPiel360Metrics,
+  ANALISIS_PIEL360_MAIN_METRIC_TYPES,
+  analisisPiel360OverallScore,
+  analisisPiel360ScoreBand,
+  analisisPiel360ScoreBandLabel,
+  analisisPiel360ScoresByType,
+  analisisPiel360SkinAge,
+  analisisPiel360SkinType,
+  type AnalisisPiel360RawResponse,
 } from "@/lib/youcam-metrics";
 const RADAR_TYPES = [
   "hd_moisture",
@@ -61,7 +61,7 @@ function buildSummary(
     .filter(([, v]) => v < 70)
     .sort((a, b) => a[1] - b[1])
     .slice(0, 3)
-    .map(([type]) => YOUCAM_METRIC_LABELS[type] ?? type);
+    .map(([type]) => ANALISIS_PIEL360_METRIC_LABELS[type] ?? type);
 
   if (overall != null && overall >= 90) {
     return "Su piel está en buen estado general. Mantén tu rutina de cuidado y protección solar diaria.";
@@ -152,7 +152,7 @@ function RadarChart({
   );
 }
 
-export function YoucamReportView({
+export function AnalisisPiel360ReportView({
   analysis,
   patientName,
   onBack,
@@ -163,29 +163,29 @@ export function YoucamReportView({
 }) {
   const metrics = useMemo(
     () =>
-      parseYoucamMetrics(analysis.aiRawResponse as YoucamRawResponse | null),
+      parseAnalisisPiel360Metrics(analysis.aiRawResponse as AnalisisPiel360RawResponse | null),
     [analysis.aiRawResponse],
   );
   // Puntuación ajustada (uiScore): la elige el doctor; sin toggle en el análisis.
   const preferRaw = false;
-  const scores = useMemo(() => youcamScoresByType(metrics, preferRaw), [metrics]);
-  const overall = youcamOverallScore(metrics);
-  const skinAge = analysis.skinAgeYears ?? youcamSkinAge(metrics);
+  const scores = useMemo(() => analisisPiel360ScoresByType(metrics, preferRaw), [metrics]);
+  const overall = analisisPiel360OverallScore(metrics);
+  const skinAge = analysis.skinAgeYears ?? analisisPiel360SkinAge(metrics);
   const chronologicalAge =
     analysis.chronologicalAgeYears ??
     chronologicalAgeYears(analysis.patient?.birthDate, analysis.createdAt);
   const ageDiff =
     analysis.skinAgeDifference ??
     skinAgeDifference(skinAge, chronologicalAge);
-  const skinType = youcamSkinType(metrics);
-  const band = overall != null ? youcamScoreBand(overall) : null;
+  const skinType = analisisPiel360SkinType(metrics);
+  const band = overall != null ? analisisPiel360ScoreBand(overall) : null;
   const name =
     patientName ??
     (analysis.patient
       ? `${analysis.patient.firstName} ${analysis.patient.lastName}`.trim()
       : "Paciente");
 
-  const downloadReport = useDownloadYoucamReport(analysis.id);
+  const downloadReport = useDownloadAnalisisPiel360Report(analysis.id);
 
   async function handleDownloadPdf() {
     if (downloadReport.isPending) return;
@@ -202,7 +202,7 @@ export function YoucamReportView({
   }
 
   const gridTypes = useMemo(() => {
-    const types = new Set<string>([...YOUCAM_MAIN_METRIC_TYPES]);
+    const types = new Set<string>([...ANALISIS_PIEL360_MAIN_METRIC_TYPES]);
     for (const key of Object.keys(scores)) {
       if (
         key !== "all" &&
@@ -268,7 +268,7 @@ export function YoucamReportView({
 
         <div className="space-y-1 text-sm">
           <p>
-            Tipo de piel: <span className="font-semibold">{skinType ? youcamSkinTypeLabel(skinType) : "—"}</span>
+            Tipo de piel: <span className="font-semibold">{skinType ? analisisPiel360SkinTypeLabel(skinType) : "—"}</span>
           </p>
           <p>
             Puntuación de la piel:{" "}
@@ -318,7 +318,7 @@ export function YoucamReportView({
           ) : null}
           {band ? (
             <p className="font-semibold text-primary">
-              Su piel está en el {youcamScoreBandLabel(band).toLowerCase()}
+              Su piel está en el {analisisPiel360ScoreBandLabel(band).toLowerCase()}
             </p>
           ) : null}
         </div>
@@ -374,19 +374,19 @@ export function YoucamReportView({
       <div className="grid gap-3 sm:grid-cols-2">
         {gridTypes.map((type) => {
           const score = scores[type] ?? 0;
-          const itemBand = youcamScoreBand(score);
+          const itemBand = analisisPiel360ScoreBand(score);
           const color = BAND_COLOR[itemBand];
           return (
             <ModuleCard key={type} className="space-y-2 p-4">
               <div className="flex items-start justify-between gap-2">
                 <ModuleCardTitle className="text-sm">
-                  {YOUCAM_METRIC_LABELS[type] ?? type}
+                  {ANALISIS_PIEL360_METRIC_LABELS[type] ?? type}
                 </ModuleCardTitle>
                 <span
                   className="text-xs font-bold"
                   style={{ color }}
                 >
-                  {youcamScoreBandLabel(itemBand)}
+                  {analisisPiel360ScoreBandLabel(itemBand)}
                 </span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-muted">

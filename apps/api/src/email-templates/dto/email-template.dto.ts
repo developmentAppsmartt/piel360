@@ -1,11 +1,17 @@
 import { Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsInt,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
   MinLength,
 } from 'class-validator';
+
+const DAYS_BEFORE_MESSAGE =
+  'Los días de anticipación deben ser un número entero entre 1 y 30';
 
 export class CreateEmailTemplateDto {
   @IsOptional()
@@ -36,6 +42,14 @@ export class CreateEmailTemplateDto {
   @IsBoolean()
   @Type(() => Boolean)
   isActive?: boolean;
+
+  /** Solo en el recordatorio de cita: días antes de la cita en que sale. */
+  @IsOptional()
+  @IsInt({ message: DAYS_BEFORE_MESSAGE })
+  @Min(1, { message: DAYS_BEFORE_MESSAGE })
+  @Max(30, { message: DAYS_BEFORE_MESSAGE })
+  @Type(() => Number)
+  daysBefore?: number;
 }
 
 export class UpdateEmailTemplateDto {
@@ -64,6 +78,14 @@ export class UpdateEmailTemplateDto {
   @IsBoolean()
   @Type(() => Boolean)
   isActive?: boolean;
+
+  /** Solo en el recordatorio de cita: días antes de la cita en que sale. */
+  @IsOptional()
+  @IsInt({ message: DAYS_BEFORE_MESSAGE })
+  @Min(1, { message: DAYS_BEFORE_MESSAGE })
+  @Max(30, { message: DAYS_BEFORE_MESSAGE })
+  @Type(() => Number)
+  daysBefore?: number;
 }
 
 export class CreateEmailTemplateVariableDto {

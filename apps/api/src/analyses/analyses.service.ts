@@ -16,24 +16,26 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PatientsService } from '../patients/patients.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReportPdfService } from '../reports/report-pdf.service';
-import { SkiniverService } from '../skiniver/skiniver.service';
+import { AnalisisDermaPiel360Service } from '../skiniver/skiniver.service';
 import { StorageService } from '../storage/storage.service';
-import { SubscriptionsService } from '../subscriptions/subscriptions.service';
-import { resolveSubscriptionEndsAt } from '../subscriptions/subscription-ends.util';
+import { SubscriptionCreditsService } from '../subscriptions/subscription-credits.service';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
-import {
-  getAnalysisProviderIdBySlug,
-  parsePlanProviderIds,
-} from '../plans/plan-providers.util';
+import { getAnalysisProviderIdBySlug } from '../plans/plan-providers.util';
 import {
   patientLatestSkinAgeData,
   snapshotFromAnalysis,
   snapshotHasValues,
 } from '../youcam/skin-age-persist.util';
 import type { JwtPayload } from '../auth/types';
-import { AnalysisImageUrlsService } from './analysis-image-urls.service';
+import {
+  AnalysisImageUrlsService,
+  imagePathPublico,
+  sinUrlsDelProveedor,
+} from './analysis-image-urls.service';
+import { isAestheticAnalysis } from './analysis-credit-buckets';
 import type { ConfirmAnalysisDto } from './dto/confirm-analysis.dto';
 import type { CreateAnalysisDto } from './dto/create-analysis.dto';
+import { resolverDiagnosticoFinal } from './final-diagnosis';
 import {
   ANALYSIS_IMAGES_QUEUE,
   ENCYCLOPEDIA_QUEUE,
@@ -43,7 +45,7 @@ import {
 
 const SKINIVER_PROVIDER_SLUG = 'skiniver';
 
-function isDoctorPanelRole(role: Role): boolean {
+export function isDoctorPanelRole(role: Role): boolean {
   return (DOCTOR_PANEL_ROLES as readonly Role[]).includes(role);
 }
 
@@ -53,8 +55,8 @@ export class AnalysesService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly skiniver: SkiniverService,
-    private readonly subscriptions: SubscriptionsService,
+    private readonly skiniver: AnalisisDermaPiel360Service,
+    private readonly subscriptions: SubscriptionCreditsService,
     private readonly patients: PatientsService,
     private readonly orgContext: OrgContextService,
     private readonly doctors: DoctorsService,
@@ -164,7 +166,7 @@ export class AnalysesService {
     }
 
     const analysis = await this.prisma.$transaction(async (tx) => {
-      const skiniverProviderId = await getAnalysisProviderIdBySlug(
+      const analisisDermaPiel360ProviderId = await getAnalysisProviderIdBySlug(
         tx,
         SKINIVER_PROVIDER_SLUG,
       );
@@ -183,7 +185,7 @@ export class AnalysesService {
         data: {
           patientId: BigInt(dto.patientId),
           userId,
-          providerId: skiniverProviderId,
+          providerId: analisisDermaPiel360ProviderId,
           imagePath: `analyses/pending/original.jpg`,
           bodyRegion: dto.bodyRegion,
           xCoord: dto.xCoord,
@@ -288,14 +290,30 @@ export class AnalysesService {
   async findAll(currentUser: JwtPayload) {
     // `provider.displayLabel` — filas creadas antes de este campo (o sin
     // providerId poblado) no traen relación; el frontend cae al heurístico
-    // por youcamTaskId como respaldo.
+    // por analisisPiel360TaskId como respaldo.
     const providerSelect = { select: { displayLabel: true } };
 
+    // El listado devuelve la fila cruda, y `aiRawResponse` trae las URLs del
+    // CDN del proveedor. A diferencia del detalle, aquí no pasa por
+    // `withImageUrls`, que es donde se sanean.
+    const sinUrls = <
+      T extends { aiRawResponse: Prisma.JsonValue | null; imagePath: string },
+    >(
+      rows: T[],
+    ): T[] =>
+      rows.map((row) => ({
+        ...row,
+        imagePath: imagePathPublico(row.imagePath),
+        aiRawResponse: sinUrlsDelProveedor(row.aiRawResponse),
+      }));
+
     if (currentUser.role === 'superadmin') {
-      return this.prisma.analysis.findMany({
-        include: { patient: true, provider: providerSelect },
-        orderBy: { id: 'desc' },
-      });
+      return sinUrls(
+        await this.prisma.analysis.findMany({
+          include: { patient: true, provider: providerSelect },
+          orderBy: { id: 'desc' },
+        }),
+      );
     }
 
     if (isDoctorPanelRole(currentUser.role)) {
@@ -306,23 +324,27 @@ export class AnalysesService {
       const scope = await this.orgContext.resolvePatientDoctorScope(
         currentUser.sub,
       );
-      return this.prisma.analysis.findMany({
-        where: { patient: { doctorId: { in: scope.visibleDoctorIds } } },
-        include: { patient: true, provider: providerSelect },
-        orderBy: { id: 'desc' },
-      });
+      return sinUrls(
+        await this.prisma.analysis.findMany({
+          where: { patient: { doctorId: { in: scope.visibleDoctorIds } } },
+          include: { patient: true, provider: providerSelect },
+          orderBy: { id: 'desc' },
+        }),
+      );
     }
 
     // Paciente: solo análisis compartidos de su perfil (Patient.userId).
     // Nunca verá resultados solo por haber ejecutado la captura.
-    return this.prisma.analysis.findMany({
-      where: {
-        sharedWithPatient: true,
-        patient: { userId: BigInt(currentUser.sub) },
-      },
-      include: { patient: true, provider: providerSelect },
-      orderBy: { id: 'desc' },
-    });
+    return sinUrls(
+      await this.prisma.analysis.findMany({
+        where: {
+          sharedWithPatient: true,
+          patient: { userId: BigInt(currentUser.sub) },
+        },
+        include: { patient: true, provider: providerSelect },
+        orderBy: { id: 'desc' },
+      }),
+    );
   }
 
   /**
@@ -388,7 +410,7 @@ export class AnalysesService {
    * posteriores. Solo aplica a análisis YouCam (el PDF asume esas métricas). */
   async getReportUrl(id: string, currentUser: JwtPayload) {
     const analysis = await this.findOne(id, currentUser);
-    if (!analysis.youcamTaskId) {
+    if (!analysis.analisisPiel360TaskId) {
       throw new BadRequestException(
         'El reporte en PDF solo está disponible para análisis YouCam.',
       );
@@ -407,6 +429,15 @@ export class AnalysesService {
   async confirm(id: string, dto: ConfirmAnalysisDto, currentUser: JwtPayload) {
     const analysis = await this.findOne(id, currentUser);
     const finalDiagnosis = dto.finalDiagnosis ?? analysis.aiDiagnosis;
+    const esDermatologico =
+      !analysis.analisisPiel360TaskId && !analysis.fitzpatrickTaskId;
+    const clase = esDermatologico
+      ? resolverDiagnosticoFinal(
+          analysis.aiRawResponse,
+          dto.finalDiagnosis,
+          dto.finalDiagnosisCode,
+        )
+      : null;
     // El PDF del reporte se genera una sola vez y se cachea (ensureReportUrl
     // devuelve el guardado mientras existan token y key). Como las
     // observaciones salen en el PDF, si cambian hay que tirar el archivo para
@@ -423,6 +454,8 @@ export class AnalysesService {
           isConfirmed: true,
           isCorrected: dto.isCorrected ?? false,
           finalDiagnosis,
+          finalDiagnosisCode: clase?.code ?? null,
+          finalDiagnosisCategory: clase?.category ?? null,
           doctorNotes: dto.doctorNotes,
           confirmedById: BigInt(currentUser.sub),
           confirmedAt: new Date(),
@@ -452,251 +485,6 @@ export class AnalysesService {
     });
 
     return this.imageUrls.withImageUrls(updated);
-  }
-
-  /**
-   * Consumo de análisis (estético vs dermatológico). Todo sale de
-   * `subscription_usages`: los pools son el saldo de las suscripciones activas
-   * y la serie diaria/detalle son los créditos consumidos dentro del rango, de
-   * esas mismas suscripciones — así las tarjetas y la tabla siempre cuadran.
-   * Contar filas de `analyses` en su lugar incluiría análisis que nunca
-   * descontaron crédito (YouCam sin completar, o sin suscripción activa).
-   */
-  async getConsumption(
-    currentUser: JwtPayload,
-    query: { from?: string; to?: string; professionalUserId?: string } = {},
-  ) {
-    const { from, to } = resolveConsumptionRange(query.from, query.to);
-
-    let subscriptionUserIds: bigint[] | null = null;
-    // Filtro por miembro del equipo. Mismo contrato que los reportes
-    // (DoctorReportsService#resolveDoctorIds): solo el dueño puede filtrar.
-    let professionalUserId: bigint | null = null;
-
-    if (currentUser.role === 'superadmin') {
-      // Plataforma completa.
-      if (query.professionalUserId) {
-        professionalUserId = BigInt(query.professionalUserId);
-      }
-    } else if (isDoctorPanelRole(currentUser.role)) {
-      await this.orgContext.assertTeamPermissionForUser(
-        currentUser.sub,
-        'billing',
-      );
-      const scope = await this.orgContext.resolvePatientDoctorScope(
-        currentUser.sub,
-      );
-      subscriptionUserIds = [scope.ctx.subscriptionUserId];
-
-      if (query.professionalUserId) {
-        if (!scope.ctx.isOrgOwner) {
-          throw new ForbiddenException(
-            'Solo el dueño del equipo puede filtrar por profesional',
-          );
-        }
-        const professional = scope.professionals.find(
-          (item) => item.userId === query.professionalUserId,
-        );
-        if (!professional) {
-          throw new BadRequestException(
-            'Profesional no encontrado en tu equipo',
-          );
-        }
-        professionalUserId = BigInt(professional.userId);
-      }
-    } else {
-      throw new ForbiddenException(
-        'No tienes permiso para consultar el consumo de análisis',
-      );
-    }
-
-    const [providers, subscriptions] = await Promise.all([
-      this.prisma.analysisProvider.findMany({
-        select: { id: true, slug: true },
-      }),
-      this.prisma.subscription.findMany({
-        where: {
-          status: 'active',
-          ...(subscriptionUserIds
-            ? { userId: { in: subscriptionUserIds } }
-            : {}),
-        },
-        include: {
-          plan: true,
-          usages: {
-            select: {
-              quantity: true,
-              analysis: {
-                select: {
-                  youcamTaskId: true,
-                  fitzpatrickTaskId: true,
-                  provider: { select: { slug: true } },
-                },
-              },
-            },
-          },
-        },
-      }),
-    ]);
-    const slugById = new Map(providers.map((p) => [p.id.toString(), p.slug]));
-
-    const aesthetic = emptyPool();
-    const derm = emptyPool();
-    let endsAt: Date | null = null;
-
-    for (const sub of subscriptions) {
-      const buckets = planCreditBuckets(sub.plan, slugById);
-      let doneAesthetic = 0;
-      let doneDerm = 0;
-
-      for (const usage of sub.usages) {
-        const qty = usage.quantity ?? 1;
-        if (isAestheticAnalysis(usage.analysis)) doneAesthetic += qty;
-        else doneDerm += qty;
-      }
-
-      // Un plan mixto sin split en `analysisLimits` es una bolsa compartida:
-      // el consumo de las dos categorías descuenta del mismo límite.
-      const spentAesthetic = buckets.shared
-        ? doneAesthetic + doneDerm
-        : doneAesthetic;
-      const spentDerm = buckets.shared ? doneAesthetic + doneDerm : doneDerm;
-
-      aesthetic.limit += buckets.aesthetic;
-      aesthetic.done += doneAesthetic;
-      aesthetic.available += Math.max(0, buckets.aesthetic - spentAesthetic);
-      aesthetic.shared ||= buckets.shared;
-
-      derm.limit += buckets.derm;
-      derm.done += doneDerm;
-      derm.available += Math.max(0, buckets.derm - spentDerm);
-      derm.shared ||= buckets.shared;
-
-      const subEndsAt = resolveSubscriptionEndsAt(sub, sub.plan);
-      if (subEndsAt && (!endsAt || subEndsAt.getTime() < endsAt.getTime())) {
-        endsAt = subEndsAt;
-      }
-    }
-
-    // La vigencia solo se muestra cuando hay una sola suscripción en juego;
-    // para superadmin (plataforma completa) no significa nada.
-    const subscriptionEndsAt = subscriptions.length === 1 ? endsAt : null;
-
-    // El filtro por profesional solo afecta a lo "del periodo" (serie diaria,
-    // detalle y `periodDone`). `limit`/`done`/`available` salen de las
-    // suscripciones y son el saldo del plan de la empresa, no de una persona.
-    const usages = await this.prisma.subscriptionUsage.findMany({
-      where: {
-        createdAt: { gte: from, lte: to },
-        ...(subscriptionUserIds
-          ? { subscriptionId: { in: subscriptions.map((s) => s.id) } }
-          : {}),
-        ...(professionalUserId
-          ? { analysis: { userId: professionalUserId } }
-          : {}),
-      },
-      select: {
-        quantity: true,
-        createdAt: true,
-        analysis: {
-          select: {
-            patientId: true,
-            youcamTaskId: true,
-            fitzpatrickTaskId: true,
-            provider: { select: { slug: true } },
-            user: { select: { id: true, name: true } },
-          },
-        },
-      },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    // La gráfica es por día y el detalle por día Y profesional: con varios
-    // miembros consumiendo el mismo día, una sola fila por día atribuía todos
-    // los créditos al que más gastó y ocultaba a los demás.
-    type ProBucket = {
-      name: string;
-      aesthetic: number;
-      derm: number;
-      patients: Set<string>;
-    };
-    const byDay = new Map<
-      string,
-      { aesthetic: number; derm: number; pros: Map<string, ProBucket> }
-    >();
-
-    for (const usage of usages) {
-      // Para YouCam el crédito se consume al completarse el task, no al crear
-      // el análisis: la fecha de la fila es la del cobro, que es lo correcto acá.
-      const key = dayKey(usage.createdAt);
-      let bucket = byDay.get(key);
-      if (!bucket) {
-        bucket = { aesthetic: 0, derm: 0, pros: new Map() };
-        byDay.set(key, bucket);
-      }
-      // Se agrupa por id y no por nombre: dos miembros pueden llamarse igual.
-      const proKey = usage.analysis.user?.id?.toString() ?? '';
-      let pro = bucket.pros.get(proKey);
-      if (!pro) {
-        pro = {
-          name: usage.analysis.user?.name?.trim() || 'Sin asignar',
-          aesthetic: 0,
-          derm: 0,
-          patients: new Set(),
-        };
-        bucket.pros.set(proKey, pro);
-      }
-
-      const qty = usage.quantity ?? 1;
-      if (isAestheticAnalysis(usage.analysis)) {
-        bucket.aesthetic += qty;
-        pro.aesthetic += qty;
-        aesthetic.periodDone += qty;
-      } else {
-        bucket.derm += qty;
-        pro.derm += qty;
-        derm.periodDone += qty;
-      }
-      pro.patients.add(usage.analysis.patientId.toString());
-    }
-
-    const sortedKeys = [...byDay.keys()].sort();
-    const daily = sortedKeys.map((key) => {
-      const b = byDay.get(key)!;
-      return {
-        date: formatDayShort(key),
-        aesthetic: b.aesthetic,
-        derm: b.derm,
-      };
-    });
-
-    const rows = [...sortedKeys].reverse().flatMap((key) => {
-      const b = byDay.get(key)!;
-      return [...b.pros.entries()]
-        .map(([proKey, pro]) => ({
-          date: formatDayLong(key),
-          aesthetic: pro.aesthetic,
-          derm: pro.derm,
-          total: pro.aesthetic + pro.derm,
-          patients: pro.patients.size,
-          professional: pro.name,
-          professionalUserId: proKey || null,
-        }))
-        .sort(
-          (a, z) =>
-            z.total - a.total || a.professional.localeCompare(z.professional),
-        );
-    });
-
-    return {
-      from: from.toISOString(),
-      to: to.toISOString(),
-      subscriptionEndsAt: subscriptionEndsAt?.toISOString() ?? null,
-      aesthetic,
-      derm,
-      daily,
-      rows,
-    };
   }
 
   /**
@@ -795,7 +583,7 @@ export class AnalysesService {
     T extends {
       id: bigint;
       patientId: bigint;
-      youcamTaskId: string | null;
+      analisisPiel360TaskId: string | null;
       isValid: boolean;
       aiRawResponse: Prisma.JsonValue | null;
       createdAt: Date;
@@ -808,7 +596,7 @@ export class AnalysesService {
       };
     },
   >(analysis: T): Promise<T> {
-    if (!analysis.youcamTaskId || !analysis.isValid) return analysis;
+    if (!analysis.analisisPiel360TaskId || !analysis.isValid) return analysis;
     if (
       analysis.skinAgeYears != null &&
       analysis.chronologicalAgeYears != null &&
@@ -880,141 +668,3 @@ export class AnalysesService {
     throw new ForbiddenException('No puedes acceder a este análisis');
   }
 }
-
-const AESTHETIC_PROVIDER_SLUGS = new Set(['youcam', 'fitzpatrick']);
-
-function emptyPool() {
-  return {
-    /** Créditos consumidos en toda la vigencia de la suscripción (saldo). */
-    done: 0,
-    limit: 0,
-    available: 0,
-    /** Créditos consumidos dentro del rango de fechas consultado. */
-    periodDone: 0,
-    /** El límite es una bolsa compartida con la otra categoría. */
-    shared: false,
-  };
-}
-
-function isAestheticAnalysis(row: {
-  youcamTaskId?: string | null;
-  fitzpatrickTaskId?: string | null;
-  provider?: { slug: string } | null;
-}): boolean {
-  if (row.youcamTaskId || row.fitzpatrickTaskId) return true;
-  const slug = row.provider?.slug;
-  return slug != null && AESTHETIC_PROVIDER_SLUGS.has(slug);
-}
-
-function planCreditBuckets(
-  plan: {
-    analysisLimit: number;
-    analysisLimits: Prisma.JsonValue;
-    analysisProviderIds: Prisma.JsonValue;
-    analysisProviderId: bigint;
-  },
-  slugById: Map<string, string>,
-): { aesthetic: number; derm: number; shared: boolean } {
-  const raw = plan.analysisLimits;
-  const limits =
-    raw && typeof raw === 'object' && !Array.isArray(raw)
-      ? (raw as { skiniver?: number; aesthetic?: number })
-      : {};
-
-  const hasSplit =
-    typeof limits.skiniver === 'number' || typeof limits.aesthetic === 'number';
-  if (hasSplit) {
-    return {
-      aesthetic: Math.max(0, limits.aesthetic ?? 0),
-      derm: Math.max(0, limits.skiniver ?? 0),
-      shared: false,
-    };
-  }
-
-  const ids = parsePlanProviderIds(plan);
-  const slugs = ids
-    .map((id) => slugById.get(id))
-    .filter((s): s is string => Boolean(s));
-  const hasSkiniver = slugs.includes('skiniver');
-  const hasAesthetic = slugs.some((s) => AESTHETIC_PROVIDER_SLUGS.has(s));
-  const limit = Math.max(0, plan.analysisLimit);
-
-  if (hasSkiniver && !hasAesthetic)
-    return { aesthetic: 0, derm: limit, shared: false };
-  if (hasAesthetic && !hasSkiniver)
-    return { aesthetic: limit, derm: 0, shared: false };
-  // Plan que incluye ambos tipos sin desglose: `analysisLimit` es una sola
-  // bolsa que alimenta las dos categorías (antes se asignaba todo a estético
-  // y el pool dermatológico quedaba en 0 aunque hubiera consumo).
-  if (hasAesthetic) return { aesthetic: limit, derm: limit, shared: true };
-  return { aesthetic: 0, derm: limit, shared: false };
-}
-
-function resolveConsumptionRange(fromRaw?: string, toRaw?: string) {
-  const now = new Date();
-  let from: Date;
-  let to: Date;
-
-  if (fromRaw && toRaw) {
-    from = startOfDay(parseIsoDate(fromRaw));
-    to = endOfDay(parseIsoDate(toRaw));
-  } else if (fromRaw) {
-    from = startOfDay(parseIsoDate(fromRaw));
-    to = endOfDay(from);
-  } else {
-    // Mes calendario actual (UTC local del servidor).
-    from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-    to = endOfDay(now);
-  }
-
-  if (from.getTime() > to.getTime()) {
-    throw new BadRequestException(
-      'El rango de fechas es inválido (from > to)',
-    );
-  }
-  return { from, to };
-}
-
-/**
- * El cliente manda `YYYY-MM-DD` en su zona local, pero `new Date("2026-09-01")`
- * lo interpreta como medianoche UTC: en un servidor al oeste de UTC, el
- * `startOfDay` posterior caía en el día anterior y se perdía el día 1 del mes.
- * Una fecha desnuda se construye por componentes, en hora del servidor.
- */
-function parseIsoDate(value: string): Date {
-  const bare = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
-  const d = bare
-    ? new Date(Number(bare[1]), Number(bare[2]) - 1, Number(bare[3]))
-    : new Date(value);
-  if (Number.isNaN(d.getTime())) {
-    throw new BadRequestException(`Fecha inválida: ${value}`);
-  }
-  return d;
-}
-
-function startOfDay(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
-}
-
-function endOfDay(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
-}
-
-/** Clave estable YYYY-MM-DD en zona local del servidor. */
-function dayKey(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function formatDayShort(key: string) {
-  const [, m, d] = key.split('-');
-  return `${d}/${m}`;
-}
-
-function formatDayLong(key: string) {
-  const [y, m, d] = key.split('-');
-  return `${d}/${m}/${y}`;
-}
-

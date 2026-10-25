@@ -26,7 +26,7 @@ export interface SkinReportBandDef {
 
 /**
  * Cuatro bandas del reporte. Los cortes en 70 y 90 son los mismos de
- * `youcamScoreBand()` (youcam-report.ts) — esto solo parte su banda "regular"
+ * `analisisPiel360ScoreBand()` (youcam-report.ts) — esto solo parte su banda "regular"
  * (<70) en "regular" (50-69) y "malo" (0-49), así que las dos funciones nunca
  * se contradicen.
  *
@@ -101,7 +101,7 @@ export interface ReportableSkinCategory {
  *    así que "Flacidez 98" se leería justo al revés.
  * 3. `hd_skin_type` queda fuera (es categórica, sin puntaje numérico).
  *
- * Las etiquetas son propias del reporte y no reusan YOUCAM_METRIC_LABELS porque
+ * Las etiquetas son propias del reporte y no reusan ANALISIS_PIEL360_METRIC_LABELS porque
  * el wording difiere ("Lagrimal" vs "Surco lagrimal", "Pigmentación" vs
  * "Manchas de edad", "Oleosidad" vs "Grasa").
  */
@@ -111,7 +111,7 @@ export const REPORTABLE_SKIN_CATEGORIES: readonly ReportableSkinCategory[] = [
   { key: "hd_acne", type: "hd_acne", region: null, label: "Acné" },
   { key: "hd_pore", type: "hd_pore", region: null, label: "Poros" },
   { key: "hd_texture", type: "hd_texture", region: null, label: "Textura" },
-  { key: "hd_redness", type: "hd_redness", region: null, label: "Enrojecimiento" },
+  { key: "hd_redness", type: "hd_redness", region: null, label: "Eritema" },
   { key: "hd_age_spot", type: "hd_age_spot", region: null, label: "Pigmentación" },
   { key: "hd_radiance", type: "hd_radiance", region: null, label: "Luminosidad" },
   { key: "hd_dark_circle", type: "hd_dark_circle", region: null, label: "Ojeras" },
@@ -351,7 +351,7 @@ export interface SkinReportSegmentsResponse {
 // (packages/shared/src/skiniver-diagnosis-taxonomy.ts define esos buckets),
 // más la distribución por tono de piel (fototipo).
 
-export interface SkiniverMonthlySeriesPoint {
+export interface AnalisisDermaPiel360MonthlySeriesPoint {
   period: string;
   /** Conteo por clave de bucket (clase, enfermedad o rango de edad). */
   counts: Record<string, number>;
@@ -362,13 +362,13 @@ export interface SkiniverMonthlySeriesPoint {
  * de edad son fijos y viven en el front; las enfermedades no, porque dependen
  * de qué se diagnosticó en el periodo, así que el reporte las trae consigo.
  */
-export interface SkiniverTrendSeriesDef {
+export interface AnalisisDermaPiel360TrendSeriesDef {
   key: string;
   label: string;
   color: string;
 }
 
-export interface SkiniverSkinToneBucket {
+export interface AnalisisDermaPiel360SkinToneBucket {
   key: string;
   label: string;
   color: string;
@@ -378,7 +378,7 @@ export interface SkiniverSkinToneBucket {
 }
 
 /** Porción de una distribución (donut de categorías, barras por edad). */
-export interface SkiniverCategorySlice {
+export interface AnalisisDermaPiel360CategorySlice {
   key: string;
   label: string;
   color: string;
@@ -387,7 +387,7 @@ export interface SkiniverCategorySlice {
   pct: number;
 }
 
-export interface SkiniverTopDiagnosis {
+export interface AnalisisDermaPiel360TopDiagnosis {
   diagnosis: string;
   /** `lesion_code` de la raíz de aiRawResponse; `topn[]` nunca lo trae. */
   icdCode: string | null;
@@ -396,7 +396,7 @@ export interface SkiniverTopDiagnosis {
   pct: number;
 }
 
-export interface SkiniverAgeGenderRow {
+export interface AnalisisDermaPiel360AgeGenderRow {
   key: string;
   label: string;
   male: number;
@@ -405,20 +405,23 @@ export interface SkiniverAgeGenderRow {
   unknown: number;
 }
 
-export interface SkiniverReport {
+export interface AnalisisDermaPiel360Report {
   range: { from: string; to: string };
-  /** Diagnósticos "sin patología" excluidos — ver isNoPathologyDiagnosis(). */
+  /** Todos los análisis con diagnóstico, «Piel Sin Patología» incluida. */
   total: number;
-  byCategory: SkiniverCategorySlice[];
-  topDiagnoses: SkiniverTopDiagnosis[];
-  byAgeGender: SkiniverAgeGenderRow[];
-  ageDistribution: SkiniverCategorySlice[];
-  byClass: SkiniverMonthlySeriesPoint[];
+  byCategory: AnalisisDermaPiel360CategorySlice[];
+  topDiagnoses: AnalisisDermaPiel360TopDiagnosis[];
+  byAgeGender: AnalisisDermaPiel360AgeGenderRow[];
+  ageDistribution: AnalisisDermaPiel360CategorySlice[];
+  /** Clases del API (`desease`): Top 8 del periodo + "Otras". */
+  byClass: AnalisisDermaPiel360MonthlySeriesPoint[];
+  /** Series de `byClass`, en el orden en que deben leerse. */
+  classSeries: AnalisisDermaPiel360TrendSeriesDef[];
   /** Condiciones concretas: Top 8 del periodo + "Otras" — no grupos. */
-  byDisease: SkiniverMonthlySeriesPoint[];
+  byDisease: AnalisisDermaPiel360MonthlySeriesPoint[];
   /** Series de `byDisease`, en el orden en que deben leerse. */
-  diseaseSeries: SkiniverTrendSeriesDef[];
-  byAge: SkiniverMonthlySeriesPoint[];
-  bySkinTone: SkiniverSkinToneBucket[];
+  diseaseSeries: AnalisisDermaPiel360TrendSeriesDef[];
+  byAge: AnalisisDermaPiel360MonthlySeriesPoint[];
+  bySkinTone: AnalisisDermaPiel360SkinToneBucket[];
   skinToneTotal: number;
 }

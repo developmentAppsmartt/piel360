@@ -74,7 +74,7 @@ export interface SkinAgeContext {
  * "Arrugas (frente)". Métricas con varias zonas (hd_wrinkle, hd_pore,
  * hd_skin_type, hd_acne, hd_texture) guardan su puntaje general bajo
  * region: "whole", no region: null. Mismo criterio que
- * apps/web/src/lib/youcam-metrics.ts#youcamScoresByType: sin región
+ * apps/web/src/lib/youcam-metrics.ts#analisisPiel360ScoresByType: sin región
  * explícita en la condición, "whole" y null son el mismo "puntaje general". */
 function findResultForCondition(
   results: AnalysisResult[],

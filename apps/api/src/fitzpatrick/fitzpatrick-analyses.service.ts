@@ -5,7 +5,7 @@ import type { JwtPayload } from '../auth/types';
 import { PatientsService } from '../patients/patients.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
-import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { SubscriptionCreditsService } from '../subscriptions/subscription-credits.service';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
 import { getAnalysisProviderIdBySlug } from '../plans/plan-providers.util';
 import type { CreateFitzpatrickAnalysisDto } from './dto/create-fitzpatrick-analysis.dto';
@@ -29,7 +29,7 @@ export class FitzpatrickAnalysesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly fitzpatrick: FitzpatrickService,
-    private readonly subscriptions: SubscriptionsService,
+    private readonly subscriptions: SubscriptionCreditsService,
     private readonly patients: PatientsService,
     private readonly storage: StorageService,
     private readonly specialtyAccess: SpecialtyAccessService,
@@ -51,10 +51,11 @@ export class FitzpatrickAnalysesService {
       FITZPATRICK_PROVIDER_SLUG,
       { patientId: dto.patientId },
     );
-    const billingUserId = await this.subscriptions.resolveBillingUserIdForAnalysis(
-      userId,
-      dto.patientId,
-    );
+    const billingUserId =
+      await this.subscriptions.resolveBillingUserIdForAnalysis(
+        userId,
+        dto.patientId,
+      );
     const subscription = await this.subscriptions.findActiveForUser(
       this.prisma,
       billingUserId,

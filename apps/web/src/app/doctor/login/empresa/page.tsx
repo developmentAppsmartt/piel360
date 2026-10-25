@@ -6,6 +6,7 @@ import { LoginPageShell } from "@/components/auth/login-page-shell";
 export default function EmpresaLoginPage() {
   return (
     <LoginPageShell
+      legal
       title="Soy Empresa"
       description="Accede al panel de tu organización, equipo y planes empresariales."
       icon={Building2}

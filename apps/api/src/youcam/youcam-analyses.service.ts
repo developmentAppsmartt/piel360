@@ -1,9 +1,9 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import {
-  YOUCAM_HD_MIN_SHORT_SIDE_PX,
-  YOUCAM_UPSCALE_MIN_SHORT_SIDE_PX,
-  YOUCAM_UPSCALE_TARGET_SHORT_SIDE_PX,
+  ANALISIS_PIEL360_HD_MIN_SHORT_SIDE_PX,
+  ANALISIS_PIEL360_UPSCALE_MIN_SHORT_SIDE_PX,
+  ANALISIS_PIEL360_UPSCALE_TARGET_SHORT_SIDE_PX,
 } from '@piel360/shared';
 import type { Queue } from 'bullmq';
 import { imageSize } from 'image-size';
@@ -16,12 +16,12 @@ import type { JwtPayload } from '../auth/types';
 import { PatientsService } from '../patients/patients.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
-import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { SubscriptionCreditsService } from '../subscriptions/subscription-credits.service';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
 import { getAnalysisProviderIdBySlug } from '../plans/plan-providers.util';
-import type { CreateYoucamAnalysisDto } from './dto/create-youcam-analysis.dto';
-import { YOUCAM_POLL_QUEUE, type YoucamPollJobData } from './queues';
-import { YouCamService } from './youcam.service';
+import type { CreateAnalisisPiel360AnalysisDto } from './dto/create-youcam-analysis.dto';
+import { YOUCAM_POLL_QUEUE, type AnalisisPiel360PollJobData } from './queues';
+import { AnalisisPiel360Service } from './youcam.service';
 
 const YOUCAM_PROVIDER_SLUG = 'youcam';
 const POLL_ATTEMPTS = 20;
@@ -33,23 +33,23 @@ const POLL_INITIAL_DELAY_MS = 8_000;
 const POLL_BACKOFF_DELAY_MS = 15_000;
 
 @Injectable()
-export class YoucamAnalysesService {
-  private readonly logger = new Logger(YoucamAnalysesService.name);
+export class AnalisisPiel360AnalysesService {
+  private readonly logger = new Logger(AnalisisPiel360AnalysesService.name);
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly youcam: YouCamService,
-    private readonly subscriptions: SubscriptionsService,
+    private readonly youcam: AnalisisPiel360Service,
+    private readonly subscriptions: SubscriptionCreditsService,
     private readonly patients: PatientsService,
     private readonly storage: StorageService,
     @InjectQueue(YOUCAM_POLL_QUEUE)
-    private readonly pollQueue: Queue<YoucamPollJobData>,
+    private readonly pollQueue: Queue<AnalisisPiel360PollJobData>,
     private readonly specialtyAccess: SpecialtyAccessService,
   ) {}
 
   /** `POST /youcam/analyses` — MIGRACION.md §2.5/§4.2. */
   async createAnalysis(
-    dto: CreateYoucamAnalysisDto,
+    dto: CreateAnalisisPiel360AnalysisDto,
     image: Buffer,
     currentUser: JwtPayload,
   ) {
@@ -66,20 +66,25 @@ export class YoucamAnalysesService {
   }
 
   private async createAnalysisInner(
-    dto: CreateYoucamAnalysisDto,
+    dto: CreateAnalisisPiel360AnalysisDto,
     image: Buffer,
     currentUser: JwtPayload,
   ) {
     await this.patients.findOne(dto.patientId, currentUser); // scoping, igual que Skiniver
 
     const userId = BigInt(currentUser.sub);
-    await this.specialtyAccess.assertCanUseProvider(userId, YOUCAM_PROVIDER_SLUG, {
-      patientId: dto.patientId,
-    });
-    const billingUserId = await this.subscriptions.resolveBillingUserIdForAnalysis(
+    await this.specialtyAccess.assertCanUseProvider(
       userId,
-      dto.patientId,
+      YOUCAM_PROVIDER_SLUG,
+      {
+        patientId: dto.patientId,
+      },
     );
+    const billingUserId =
+      await this.subscriptions.resolveBillingUserIdForAnalysis(
+        userId,
+        dto.patientId,
+      );
     const subscription = await this.subscriptions.findActiveForUser(
       this.prisma,
       billingUserId,
@@ -124,18 +129,18 @@ export class YoucamAnalysesService {
     const shortSide = Math.min(width, height);
     let uploadBuffer = image;
 
-    if (shortSide < YOUCAM_UPSCALE_MIN_SHORT_SIDE_PX) {
+    if (shortSide < ANALISIS_PIEL360_UPSCALE_MIN_SHORT_SIDE_PX) {
       throw new BadRequestException(
-        `La foto es de muy baja resolución para el análisis HD (mínimo ${YOUCAM_UPSCALE_MIN_SHORT_SIDE_PX}px en el lado corto, esta tiene ${shortSide}px). Toma la foto de nuevo con mejor calidad.`,
+        `La foto es de muy baja resolución para el análisis HD (mínimo ${ANALISIS_PIEL360_UPSCALE_MIN_SHORT_SIDE_PX}px en el lado corto, esta tiene ${shortSide}px). Toma la foto de nuevo con mejor calidad.`,
       );
     }
 
-    if (shortSide < YOUCAM_HD_MIN_SHORT_SIDE_PX) {
+    if (shortSide < ANALISIS_PIEL360_HD_MIN_SHORT_SIDE_PX) {
       // Recorte marginal (ej. 1080×1058, visto en producción con capturas de
       // iPad) — a diferencia de una foto genuinamente de baja calidad
       // (bloqueada arriba), un upscale de unos pocos % no pierde calidad
       // perceptible y evita perder el análisis por error_below_min_image_size.
-      const scale = YOUCAM_UPSCALE_TARGET_SHORT_SIDE_PX / shortSide;
+      const scale = ANALISIS_PIEL360_UPSCALE_TARGET_SHORT_SIDE_PX / shortSide;
       const targetWidth = Math.round(width * scale);
       const targetHeight = Math.round(height * scale);
       uploadBuffer = await sharp(image)
@@ -143,7 +148,7 @@ export class YoucamAnalysesService {
         .jpeg({ quality: 92 })
         .toBuffer();
       this.logger.log(
-        `Análisis: imagen redimensionada de ${width}x${height} a ${targetWidth}x${targetHeight} (lado corto ${shortSide}px < ${YOUCAM_HD_MIN_SHORT_SIDE_PX}px) para cumplir el mínimo HD de YouCam`,
+        `Análisis: imagen redimensionada de ${width}x${height} a ${targetWidth}x${targetHeight} (lado corto ${shortSide}px < ${ANALISIS_PIEL360_HD_MIN_SHORT_SIDE_PX}px) para cumplir el mínimo HD de YouCam`,
       );
     }
 
@@ -170,7 +175,7 @@ export class YoucamAnalysesService {
       throw err;
     }
 
-    const youcamProviderId = await getAnalysisProviderIdBySlug(
+    const analisisPiel360ProviderId = await getAnalysisProviderIdBySlug(
       this.prisma,
       YOUCAM_PROVIDER_SLUG,
     );
@@ -179,8 +184,8 @@ export class YoucamAnalysesService {
       data: {
         patientId: BigInt(dto.patientId),
         userId,
-        providerId: youcamProviderId,
-        youcamTaskId: taskId,
+        providerId: analisisPiel360ProviderId,
+        analisisPiel360TaskId: taskId,
         imagePath: 'youcam',
         bodyRegion: dto.bodyRegion,
         xCoord: dto.xCoord,

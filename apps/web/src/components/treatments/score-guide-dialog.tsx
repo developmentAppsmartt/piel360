@@ -4,11 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { HelpCircle, SlidersHorizontal } from "lucide-react";
 import {
-  YOUCAM_MAIN_METRIC_TYPES,
-  YOUCAM_SCORE_BANDS,
+  ANALISIS_PIEL360_MAIN_METRIC_TYPES,
+  ANALISIS_PIEL360_SCORE_BANDS,
   resolveScoreRanges,
-  type YoucamScoreBand,
-  type YoucamScoreConfig,
+  type AnalisisPiel360ScoreBand,
+  type AnalisisPiel360ScoreConfig,
 } from "@piel360/shared";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,7 +34,7 @@ const SPECIAL_METRICS = [
 ];
 
 function bandRange(
-  band: YoucamScoreBand,
+  band: AnalisisPiel360ScoreBand,
   ranges: { regularMax: number; promedioMax: number },
 ): string {
   if (band === "regular") return `0 – ${ranges.regularMax - 1}`;
@@ -44,20 +44,63 @@ function bandRange(
 
 /** Métricas con cortes propios: los rangos son por métrica, así que mostrar
  * solo los generales sería mentir a quien ya los personalizó. */
-function customizedMetrics(config: YoucamScoreConfig | undefined) {
+function customizedMetrics(config: AnalisisPiel360ScoreConfig | undefined) {
   return Object.entries(config?.metrics ?? {})
     .filter(([, m]) => m?.regularMax != null || m?.promedioMax != null)
     .map(([type]) => ({ type, ranges: resolveScoreRanges(config, type) }));
 }
 
+type GuideKind = "plain" | "treatment" | "routine";
+
+/** Lo que cambia según qué se está configurando. */
+const GUIDE_COPY: Record<
+  GuideKind,
+  { titulo: string; sujeto: string; storageKey: string; pasos: string[] }
+> = {
+  plain: {
+    titulo: "¿Cómo funcionan los puntajes sugeridos?",
+    sujeto: "este grupo de productos",
+    storageKey: "piel360-score-guide-plain-seen",
+    pasos: [
+      "Crea el grupo con un nombre que reconozcas después.",
+      "Añade las condiciones: elige la métrica, el operador y el puntaje.",
+      "Guarda. El grupo ya queda listo para evaluarse en cada análisis.",
+      "Entra a editarlo y añade los productos que se van a recomendar.",
+    ],
+  },
+  treatment: {
+    titulo: "¿Cómo funcionan los tratamientos por puntaje?",
+    sujeto: "este tratamiento",
+    storageKey: "piel360-score-guide-treatment-seen",
+    pasos: [
+      "Crea el tratamiento con su nombre y su categoría.",
+      "Añade las condiciones: elige la métrica, el operador y el puntaje.",
+      "Guarda. El tratamiento ya queda listo para evaluarse en cada análisis.",
+      "Entra a editarlo y añade los productos que se van a recomendar.",
+    ],
+  },
+  routine: {
+    titulo: "¿Cómo funcionan las rutinas?",
+    sujeto: "esta rutina",
+    // La clave del onboarding de rutinas que había antes: quien ya lo vio no
+    // vuelve a recibir la guía abierta de golpe.
+    storageKey: "piel360-routines-onboarding-seen",
+    pasos: [
+      "Crea la rutina con un nombre que reconozcas después.",
+      "Añade las condiciones: elige la métrica, el operador y el puntaje.",
+      "Añade los pasos de la rutina con sus productos.",
+      "Guarda. La rutina ya queda lista para evaluarse en cada análisis.",
+    ],
+  },
+};
+
 /**
- * Guía de puntajes del tab de productos sugeridos / tratamientos: explica qué
- * es una condición, con qué niveles se corresponde y cómo se parametriza.
- *
- * Se abre sola la primera vez y queda el botón para reabrirla — mismo patrón
- * que `RoutineOnboarding` en Rutinas.
+ * Guía de puntajes de rutinas, tratamientos y productos sugeridos: explica
+ * qué es una condición, con qué niveles se corresponde y cómo se parametriza.
+ * Se abre sola la primera vez y queda el botón para reabrirla, junto al
+ * buscador de la tabla.
  */
-export function ScoreGuideDialog({ kind }: { kind: "plain" | "treatment" }) {
+export function ScoreGuideDialog({ kind }: { kind: GuideKind }) {
   const [open, setOpen] = useState(false);
   const { data: config } = useMyScoreConfig();
   // Sin esto el foco cae en el primer enlace del contenido ("Rangos de
@@ -65,26 +108,20 @@ export function ScoreGuideDialog({ kind }: { kind: "plain" | "treatment" }) {
   // ya abajo. Enfocar el propio panel lo deja arriba, en el título.
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const esTratamiento = kind === "treatment";
-  const sujeto = esTratamiento ? "este tratamiento" : "este grupo de productos";
-  const titulo = esTratamiento
-    ? "¿Cómo funcionan los tratamientos por puntaje?"
-    : "¿Cómo funcionan los puntajes sugeridos?";
+  const { titulo, sujeto, storageKey, pasos } = GUIDE_COPY[kind];
 
   useEffect(() => {
     // localStorage no existe en el server — se abre client-only después del
     // mount para no desincronizar el HTML de SSR/hidratación.
-    const storageKey = `piel360-score-guide-${kind}-seen`;
-    // En Rutinas la cabecera ya tiene su propio onboarding: si está abierto no
-    // nos apilamos encima. Tampoco se marca como vista, así que la guía sale
-    // la próxima vez que entre al tab.
+    // Si ya hay otro modal abierto no nos apilamos encima. Tampoco se marca
+    // como vista, así que la guía sale la próxima vez.
     if (document.querySelector('[data-slot="dialog-content"]')) return;
     if (!localStorage.getItem(storageKey)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setOpen(true);
       localStorage.setItem(storageKey, "1");
     }
-  }, [kind]);
+  }, [storageKey]);
 
   // Los rangos generales de la cuenta; cada métrica puede mover los suyos.
   const ranges = resolveScoreRanges(config, null);
@@ -123,15 +160,6 @@ export function ScoreGuideDialog({ kind }: { kind: "plain" | "treatment" }) {
     },
   ];
 
-  const pasos = [
-    esTratamiento
-      ? "Crea el tratamiento con su nombre y su categoría."
-      : "Crea el grupo con un nombre que reconozcas después.",
-    "Añade las condiciones: elige la métrica, el operador y el puntaje.",
-    "Guarda. El grupo ya queda listo para evaluarse en cada análisis.",
-    "Entra a editarlo y añade los productos que se van a recomendar.",
-  ];
-
   return (
     <>
       <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
@@ -150,21 +178,30 @@ export function ScoreGuideDialog({ kind }: { kind: "plain" | "treatment" }) {
           </DialogHeader>
 
           <div className="space-y-5 text-sm">
-            <p className="text-muted-foreground">
-              Cada análisis facial puntúa de <strong>0 a 100</strong> cosas como
-              arrugas, poros o hidratación, y{" "}
-              <strong>mientras más alto, mejor está la piel</strong>. Una{" "}
-              <strong>condición</strong> compara ese puntaje con un número que
-              eliges tú, y así{" "}
-              {esTratamiento ? "el tratamiento" : "el grupo de productos"} se
-              recomienda solo cuando toca.
-            </p>
+            <div className="space-y-2 text-muted-foreground">
+              <p>
+                Cada análisis facial asigna una puntuación de{" "}
+                <strong>0 a 100</strong> a diferentes condiciones de la piel,
+                como arrugas, poros e hidratación.{" "}
+                <strong>
+                  Cuanto más alto sea el puntaje, mejor será la valoración de
+                  esa condición.
+                </strong>
+              </p>
+              <p>
+                Puedes configurar <strong>condiciones</strong> y rangos de
+                puntuación para definir cuándo se deben mostrar las
+                recomendaciones. Así, PIEL 360 podrá sugerir automáticamente los
+                productos, las rutinas de cuidado y los tratamientos que hayas
+                asociado a cada rango, según el resultado obtenido.
+              </p>
+            </div>
 
             {/* Los tres niveles */}
             <section className="space-y-2">
               <h3 className="font-medium">Los tres niveles de puntaje</h3>
               <div className="grid gap-2 sm:grid-cols-3">
-                {YOUCAM_SCORE_BANDS.map((band) => (
+                {ANALISIS_PIEL360_SCORE_BANDS.map((band) => (
                   <div
                     key={band}
                     className="rounded-xl border border-border bg-card p-3"
@@ -213,7 +250,7 @@ export function ScoreGuideDialog({ kind }: { kind: "plain" | "treatment" }) {
             <section className="space-y-2">
               <h3 className="font-medium">Qué puedes condicionar</h3>
               <div className="flex flex-wrap gap-1.5">
-                {YOUCAM_MAIN_METRIC_TYPES.map((type) => (
+                {ANALISIS_PIEL360_MAIN_METRIC_TYPES.map((type) => (
                   <span
                     key={type}
                     className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground"

@@ -1,3 +1,5 @@
+import { cn } from "@/lib/utils";
+
 // Medidor semicircular — mismo criterio que create-analysis.blade.php: la
 // aguja rota de -90° (0%) a +90° (100%) según `high_risk_prob`.
 const CENTER = { x: 50, y: 55 };
@@ -17,13 +19,22 @@ function arcPath(startAngle: number, endAngle: number) {
   return `M ${start.x} ${start.y} A ${RADIUS} ${RADIUS} 0 0 1 ${end.x} ${end.y}`;
 }
 
-export function RiskGauge({ percent, riskLabel }: { percent: number; riskLabel: string }) {
+export function RiskGauge({
+  percent,
+  riskLabel,
+  className,
+}: {
+  percent: number;
+  riskLabel: string;
+  /** Ancho del medidor; por defecto `max-w-xs`. */
+  className?: string;
+}) {
   const clamped = Math.max(0, Math.min(100, percent));
   const rotation = -90 + (clamped / 100) * 180;
 
   return (
     <div className="flex flex-col items-center">
-      <svg viewBox="0 0 100 70" className="w-full max-w-xs">
+      <svg viewBox="0 0 100 70" className={cn("w-full max-w-xs", className)}>
         <path d={arcPath(0, 60)} stroke="#22c55e" strokeWidth="8" fill="none" strokeLinecap="round" />
         <path d={arcPath(60, 120)} stroke="#facc15" strokeWidth="8" fill="none" strokeLinecap="round" />
         <path d={arcPath(120, 180)} stroke="#ef4444" strokeWidth="8" fill="none" strokeLinecap="round" />

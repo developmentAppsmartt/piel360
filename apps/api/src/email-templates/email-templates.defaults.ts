@@ -5,6 +5,7 @@ export const EMAIL_TEMPLATE_KIND_LABELS: Record<string, string> = {
   plan_acquired: 'Plan adquirido',
   report_ready: 'Obtener informe',
   appointment_scheduled: 'Cita agendada',
+  appointment_reminder: 'Recordatorio de cita',
   patient_invitation: 'Invitación de paciente',
   patient_account_created: 'Paciente creado con cuenta',
   team_member_invitation: 'Invitación a miembro del equipo',
@@ -13,6 +14,12 @@ export const EMAIL_TEMPLATE_KIND_LABELS: Record<string, string> = {
   doctor_verification_rejected: 'Registro rechazado',
   custom: 'Personalizada',
 };
+
+/** Correo al paciente N días antes de una cita confirmada
+ * (`agenda/appointment-reminders.cron.ts`). */
+export const APPOINTMENT_REMINDER_KIND = 'appointment_reminder';
+/** Días de anticipación si el profesional no configuró otros. */
+export const REMINDER_DEFAULT_DAYS = 1;
 
 export interface EmailTemplateDefault {
   subject: string;
@@ -45,6 +52,13 @@ export const EMAIL_TEMPLATE_DEFAULTS: Record<string, EmailTemplateDefault> = {
     subject: 'Tu cita quedó agendada',
     bodyHtml: `<p>Hola {nombre},</p>
 <p>Tu cita <strong>{cita_titulo}</strong> quedó agendada para el <strong>{fecha_cita}</strong> a las <strong>{hora_cita}</strong>.</p>
+<p>— {clinic_name}</p>`,
+  },
+  appointment_reminder: {
+    subject: 'Recordatorio: tu cita es el {fecha_cita}',
+    bodyHtml: `<p>Hola {nombre},</p>
+<p>Te recordamos tu cita <strong>{cita_titulo}</strong> el <strong>{fecha_cita}</strong> a las <strong>{hora_cita}</strong>.</p>
+<p>Si no puedes asistir, avísanos con anticipación.</p>
 <p>— {clinic_name}</p>`,
   },
   team_member_invitation: {

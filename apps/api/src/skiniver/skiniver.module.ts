@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
-import { SkiniverService } from './skiniver.service';
-import { SkiniverController } from './skiniver.controller';
+import { AnalisisDermaPiel360Service } from './skiniver.service';
+import { AnalisisDermaPiel360Controller } from './skiniver.controller';
 
 @Module({
-  providers: [SkiniverService],
-  controllers: [SkiniverController],
-  exports: [SkiniverService],
+  providers: [AnalisisDermaPiel360Service],
+  controllers: [AnalisisDermaPiel360Controller],
+  exports: [AnalisisDermaPiel360Service],
 })
-export class SkiniverModule {}
+export class AnalisisDermaPiel360Module {}

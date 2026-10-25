@@ -5,13 +5,13 @@ import { ReportsModule } from '../reports/reports.module';
 import { StorageModule } from '../storage/storage.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { YOUCAM_POLL_QUEUE } from './queues';
-import { YoucamAnalysesService } from './youcam-analyses.service';
-import { YoucamPollProcessor } from './youcam-poll.processor';
-import { YoucamResultsService } from './youcam-results.service';
-import { YoucamWebhookController } from './youcam-webhook.controller';
-import { YoucamWebhookService } from './youcam-webhook.service';
-import { YoucamController } from './youcam.controller';
-import { YouCamService } from './youcam.service';
+import { AnalisisPiel360AnalysesService } from './youcam-analyses.service';
+import { AnalisisPiel360PollProcessor } from './youcam-poll.processor';
+import { AnalisisPiel360ResultsService } from './youcam-results.service';
+import { AnalisisPiel360WebhookController } from './youcam-webhook.controller';
+import { AnalisisPiel360WebhookService } from './youcam-webhook.service';
+import { AnalisisPiel360Controller } from './youcam.controller';
+import { AnalisisPiel360Service } from './youcam.service';
 
 @Module({
   imports: [
@@ -22,13 +22,13 @@ import { YouCamService } from './youcam.service';
     ReportsModule,
   ],
   providers: [
-    YouCamService,
-    YoucamAnalysesService,
-    YoucamResultsService,
-    YoucamWebhookService,
-    YoucamPollProcessor,
+    AnalisisPiel360Service,
+    AnalisisPiel360AnalysesService,
+    AnalisisPiel360ResultsService,
+    AnalisisPiel360WebhookService,
+    AnalisisPiel360PollProcessor,
   ],
-  controllers: [YoucamController, YoucamWebhookController],
-  exports: [YouCamService],
+  controllers: [AnalisisPiel360Controller, AnalisisPiel360WebhookController],
+  exports: [AnalisisPiel360Service],
 })
-export class YoucamModule {}
+export class AnalisisPiel360Module {}

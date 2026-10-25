@@ -1,9 +1,8 @@
 "use client";
 
 import {
-  SKINIVER_AGE_BUCKETS,
-  SKINIVER_DIAGNOSIS_CLASS_DEFS,
-  type SkiniverReport,
+  ANALISIS_DERMA_PIEL360_AGE_BUCKETS,
+  type AnalisisDermaPiel360Report,
 } from "@piel360/shared";
 import {
   ModuleCard,
@@ -15,19 +14,13 @@ import { AgeGenderBars } from "@/components/reports/age-gender-bars";
 import { DiagnosisCategoryDonut } from "@/components/reports/diagnosis-category-donut";
 import { MultiSeriesTrendChart } from "@/components/reports/multi-series-trend-chart";
 import { SkinToneWidget } from "@/components/reports/skin-tone-widget";
-import { SkiniverClinicoWidget } from "@/components/reports/skiniver-clinico-widget";
+import { AnalisisDermaPiel360ClinicoWidget } from "@/components/reports/skiniver-clinico-widget";
 import { TopDiagnosesTable } from "@/components/reports/top-diagnoses-table";
 
-const CLASS_SERIES = Object.entries(SKINIVER_DIAGNOSIS_CLASS_DEFS).map(([key, def]) => ({
-  key,
-  label: def.label,
-  color: def.color,
-}));
+// Las series de clase y de enfermedad no son constantes: dependen de qué se
+// diagnosticó en el periodo, así que llegan en el reporte.
 
-// Las series de enfermedad no son constantes: dependen de qué se diagnosticó
-// en el periodo, así que llegan en `report.diseaseSeries`.
-
-const AGE_SERIES = SKINIVER_AGE_BUCKETS.map((b) => ({
+const AGE_SERIES = ANALISIS_DERMA_PIEL360_AGE_BUCKETS.map((b) => ({
   key: b.key,
   label: b.label,
   color: b.color,
@@ -41,11 +34,11 @@ const AGE_SERIES = SKINIVER_AGE_BUCKETS.map((b) => ({
  * `showClinicalBrowser` apaga el buscador de análisis, que carga el listado
  * completo para filtrar en cliente — innecesario en una vista global.
  */
-export function SkiniverReportView({
+export function AnalisisDermaPiel360ReportView({
   report,
   showClinicalBrowser = true,
 }: {
-  report: SkiniverReport;
+  report: AnalisisDermaPiel360Report;
   showClinicalBrowser?: boolean;
 }) {
   return (
@@ -53,11 +46,11 @@ export function SkiniverReportView({
       <div className="grid gap-5 xl:grid-cols-2">
         <ModuleCard className="p-5">
           <ModuleCardTitle className="text-base">
-            Enfermedades de la piel por categorías
+            Enfermedades de la piel por Clases
           </ModuleCardTitle>
           <ModuleCardDescription>
-            Distribución de diagnósticos por categoría, según la clasificación que
-            devuelve la IA.
+            Distribución de diagnósticos por clase (grupo de patologías), según
+            la clasificación que devuelve la IA.
           </ModuleCardDescription>
           <div className="mt-4">
             <DiagnosisCategoryDonut
@@ -114,7 +107,7 @@ export function SkiniverReportView({
             profesional.
           </ModuleCardDescription>
           <div className="mt-4">
-            <SkiniverClinicoWidget />
+            <AnalisisDermaPiel360ClinicoWidget range={report.range} />
           </div>
         </ModuleCard>
       ) : null}
@@ -124,11 +117,11 @@ export function SkiniverReportView({
           No. de diagnósticos por clase por mes
         </ModuleCardTitle>
         <ModuleCardDescription>
-          Las clases son los grupos de patología: cada una reúne las categorías
-          de diagnóstico que devuelve la IA.
+          Las clases son los grupos de patologías que devuelve la IA: las 8 más
+          frecuentes del periodo; el resto se agrupa en «Otras».
         </ModuleCardDescription>
         <div className="mt-4">
-          <MultiSeriesTrendChart points={report.byClass} series={CLASS_SERIES} />
+          <MultiSeriesTrendChart points={report.byClass} series={report.classSeries} />
         </div>
       </ModuleCard>
 

@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClientFetch } from "@/lib/api-client";
 
-export type PerfectCorpUnitPool = {
+export type AnalisisPiel360UnitPool = {
   id: "aesthetic";
   name: string;
   accent: "aesthetic";
@@ -16,16 +16,16 @@ export type PerfectCorpUnitPool = {
   rechargedRecent: number;
 };
 
-export type PerfectCorpFeatureCostRow = {
+export type AnalisisPiel360FeatureCostRow = {
   description: string;
   amount: number;
   runTaskUrl: string;
 };
 
-export type PerfectCorpUnitsResponse = {
-  source: "perfectcorp";
+export type AnalisisPiel360UnitsResponse = {
+  source: "analisispiel360";
   fetchedAt: string;
-  pool: PerfectCorpUnitPool;
+  pool: AnalisisPiel360UnitPool;
   balances: Array<{
     id: string;
     type: string;
@@ -33,11 +33,11 @@ export type PerfectCorpUnitsResponse = {
     expiry: string | null;
   }>;
   featureCosts: {
-    skinAnalysis: PerfectCorpFeatureCostRow[];
-    fitzpatrick: PerfectCorpFeatureCostRow[];
+    skinAnalysis: AnalisisPiel360FeatureCostRow[];
+    fitzpatrick: AnalisisPiel360FeatureCostRow[];
     estimatedPerAnalysis: {
-      youcamHdUnits: number;
-      youcamConcerns: number;
+      hdUnits: number;
+      concerns: number;
       fitzpatrickUnits: number;
       combinedUnits: number;
       source: "api" | "fallback";
@@ -54,7 +54,7 @@ export type PerfectCorpUnitsResponse = {
   }>;
 };
 
-export type SkiniverUnitPool = {
+export type AnalisisDermaPiel360UnitPool = {
   id: "derm";
   name: string;
   accent: "derm";
@@ -66,11 +66,11 @@ export type SkiniverUnitPool = {
   unitLabel: "créditos";
 };
 
-export type SkiniverUnitsResponse = {
-  source: "skiniver";
+export type AnalisisDermaPiel360UnitsResponse = {
+  source: "analisisdermapiel360";
   fetchedAt: string;
   providerConfigured: boolean;
-  pool: SkiniverUnitPool;
+  pool: AnalisisDermaPiel360UnitPool;
   history: Array<{
     id: string;
     kind?: string;
@@ -83,7 +83,7 @@ export type SkiniverUnitsResponse = {
   }>;
 };
 
-export type CreateSkiniverRechargeInput = {
+export type CreateAnalisisDermaPiel360RechargeInput = {
   quantity: number;
   expiresAt?: string;
   note?: string;
@@ -93,7 +93,7 @@ export type PlanPoolAlertPlan = {
   id: string;
   name: string;
   analysisLimit: number;
-  poolProvider: "skiniver" | "perfectcorp";
+  poolProvider: "analisisdermapiel360" | "analisispiel360";
   poolAvailable: number;
   poolRequired: number;
   poolUnavailableReason: string | null;
@@ -102,7 +102,7 @@ export type PlanPoolAlertPlan = {
 
 export type PlanPoolAlertsResponse = {
   fetchedAt: string;
-  balances: { skiniver: number; perfectcorp: number };
+  balances: { analisisdermapiel360: number; analisispiel360: number };
   hasAlerts: boolean;
   unavailablePlans: PlanPoolAlertPlan[];
 };
@@ -150,37 +150,37 @@ export function usePlanPoolAlerts() {
   });
 }
 
-export function usePerfectCorpUnits() {
+export function useAnalisisPiel360Units() {
   return useQuery({
-    queryKey: ["admin", "bolsa-unidades", "perfectcorp"],
+    queryKey: ["admin", "bolsa-unidades", "analisispiel360"],
     queryFn: () =>
-      apiClientFetch<PerfectCorpUnitsResponse>(
-        "/admin/bolsa-unidades/perfectcorp",
+      apiClientFetch<AnalisisPiel360UnitsResponse>(
+        "/admin/bolsa-unidades/analisispiel360",
       ),
     staleTime: 60_000,
   });
 }
 
-export function useSkiniverUnits() {
+export function useAnalisisDermaPiel360Units() {
   return useQuery({
-    queryKey: ["admin", "bolsa-unidades", "skiniver"],
+    queryKey: ["admin", "bolsa-unidades", "analisisdermapiel360"],
     queryFn: () =>
-      apiClientFetch<SkiniverUnitsResponse>("/admin/bolsa-unidades/skiniver"),
+      apiClientFetch<AnalisisDermaPiel360UnitsResponse>("/admin/bolsa-unidades/analisisdermapiel360"),
     staleTime: 60_000,
   });
 }
 
-export function useCreateSkiniverRecharge() {
+export function useCreateAnalisisDermaPiel360Recharge() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateSkiniverRechargeInput) =>
-      apiClientFetch("/admin/bolsa-unidades/skiniver/recharge", {
+    mutationFn: (input: CreateAnalisisDermaPiel360RechargeInput) =>
+      apiClientFetch("/admin/bolsa-unidades/analisisdermapiel360/recharge", {
         method: "POST",
         body: JSON.stringify(input),
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
-        queryKey: ["admin", "bolsa-unidades", "skiniver"],
+        queryKey: ["admin", "bolsa-unidades", "analisisdermapiel360"],
       });
       await queryClient.invalidateQueries({
         queryKey: ["admin", "bolsa-unidades", "plan-alerts"],

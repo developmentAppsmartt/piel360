@@ -3,7 +3,11 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+      // `.next/dev` es la caché del servidor de desarrollo (Next 16 con
+      // turbopack escribe ahí .sst de ~250 MB). No es salida del build y
+      // `!.next/cache/**` no la cubre, así que turbo la empaquetaba en cada
+      // artefacto: pesaban ~2 GB en vez de ~7 MB.
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "!.next/dev/**"],
       "env": ["BACKEND_ORIGIN", "NEXT_PUBLIC_API_URL", "API_URL", "JWT_SECRET"]
     },
     "dev": {

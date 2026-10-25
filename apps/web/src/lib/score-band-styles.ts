@@ -1,17 +1,17 @@
-import type { YoucamScoreBand } from "@piel360/shared";
+import type { AnalisisPiel360ScoreBand } from "@piel360/shared";
 
 /** Colores de los tres niveles de puntaje. Los comparten la pantalla de
  * Rangos de puntuación y la guía de puntajes de productos/tratamientos: si se
  * separan, el profesional parametriza con unos colores y lee el reporte con
  * otros. */
-export const SCORE_BAND_LABELS: Record<YoucamScoreBand, string> = {
+export const SCORE_BAND_LABELS: Record<AnalisisPiel360ScoreBand, string> = {
   regular: "Regular",
   promedio: "Promedio",
   buena: "Buena",
 };
 
 export const SCORE_BAND_STYLES: Record<
-  YoucamScoreBand,
+  AnalisisPiel360ScoreBand,
   { bar: string; chip: string }
 > = {
   regular: { bar: "bg-rose-400", chip: "bg-rose-50 text-rose-700" },

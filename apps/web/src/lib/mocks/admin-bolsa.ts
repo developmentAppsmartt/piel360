@@ -181,7 +181,7 @@ export const MOCK_CLIENT_USAGE: ClientUsageRow[] = [
   },
   {
     id: "3",
-    name: "Perfect Clinic",
+    name: "Clínica Aurora",
     plan: "Plan Mixto",
     consumed: 850,
     accent: "aesthetic",
@@ -238,7 +238,7 @@ export const MOCK_ACTIVITY: ActivityItem[] = [
   },
   {
     id: "3",
-    clinic: "Perfect Clinic",
+    clinic: "Clínica Aurora",
     plan: "Plan Mixto",
     deltaLabel: "-150 unidades estéticas / Fitzpatrick",
     when: "Hace 2 h",
@@ -257,8 +257,8 @@ export const MOCK_ACTIVITY: ActivityItem[] = [
 export const MOCK_CLIENTS: ClientRow[] = [
   {
     id: "1",
-    name: "Perfect Clinic",
-    url: "perfectclinic.com",
+    name: "Clínica Aurora",
+    url: "clinicaaurora.com",
     initials: "PC",
     plan: "Estético Pro",
     users: 12,
@@ -370,7 +370,7 @@ export const MOCK_CLIENTS: ClientRow[] = [
 ];
 
 export const MOCK_COMPANY_CONSUMPTION = {
-  company: "Perfect Clinic",
+  company: "Clínica Aurora",
   companyId: "EMP-1258",
   aesthetic: { done: 35, limit: 200, available: 165 },
   derm: { done: 12, limit: 100, available: 88 },

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { CloudUpload } from "lucide-react";
+import { AccountSecuritySection } from "@/components/auth/account-security-section";
 import { AddressLocationPicker } from "@/components/maps";
 import {
   combinePhoneParts,
@@ -340,7 +341,8 @@ export function DoctorProfileForm() {
   const showCompany = isCompanyMembership(profile);
 
   return (
-    <form onSubmit={onSubmit} className="max-w-4xl space-y-8">
+    <div className="max-w-4xl space-y-8">
+    <form onSubmit={onSubmit} className="space-y-8">
       <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-foreground">
@@ -348,8 +350,8 @@ export function DoctorProfileForm() {
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {showCompany
-            ? "Datos del representante legal de la empresa. El correo no se puede cambiar."
-            : "Datos de tu cuenta profesional. El correo no se puede cambiar."}
+            ? "Datos del representante legal de la empresa."
+            : "Datos de tu cuenta profesional."}
           {profile.verificationStatus
             ? ` Estado: ${
                 profile.verificationStatus === "in_review"
@@ -415,7 +417,10 @@ export function DoctorProfileForm() {
             required
           />
         </Field>
-        <Field label="Correo" >
+        <Field
+          label="Correo"
+          hint="Es tu usuario de acceso. Se cambia abajo, en Acceso y seguridad."
+        >
           <input className={inputClass} value={displayForm.email} disabled readOnly />
         </Field>
         <Field label="Celular">
@@ -631,5 +636,12 @@ export function DoctorProfileForm() {
         </Button>
       </div>
     </form>
+
+    <AccountSecuritySection
+      email={displayForm.email}
+      phone={combinePhoneParts(phonePrefix, phoneNational)}
+      onEmailChanged={() => void query.refetch()}
+    />
+    </div>
   );
 }

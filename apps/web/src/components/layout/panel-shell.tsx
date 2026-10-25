@@ -8,7 +8,6 @@ export function PanelShell({
   nav,
   user,
   children,
-  notificationCount = 0,
   sidebarUser,
   hideHeaderLogout = false,
 }: {
@@ -24,7 +23,6 @@ export function PanelShell({
     isOrgMember?: boolean;
   };
   children: React.ReactNode;
-  notificationCount?: number;
   sidebarUser?: {
     name: string;
     subtitle: string;
@@ -85,7 +83,9 @@ export function PanelShell({
       resolvedNav={resolvedNav}
       isMonitor={isMonitor}
       user={user}
-      notificationCount={notificationCount}
+      notificationsHref={
+        isClinicalPanelRole(user.role) ? "/doctor/notificaciones" : null
+      }
       sidebarUser={
         sidebarUser
           ? {

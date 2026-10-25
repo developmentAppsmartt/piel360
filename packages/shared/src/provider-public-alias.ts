@@ -1,3 +1,5 @@
+import type { PublicAnalysisProviderSlug } from "./public-provider-slugs.js";
+
 /**
  * Alias públicos de proveedores de análisis.
  * Los slugs internos (BD, webhooks, RBAC, APIs vendor) no cambian;
@@ -87,6 +89,53 @@ export function providerSlugMatches(
   return expandProviderSlugAliases(candidate).some((s) => allowedSet.has(s));
 }
 
+/**
+ * Las bolsas de unidades se nombran por el proveedor que las cobra, y Perfect
+ * Corp es el dueno de YouCam: por eso `perfectcorp` y `youcam` comparten slug
+ * publico. El mapa va aparte porque la vuelta atras es distinta — un
+ * `analisispiel360` que venia de una bolsa es `perfectcorp`, no `youcam`.
+ */
+export const POOL_PUBLIC_ALIASES = {
+  skiniver: "analisisdermapiel360",
+  perfectcorp: "analisispiel360",
+} as const;
+
+export type InternalPoolSlug = keyof typeof POOL_PUBLIC_ALIASES;
+
+const INTERNAL_POOL_FROM_PUBLIC: Record<string, InternalPoolSlug> = {
+  analisisdermapiel360: "skiniver",
+  analisispiel360: "perfectcorp",
+};
+
+export function toPublicPoolSlug(slug: string): string {
+  return POOL_PUBLIC_ALIASES[slug as InternalPoolSlug] ?? slug;
+}
+
+export function toInternalPoolSlug(slug: string): string {
+  return INTERNAL_POOL_FROM_PUBLIC[slug] ?? slug;
+}
+
+/** Renombra las CLAVES de un objeto indexado por proveedor
+ * (`analysisLimits`, `apiCostPerProvider`). Las claves que no son un
+ * proveedor —`aesthetic`, `fitzpatrick`— se quedan como estan. */
+export function toPublicProviderKeys<T>(
+  record: Record<string, T> | null | undefined,
+): Record<string, T> | null | undefined {
+  if (!record || typeof record !== "object") return record;
+  return Object.fromEntries(
+    Object.entries(record).map(([key, value]) => [toPublicProviderSlug(key), value]),
+  );
+}
+
+export function toInternalProviderKeys<T>(
+  record: Record<string, T> | null | undefined,
+): Record<string, T> | null | undefined {
+  if (!record || typeof record !== "object") return record;
+  return Object.fromEntries(
+    Object.entries(record).map(([key, value]) => [toInternalProviderSlug(key), value]),
+  );
+}
+
 type ProviderLike = {
   id: string | bigint;
   name: string;
@@ -99,6 +148,8 @@ export function toPublicPlanProviders<T extends {
   provider: ProviderLike;
   providers?: ProviderLike[];
   analysisLimits?: unknown;
+  apiCosts?: unknown;
+  poolProvider?: unknown;
 }>(plan: T): T {
   const mapProvider = (p: ProviderLike) => {
     const publicSlug = toPublicProviderSlug(p.slug);
@@ -114,21 +165,10 @@ export function toPublicPlanProviders<T extends {
     };
   };
 
-  let analysisLimits = plan.analysisLimits;
-  if (
-    analysisLimits &&
-    typeof analysisLimits === "object" &&
-    !Array.isArray(analysisLimits)
-  ) {
-    analysisLimits = Object.fromEntries(
-      Object.entries(analysisLimits as Record<string, unknown>).map(
-        ([key, value]) => [
-          key === "skiniver" ? PROVIDER_PUBLIC_ALIASES.skiniver : key,
-          value,
-        ],
-      ),
-    );
-  }
+  const mapKeys = (valor: unknown) =>
+    valor && typeof valor === "object" && !Array.isArray(valor)
+      ? toPublicProviderKeys(valor as Record<string, unknown>)
+      : valor;
 
   return {
     ...plan,
@@ -136,6 +176,12 @@ export function toPublicPlanProviders<T extends {
     ...(plan.providers
       ? { providers: plan.providers.map(mapProvider) }
       : {}),
-    analysisLimits,
+    analysisLimits: mapKeys(plan.analysisLimits),
+    ...(plan.apiCosts !== undefined
+      ? { apiCosts: mapKeys(plan.apiCosts) }
+      : {}),
+    ...(typeof plan.poolProvider === "string"
+      ? { poolProvider: toPublicPoolSlug(plan.poolProvider) }
+      : {}),
   };
 }

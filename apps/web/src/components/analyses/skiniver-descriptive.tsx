@@ -1,6 +1,6 @@
 import type {
-  SkiniverDescriptiveText,
-  SkiniverRiskGuidance,
+  AnalisisDermaPiel360DescriptiveText,
+  AnalisisDermaPiel360RiskGuidance,
 } from "@piel360/shared";
 
 function Field({ label, value }: { label: string; value: string | null }) {
@@ -18,11 +18,11 @@ function Field({ label, value }: { label: string; value: string | null }) {
  * desglosado por el API. Lo comparten la tarjeta del diagnóstico principal y
  * el detalle de cada candidato de apoyo, que tiene el suyo propio.
  */
-export function SkiniverDescriptive({
+export function AnalisisDermaPiel360Descriptive({
   details,
   icdCode = null,
 }: {
-  details: SkiniverDescriptiveText;
+  details: AnalisisDermaPiel360DescriptiveText;
   icdCode?: string | null;
 }) {
   return (
@@ -36,17 +36,17 @@ export function SkiniverDescriptive({
   );
 }
 
-export function hasRiskGuidance(risk: SkiniverRiskGuidance | undefined): boolean {
+export function hasRiskGuidance(risk: AnalisisDermaPiel360RiskGuidance | undefined): boolean {
   return Boolean(
     risk && (risk.description || risk.suggestion || risk.short_recommendation),
   );
 }
 
 /** Textos que Skiniver manda como claves propias, fuera de `description`. */
-export function SkiniverRiskGuidanceBlock({
+export function AnalisisDermaPiel360RiskGuidanceBlock({
   risk,
 }: {
-  risk: SkiniverRiskGuidance;
+  risk: AnalisisDermaPiel360RiskGuidance;
 }) {
   if (!hasRiskGuidance(risk)) return null;
   return (

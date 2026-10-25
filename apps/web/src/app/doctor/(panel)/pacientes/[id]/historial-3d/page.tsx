@@ -11,15 +11,15 @@ export default function Historial3DPage() {
   const analyses = usePatientAnalyses3D(patientId);
 
   if (patient.isLoading || analyses.isLoading) {
-    return <p className="text-muted-foreground">Cargando historial 3D...</p>;
+    return <p className="text-muted-foreground">Cargando historial 3D análisis dermatológico...</p>;
   }
   if (patient.error || analyses.error) {
-    return <p className="text-destructive">No se pudo cargar el historial 3D.</p>;
+    return <p className="text-destructive">No se pudo cargar el historial 3D análisis dermatológico.</p>;
   }
 
   return (
     <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-semibold">Historial 3D</h1>
+      <h1 className="text-2xl font-semibold">Historial 3D análisis dermatológico</h1>
       <PatientBodyHistory
         analyses={analyses.data ?? []}
         initialGender={genderFromPatient(patient.data?.gender)}

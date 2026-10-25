@@ -5,15 +5,15 @@ import { useState } from "react";
 import { AnalysisResultsView } from "@/components/analyses/analysis-results-view";
 import { BodySelector } from "@/components/analyses/body-selector";
 import { PhotoCapture } from "@/components/analyses/photo-capture";
-import { YoucamCapture } from "@/components/analyses/youcam-capture";
+import { AnalisisPiel360Capture } from "@/components/analyses/youcam-capture";
 import { Button } from "@/components/ui/button";
 import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import { ApiError } from "@/lib/api-error";
 import { useCreateAnalysis } from "@/lib/queries/analyses";
 import { useMyPatient } from "@/lib/queries/patients";
-import { useCreateYoucamAnalysis } from "@/lib/queries/youcam";
+import { useCreateAnalisisPiel360Analysis } from "@/lib/queries/youcam";
 
-type Provider = "skiniver" | "youcam";
+type Provider = "analisisdermapiel360" | "analisispiel360";
 type Step = "elegir" | "consentimiento" | "captura" | "region" | "enviar" | "resultados";
 
 interface BodySelection {
@@ -33,28 +33,28 @@ export default function AutoAnalisisPage() {
   const [bodySelection, setBodySelection] = useState<BodySelection | null>(null);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
 
-  const createSkiniverAnalysis = useCreateAnalysis();
-  const createYoucamAnalysis = useCreateYoucamAnalysis();
+  const createAnalisisDermaPiel360Analysis = useCreateAnalysis();
+  const createAnalisisPiel360Analysis = useCreateAnalisisPiel360Analysis();
 
-  const createAnalysis = provider === "youcam" ? createYoucamAnalysis : createSkiniverAnalysis;
+  const createAnalysis = provider === "analisispiel360" ? createAnalisisPiel360Analysis : createAnalisisDermaPiel360Analysis;
 
   function chooseProvider(next: Provider) {
     setProvider(next);
-    setStep(next === "youcam" ? "consentimiento" : "captura");
+    setStep(next === "analisispiel360" ? "consentimiento" : "captura");
   }
 
   async function handleSubmit() {
     if (!photo || !patient.data) return;
     try {
-      if (provider === "youcam") {
-        const created = await createYoucamAnalysis.mutateAsync({
+      if (provider === "analisispiel360") {
+        const created = await createAnalisisPiel360Analysis.mutateAsync({
           patientId: patient.data.id,
           image: photo.blob,
           ...bodySelection,
         });
         setAnalysisId(created.analysisId);
       } else {
-        const created = await createSkiniverAnalysis.mutateAsync({
+        const created = await createAnalisisDermaPiel360Analysis.mutateAsync({
           patientId: patient.data.id,
           image: photo.blob,
           ...bodySelection,
@@ -78,20 +78,20 @@ export default function AutoAnalisisPage() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <button
             type="button"
-            onClick={() => chooseProvider("skiniver")}
+            onClick={() => chooseProvider("analisisdermapiel360")}
             className="rounded-lg border border-border p-4 text-left hover:bg-muted"
           >
-            <p className="font-medium">{ANALYSIS_PROVIDER_STATIC_LABELS.skiniver}</p>
+            <p className="font-medium">{ANALYSIS_PROVIDER_STATIC_LABELS.analisisdermapiel360}</p>
             <p className="text-sm text-muted-foreground">
               Sube o toma una foto de una lesión o zona de la piel que quieras revisar.
             </p>
           </button>
           <button
             type="button"
-            onClick={() => chooseProvider("youcam")}
+            onClick={() => chooseProvider("analisispiel360")}
             className="rounded-lg border border-border p-4 text-left hover:bg-muted"
           >
-            <p className="font-medium">{ANALYSIS_PROVIDER_STATIC_LABELS.youcam}</p>
+            <p className="font-medium">{ANALYSIS_PROVIDER_STATIC_LABELS.analisispiel360}</p>
             <p className="text-sm text-muted-foreground">
               Captura una selfie para evaluar 16 métricas de piel del rostro.
             </p>
@@ -117,7 +117,7 @@ export default function AutoAnalisisPage() {
         </div>
       )}
 
-      {step === "captura" && provider === "skiniver" && (
+      {step === "captura" && provider === "analisisdermapiel360" && (
         <div className="space-y-4">
           <PhotoCapture onCapture={(file, previewUrl) => setPhoto({ blob: file, previewUrl })} />
           <div className="flex gap-2">
@@ -131,9 +131,9 @@ export default function AutoAnalisisPage() {
         </div>
       )}
 
-      {step === "captura" && provider === "youcam" && (
+      {step === "captura" && provider === "analisispiel360" && (
         <div className="space-y-6">
-          <YoucamCapture onCapture={(blob) => setPhoto({ blob, previewUrl: URL.createObjectURL(blob) })} />
+          <AnalisisPiel360Capture onCapture={(blob) => setPhoto({ blob, previewUrl: URL.createObjectURL(blob) })} />
           {photo && <p className="text-sm text-muted-foreground">Foto capturada correctamente.</p>}
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={() => setStep("consentimiento")}>
@@ -166,7 +166,7 @@ export default function AutoAnalisisPage() {
       {step === "enviar" && (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            {provider === "youcam"
+            {provider === "analisispiel360"
               ? "Se enviará la foto para el Análisis Estético Piel 360. El resultado puede tardar varios minutos en procesarse."
               : "Se enviará la foto para el Análisis Dermatológico Piel 360. Esto puede tardar unos segundos."}
           </p>

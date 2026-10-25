@@ -44,30 +44,40 @@ function baseJoin(
   `;
 }
 
-/** Los reportes de "qué se encontró" (categoría, top 10, clase, enfermedad)
- * excluyen el resultado "sin hallazgos"; los demográficos (edad, sexo, tono)
- * sí lo cuentan, porque describen a quién se analizó. Ver el comentario de
- * packages/shared/src/skiniver-diagnosis-taxonomy.ts. */
-const NO_PATHOLOGY = 'Piel Sin Patología';
+/**
+ * El diagnóstico que cuenta: el del profesional cuando lo dejó al confirmar o
+ * corregir (`final_diagnosis_code` no nulo, ver
+ * apps/api/src/analyses/final-diagnosis.ts) y, si no, el de la IA. Antes los
+ * reportes leían siempre el de la IA, así que una corrección no cambiaba nada.
+ * Las cuatro piezas van juntas: mezclar el nombre de uno con la categoría del
+ * otro contaría una enfermedad en un grupo que no es el suyo.
+ */
+const CORRECTED = Prisma.sql`a.final_diagnosis_code IS NOT NULL`;
+const DIAGNOSIS = Prisma.sql`(CASE WHEN ${CORRECTED} THEN a.final_diagnosis ELSE a.ai_diagnosis END)`;
+export const CATEGORY = Prisma.sql`(CASE WHEN ${CORRECTED} THEN a.final_diagnosis_category ELSE a.ai_raw_response->>'desease' END)`;
+export const CLASS_RAW = Prisma.sql`COALESCE(a.final_diagnosis_code, a.ai_raw_response->>'class_raw')`;
+/** Mes de Colombia del análisis. `created_at` es UTC sin zona: con el mes
+ * UTC, un análisis del 31/10 a las 21:00 caía en noviembre, fuera de los meses
+ * del rango, y el gráfico lo descartaba. Colombia no tiene horario de verano. */
+const COLOMBIA_MONTH = Prisma.sql`date_trunc('month', a.created_at - interval '5 hours')`;
+
+/** El ICD solo existe para el diagnóstico principal de la IA: con otro
+ * diagnóstico sería el código de una enfermedad distinta. */
+const ICD_CODE = Prisma.sql`(CASE WHEN ${CORRECTED} THEN NULL ELSE a.ai_raw_response->>'lesion_code' END)`;
 
 /**
- * El universo de los reportes de "qué se encontró": un análisis con
- * diagnóstico de patología. Está en un solo sitio porque las tres queries que
- * lo usan (mensual, top y categoría) tienen que contar exactamente las mismas
- * filas: cuando cada una filtraba a su manera, el total salía de un universo y
- * los porcentajes de otro, y pasaban del 100%.
- *
- * No se filtra por `desease`: un análisis con enfermedad y sin categoría sigue
- * siendo un hallazgo, y el donut lo muestra como "Sin categoría".
+ * El universo de los reportes de diagnóstico: un análisis con diagnóstico,
+ * «Piel Sin Patología» incluida — el cliente la quiere ver como una clase más.
+ * Lo usan todas las queries, también las de edad, sexo y tono, que cuentan
+ * diagnósticos según quién es el paciente: tienen que contar las mismas
+ * filas. Cuando cada una filtraba a su manera, el total salía de un universo
+ * y los porcentajes de otro, y pasaban del 100%.
  */
-function pathologyFilter(): Prisma.Sql {
-  return Prisma.sql`
-      AND a.ai_diagnosis IS NOT NULL
-      AND a.ai_diagnosis <> ${NO_PATHOLOGY}
-  `;
+function diagnosedFilter(): Prisma.Sql {
+  return Prisma.sql`AND ${DIAGNOSIS} IS NOT NULL`;
 }
 
-/** Rangos de SKINIVER_AGE_BUCKETS, calculados a la fecha del análisis:
+/** Rangos de ANALISIS_DERMA_PIEL360_AGE_BUCKETS, calculados a la fecha del análisis:
  * `Analysis.chronologicalAgeYears` solo se llena para YouCam. */
 function ageBucketCase(): Prisma.Sql {
   return Prisma.sql`
@@ -83,10 +93,10 @@ function ageBucketCase(): Prisma.Sql {
   `;
 }
 
-export interface SkiniverDiagnosisRow {
+export interface AnalisisDermaPiel360DiagnosisRow {
   period: string;
   ai_diagnosis: string | null;
-  /** `desease` de la IA: de aquí sale la clase. */
+  /** Clase (`desease` de la IA o el grupo del profesional). */
   category: string | null;
   /** Id del clasificador (`2A_acne_vulgaris`): la identidad del diagnóstico,
    * que no cambia con el idioma del nombre visible. */
@@ -95,32 +105,31 @@ export interface SkiniverDiagnosisRow {
 }
 
 /**
- * Diagnóstico crudo (`ai_diagnosis`, top-1 de Skiniver) por mes, con su
- * categoría y su id de clasificador. Alimenta dos gráficos: el de clases
- * (agrupado con classifyDiagnosisClass, en
- * packages/shared/src/skiniver-diagnosis-taxonomy.ts) y el de condiciones
- * concretas (Top 8, armado en skiniver-report.service.ts). Ambos se resuelven
- * en TS y no en SQL, para no duplicar esas tablas de mapeo en dos lenguajes.
+ * Diagnóstico que cuenta (`DIAGNOSIS`: el del profesional o el de la IA) por
+ * mes, con su clase y su id de clasificador. Alimenta el donut de clases y los
+ * gráficos mensuales de clase y de enfermedad. Las etiquetas se resuelven en
+ * TS (analisisDermaPiel360ClassLabel), no en SQL, para no duplicar esas tablas
+ * en dos lenguajes.
  */
-export function skiniverMonthlyDiagnosesQuery(
+export function analisisDermaPiel360MonthlyDiagnosesQuery(
   doctorIds: DoctorIds,
   from: Date,
   toExclusive: Date,
 ): Prisma.Sql {
   return Prisma.sql`
     SELECT
-      to_char(date_trunc('month', a.created_at), 'YYYY-MM') AS period,
-      a.ai_diagnosis                                        AS ai_diagnosis,
-      a.ai_raw_response->>'desease'                         AS category,
-      a.ai_raw_response->>'class_raw'                       AS class_raw,
+      to_char(${COLOMBIA_MONTH}, 'YYYY-MM') AS period,
+      ${DIAGNOSIS}                                          AS ai_diagnosis,
+      ${CATEGORY}                                           AS category,
+      ${CLASS_RAW}                                          AS class_raw,
       COUNT(*)::int                                         AS count
     ${baseJoin(doctorIds, from, toExclusive)}
-      ${pathologyFilter()}
+      ${diagnosedFilter()}
     GROUP BY 1, 2, 3, 4
   `;
 }
 
-export interface SkiniverAgeRow {
+export interface AnalisisDermaPiel360AgeRow {
   period: string;
   age_bucket: string;
   count: number;
@@ -132,7 +141,7 @@ export interface SkiniverAgeRow {
  * momento del análisis directo en SQL con `age()`, equivalente al
  * `ageInYears()` de analysis-conditions.service.ts.
  */
-export function skiniverAgeMonthlyQuery(
+export function analisisDermaPiel360AgeMonthlyQuery(
   doctorIds: DoctorIds,
   from: Date,
   toExclusive: Date,
@@ -140,10 +149,11 @@ export function skiniverAgeMonthlyQuery(
   return Prisma.sql`
     WITH scoped AS (
       SELECT
-        date_trunc('month', a.created_at) AS month,
+        ${COLOMBIA_MONTH} AS month,
         date_part('year', age(a.created_at, p.birth_date))::int AS age_years
       ${baseJoin(doctorIds, from, toExclusive)}
         AND p.birth_date IS NOT NULL
+        ${diagnosedFilter()}
     )
     SELECT
       to_char(month, 'YYYY-MM') AS period,
@@ -154,30 +164,7 @@ export function skiniverAgeMonthlyQuery(
   `;
 }
 
-export interface SkiniverCategoryRow {
-  category: string | null;
-  count: number;
-}
-
-/** Categoría de la IA (`aiRawResponse.desease`) — la agrupación que Skiniver
- * ya devuelve, en vez de deducirla del nombre del diagnóstico. */
-export function skiniverCategoryQuery(
-  doctorIds: DoctorIds,
-  from: Date,
-  toExclusive: Date,
-): Prisma.Sql {
-  return Prisma.sql`
-    SELECT
-      a.ai_raw_response->>'desease' AS category,
-      COUNT(*)::int                 AS count
-    ${baseJoin(doctorIds, from, toExclusive)}
-      ${pathologyFilter()}
-    GROUP BY 1
-    ORDER BY 2 DESC
-  `;
-}
-
-export interface SkiniverTopDiagnosisRow {
+export interface AnalisisDermaPiel360TopDiagnosisRow {
   diagnosis: string;
   icd_code: string | null;
   class_raw: string | null;
@@ -188,25 +175,25 @@ export interface SkiniverTopDiagnosisRow {
  * el mismo diagnóstico escrito en distintos idiomas. El ICD (`lesion_code`)
  * solo existe en la raíz del JSON, nunca en `topn[]`; `MAX` porque un mismo
  * diagnóstico siempre trae el mismo código y el GROUP BY necesita un agregado. */
-export function skiniverTopDiagnosesQuery(
+export function analisisDermaPiel360TopDiagnosesQuery(
   doctorIds: DoctorIds,
   from: Date,
   toExclusive: Date,
 ): Prisma.Sql {
   return Prisma.sql`
     SELECT
-      a.ai_diagnosis                              AS diagnosis,
-      MAX(a.ai_raw_response->>'lesion_code')      AS icd_code,
-      MAX(a.ai_raw_response->>'class_raw')        AS class_raw,
+      ${DIAGNOSIS}                                AS diagnosis,
+      MAX(${ICD_CODE})                            AS icd_code,
+      MAX(${CLASS_RAW})                           AS class_raw,
       COUNT(*)::int                               AS count
     ${baseJoin(doctorIds, from, toExclusive)}
-      ${pathologyFilter()}
+      ${diagnosedFilter()}
     GROUP BY 1
     ORDER BY 4 DESC, 1 ASC
   `;
 }
 
-export interface SkiniverAgeGenderRow {
+export interface AnalisisDermaPiel360AgeGenderRow {
   age_bucket: string;
   gender: string | null;
   count: number;
@@ -214,7 +201,7 @@ export interface SkiniverAgeGenderRow {
 
 /** Cruce edad × sexo. `patients.gender` es texto libre: se normaliza en TS con
  * normalizeGender() para no repetir esa lista de valores en SQL. */
-export function skiniverAgeGenderQuery(
+export function analisisDermaPiel360AgeGenderQuery(
   doctorIds: DoctorIds,
   from: Date,
   toExclusive: Date,
@@ -226,6 +213,7 @@ export function skiniverAgeGenderQuery(
         p.gender AS gender
       ${baseJoin(doctorIds, from, toExclusive)}
         AND p.birth_date IS NOT NULL
+        ${diagnosedFilter()}
     )
     SELECT
       ${ageBucketCase()} AS age_bucket,
@@ -236,14 +224,14 @@ export function skiniverAgeGenderQuery(
   `;
 }
 
-export interface SkiniverSkinToneRow {
+export interface AnalisisDermaPiel360SkinToneRow {
   fitzpatrick_type: string | null;
   count: number;
 }
 
 /** Distribución por fototipo Fitzpatrick del paciente (no depende del mes —
  * el mockup lo pide como total del periodo, no como serie mensual). */
-export function skiniverSkinToneQuery(
+export function analisisDermaPiel360SkinToneQuery(
   doctorIds: DoctorIds,
   from: Date,
   toExclusive: Date,
@@ -254,6 +242,7 @@ export function skiniverSkinToneQuery(
       COUNT(*)::int      AS count
     ${baseJoin(doctorIds, from, toExclusive)}
       AND p.fitzpatrick_type IS NOT NULL
+      ${diagnosedFilter()}
     GROUP BY 1
   `;
 }

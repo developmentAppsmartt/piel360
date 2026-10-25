@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   for (const [name, label] of [
-    ['patient_run_youcam', 'Paciente: ejecutar análisis estético'],
+    ['patient_run_analisisPiel360', 'Paciente: ejecutar análisis estético'],
     ['patient_run_fitzpatrick', 'Paciente: ejecutar análisis de fototipo'],
   ] as const) {
     await prisma.permission.upsert({
@@ -25,8 +25,8 @@ async function main() {
         {
           name: {
             in: [
-              'use_provider_skiniver',
-              'use_provider_youcam',
+              'use_provider_analisisDermaPiel360',
+              'use_provider_analisisPiel360',
               'use_provider_fitzpatrick',
             ],
           },
@@ -45,7 +45,7 @@ async function main() {
           ? { disconnect: clinical.map((p) => ({ id: p.id })) }
           : {}),
         connect: [
-          { name: 'patient_run_youcam' },
+          { name: 'patient_run_analisisPiel360' },
           { name: 'patient_run_fitzpatrick' },
         ],
       },

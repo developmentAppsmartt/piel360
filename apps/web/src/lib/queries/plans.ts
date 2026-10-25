@@ -28,7 +28,7 @@ export interface PlanInput {
   analysisProviderIds?: string[];
   analysisLimit: number;
   analysisLimits?: {
-    skiniver?: number;
+    analisisdermapiel360?: number;
     aesthetic?: number;
   };
   price: number;
@@ -50,8 +50,8 @@ export interface PlanInput {
   };
   headerColor?: string;
   apiCosts?: {
-    skiniver?: { units: number; unitPrice: number };
-    youcam?: { units: number; unitPrice: number };
+    analisisdermapiel360?: { units: number; unitPrice: number };
+    analisispiel360?: { units: number; unitPrice: number };
     fitzpatrick?: { units: number; unitPrice: number };
   };
   ivaEnabled?: boolean;

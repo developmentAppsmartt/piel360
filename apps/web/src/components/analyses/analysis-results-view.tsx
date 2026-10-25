@@ -1,31 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import {
-  skiniverCategoryLabel,
-  skiniverDiagnosisLabel,
-  skiniverRiskLabel,
-  type SkiniverDiagnosisCandidate,
-  type SkiniverPrediction,
-} from "@piel360/shared";
 import { ConfirmAnalysisForm } from "@/components/analyses/confirm-analysis-form";
 import { Button } from "@/components/ui/button";
-import { DiagnosisDetailDialog } from "@/components/analyses/diagnosis-detail-dialog";
-import { DiagnosisList } from "@/components/analyses/diagnosis-list";
+import { DermaResultsSection } from "@/components/analyses/derma-results-section";
 import { FitzpatrickResultsSection } from "@/components/analyses/fitzpatrick-results-section";
-import { ImageCarousel } from "@/components/analyses/image-carousel";
-import { RiskGauge } from "@/components/analyses/risk-gauge";
-import { YoucamProgressView } from "@/components/analyses/youcam-progress-view";
-import { YoucamReportView } from "@/components/analyses/youcam-report-view";
-import { YoucamResultsSection } from "@/components/analyses/youcam-results-section";
-import {
-  SkiniverDescriptive,
-  SkiniverRiskGuidanceBlock,
-} from "@/components/analyses/skiniver-descriptive";
+import { AnalisisPiel360ProgressView } from "@/components/analyses/youcam-progress-view";
+import { AnalisisPiel360ReportView } from "@/components/analyses/youcam-report-view";
+import { AnalisisPiel360ResultsSection } from "@/components/analyses/youcam-results-section";
 import { ModuleCard } from "@/components/ui/module-card";
 import { useAnalysis, useConfirmAnalysis } from "@/lib/queries/analyses";
 
-type YoucamSubView = "detail" | "progress" | "report";
+type AnalisisPiel360SubView = "detail" | "progress" | "report";
 
 /** Vista de resultados de un análisis (Skiniver o YouCam) — alineada a mobile.
  * `hideConfirm` oculta el formulario de confirmación (flujo paciente). */
@@ -44,21 +30,16 @@ export function AnalysisResultsView({
 }) {
   const analysis = useAnalysis(analysisId);
   const confirmAnalysis = useConfirmAnalysis(analysisId, patientId);
-  const [selectedDiagnosis, setSelectedDiagnosis] =
-    useState<SkiniverDiagnosisCandidate | null>(null);
-  const [youcamView, setYoucamView] = useState<YoucamSubView>("detail");
+  const [analisisPiel360View, setAnalisisPiel360View] = useState<AnalisisPiel360SubView>("detail");
   const [editingNotes, setEditingNotes] = useState(false);
 
-  const isYoucam = !!analysis.data?.youcamTaskId;
+  const isAnalisisPiel360 = !!analysis.data?.analisisPiel360TaskId;
   const isFitzpatrick = !!analysis.data?.fitzpatrickTaskId;
-  const isSkiniver = !isYoucam && !isFitzpatrick;
-  // Dermatologico y estetico piden observaciones; Fitzpatrick no.
-  const usesDoctorNotes = isSkiniver || isYoucam;
-  const prediction = isSkiniver
-    ? (analysis.data?.aiRawResponse as SkiniverPrediction | undefined)
-    : undefined;
-  const youcamError =
-    isYoucam &&
+  const isAnalisisDermaPiel360 = !isAnalisisPiel360 && !isFitzpatrick;
+  // El estético pide observaciones; Fitzpatrick no.
+  const usesDoctorNotes = isAnalisisPiel360;
+  const analisisPiel360Error =
+    isAnalisisPiel360 &&
     analysis.data?.aiRawResponse &&
     typeof analysis.data.aiRawResponse === "object" &&
     "error" in analysis.data.aiRawResponse &&
@@ -71,51 +52,46 @@ export function AnalysisResultsView({
   }
   if (!analysis.data) return null;
 
-  if (isYoucam && analysis.data.isValid && youcamView === "progress") {
+  if (isAnalisisPiel360 && analysis.data.isValid && analisisPiel360View === "progress") {
     return (
-      <YoucamProgressView
+      <AnalisisPiel360ProgressView
         analysis={analysis.data}
-        onBack={() => setYoucamView("detail")}
+        onBack={() => setAnalisisPiel360View("detail")}
       />
     );
   }
 
-  if (isYoucam && analysis.data.isValid && youcamView === "report") {
+  if (isAnalisisPiel360 && analysis.data.isValid && analisisPiel360View === "report") {
     return (
-      <YoucamReportView
+      <AnalisisPiel360ReportView
         analysis={analysis.data}
         patientName={patientName}
-        onBack={() => setYoucamView("detail")}
+        onBack={() => setAnalisisPiel360View("detail")}
       />
     );
   }
-
-  const topDiagnosis = prediction?.topn?.[0];
-  // Skiniver no traduce `risk`/`class`/`desease`: se resuelven contra
-  // `risk_level` y `class_raw`, que no dependen del idioma.
-  const riskLabel = skiniverRiskLabel(prediction?.risk, topDiagnosis?.risk_level);
 
   return (
     <div className="space-y-6">
-      {isYoucam && !analysis.data.isValid && youcamError && (
+      {isAnalisisPiel360 && !analysis.data.isValid && analisisPiel360Error && (
         <p className="text-destructive">
-          El análisis no se pudo procesar: {youcamError}. Intenta nuevamente con
+          El análisis no se pudo procesar: {analisisPiel360Error}. Intenta nuevamente con
           una foto de mejor resolución.
         </p>
       )}
 
-      {isYoucam && !analysis.data.isValid && !youcamError && (
+      {isAnalisisPiel360 && !analysis.data.isValid && !analisisPiel360Error && (
         <p className="text-muted-foreground">
           Procesando el análisis facial... Esto puede tardar varios minutos —
           puedes cerrar esta pantalla y volver más tarde.
         </p>
       )}
 
-      {isYoucam && analysis.data.isValid && (
-        <YoucamResultsSection
+      {isAnalisisPiel360 && analysis.data.isValid && (
+        <AnalisisPiel360ResultsSection
           analysis={analysis.data}
-          onOpenProgress={() => setYoucamView("progress")}
-          onOpenReport={() => setYoucamView("report")}
+          onOpenProgress={() => setAnalisisPiel360View("progress")}
+          onOpenReport={() => setAnalisisPiel360View("report")}
         />
       )}
 
@@ -123,114 +99,26 @@ export function AnalysisResultsView({
         <FitzpatrickResultsSection analysis={analysis.data} />
       )}
 
-      {isSkiniver && (
-        <>
-          <RiskGauge
-            percent={(() => {
-              const raw = prediction?.high_risk_prob;
-              if (raw == null || !Number.isFinite(Number(raw))) return 0;
-              const n = Number(raw);
-              // Solo high_risk_prob — no usar aiProbability (prob de clase).
-              return n <= 1 ? n * 100 : n;
-            })()}
-            riskLabel={riskLabel}
-          />
-
-          {topDiagnosis ? (
-            <ModuleCard className="flex items-center gap-4 p-4">
-              <div className="flex size-16 shrink-0 items-center justify-center rounded-full border-4 border-primary text-lg font-bold text-primary">
-                {Math.round(
-                  (topDiagnosis.prob <= 1
-                    ? topDiagnosis.prob * 100
-                    : topDiagnosis.prob),
-                )}
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-muted-foreground">
-                  {skiniverCategoryLabel(topDiagnosis.desease) ||
-                    "Diagnóstico principal"}
-                </p>
-                <p className="truncate text-base font-semibold">
-                  {skiniverDiagnosisLabel(
-                    topDiagnosis.class,
-                    topDiagnosis.class_raw,
-                  )}
-                </p>
-                {topDiagnosis.risk ? (
-                  <p className="text-sm text-muted-foreground">
-                    Riesgo:{" "}
-                    {skiniverRiskLabel(
-                      topDiagnosis.risk,
-                      topDiagnosis.risk_level,
-                    )}
-                  </p>
-                ) : null}
-              </div>
-            </ModuleCard>
-          ) : null}
-
-          <ImageCarousel
-            images={[
-              { label: "Original", url: analysis.data.imageUrl },
-              { label: "Coloreada", url: analysis.data.coloredUrl },
-              { label: "Máscara", url: analysis.data.maskedUrl },
-            ]}
-          />
-
-          <ModuleCard className="border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/30">
-            <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
-              Nivel de Riesgo: {riskLabel}
-            </p>
-            <p className="mt-1 text-sm text-amber-800/90 dark:text-amber-200/80">
-              Este resultado es orientativo. Consulta con un dermatólogo y evita
-              la automedicación.
-            </p>
-          </ModuleCard>
-
-          {analysis.data.skiniverDiagnosis ? (
-            <ModuleCard className="space-y-3 p-4">
-              <SkiniverDescriptive
-                details={analysis.data.skiniverDiagnosis}
-                icdCode={analysis.data.skiniverDiagnosis.icd_code}
-              />
-              {analysis.data.skiniverDiagnosis.conclusion.category && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Conclusión
-                  </p>
-                  <p className="text-sm">
-                    {analysis.data.skiniverDiagnosis.conclusion.category}
-                    {" · "}
-                    {analysis.data.skiniverDiagnosis.conclusion.category_prob}%
-                  </p>
-                </div>
-              )}
-              <SkiniverRiskGuidanceBlock
-                risk={analysis.data.skiniverDiagnosis.risk}
-              />
-            </ModuleCard>
-          ) : null}
-
-          {prediction?.topn && prediction.topn.length > 0 ? (
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold">
-                Lee más sobre la enfermedad
-              </h3>
-              <DiagnosisList
-                items={prediction.topn}
-                onSelect={setSelectedDiagnosis}
-              />
-            </div>
-          ) : null}
-        </>
+      {isAnalisisDermaPiel360 && (
+        <DermaResultsSection
+          key={analysis.data.id}
+          analysis={analysis.data}
+          canConfirm={!hideConfirm}
+          onSubmit={async (input) => {
+            await confirmAnalysis.mutateAsync(input);
+            onConfirmed?.();
+          }}
+        />
       )}
 
+      {/* El dermatológico confirma y corrige dentro de DermaResultsSection. */}
       {!hideConfirm &&
-        (!isYoucam || analysis.data.isValid) &&
+        !isAnalisisDermaPiel360 &&
+        (!isAnalisisPiel360 || analysis.data.isValid) &&
         (analysis.data.isConfirmed && !editingNotes ? (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              {isYoucam || isFitzpatrick ? "Análisis" : "Diagnóstico"}{" "}
+              Análisis{" "}
               {analysis.data.isCorrected ? "corregido" : "confirmado"}
               {analysis.data.finalDiagnosis
                 ? `: ${analysis.data.finalDiagnosis}`
@@ -273,21 +161,6 @@ export function AnalysisResultsView({
           />
         ))}
 
-      {isSkiniver && (
-        <DiagnosisDetailDialog
-          item={selectedDiagnosis}
-          details={
-            selectedDiagnosis
-              ? (analysis.data.skiniverDiagnosis?.candidates.find(
-                  (candidate) =>
-                    candidate.class.toLowerCase() ===
-                    selectedDiagnosis.class.trim().toLowerCase(),
-                ) ?? null)
-              : null
-          }
-          onClose={() => setSelectedDiagnosis(null)}
-        />
-      )}
     </div>
   );
 }

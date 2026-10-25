@@ -1,12 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { YouCamResults } from '@piel360/shared';
+import type { AnalisisPiel360Results } from '@piel360/shared';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReportEmailService } from '../reports/report-email.service';
 import { StorageService } from '../storage/storage.service';
-import { SubscriptionsService } from '../subscriptions/subscriptions.service';
-import { youcamMaskKey } from './mask-key.util';
-import { normalizeYoucamResults } from './youcam-normalize.util';
+import { SubscriptionCreditsService } from '../subscriptions/subscription-credits.service';
+import { analisisPiel360MaskKey } from './mask-key.util';
+import { normalizeAnalisisPiel360Results } from './youcam-normalize.util';
 import {
   patientLatestSkinAgeData,
   snapshotFromAnalysis,
@@ -20,23 +20,25 @@ const YOUCAM_PROVIDER_SLUG = 'youcam';
  * idempotente en sus tres pasos para que no importe cuál gane la carrera.
  */
 @Injectable()
-export class YoucamResultsService {
-  private readonly logger = new Logger(YoucamResultsService.name);
+export class AnalisisPiel360ResultsService {
+  private readonly logger = new Logger(AnalisisPiel360ResultsService.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
-    private readonly subscriptions: SubscriptionsService,
+    private readonly subscriptions: SubscriptionCreditsService,
     private readonly reportEmail: ReportEmailService,
   ) {}
 
   async applySuccess(
     analysisId: bigint,
-    results: YouCamResults,
+    results: AnalisisPiel360Results,
   ): Promise<void> {
     const analysis = await this.prisma.analysis.findUniqueOrThrow({
       where: { id: analysisId },
-      include: { patient: { select: { birthDate: true, lastSkinAgeAt: true } } },
+      include: {
+        patient: { select: { birthDate: true, lastSkinAgeAt: true } },
+      },
     });
     if (analysis.isValid) return; // ya lo procesó la otra vía
 
@@ -72,7 +74,7 @@ export class YoucamResultsService {
       if (item.mask_urls?.length) {
         await this.downloadMask(
           analysisId,
-          youcamMaskKey(item),
+          analisisPiel360MaskKey(item),
           item.mask_urls[0],
         );
       }
@@ -86,7 +88,12 @@ export class YoucamResultsService {
     try {
       await this.prisma.$transaction(
         (tx) =>
-          normalizeYoucamResults(tx, analysisId, analysis.providerId, results),
+          normalizeAnalisisPiel360Results(
+            tx,
+            analysisId,
+            analysis.providerId,
+            results,
+          ),
         // ~30 métricas × (resultado + máscara) supera el timeout de 5s por defecto.
         { timeout: 30_000 },
       );

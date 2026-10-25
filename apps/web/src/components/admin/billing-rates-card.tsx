@@ -188,7 +188,7 @@ export function BillingRatesCard() {
                 value={formatMoney(usdMarket)}
               />
               <span className="text-xs text-muted-foreground">
-                YouCam / Fitzpatrick · solo lectura
+                Estético / Fototipo · solo lectura
               </span>
             </label>
             <label className="flex flex-col gap-1.5 text-sm">
@@ -200,7 +200,7 @@ export function BillingRatesCard() {
                 value={formatMoney(eurMarket)}
               />
               <span className="text-xs text-muted-foreground">
-                Skiniver · solo lectura
+                Dermatológico · solo lectura
               </span>
             </label>
             <label className="flex flex-col gap-1.5 text-sm">

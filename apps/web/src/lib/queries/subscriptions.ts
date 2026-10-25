@@ -28,7 +28,7 @@ export interface Subscription {
     description?: string | null;
     features?: { label: string; included: boolean }[];
     analysisLimit: number;
-    analysisLimits?: { skiniver?: number; aesthetic?: number };
+    analysisLimits?: { analisisdermapiel360?: number; aesthetic?: number };
     durationDays: number;
     price: string;
     maxUsers?: number;

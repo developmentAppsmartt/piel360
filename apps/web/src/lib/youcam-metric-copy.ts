@@ -32,13 +32,13 @@ const COPY: Record<string, string> = {
     "Se mide la oleosidad visible, útil para distinguir piel grasa o mixta.",
   hd_radiance: "Se evalúa el brillo y la luminosidad aparente de la piel.",
   hd_redness:
-    "Se detectan zonas de enrojecimiento que pueden indicar sensibilidad o irritación.",
+    "Se detectan zonas de eritema que pueden indicar sensibilidad o irritación.",
   hd_eye_bag: "Se identifica el volumen y la presencia de bolsas bajo los ojos.",
   hd_tear_trough:
     "Se analiza el surco lagrimal y su profundidad relativa en el contorno ocular.",
 };
 
-export function youcamMetricCopy(type: string | null | undefined): string {
+export function analisisPiel360MetricCopy(type: string | null | undefined): string {
   if (!type) return COPY.overview;
   return COPY[type] ?? COPY.overview;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import type { AnalysisProviderSlug } from "@piel360/shared";
+import type { PublicAnalysisProviderSlug } from "@piel360/shared";
 import { Fragment } from "react";
 import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import { ApiError } from "@/lib/api-error";
@@ -10,13 +10,13 @@ import {
   type SpecialtyPlanPermissionRow,
 } from "@/lib/queries/specialty-plan-permissions";
 
-const PROVIDER_SLUGS: AnalysisProviderSlug[] = [
-  "skiniver",
-  "youcam",
+const PROVIDER_SLUGS: PublicAnalysisProviderSlug[] = [
+  "analisisdermapiel360",
+  "analisispiel360",
   "fitzpatrick",
 ];
 
-function providerLabel(slug: AnalysisProviderSlug) {
+function providerLabel(slug: PublicAnalysisProviderSlug) {
   return ANALYSIS_PROVIDER_STATIC_LABELS[slug];
 }
 
@@ -28,7 +28,7 @@ function MatrixRows({
   rows: SpecialtyPlanPermissionRow[];
   onToggle: (
     row: SpecialtyPlanPermissionRow,
-    slug: AnalysisProviderSlug,
+    slug: PublicAnalysisProviderSlug,
     enabled: boolean,
   ) => void;
   pending: boolean;
@@ -62,7 +62,7 @@ export function SpecialtyPlanPermissionsMatrix() {
 
   function toggle(
     row: SpecialtyPlanPermissionRow,
-    slug: AnalysisProviderSlug,
+    slug: PublicAnalysisProviderSlug,
     enabled: boolean,
   ) {
     mutation.mutate({

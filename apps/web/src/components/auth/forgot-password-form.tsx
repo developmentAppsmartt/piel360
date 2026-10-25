@@ -2,15 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Eye, EyeOff } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { isStrongPassword, PASSWORD_STRENGTH_MESSAGE } from "@piel360/shared";
-import { Field, inputClass } from "@/components/auth/auth-form-primitives";
+import {
+  Field,
+  inputClass,
+  PasswordVisibilityToggle,
+} from "@/components/auth/auth-form-primitives";
 import { PasswordRequirements } from "@/components/ui/password-requirements";
 import {
-  resetPasswordAction,
-  sendPasswordResetOtpAction,
-  verifyPasswordResetOtpAction,
-} from "@/lib/actions/forgot-password";
+  sendEmailOtpAction,
+  verifyEmailOtpAction,
+} from "@/lib/actions/email-otp";
+import { resetPasswordAction } from "@/lib/actions/forgot-password";
 
 export type ForgotPasswordStep = "email" | "otp" | "password" | "done";
 
@@ -19,24 +23,6 @@ const buttonClass =
 
 /** El paso lo controla la página: la descripción de la maqueta ("te enviaremos
  * un código") ya no aplica cuando se está escribiendo la nueva contraseña. */
-function PasswordVisibilityToggle({
-  visible,
-  onToggle,
-}: {
-  visible: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="absolute top-0 right-3 flex h-11 items-center text-slate-400 hover:text-slate-600"
-      aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
-    >
-      {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-    </button>
-  );
-}
 
 export function ForgotPasswordForm({
   step,
@@ -63,7 +49,7 @@ export function ForgotPasswordForm({
       return;
     }
     setIsPending(true);
-    const result = await sendPasswordResetOtpAction(email);
+    const result = await sendEmailOtpAction(email, "reset");
     setIsPending(false);
     if (!result.ok) {
       setError(result.error ?? "No se pudo enviar el código.");
@@ -79,7 +65,7 @@ export function ForgotPasswordForm({
       return;
     }
     setIsPending(true);
-    const result = await verifyPasswordResetOtpAction(email, code);
+    const result = await verifyEmailOtpAction(email, code, "reset");
     setIsPending(false);
     if (!result.ok || !result.token) {
       setError(result.error ?? "No se pudo verificar el código.");
@@ -183,7 +169,10 @@ export function ForgotPasswordForm({
     return (
       <div className="space-y-4">
         <p className="text-sm text-zinc-500">
-          Te enviamos un código de 5 dígitos a <strong>{email}</strong>.
+          {/* Genérico a propósito: decir «te enviamos» a un correo que no
+              está registrado delataría cuáles sí lo están. */}
+          Si <strong>{email}</strong> está registrado, te enviamos un código
+          de 5 dígitos.
         </p>
         <Field label="Código de verificación" required>
           <input

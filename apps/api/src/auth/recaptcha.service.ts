@@ -88,10 +88,13 @@ export class RecaptchaService {
     return a;
   }
 
+  /** La clave web del cliente es de casilla: el filtro es el reto que
+   * resuelve el usuario, así que por defecto no se exige puntuación. Una clave
+   * de puntuación (p. ej. la del móvil) pide subirla con la variable. */
   private minScore(): number {
     const raw = this.config.get<string>('RECAPTCHA_MIN_SCORE')?.trim();
-    const n = raw ? Number(raw) : 0.5;
-    return Number.isFinite(n) ? n : 0.5;
+    const n = raw ? Number(raw) : 0;
+    return Number.isFinite(n) ? n : 0;
   }
 
   private serviceAccountPath(): string {
@@ -141,6 +144,18 @@ export class RecaptchaService {
         : this.canCreateAssessment() || Boolean(this.secret());
     if (flag === 'true' || flag === '1' || flag === 'on') return ready;
     return ready;
+  }
+
+  /**
+   * Si el login de este cliente exige token. El móvil solo cuando su
+   * plataforma tiene site key propia: encender reCAPTCHA para el web no puede
+   * dejar sin login a una app compilada sin reCAPTCHA (no manda token).
+   */
+  appliesTo(client: 'web' | 'mobile', platform?: string): boolean {
+    if (!this.isEnabled()) return false;
+    if (client === 'web') return true;
+    const p = platform?.trim().toLowerCase();
+    return (p === 'android' || p === 'ios') && Boolean(this.siteKey(p));
   }
 
   async assertValid(

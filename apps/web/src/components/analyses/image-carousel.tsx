@@ -23,12 +23,20 @@ export function ImageCarousel({
 
   const current = available[Math.min(index, available.length - 1)];
 
+  // Alto tope: una foto vertical a todo el ancho empujaba los botones (y en
+  // el modal del historial 3D, todo lo demás) fuera de una pantalla de
+  // portátil. El contenedor se ajusta a la imagen para que la marca de agua
+  // quede sobre la foto y no en el hueco de al lado.
   return (
     <div className="space-y-2">
       {backgroundUrl ? (
-        <div className="relative w-full overflow-hidden rounded-lg border border-border">
+        <div className="relative mx-auto w-fit max-w-full overflow-hidden rounded-lg border border-border">
           {/* eslint-disable-next-line @next/next/no-img-element -- URL firmada externa (S3), no apta para next/image */}
-          <img src={backgroundUrl} alt="Foto original" className="h-auto w-full" />
+          <img
+            src={backgroundUrl}
+            alt="Foto original"
+            className="block max-h-[55vh] w-auto max-w-full"
+          />
           {/* eslint-disable-next-line @next/next/no-img-element -- URL firmada externa (S3), no apta para next/image */}
           <img
             src={current.url}
@@ -38,12 +46,12 @@ export function ImageCarousel({
           <ImageWatermark />
         </div>
       ) : (
-        <div className="relative w-full">
+        <div className="relative mx-auto w-fit max-w-full">
           {/* eslint-disable-next-line @next/next/no-img-element -- URL firmada externa (S3), no apta para next/image */}
           <img
             src={current.url}
             alt={current.label}
-            className="w-full rounded-lg border border-border"
+            className="block max-h-[55vh] w-auto max-w-full rounded-lg border border-border"
           />
           <ImageWatermark />
         </div>

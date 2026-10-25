@@ -461,7 +461,7 @@ async function main() {
     create: {
       id: 1n,
       analysisProviderId: skiniver.id,
-      name: 'Skiniver Básico',
+      name: 'Dermatológico Básico',
       planType: 'individual',
       analysisLimit: 10,
       price: 29900,
@@ -469,7 +469,7 @@ async function main() {
       maxUsers: 1,
       isActive: true,
       description:
-        'Plan mensual de diagnóstico dermatológico por imagen (Skiniver).',
+        'Plan mensual de diagnóstico dermatológico por imagen.',
     },
   });
 
@@ -479,7 +479,7 @@ async function main() {
     create: {
       id: 2n,
       analysisProviderId: youcam.id,
-      name: 'YouCam Básico',
+      name: 'Estético Básico',
       planType: 'individual',
       analysisLimit: 10,
       price: 29900,

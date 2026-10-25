@@ -1,14 +1,19 @@
-/** Economía de venta de plan: IVA, pasarela, gasto op. %, tokens API, comisión aliada. */
+/** Economia de venta de plan: IVA, pasarela, gasto op. %, tokens API, comision aliada.
+ *
+ * Las claves van con el slug PUBLICO del proveedor: este modulo se descarga al
+ * navegador y los nombres de los proveedores no pueden salir de aqui. El API
+ * traduce al leer y escribir en la base, que si guarda los slugs internos. */
 
 export type PlanApiCostLine = {
   units: number;
-  /** Precio por unidad en la moneda del proveedor (EUR Skiniver, USD YouCam/Fitzpatrick). */
+  /** Precio por unidad en la moneda del proveedor (EUR el dermatologico, USD
+   * el estetico y el de fototipo). */
   unitPrice: number;
 };
 
 export type PlanApiCosts = {
-  skiniver?: PlanApiCostLine;
-  youcam?: PlanApiCostLine;
+  analisisdermapiel360?: PlanApiCostLine;
+  analisispiel360?: PlanApiCostLine;
   fitzpatrick?: PlanApiCostLine;
 };
 
@@ -45,8 +50,8 @@ export const DEFAULT_BILLING_RATES: BillingRates = {
 
 /** Unidades de bolsa consumidas por cada análisis. */
 export const API_UNITS_PER_ANALYSIS = {
-  skiniver: 1,
-  youcam: 22,
+  analisisdermapiel360: 1,
+  analisispiel360: 22,
   fitzpatrick: 10,
 } as const;
 
@@ -94,38 +99,40 @@ export function resolveApiUnitsForPlan(input: {
   selectedSlugs: string[];
   planType: 'individual' | 'business';
   analysisLimit: number;
-  skiniverLimit: number;
+  analisisDermaPiel360Limit: number;
   aestheticLimit: number;
 }): {
-  skiniverUnits: number;
-  youcamUnits: number;
+  analisisDermaPiel360Units: number;
+  analisisPiel360Units: number;
   fitzpatrickUnits: number;
-  skiniverAnalyses: number;
-  youcamAnalyses: number;
+  analisisDermaPiel360Analyses: number;
+  analisisPiel360Analyses: number;
   fitzpatrickAnalyses: number;
 } {
   const has = (slug: string) => input.selectedSlugs.includes(slug);
-  const skiniverAnalyses =
-    has('skiniver')
+  const analisisDermaPiel360Analyses =
+    has('analisisdermapiel360')
       ? input.planType === 'individual'
         ? Math.max(0, input.analysisLimit)
-        : Math.max(0, input.skiniverLimit)
+        : Math.max(0, input.analisisDermaPiel360Limit)
       : 0;
   const aestheticAnalyses =
-    has('youcam') || has('fitzpatrick')
+    has('analisispiel360') || has('fitzpatrick')
       ? input.planType === 'individual'
         ? Math.max(0, input.analysisLimit)
         : Math.max(0, input.aestheticLimit)
       : 0;
-  const youcamAnalyses = has('youcam') ? aestheticAnalyses : 0;
+  const analisisPiel360Analyses = has('analisispiel360') ? aestheticAnalyses : 0;
   const fitzpatrickAnalyses = has('fitzpatrick') ? aestheticAnalyses : 0;
 
   return {
-    skiniverAnalyses,
-    youcamAnalyses,
+    analisisDermaPiel360Analyses,
+    analisisPiel360Analyses,
     fitzpatrickAnalyses,
-    skiniverUnits: skiniverAnalyses * API_UNITS_PER_ANALYSIS.skiniver,
-    youcamUnits: youcamAnalyses * API_UNITS_PER_ANALYSIS.youcam,
+    analisisDermaPiel360Units:
+      analisisDermaPiel360Analyses * API_UNITS_PER_ANALYSIS.analisisdermapiel360,
+    analisisPiel360Units:
+      analisisPiel360Analyses * API_UNITS_PER_ANALYSIS.analisispiel360,
     fitzpatrickUnits:
       fitzpatrickAnalyses * API_UNITS_PER_ANALYSIS.fitzpatrick,
   };
@@ -153,8 +160,8 @@ export function computeApiTokenCostCop(
 ): number {
   if (!apiCosts || typeof apiCosts !== 'object') return 0;
   const total =
-    lineCost(apiCosts.skiniver, rates.eurToCop) +
-    lineCost(apiCosts.youcam, rates.usdToCop) +
+    lineCost(apiCosts.analisisdermapiel360, rates.eurToCop) +
+    lineCost(apiCosts.analisispiel360, rates.usdToCop) +
     lineCost(apiCosts.fitzpatrick, rates.usdToCop);
   return roundMoney(total);
 }
@@ -163,7 +170,11 @@ export function parsePlanApiCosts(raw: unknown): PlanApiCosts {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
   const src = raw as Record<string, unknown>;
   const out: PlanApiCosts = {};
-  for (const key of ['skiniver', 'youcam', 'fitzpatrick'] as const) {
+  for (const key of [
+    'analisisdermapiel360',
+    'analisispiel360',
+    'fitzpatrick',
+  ] as const) {
     const row = src[key];
     if (!row || typeof row !== 'object' || Array.isArray(row)) continue;
     const r = row as Record<string, unknown>;

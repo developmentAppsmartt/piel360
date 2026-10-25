@@ -18,7 +18,7 @@ export class DoctorScoreConfigController {
     return this.scoreConfig.getOwn(user);
   }
 
-  /** El cuerpo se valida con `sanitizeYoucamScoreConfig` (JSON anidado por métrica). */
+  /** El cuerpo se valida con `sanitizeAnalisisPiel360ScoreConfig` (JSON anidado por métrica). */
   @Put()
   update(@CurrentUser() user: JwtPayload, @Body() body: unknown) {
     return this.scoreConfig.update(user, body);

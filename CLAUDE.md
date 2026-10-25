@@ -10,6 +10,15 @@ variables y los commits también van en español, siguiendo lo que ya hay.
 ## Cómo trabajar en este repo
 
 Estas reglas van primero porque aplican a cada cambio, no solo a los grandes.
+**No son sugerencias: un cambio que las incumpla se devuelve.**
+
+Si te sirven las siglas: lo de abajo es **KISS**, **DRY** y **SOLID** escritos
+en concreto y con los casos reales de este proyecto. Están desarrollados ahí,
+no repetidos aquí — la **S** de SOLID es «Responsabilidad única», **DRY** vive
+en «Nada de boilerplate» y **KISS** en «Nada de sobreingeniería». De las otras
+cuatro de SOLID, las que de verdad se aplican seguido son la **O** (extender
+sin tener que reescribir lo que ya funciona) y la **D** (depender de una
+función o un tipo, no de un detalle interno de otro módulo).
 
 ### No alucines: pregunta
 
@@ -46,6 +55,33 @@ necesitas un "y", probablemente son dos.
 - Un componente que calcula, filtra y además pinta, se parte.
 - Un servicio del API que orquesta y además formatea, se parte.
 
+**Ningún archivo pasa de 400 líneas**, y lo verifica ESLint (`max-lines`, en
+`packages/config/eslint.max-lines.mjs`). No es una regla de formato: un archivo
+que crece así casi siempre está haciendo más de una cosa.
+
+Cuando salte, **parte por responsabilidad**. No aprietes el código ni metas el
+archivo en `ARCHIVOS_LARGOS_HEREDADOS` de `eslint.config.mjs`: esa lista son
+los archivos que ya estaban largos el día que entró la regla —deuda reconocida,
+no permiso— y **solo puede encoger**. Si tocas uno de ellos, pártelo y bórralo
+de la lista. Nunca se añade un archivo nuevo.
+
+### Nada de espagueti
+
+Lo contrario de sobreingeniería no es desorden. Está prohibido:
+
+- Funciones que se llaman en cadena por media app sin que se vea quién manda.
+- Estado compartido que cualquiera muta desde cualquier sitio.
+- Condicionales anidados de tres o más niveles: saca una función con nombre, o
+  invierte la condición y sal temprano.
+- Un `useEffect` que arregla lo que debería haberse calculado bien de entrada
+  (en este repo `react-hooks/set-state-in-effect` es **error**: deriva con
+  `useMemo`).
+- Copiar un bloque "y le cambio dos cosas". Eso es el origen de los bugs que
+  solo se arreglan en una de las dos copias.
+
+Si para entender un cambio hay que saltar por cinco archivos, está mal
+repartido.
+
 ### Nada de sobreingeniería
 
 - Resuelve **lo que se pidió**, en el alcance que se pidió. Ni más ni menos.
@@ -61,6 +97,18 @@ necesitas un "y", probablemente son dos.
   pantalla gemela (crear/editar, web/mobile), **díselo y propón**; no lo amplíes
   en silencio ni lo ignores.
 - Los commits los crea el asistente; **el `push` lo hace siempre el usuario**.
+- **Antes de dar por terminado un cambio hay que compilarlo.** Sin excepción:
+
+  ```bash
+  pnpm turbo run build
+  pnpm turbo run lint
+  ```
+
+  **Ojo: el `lint` del API lleva `--fix`** y reformatea con Prettier todo
+  `apps/api` (decenas de archivos). Tras correrlo, revisa `git status` y
+  deshaz lo que no sea tuyo antes de hacer commit.
+  A producción no llega código roto. Que compile no es que funcione: el build
+  es el mínimo, encima van las comprobaciones de «No alucines».
 - Al terminar, di qué quedó sin hacer y por qué, y qué hace falta para desplegar.
 
 ---
@@ -172,6 +220,77 @@ docker compose exec postgres psql -U piel360 -d piel360
 docker compose exec postgres pg_dump -U piel360 piel360 > backup_$(date +%Y%m%d).sql
 ```
 
+#### Conectar DBeaver a la base de producción
+
+`docker-compose.yml` **no publica el puerto de Postgres** a propósito: la base
+solo existe dentro de la red de Docker, así que ni el propio host del VPS la
+alcanza por `localhost`. Para mirarla desde un cliente se publica **solo en la
+interfaz local del VPS** y se llega por un túnel SSH.
+
+En el VPS hay un `/opt/piel360/docker-compose.override.yml` que Compose lee
+solo. **No está en el repo**, así que sobrevive a los `git pull` — y por eso
+`git status` en `/opt/piel360` lo muestra como *untracked*: es esperado, no es
+un cambio local que haya que revisar.
+
+```yaml
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+```
+
+Si hay que recrearlo: `docker compose --env-file .env.production up -d postgres`
+(unos segundos sin base, el API reconecta solo; el volumen `pgdata` no se toca).
+Comprueba que no quedó abierto a internet — `ss -tlnp | grep 5432` tiene que
+decir `127.0.0.1:5432`, nunca `0.0.0.0:5432`.
+
+En DBeaver, conexión PostgreSQL:
+
+| Pestaña | Campo | Valor |
+|---|---|---|
+| Main | Host / Port | `localhost` / `5432` |
+| Main | Database / User | los de `/opt/piel360/.env.production` |
+| SSH | Use SSH Tunnel | sí |
+| SSH | Host / Port / User | `195.35.32.212` / `22` / `root` |
+
+**El `localhost:5432` de la pestaña Main se resuelve dentro del VPS**, al otro
+lado del túnel, así que **no choca con el Postgres local**, que sigue en el
+5432 de tu máquina. DBeaver abre su propio puerto local para el túnel; si
+quieres fijarlo, en la pestaña SSH hay *Local port* (p. ej. `55432`). Con un
+túnel a mano sí hay que cambiarlo: `ssh -L 55432:localhost:5432 root@...`.
+
+Para mirar producción se usa **`piel360_ro`**, un usuario de solo lectura
+(`GRANT SELECT` sobre `public` + `ALTER DEFAULT PRIVILEGES`, y
+`ALTER ROLE … SET default_transaction_read_only = on`, que hace fallar
+cualquier escritura aunque alguien le conceda permisos por error). Su clave
+está en `apps/api/.env.produccion`. Las del dueño (`piel360`) se guardan solo
+para emergencias: un `UPDATE` sin `WHERE` desde un cliente gráfico no se
+deshace.
+
+El `ALTER DEFAULT PRIVILEGES` solo cubre las tablas que cree **el rol que
+ejecutó la sentencia** — en producción, `piel360`, que es el `POSTGRES_USER`
+del contenedor y quien corre las migraciones. Si algún día migraran con otro
+rol, las tablas nuevas no serían visibles y habría que repetir el `GRANT`.
+
+#### Tres archivos de entorno, uno por sitio
+
+| Archivo | Dónde vive | Quién lo lee |
+|---|---|---|
+| `apps/api/.env` | tu máquina | el API, Prisma, los seeds y las pruebas. Su `DATABASE_URL` apunta **siempre** a la base local |
+| `apps/api/.env.produccion` | tu máquina | **nada**: es la referencia de las credenciales de producción para conectarse con DBeaver o `psql` por el túnel |
+| `/opt/piel360/.env.production` | el VPS | `docker compose --env-file`, que levanta el stack |
+
+Los dos locales están fuera de git (`.env` en `apps/api/.gitignore`, `.env.*`
+en el de la raíz). `ConfigModule.forRoot()` carga **solo `.env`**, así que
+`.env.produccion` es inerte: existe para consultarlo, no para que algo lo
+cargue.
+
+**La regla que no se salta nadie: `DATABASE_URL` en `apps/api/.env` apunta a
+la base local y punto.** Ese archivo lo leen los seeds y las pruebas de extremo
+a extremo, que **borran filas**; el día que apunte a producción, el siguiente
+`pnpm run seed:empresa-demo` se lleva datos reales por delante. Para hablar con
+producción se usa el túnel, nunca el entorno del API.
+
 ---
 
 ## Desarrollo local
@@ -244,7 +363,106 @@ Trampas ya conocidas (todas costaron un intento fallido):
 - Los pacientes **solo entran desde la app móvil**; el panel de paciente del web
   está bloqueado en el proxy.
 
-### Skiniver (análisis dermatológico)
+### Nombres de proveedor: qué slug es qué
+
+**Las palabras `youcam`, `perfectcorp`, `perfect corp` y `skiniver` no pueden
+aparecer en nada que descargue el navegador** — ni en un chunk, ni en una URL
+del Network, ni en una clave de JSON, ni en pantalla. En el servidor sí: el
+código del API no se descarga, y la base guarda los slugs internos.
+
+| Interno (invisible) | Slug público | Qué es para el usuario |
+|---|---|---|
+| `skiniver` | `analisisdermapiel360` | Análisis Dermatológico Piel 360 |
+| `youcam` | `analisispiel360` | Análisis Estético Piel 360 |
+| `perfectcorp` (bolsa) | `analisispiel360` | bolsa Estética (estético + fototipo) |
+| `fitzpatrick` | `fitzpatrick` | Análisis de Fototipo Piel 360 |
+
+`fitzpatrick` **no se enmascara**: es una escala médica publicada, no un
+proveedor. `perfectcorp` comparte slug público con `youcam` porque Perfect Corp
+es el dueño de YouCam; la vuelta atrás sí es distinta, y por eso hay dos mapas
+(`PROVIDER_PUBLIC_ALIASES` y `POOL_PUBLIC_ALIASES`).
+
+Dónde vive cada pieza:
+
+- `packages/shared/src/public-provider-slugs.ts` — **el único vocabulario que
+  puede llegar al navegador**. Está separado a propósito: basta con que el web
+  importe una función del otro módulo para que el bundler se traiga sus tablas
+  internas y los nombres acaben en un chunk.
+- `packages/shared/src/provider-public-alias.ts` — los mapas interno ↔ público
+  y los helpers de enmascarado. **Solo lo usa el API** (y `proxy.ts`, que corre
+  en el servidor).
+- `apps/web/src/lib/analysis-provider-label.ts` — las etiquetas que se pintan.
+
+La regla al añadir código:
+
+- **El API enmascara al serializar**, nunca el navegador. Si una respuesta nueva
+  lleva un slug o una clave de proveedor, pásala por `toPublicProviderSlug`,
+  `toPublicPoolSlug` o `toPublicProviderKeys`. `toPublicPlanProviders` ya cubre
+  los planes (slug, `name`, `analysisLimits`, `apiCosts`, `poolProvider`).
+- **Y desenmascara al escribir**: el panel manda slugs públicos y las columnas
+  guardan los internos (`toInternalProviderKeys`). Ojo con el `ValidationPipe`:
+  una clave que no esté en el DTO devuelve **400**, así que los DTOs declaran la
+  clave pública.
+- Los **nombres de archivo no importan** (`youcam-report-view.tsx` sigue
+  llamándose así): el build no publica source maps, comprobado. Lo que sí
+  sobrevive a la minificación son los **símbolos exportados** y los literales.
+- El **JWT guarda los permisos internos** porque los guards del API comparan
+  contra ellos. `proxy.ts` los normaliza con `toPublicProviderPermissions` en el
+  único punto por donde entran al web.
+
+Dos excepciones, a propósito:
+
+- **`POST /webhooks/youcam` no se toca**: esa URL está registrada en el
+  dashboard del proveedor y cambiarla rompe la integración. No la ve el
+  navegador.
+- Las variables de entorno del API (`YOUCAM_*`, `SKINIVER_*`) y los nombres de
+  columna (`youcam_task_id`) se quedan. El campo de Prisma se llama
+  `analisisPiel360TaskId` con `@map("youcam_task_id")`, así que **la columna y
+  los índices no cambiaron y no hubo migración**.
+
+Lo que se sacó del panel y se anota aquí para no perderlo:
+
+- Tarifario del proveedor estético: `https://yce.perfectcorp.com/ai-api/api-pricing`
+  (estaba como botón «Recargar en Perfect Corp» en Bolsa de unidades).
+- El contacto del proveedor dermatológico sigue en pantalla como
+  `info@skinive.com`: no contiene ninguna de las palabras prohibidas.
+
+Cómo comprobarlo — **no se razona, se ejecuta**:
+
+```bash
+pnpm turbo run build
+pnpm run check:proveedores   # recorre .next/static y el HTML/RSC servido
+```
+
+Antes de este trabajo daba 886 ocurrencias en 51 chunks; tiene que dar 0. El
+grep estático no ve lo que el API responde en caliente: para eso hay un guion
+de puppeteer que recorre el panel apuntando cada URL y cada cuerpo de respuesta.
+
+**El atlas trae el `<head>` del proveedor**: los artículos se guardan
+scrapeados, y el HTML incluía su JSON-LD y sus `<meta>` —con su marca y sus
+redes— además de meter el `<script>` de un tercero en nuestra página. El
+scraper ya los quita (`REMOVE_SELECTORS` en `encyclopedia.service.ts`), pero
+**eso solo afecta a lo que se baje a partir de ahora**: las filas que ya están
+guardadas siguen igual hasta que se vuelvan a scrapear. Para limpiarlas se
+fuerza el sync, que es idempotente y no toca SQL:
+
+```bash
+curl -X POST https://<api>/api/encyclopedia/sync -H "Authorization: Bearer <token>"
+```
+
+Requiere el permiso `update_encyclopedia_entry`. Si no, se limpian solas en el
+`@Cron` mensual. **No se arregla con una migración**: reescribir el HTML a
+golpe de `regexp_replace` se llevó por delante el cuerpo de los 46 artículos en
+local —en Postgres, si el primer cuantificador de la expresión es greedy, toda
+la expresión lo es, así que `<script[^>]*>.*?</script>` borra desde el primer
+`<script>` hasta el último—.
+
+**Nombres en los datos**: `plans.name` no se enmascara —lo escribe el negocio—
+así que un plan llamado «Skiniver Básico» se pinta tal cual. Los seeds ya usan
+«Dermatológico Básico» / «Estético Básico»; **en producción hay que revisarlo a
+mano** con `select id, name from plans where name ~* 'skiniver|youcam|perfect'`.
+
+### Análisis dermatológico (el proveedor interno `skiniver`)
 
 - `/predict` recibe `lang` desde `users.diagnostic_language`, pero **solo traduce
   `description`**: `risk`, `class` y `desease` llegan siempre en el idioma
@@ -261,6 +479,90 @@ Trampas ya conocidas (todas costaron un intento fallido):
 - Si Skiniver falla, la excepción salta **antes** de crear el análisis: no queda
   fila en `analyses` y **no se consume crédito**. Los logs son la única evidencia.
   Busca `POST /analyses falló` y `Skiniver /predict`.
+- **Los reportes cuentan el diagnóstico del profesional**, no siempre el de la
+  IA. Al confirmar o corregir se guardan `final_diagnosis_code` (el
+  `class_raw`) y `final_diagnosis_category` (el grupo, con el nombre de la
+  categoría de la IA); `apps/api/src/analyses/final-diagnosis.ts` los resuelve
+  por código (web) o por nombre (móvil). Nulos = cuenta el de la IA. Las
+  queries usan `DIAGNOSIS`/`CATEGORY`/`CLASS_RAW` de
+  `skiniver-reports.queries.ts`: no vuelvas a leer `ai_diagnosis` a pelo.
+  Las correcciones guardadas antes de esas columnas se rellenan solas al
+  arrancar el API (`analyses/final-diagnosis-backfill.ts`); el log dice
+  cuántas («Relleno de diagnósticos corregidos»).
+- **Los nombres del JSON engañan: `desease` es la CLASE y `class` es la ENFERMEDAD.**
+  Comprobado contra `GET /get_disease_classes?lang=es` (Basic con `SKINIVER_API_TOKEN`):
+  `desease` coincide siempre con un `title_name` y `class` con un `diseases[].name`.
+  Las clases de los reportes son las de ese endpoint, con su nombre oficial;
+  `analisisDermaPiel360ClassLabel` las resuelve por `class_raw` primero.
+  «Piel Sin Patología» cuenta como una clase más en todos los gráficos (lo pidió el cliente).
+- La lista de «Corregir resultado» es `packages/shared/src/nosology-catalog.ts`;
+  el móvil tiene su espejo en `views/nosologies/data/nosologies.ts`.
+
+### Planes y créditos
+
+- **Un profesional puede tener varios planes activos del mismo análisis.**
+  Comprar uno nuevo ya no cancela los anteriores (lo pidió el cliente: si le
+  quedan créditos, siguen activos). Se descuenta primero del que **vence
+  antes** (`SubscriptionCreditsService.findActiveForUser`).
+- Los que se cancelaron antes del arreglo se reactivan solos al arrancar el
+  API (`subscriptions/overlap-cancel-restore.ts`); el log dice cuántos
+  («Planes reactivados»). Se detectan por el `updated_at` del plan cancelado
+  junto a la «Activación» del nuevo: el movimiento «Cancelación» no siempre
+  quedó registrado.
+- **Un plan vencido sigue en `active`**: nada lo cambia. Quien cuente créditos
+  usables tiene que filtrar por fecha (`resolveSubscriptionEndsAt`), como
+  hacen `findActiveForUser` y `analyses/analysis-consumption.service.ts`.
+
+### Facturación del admin
+
+- Las facturas (`subscription_invoices`) solo existen para pagos aprobados
+  **desde que hay facturación**: en producción hay suscripciones pagadas por
+  Wompi sin factura. El estado de una compra se deduce en
+  `billing/billing-dashboard.service.ts` (`purchaseStatus`): sin factura, la
+  señal de pago aprobado es `ends_at`, que solo se fija al activar.
+- Las metas mensuales viven en `sales_goals` (mes + tipo de plan). El tipo de
+  plan sale de sus proveedores (`billing/plan-sale-type.ts`), no de
+  `analysisLimits`: los planes de fototipo guardan su límite en `aesthetic`.
+
+### Correos de cita
+
+- «Cita agendada» sale al crear la cita; el **recordatorio** lo manda
+  `agenda/appointment-reminders.cron.ts` a las 8:00 de Colombia, al paciente,
+  solo de citas `confirmed`, N días antes (`email_templates.days_before` de la
+  plantilla `appointment_reminder`, 1 a 30; sin plantilla = 1, con la
+  plantilla desactivada no sale). Una cita agendada con menos anticipación
+  sale en la siguiente ronda si no ha pasado.
+- `appointments.reminder_sent_at` se marca **antes** de enviar: nunca se
+  repite, aunque falle el envío. Las citas no cambian de fecha (la agenda solo
+  cambia el estado), así que no hay que reiniciarlo.
+- `{fecha_cita}`/`{hora_cita}` se formatean con `timeZone: 'America/Bogota'`
+  (`appointmentEmailValues`): sin eso salían 5 horas corridas, porque el
+  contenedor corre en UTC.
+
+### Reglas de edad de piel
+
+- Una regla aplica por **diferencia de edad + biotipo + fototipo**
+  (`skin_age_rules.skin_types` / `fitzpatrick_scales`, vacío = todos). El
+  biotipo sale del análisis estético (`analisisPiel360SkinType`); el fototipo,
+  de `patients.fitzpatrick_type`, porque el análisis estético no lo trae.
+- Si la regla pide un biotipo o fototipo que del paciente no se conoce, **no
+  aplica**. Entre varias que coinciden gana la **más específica** y, si
+  empatan, la prioridad (`pickBestMatchingRule`).
+- Reglas y catálogo viven en el **dueño de la cuenta**: las recomendaciones de
+  un análisis resuelven ese doctor (`catalogDoctorIdFor`). Con el doctor del
+  paciente a secas, los pacientes de un profesional de equipo no veían nada.
+  El motor de fototipo (`fitzpatrick-rules.service.ts`) todavía usa el doctor
+  del paciente.
+
+### Fechas de los reportes
+
+Los filtros «desde/hasta» son **días de Colombia**, no UTC:
+`apps/api/src/doctor-reports/report-range.ts` (`resolveReportRange`) y
+`colombiaDateKey`/`colombiaDayStart` de `packages/shared/src/colombia-date.ts`.
+Antes «del 10/10 al 10/10» iba del 9/10 a las 19:00 al 10/10 a las 19:00 de
+Bogotá. Las series mensuales del reporte dermatológico agrupan por mes de
+Colombia; la tendencia del reporte estético (`doctor-reports.queries.ts`)
+todavía agrupa por mes UTC.
 
 ### Front
 
@@ -268,12 +570,34 @@ Trampas ya conocidas (todas costaron un intento fallido):
   con `useMemo`, no lo sincronices en un efecto.
 - Cuidado con los contextos de apilamiento: `location-picker-section.tsx` usa
   `z-[1100]`, así que un desplegable hermano necesita más.
+- **`sticky` en el panel**: el layout (`panel-layout-client.tsx`) usa
+  `overflow-x-clip`, no `overflow-x-hidden`. `hidden` convierte al contenedor
+  en uno de scroll que nunca se desplaza y todo `sticky` de dentro deja de
+  funcionar en silencio (así estuvieron los simuladores de reglas). La
+  cabecera del panel no es fija: si se vuelve fija, los `sticky top-4` de
+  dentro quedarían debajo de ella.
 
 ---
 
 ## Estado actual (actualizar cuando cambie)
 
 - Rama de trabajo: `feature/correos-moderacion`.
+- reCAPTCHA del login web: clave Enterprise de **casilla** («No soy un robot»),
+  apagado en todos los entornos y sin probar con la clave real. Pasos,
+  variables y pendientes en `docs/recaptcha-pendiente.md`.
 - Pendiente de despliegue: reconstruir la imagen del API (cambió
   `packages/shared`) y confirmar con `npx prisma migrate status` que producción
   está al día.
+- Los banners de las plantillas de correo se sirven por
+  `/api/public/email-assets/<key>`, que redirige a una firma nueva: la URL
+  firmada que se guardaba antes caducaba a los 7 días. Esa ruta y el link del
+  reporte se arman con **`PUBLIC_API_URL`** (dominio público del API, sin
+  `/api`): comprobar que está bien en `/opt/piel360/.env.production`.
+- **El web y el API tienen que desplegarse juntos**: cambiaron las rutas
+  (`/api/analisispiel360/*`, `/api/analisisdermapiel360/*`,
+  `/api/admin/bolsa-unidades/analisis*`) y un web viejo contra un API nuevo
+  pediría URLs que ya no existen.
+- `apps/mobile` sigue nombrando a los proveedores en sus espejos
+  (`youcamScoreConfig.ts`, `analysisProviderLabel.ts`, vistas `Youcam*` /
+  `Skiniver*`). No se rompe —el móvil no importa `@piel360/shared`— pero queda
+  desalineado: es una entrega aparte.

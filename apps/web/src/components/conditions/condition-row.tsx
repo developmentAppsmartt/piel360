@@ -2,7 +2,7 @@
 
 import type { FieldValues, UseFormRegister } from "react-hook-form";
 import { Trash2 } from "lucide-react";
-import { YOUCAM_SKIN_TYPE_VALUES } from "@piel360/shared";
+import { ANALISIS_PIEL360_SKIN_TYPE_VALUES } from "@piel360/shared";
 import { Button } from "@/components/ui/button";
 import {
   CONDITION_METRICS,
@@ -13,7 +13,8 @@ import {
   isSkinTypeMetric,
   type ConditionOperator,
 } from "@/lib/condition-labels";
-import { youcamRegionLabel, youcamSkinTypeLabel } from "@/lib/youcam-metric-labels";
+import { metricHasFreeKey } from "./condition-schema";
+import { analisisPiel360RegionLabel, analisisPiel360SkinTypeLabel } from "@/lib/youcam-metric-labels";
 
 const inputCls =
   "w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-ring disabled:opacity-50";
@@ -46,6 +47,8 @@ export function ConditionRow({
   error,
   subjectPhrase,
   excludedMetrics,
+  usedKeys,
+  onMetricChange,
   onRemove,
 }: {
   index: number;
@@ -56,6 +59,10 @@ export function ConditionRow({
   subjectPhrase: string;
   /** Métricas que este flujo no ofrece (ver `SUGGESTED_PRODUCT_EXCLUDED_METRICS`). */
   excludedMetrics?: string[];
+  /** `conditionKey` de las OTRAS filas: lo que ya tiene condición no se ofrece. */
+  usedKeys: string[];
+  /** Al cambiar de métrica la zona anterior ya no aplica: quien usa la fila la vacía. */
+  onMetricChange: () => void;
   onRemove: () => void;
 }) {
   const metricType = watched?.metricType ?? CONDITION_METRICS[0];
@@ -66,13 +73,22 @@ export function ConditionRow({
   // lista, el navegador mostraría la primera opción y al guardar cambiaría la
   // condición sin que nadie lo pidiera.
   const metricOptions = CONDITION_METRICS.filter(
-    (type) => !excludedMetrics?.includes(type) || type === metricType,
+    (type) =>
+      type === metricType ||
+      (!excludedMetrics?.includes(type) && metricHasFreeKey(type, usedKeys)),
+  );
+  const regionOptions = regions?.filter(
+    (region) =>
+      region === watched?.region || !usedKeys.includes(`${metricType}|${region}`),
   );
 
   return (
     <div className="space-y-2 rounded-lg border border-border bg-card p-3">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_1fr_auto]">
-        <select className={inputCls} {...register(`conditions.${index}.metricType`)}>
+        <select
+          className={inputCls}
+          {...register(`conditions.${index}.metricType`, { onChange: onMetricChange })}
+        >
           {metricOptions.map((type) => (
             <option key={type} value={type}>
               {conditionMetricLabel(type)}
@@ -80,11 +96,12 @@ export function ConditionRow({
           ))}
         </select>
 
-        {regions ? (
+        {regionOptions ? (
           <select className={inputCls} {...register(`conditions.${index}.region`)}>
-            {regions.map((region) => (
+            <option value="">Selecciona la zona</option>
+            {regionOptions.map((region) => (
               <option key={region} value={region}>
-                {youcamRegionLabel(region)}
+                {analisisPiel360RegionLabel(region)}
               </option>
             ))}
           </select>
@@ -106,9 +123,9 @@ export function ConditionRow({
 
       {skinType ? (
         <select className={inputCls} {...register(`conditions.${index}.textValue`)}>
-          {YOUCAM_SKIN_TYPE_VALUES.map((value) => (
+          {ANALISIS_PIEL360_SKIN_TYPE_VALUES.map((value) => (
             <option key={value} value={value}>
-              {youcamSkinTypeLabel(value)}
+              {analisisPiel360SkinTypeLabel(value)}
             </option>
           ))}
         </select>
@@ -124,6 +141,8 @@ export function ConditionRow({
           <input
             type="number"
             step="0.01"
+            min={0}
+            max={100}
             className={inputCls}
             placeholder={isBetween ? "Desde" : "Ej: 70"}
             {...register(`conditions.${index}.value`)}
@@ -132,6 +151,8 @@ export function ConditionRow({
             <input
               type="number"
               step="0.01"
+              min={0}
+              max={100}
               className={inputCls}
               placeholder="Hasta"
               {...register(`conditions.${index}.valueTo`)}

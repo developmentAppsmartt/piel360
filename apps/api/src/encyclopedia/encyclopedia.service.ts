@@ -8,7 +8,10 @@ const REMOVE_SELECTORS =
   // WordPress) — trae texto sin traducir/sin renderizar (placeholders tipo
   // {title}/{vendor_count} que Complianz llena con JS del lado del cliente,
   // nunca ejecutado acá porque scrapeamos HTML estático).
-  'header, footer, nav, #breadcrumbs, #myDiv, .gtranslate-container, #cmplz-cookiebanner-container, #cmplz-manage-consent';
+  // script/meta/link: el artículo trae el JSON-LD y los <meta> del sitio del
+  // proveedor —con su marca y sus redes— que no se pintan pero sí se
+  // descargan, además de meter el <script> de un tercero en nuestra página.
+  'header, footer, nav, #breadcrumbs, #myDiv, .gtranslate-container, #cmplz-cookiebanner-container, #cmplz-manage-consent, script, link, meta';
 
 /**
  * Scraper del atlas dermatológico (INTEGRACIONES-IA.md §1.4). El

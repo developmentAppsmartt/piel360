@@ -3,16 +3,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   FitzpatrickResult,
-  SkiniverDiagnosisDetails,
-  SkiniverPrediction,
-  YouCamResults,
+  AnalisisDermaPiel360DiagnosisDetails,
+  AnalisisDermaPiel360Prediction,
+  AnalisisPiel360Results,
 } from "@piel360/shared";
 import { apiClientFetch } from "@/lib/api-client";
 
-// Shape que escribe YoucamResultsService#applyError cuando YouCam rechaza el
+// Shape que escribe AnalisisPiel360ResultsService#applyError cuando YouCam rechaza el
 // task de forma permanente (ej. "Input image resolution is too small.") — el
 // job de respaldo/webhook dejan de reintentar en ese caso.
-export interface YouCamAnalysisError {
+export interface AnalisisPiel360AnalysisError {
   error: true;
   message: string;
 }
@@ -20,14 +20,14 @@ export interface YouCamAnalysisError {
 // Shape completo de GET/POST /analyses (`id` es string por el polyfill de
 // BigInt del backend). imageUrl/coloredUrl/maskedUrl/masks son URLs firmadas
 // agregadas por AnalysesService.withImageUrls — no existen como columnas.
-// aiRawResponse es SkiniverPrediction si youcamTaskId/fitzpatrickTaskId son
-// null, YouCamResults/YouCamAnalysisError si hay youcamTaskId, o
+// aiRawResponse es AnalisisDermaPiel360Prediction si analisisPiel360TaskId/fitzpatrickTaskId son
+// null, AnalisisPiel360Results/AnalisisPiel360AnalysisError si hay analisisPiel360TaskId, o
 // FitzpatrickResult si hay fitzpatrickTaskId (distinguir por esos campos
 // antes de leer, y por la propiedad `error` para el caso de fallo YouCam).
 export interface AnalysisDetail {
   id: string;
   patientId: string;
-  youcamTaskId: string | null;
+  analisisPiel360TaskId: string | null;
   fitzpatrickTaskId: string | null;
   bodyRegion: string | null;
   xCoord: number | null;
@@ -38,12 +38,15 @@ export interface AnalysisDetail {
   aiDiagnosis: string | null;
   aiProbability: number | null;
   aiRawResponse:
-    | SkiniverPrediction
-    | YouCamResults
-    | YouCamAnalysisError
+    | AnalisisDermaPiel360Prediction
+    | AnalisisPiel360Results
+    | AnalisisPiel360AnalysisError
     | FitzpatrickResult
     | null;
   finalDiagnosis: string | null;
+  /** Id del clasificador del diagnóstico del profesional (`3C_melanoma`);
+   * `null` = cuenta el de la IA. */
+  finalDiagnosisCode: string | null;
   isConfirmed: boolean;
   isCorrected: boolean;
   doctorNotes: string | null;
@@ -55,8 +58,8 @@ export interface AnalysisDetail {
   maskedUrl: string | null;
   masks: { type: string; region?: string; url: string }[];
   // Solo Skiniver — diagnóstico/tratamiento/consejo/ICD parseados del texto
-  // libre de aiRawResponse.description (ver skiniver-description.util.ts).
-  skiniverDiagnosis: SkiniverDiagnosisDetails | null;
+  // libre de aiRawResponse.description (ver analisisdermapiel360-description.util.ts).
+  analisisDermaPiel360Diagnosis: AnalisisDermaPiel360DiagnosisDetails | null;
   // true solo si se guardó la selfie original aparte (YouCam con
   // enableMaskOverlay: false) — en ese caso imageUrl es una foto real que
   // sirve de fondo para las máscaras crudas; si no, imageUrl es un link
@@ -88,6 +91,8 @@ export interface CreateAnalysisInput {
 export interface ConfirmAnalysisInput {
   isCorrected: boolean;
   finalDiagnosis?: string;
+  /** Dermatológico: id de la condición elegida, para que cuente en reportes. */
+  finalDiagnosisCode?: string;
   doctorNotes?: string;
 }
 
@@ -97,7 +102,7 @@ export interface ConfirmAnalysisInput {
 export interface AnalysisListItem {
   id: string;
   patientId: string;
-  youcamTaskId: string | null;
+  analisisPiel360TaskId: string | null;
   fitzpatrickTaskId: string | null;
   bodyRegion: string | null;
   isValid: boolean;
@@ -142,8 +147,8 @@ export function useAnalysis(id: string, options?: { enabled?: boolean }) {
       if (!data) return false;
       const attempts = query.state.dataUpdateCount;
 
-      if (data.youcamTaskId) {
-        // Si ya se marcó como fallo permanente (YoucamResultsService#applyError),
+      if (data.analisisPiel360TaskId) {
+        // Si ya se marcó como fallo permanente (AnalisisPiel360ResultsService#applyError),
         // isValid se queda en false para siempre — sin esto el polling seguiría
         // los 200s completos mostrando "procesando" sobre algo que ya falló.
         const failed =
@@ -206,7 +211,7 @@ export function useConfirmAnalysis(id: string, patientId: string) {
 /** URL pública y permanente del PDF "Reporte Salud de la Piel" (generado por
  * `ReportPdfService` en el backend, mismo PDF que ya se adjunta al correo de
  * "reporte listo") — solo disponible para análisis YouCam. */
-export function useDownloadYoucamReport(id: string) {
+export function useDownloadAnalisisPiel360Report(id: string) {
   return useMutation({
     mutationFn: () =>
       apiClientFetch<{ url: string }>(`/analyses/${id}/report-pdf`),

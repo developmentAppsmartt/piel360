@@ -17,7 +17,6 @@ import {
   rangeForDays,
   sortCategories,
   SKINIVER_AGE_SERIES,
-  SKINIVER_CLASS_SERIES,
   type DoctorReportsFilters,
   type LifestyleReport,
   type LifestyleReportSection,
@@ -786,11 +785,11 @@ function DermatologicoTab({
     <View style={{ gap: 14 }}>
       <View style={styles.card}>
         <Text style={styles.cardTitle}>
-          Enfermedades de la piel por categorías
+          Enfermedades de la piel por Clases
         </Text>
         <Text style={styles.cardHint}>
-          Distribución de diagnósticos por categoría, según la clasificación
-          que devuelve la IA.
+          Distribución de diagnósticos por clase (grupo de patologías), según
+          la clasificación que devuelve la IA.
         </Text>
         {total > 0 ? (
           <DistributionDonut
@@ -847,12 +846,12 @@ function DermatologicoTab({
           No. de diagnósticos por clase por mes
         </Text>
         <Text style={styles.cardHint}>
-          Las clases son los grupos de patología; cada uno reúne varias
-          condiciones del catálogo de diagnósticos de la IA.
+          Las clases son los grupos de patologías que devuelve la IA: las 8
+          más frecuentes del periodo; el resto se agrupa en «Otras».
         </Text>
         <MultiSeriesTrendChart
           points={report.byClass}
-          series={[...SKINIVER_CLASS_SERIES]}
+          series={report.classSeries ?? []}
         />
       </View>
 

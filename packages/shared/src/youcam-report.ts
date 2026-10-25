@@ -6,7 +6,7 @@
  * archivo original en `apps/web` queda como re-export de este.
  */
 
-export type YoucamOutputItem = {
+export type AnalisisPiel360ReportItem = {
   type: string;
   region?: string;
   ui_score?: number;
@@ -17,13 +17,13 @@ export type YoucamOutputItem = {
   [key: string]: unknown;
 };
 
-export type YoucamRawResponse = {
-  output?: YoucamOutputItem[];
+export type AnalisisPiel360RawResponse = {
+  output?: AnalisisPiel360ReportItem[];
   error?: boolean;
   message?: string;
 };
 
-export type YoucamMetric = {
+export type AnalisisPiel360Metric = {
   type: string;
   region?: string;
   uiScore: number | null;
@@ -33,9 +33,9 @@ export type YoucamMetric = {
 };
 
 /** Extrae métricas YouCam desde aiRawResponse.output[]. */
-export function parseYoucamMetrics(
-  raw: YoucamRawResponse | null | undefined,
-): YoucamMetric[] {
+export function parseAnalisisPiel360Metrics(
+  raw: AnalisisPiel360RawResponse | null | undefined,
+): AnalisisPiel360Metric[] {
   if (!raw?.output?.length) return [];
   return raw.output.map((item) => ({
     type: item.type,
@@ -47,18 +47,18 @@ export function parseYoucamMetrics(
   }));
 }
 
-export function youcamOverallScore(metrics: YoucamMetric[]): number | null {
+export function analisisPiel360OverallScore(metrics: AnalisisPiel360Metric[]): number | null {
   return metrics.find((m) => m.type === "all")?.score ?? null;
 }
 
-export function youcamSkinAge(metrics: YoucamMetric[]): number | null {
+export function analisisPiel360SkinAge(metrics: AnalisisPiel360Metric[]): number | null {
   return metrics.find((m) => m.type === "skin_age")?.score ?? null;
 }
 
 /** Biotipo general: prefiere el registro de cara completa con valor — tomar el
  * primer `hd_skin_type` a secas devolvía el de una zona (T/U) o uno sin
  * `skinType`, y el resumen mostraba un biotipo que no era el general. */
-export function youcamSkinType(metrics: YoucamMetric[]): string | null {
+export function analisisPiel360SkinType(metrics: AnalisisPiel360Metric[]): string | null {
   const preferred =
     metrics.find(
       (m) =>
@@ -73,27 +73,27 @@ export function youcamSkinType(metrics: YoucamMetric[]): string | null {
  * rawScore → score → uiScore si el usuario prefiere ver el valor sin
  * ajustar cosméticamente (ver toggle "Puntuación ajustada"/"Puntuación real"
  * en youcam-results-section.tsx). */
-export function youcamMetricValue(metric: YoucamMetric, preferRaw = false): number | null {
+export function analisisPiel360MetricValue(metric: AnalisisPiel360Metric, preferRaw = false): number | null {
   if (preferRaw) return metric.rawScore ?? metric.score ?? metric.uiScore;
   return metric.uiScore ?? metric.score ?? metric.rawScore;
 }
 
-export type YoucamScoreBand = "regular" | "promedio" | "buena";
+export type AnalisisPiel360ScoreBand = "regular" | "promedio" | "buena";
 
-export function youcamScoreBand(score: number): YoucamScoreBand {
+export function analisisPiel360ScoreBand(score: number): AnalisisPiel360ScoreBand {
   if (score < 70) return "regular";
   if (score < 90) return "promedio";
   return "buena";
 }
 
-export function youcamScoreBandLabel(band: YoucamScoreBand): string {
+export function analisisPiel360ScoreBandLabel(band: AnalisisPiel360ScoreBand): string {
   if (band === "regular") return "Regular";
   if (band === "promedio") return "Promedio";
   return "Buena";
 }
 
 /** Métricas principales para carrusel / progreso / radar. */
-export const YOUCAM_MAIN_METRIC_TYPES = [
+export const ANALISIS_PIEL360_MAIN_METRIC_TYPES = [
   "hd_wrinkle",
   "hd_age_spot",
   "hd_texture",
@@ -112,13 +112,13 @@ export const YOUCAM_MAIN_METRIC_TYPES = [
 ] as const;
 
 /** Agrupa por type eligiendo región whole/sin región cuando exista. */
-export function youcamScoresByType(
-  metrics: YoucamMetric[],
+export function analisisPiel360ScoresByType(
+  metrics: AnalisisPiel360Metric[],
   preferRaw = false,
 ): Record<string, number> {
   const map: Record<string, number> = {};
   for (const m of metrics) {
-    const value = youcamMetricValue(m, preferRaw);
+    const value = analisisPiel360MetricValue(m, preferRaw);
     if (value == null) continue;
     const preferWhole = !m.region || m.region === "whole";
     if (map[m.type] == null || preferWhole) {
@@ -171,8 +171,8 @@ export function formatSignedYears(diff: number): string {
 
 /** Etiquetas usadas por el reporte (radar chart, resumen) — subconjunto de
  * `apps/web/src/lib/youcam-metric-labels.ts` que necesita el PDF server-side. */
-export const YOUCAM_METRIC_LABELS: Record<string, string> = {
-  hd_redness: "Enrojecimiento",
+export const ANALISIS_PIEL360_METRIC_LABELS: Record<string, string> = {
+  hd_redness: "Eritema",
   hd_oiliness: "Grasa",
   hd_age_spot: "Manchas de edad",
   hd_radiance: "Luminosidad",
@@ -194,7 +194,7 @@ export const YOUCAM_METRIC_LABELS: Record<string, string> = {
   resize_image: "Imagen redimensionada",
 };
 
-export const YOUCAM_SKIN_TYPE_LABELS: Record<string, string> = {
+export const ANALISIS_PIEL360_SKIN_TYPE_LABELS: Record<string, string> = {
   normal: "Normal",
   oily: "Grasa",
   dry: "Seca",
@@ -205,6 +205,6 @@ export const YOUCAM_SKIN_TYPE_LABELS: Record<string, string> = {
   "combination & redness": "Mixta y enrojecida",
 };
 
-export function youcamSkinTypeLabel(value: string): string {
-  return YOUCAM_SKIN_TYPE_LABELS[value.toLowerCase()] ?? value;
+export function analisisPiel360SkinTypeLabel(value: string): string {
+  return ANALISIS_PIEL360_SKIN_TYPE_LABELS[value.toLowerCase()] ?? value;
 }
