@@ -5,6 +5,7 @@ import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.AudioManager
 import android.media.ToneGenerator
@@ -31,6 +32,7 @@ import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import com.piel360.app.R
 import java.io.File
+import java.io.FileOutputStream
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -469,6 +471,9 @@ class SkinAnalysisCaptureActivity : AppCompatActivity() {
         override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
           captureLoader.stop()
           captureLoader.visibility = View.GONE
+          // CameraX entrega el sensor completo aunque se pida 1440×1920.
+          // Fototipo rechaza un lado mayor de 4096 px.
+          limitLongSide(outFile, MAX_LONG_SIDE_PX)
           val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
           BitmapFactory.decodeFile(outFile.absolutePath, bounds)
           val result =
@@ -514,8 +519,48 @@ class SkinAnalysisCaptureActivity : AppCompatActivity() {
     super.onDestroy()
   }
 
+  /**
+   * El proveedor de fototipo no acepta un lado mayor de 4096 px. La captura
+   * guiada suele salir más grande; se reescribe el JPEG antes de devolverlo.
+   */
+  private fun limitLongSide(file: File, maxLongSide: Int) {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeFile(file.absolutePath, bounds)
+    val srcW = bounds.outWidth
+    val srcH = bounds.outHeight
+    if (srcW <= 0 || srcH <= 0 || maxOf(srcW, srcH) <= maxLongSide) return
+
+    var sample = 1
+    while (maxOf(srcW, srcH) / sample > maxLongSide * 2) sample *= 2
+    val decoded =
+      BitmapFactory.decodeFile(
+        file.absolutePath,
+        BitmapFactory.Options().apply { inSampleSize = sample },
+      ) ?: return
+    val scale = maxLongSide.toFloat() / maxOf(decoded.width, decoded.height)
+    val targetW = maxOf(1, Math.round(decoded.width * scale))
+    val targetH = maxOf(1, Math.round(decoded.height * scale))
+    val scaled =
+      if (decoded.width == targetW && decoded.height == targetH) {
+        decoded
+      } else {
+        Bitmap.createScaledBitmap(decoded, targetW, targetH, true)
+      }
+    try {
+      FileOutputStream(file).use { out ->
+        scaled.compress(Bitmap.CompressFormat.JPEG, 92, out)
+      }
+    } catch (e: Exception) {
+      Log.w(TAG, "No se pudo achicar la captura", e)
+    } finally {
+      if (scaled !== decoded) scaled.recycle()
+      decoded.recycle()
+    }
+  }
+
   companion object {
     private const val TAG = "SkinAnalysisCapture"
+    private const val MAX_LONG_SIDE_PX = 4096
 
     const val EXTRA_IMAGE_URI = "image_uri"
     const val EXTRA_WIDTH = "width"
