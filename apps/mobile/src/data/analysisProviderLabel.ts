@@ -45,12 +45,15 @@ export function providerStaticLabel(slug: string): string {
 /** Label para un análisis existente: prioriza `provider.displayLabel` si no es un nombre de API. */
 export function analysisProviderLabel(row: {
   youcamTaskId?: string | null;
+  analisisPiel360TaskId?: string | null;
   fitzpatrickTaskId?: string | null;
   provider?: { displayLabel: string | null } | null;
 }): string {
   const raw = row.provider?.displayLabel?.trim();
   if (raw && !looksLikeApiVendor(raw)) return maskVendorMessage(raw);
-  if (row.youcamTaskId) return ANALYSIS_PROVIDER_STATIC_LABELS.youcam;
+  if (row.youcamTaskId || row.analisisPiel360TaskId) {
+    return ANALYSIS_PROVIDER_STATIC_LABELS.youcam;
+  }
   if (row.fitzpatrickTaskId) return ANALYSIS_PROVIDER_STATIC_LABELS.fitzpatrick;
   return ANALYSIS_PROVIDER_STATIC_LABELS.skiniver;
 }

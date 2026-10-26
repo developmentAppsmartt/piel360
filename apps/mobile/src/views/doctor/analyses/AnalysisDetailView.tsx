@@ -231,7 +231,9 @@ export function AnalysisDetailView({
     };
   }, [analysisId]);
 
-  const isYoucam = !!analysis?.youcamTaskId;
+  const isYoucam = !!(
+    analysis?.youcamTaskId || analysis?.analisisPiel360TaskId
+  );
   const isFitzpatrick = !!analysis?.fitzpatrickTaskId;
   const isSkiniver = !!analysis && !isYoucam && !isFitzpatrick;
   const raw = (analysis?.aiRawResponse ?? null) as YoucamRawResponse | null;

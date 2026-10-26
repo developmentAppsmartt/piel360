@@ -35,7 +35,11 @@ function formatStamp(iso: string): string {
 export function isDermatologyDiseaseAnalysis(
   item: PatientAnalysisSummary,
 ): boolean {
-  return !item.youcamTaskId && !item.fitzpatrickTaskId;
+  return (
+    !item.youcamTaskId &&
+    !item.analisisPiel360TaskId &&
+    !item.fitzpatrickTaskId
+  );
 }
 
 export function SkinDiseasesView({

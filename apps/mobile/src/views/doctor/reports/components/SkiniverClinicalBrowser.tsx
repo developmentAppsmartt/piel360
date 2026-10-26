@@ -60,7 +60,11 @@ export function SkiniverClinicalBrowser({
 
   const visible = useMemo(() => {
     const skiniver = (rows ?? []).filter(
-      (a) => a.isValid !== false && !a.youcamTaskId && !a.fitzpatrickTaskId,
+      (a) =>
+        a.isValid !== false &&
+        !a.youcamTaskId &&
+        !a.analisisPiel360TaskId &&
+        !a.fitzpatrickTaskId,
     );
     const q = search.trim().toLowerCase();
     const filtered = q

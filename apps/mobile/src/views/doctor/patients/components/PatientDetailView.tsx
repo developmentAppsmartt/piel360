@@ -191,12 +191,14 @@ const ANALYSIS_KIND_VISUAL: Record<AnalysisProviderSlug, AnalysisKindVisual> = {
 
 function resolveAnalysisSlug(row: {
   youcamTaskId?: string | null;
+  /** Nombre con el que el API entrega el id de la tarea estética. */
+  analisisPiel360TaskId?: string | null;
   fitzpatrickTaskId?: string | null;
   providerSlug?: string | null;
 }): AnalysisProviderSlug {
   const fromSlug = toAnalysisProviderSlug(row.providerSlug);
   if (fromSlug) return fromSlug;
-  if (row.youcamTaskId) return 'youcam';
+  if (row.youcamTaskId || row.analisisPiel360TaskId) return 'youcam';
   if (row.fitzpatrickTaskId) return 'fitzpatrick';
   return 'skiniver';
 }
