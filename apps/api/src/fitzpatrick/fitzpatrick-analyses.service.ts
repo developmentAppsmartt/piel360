@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { imageSize } from 'image-size';
+import sharp from 'sharp';
 import type { JwtPayload } from '../auth/types';
 import { PatientsService } from '../patients/patients.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -13,8 +14,8 @@ import { FitzpatrickService } from './fitzpatrick.service';
 
 const FITZPATRICK_PROVIDER_SLUG = 'fitzpatrick';
 // docs/ai_fitzpatrick_skin_type.md — "File Specs & Errors": lado corto ≥320px,
-// lado largo ≤4096px. Mucho más permisivo que YouCam HD (1080px), no hace
-// falta lógica de upscale — solo se rechaza lo genuinamente muy pequeño.
+// lado largo ≤4096px. Si la captura se pasa de largo, se achica. Solo se
+// rechaza lo que queda por debajo del mínimo.
 const MIN_SHORT_SIDE_PX = 320;
 const MAX_LONG_SIDE_PX = 4096;
 // La tarea es una sola clasificación (sin máscaras que descargar) — se hace
@@ -78,16 +79,40 @@ export class FitzpatrickAnalysesService {
       );
     }
 
-    const { width, height } = imageSize(image);
+    let upload = image;
+    let { width, height } = imageSize(upload);
+    width = width ?? 0;
+    height = height ?? 0;
+    let longSide = Math.max(width, height);
+    if (width > 0 && height > 0 && longSide > MAX_LONG_SIDE_PX) {
+      const scale = MAX_LONG_SIDE_PX / longSide;
+      const targetWidth = Math.max(1, Math.round(width * scale));
+      const targetHeight = Math.max(1, Math.round(height * scale));
+      upload = await sharp(image)
+        .resize(targetWidth, targetHeight, { fit: 'fill' })
+        .jpeg({ quality: 92 })
+        .toBuffer();
+      const resized = imageSize(upload);
+      width = resized.width ?? targetWidth;
+      height = resized.height ?? targetHeight;
+      longSide = Math.max(width, height);
+      this.logger.log(
+        `Fototipo: imagen redimensionada a ${width}x${height} para no pasar de ${MAX_LONG_SIDE_PX}px`,
+      );
+    }
     const shortSide = Math.min(width, height);
-    const longSide = Math.max(width, height);
-    if (shortSide < MIN_SHORT_SIDE_PX || longSide > MAX_LONG_SIDE_PX) {
+    if (
+      !width ||
+      !height ||
+      shortSide < MIN_SHORT_SIDE_PX ||
+      longSide > MAX_LONG_SIDE_PX
+    ) {
       throw new BadRequestException(
         `La imagen debe tener el lado corto de al menos ${MIN_SHORT_SIDE_PX}px y el lado largo de máximo ${MAX_LONG_SIDE_PX}px (esta es ${width}x${height}px).`,
       );
     }
 
-    const fileId = await this.fitzpatrick.uploadImage(image);
+    const fileId = await this.fitzpatrick.uploadImage(upload);
     const taskId = await this.fitzpatrick.startTask(fileId);
     const result = await this.pollUntilDone(taskId);
 
@@ -119,7 +144,7 @@ export class FitzpatrickAnalysesService {
 
     const originalKey = `analyses/${analysis.id}/original.jpg`;
     try {
-      await this.storage.upload(originalKey, image, 'image/jpeg');
+      await this.storage.upload(originalKey, upload, 'image/jpeg');
       await this.prisma.analysis.update({
         where: { id: analysis.id },
         data: { imagePath: originalKey },

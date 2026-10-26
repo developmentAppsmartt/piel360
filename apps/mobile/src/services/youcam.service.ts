@@ -18,7 +18,7 @@ export const youcamService = {
     if (input.bodyRegion) form.append('bodyRegion', input.bodyRegion);
 
     const created = await apiRequest<CreateYoucamAnalysisResult>(
-      '/youcam/analyses',
+      '/analisispiel360/analyses',
       { method: 'POST', auth: true, body: form, formData: true },
     );
     emitCreditsConsumed();
