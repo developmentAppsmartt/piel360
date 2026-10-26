@@ -324,11 +324,15 @@ export function DoctorHomeView({
   const primary = branding.colors.primary;
   const dermatologicoCount = useMemo(
     () =>
-      analyses.filter((a) => !a.youcamTaskId && !a.fitzpatrickTaskId).length,
+      analyses.filter(
+        (a) => !a.youcamTaskId && !a.analisisPiel360TaskId && !a.fitzpatrickTaskId,
+      ).length,
     [analyses],
   );
   const esteticoCount = useMemo(
-    () => analyses.filter((a) => !!a.youcamTaskId).length,
+    () =>
+      analyses.filter((a) => !!(a.youcamTaskId || a.analisisPiel360TaskId))
+        .length,
     [analyses],
   );
   const fototipoCount = useMemo(

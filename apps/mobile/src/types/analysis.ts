@@ -10,6 +10,8 @@ export type PatientAnalysisSummary = {
   sharedWithPatient?: boolean;
   sharedAt?: string | null;
   youcamTaskId?: string | null;
+  /** El listado del API usa este nombre, no `youcamTaskId`. */
+  analisisPiel360TaskId?: string | null;
   fitzpatrickTaskId?: string | null;
   imagePath?: string;
   imageUrl?: string | null;
@@ -512,6 +514,8 @@ export type AnalysisDetail = {
   id: string;
   patientId: string;
   youcamTaskId: string | null;
+  /** El detalle del API usa este nombre, no `youcamTaskId`. */
+  analisisPiel360TaskId?: string | null;
   fitzpatrickTaskId?: string | null;
   bodyRegion: string | null;
   xCoord?: number | null;

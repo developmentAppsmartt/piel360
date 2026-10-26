@@ -172,8 +172,7 @@ export class PlansService {
     const enriched = await this.enrichPlans(plans);
     const withPool = await this.planPool.enrichPlans(enriched);
     return withPool.map((plan) =>
-      this.withCustomerPrice(plan, ivaPercent, usdtToCop),
-      toPublicPlanProviders(this.withCustomerPrice(plan, ivaPercent)),
+      toPublicPlanProviders(this.withCustomerPrice(plan, ivaPercent, usdtToCop)),
     );
   }
 

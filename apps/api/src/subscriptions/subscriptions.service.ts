@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { BillingService } from '../billing/billing.service';
 import { MailService } from '../mail/mail.service';
 import { OrgContextService } from '../organizations/org-context.service';
@@ -12,8 +13,6 @@ import {
   ensureSubscriptionEndsAt,
 } from './subscription-ends.util';
 import { SubscriptionPoolService } from './subscription-pool.service';
-
-type Db = PrismaService | Prisma.TransactionClient;
 
 type PaidSubscription = Prisma.SubscriptionGetPayload<{
   include: { plan: { include: { provider: true } }; user: true };
@@ -136,16 +135,6 @@ export class SubscriptionsService {
     }
     // Cualquier otro estado (ej. PENDING): no-op, se espera la siguiente entrega del webhook.
   }
-      await this.planPool.assertPlanPurchasable(subscription.plan);
-      const endsAt = computeSubscriptionEndsAt(subscription.plan);
-
-      // Los planes que ya tenía siguen activos: se gastan primero los que
-      // vencen antes (SubscriptionCreditsService.findActiveForUser).
-      await this.prisma.$transaction(async (tx) => {
-        await tx.subscription.update({
-          where: { id: subscription.id },
-          data: { status: 'active', wompiTransactionId, endsAt },
-        });
 
   /**
    * Pago confirmado y bolsa corta: queda en prebolsa (`pending` + `awaitingPool`)
@@ -190,14 +179,15 @@ export class SubscriptionsService {
     subscription: PaidSubscription,
     wompiTransactionId: string,
   ): Promise<void> {
-    const endsAt = this.computeEndsAt(subscription.plan);
+    const endsAt = computeSubscriptionEndsAt(subscription.plan);
     const activated = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM subscriptions WHERE id = ${subscription.id} FOR UPDATE`;
       const current = await tx.subscription.findUnique({
         where: { id: subscription.id },
       });
       if (!current || current.status !== 'pending') return false;
-      await this.cancelOverlappingActive(tx, subscription.userId, subscription.plan);
+      // Los planes que ya tenía siguen activos: se gastan primero los que
+      // vencen antes (SubscriptionCreditsService.findActiveForUser).
       await tx.subscription.update({
         where: { id: subscription.id },
         data: {
@@ -209,8 +199,6 @@ export class SubscriptionsService {
       });
       await this.subscriptionPool.allocateForSubscription(
         tx,
-      await this.subscriptionPool.allocateForSubscription(
-        this.prisma,
         subscription.id,
         subscription.plan,
       );

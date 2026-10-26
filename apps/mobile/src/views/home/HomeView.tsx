@@ -84,12 +84,14 @@ const HISTORY_FILTER_CHIPS: { id: HistoryFilter; label: string }[] = [
 
 function resolveAnalysisSlug(row: {
   youcamTaskId?: string | null;
+  /** Nombre con el que el API entrega el id de la tarea estética. */
+  analisisPiel360TaskId?: string | null;
   fitzpatrickTaskId?: string | null;
   providerSlug?: string | null;
 }): AnalysisProviderSlug {
   const fromSlug = toAnalysisProviderSlug(row.providerSlug);
   if (fromSlug) return fromSlug;
-  if (row.youcamTaskId) return 'youcam';
+  if (row.youcamTaskId || row.analisisPiel360TaskId) return 'youcam';
   if (row.fitzpatrickTaskId) return 'fitzpatrick';
   return 'skiniver';
 }
@@ -176,7 +178,7 @@ function analysisTitle(item: PatientAnalysisSummary): string {
       ?.fitzpatrick_scale;
     return scale ? `Fototipo ${scale}` : 'Piel 360 AI · Fototipo';
   }
-  if (item.youcamTaskId) {
+  if (item.youcamTaskId || item.analisisPiel360TaskId) {
     const metrics = parseYoucamMetrics(
       item.aiRawResponse as YoucamRawResponse | null,
     );
@@ -191,7 +193,7 @@ function analysisTitle(item: PatientAnalysisSummary): string {
 function analysisTone(
   item: PatientAnalysisSummary,
 ): 'danger' | 'warning' | 'success' {
-  if (item.youcamTaskId) {
+  if (item.youcamTaskId || item.analisisPiel360TaskId) {
     const metrics = parseYoucamMetrics(
       item.aiRawResponse as YoucamRawResponse | null,
     );

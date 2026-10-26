@@ -115,7 +115,7 @@ export type PrebolsaItem = {
   createdAt: string;
   user: { id: string; name: string; email: string };
   plan: { id: string; name: string; analysisLimit: number };
-  poolProvider: "skiniver" | "perfectcorp";
+  poolProvider: "analisisdermapiel360" | "analisispiel360";
   poolLabel: string;
   poolAvailable: number;
   poolRequired: number;
@@ -123,7 +123,7 @@ export type PrebolsaItem = {
 
 export type PrebolsaResponse = {
   fetchedAt: string;
-  balances: { skiniver: number; perfectcorp: number };
+  balances: { analisisdermapiel360: number; analisispiel360: number };
   counts: {
     pendingPayment: number;
     awaitingCredits: number;

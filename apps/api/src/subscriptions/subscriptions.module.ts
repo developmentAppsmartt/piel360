@@ -20,12 +20,12 @@ import { SubscriptionsController } from './subscriptions.controller';
     BillingModule,
     forwardRef(() => PlanPoolAvailabilityModule),
   ],
-  providers: [SubscriptionsService, SubscriptionPoolService, PrebolsaCronService],
   providers: [
     SubscriptionsService,
     SubscriptionsAdminService,
     SubscriptionCreditsService,
     SubscriptionPoolService,
+    PrebolsaCronService,
     OverlapCancelRestore,
   ],
   controllers: [SubscriptionsController],
