@@ -58,4 +58,8 @@ RUN pnpm --filter @piel360/api run build
 
 WORKDIR /app/apps/api
 
+# Sin esto el proceso de producción queda igual que `pnpm start` local
+# (NODE_ENV vacío) y el login web no exigiría reCAPTCHA.
+ENV NODE_ENV=production
+
 CMD ["sh", "-c", "pnpm run migrate:deploy && pnpm run start:prod"]

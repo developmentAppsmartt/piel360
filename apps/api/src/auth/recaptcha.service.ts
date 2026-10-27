@@ -1,17 +1,11 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createSign, randomUUID } from 'crypto';
-import { readFileSync } from 'fs';
+import { appendFileSync, readFileSync } from 'fs';
 import { resolve } from 'path';
-
-type SiteVerifyResponse = {
-  success: boolean;
-  'error-codes'?: string[];
-};
+import {
+  assertRecaptchaSiteverify,
+  fetchServiceAccountAccessToken,
+} from './recaptcha-verifiers';
 
 type AssessmentResponse = {
   tokenProperties?: {
@@ -44,8 +38,7 @@ type ServiceAccountJson = {
 @Injectable()
 export class RecaptchaService {
   private readonly logger = new Logger(RecaptchaService.name);
-  private cachedAccessToken: { value: string; expiresAt: number } | null =
-    null;
+  private cachedAccessToken: { value: string; expiresAt: number } | null = null;
 
   constructor(private readonly config: ConfigService) {}
 
@@ -65,7 +58,7 @@ export class RecaptchaService {
     return value || null;
   }
 
-  private siteKey(platform?: 'android' | 'ios' | string): string | null {
+  private siteKey(platform?: string): string | null {
     // En móvil no se puede caer a la key web: el token se acuñó con la key
     // de plataforma y CreateAssessment lo marca MALFORMED / inválido.
     if (platform === 'android') {
@@ -153,6 +146,11 @@ export class RecaptchaService {
    */
   appliesTo(client: 'web' | 'mobile', platform?: string): boolean {
     if (!this.isEnabled()) return false;
+    // `pnpm start` local no define NODE_ENV y el CRM no pinta la casilla.
+    // Exigir el token solo cuando el proceso es de producción.
+    const nodeEnv =
+      this.config.get<string>('NODE_ENV')?.trim() || process.env.NODE_ENV;
+    if (client === 'web' && nodeEnv !== 'production') return false;
     if (client === 'web') return true;
     const p = platform?.trim().toLowerCase();
     return (p === 'android' || p === 'ios') && Boolean(this.siteKey(p));
@@ -280,14 +278,12 @@ export class RecaptchaService {
     }
 
     if (!data.tokenProperties?.valid) {
-      const reason =
-        data.tokenProperties?.invalidReason ?? 'sin detalle';
+      const reason = data.tokenProperties?.invalidReason ?? 'sin detalle';
       this.logger.warn(
         `reCAPTCHA assessment inválido: reason=${reason} action=${data.tokenProperties?.action ?? ''} platform=${platform ?? 'web'}`,
       );
       try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        require('fs').appendFileSync(
+        appendFileSync(
           '/tmp/piel360-recaptcha.log',
           `${JSON.stringify({
             t: new Date().toISOString(),
@@ -342,10 +338,7 @@ export class RecaptchaService {
 
   private async serviceAccountAccessToken(): Promise<string> {
     const now = Math.floor(Date.now() / 1000);
-    if (
-      this.cachedAccessToken &&
-      this.cachedAccessToken.expiresAt > now + 60
-    ) {
+    if (this.cachedAccessToken && this.cachedAccessToken.expiresAt > now + 60) {
       return this.cachedAccessToken.value;
     }
 
@@ -356,106 +349,15 @@ export class RecaptchaService {
       );
     }
 
-    const header = Buffer.from(
-      JSON.stringify({ alg: 'RS256', typ: 'JWT' }),
-    ).toString('base64url');
-    const claim = Buffer.from(
-      JSON.stringify({
-        iss: sa.client_email,
-        scope: 'https://www.googleapis.com/auth/cloud-platform',
-        aud: sa.token_uri || 'https://oauth2.googleapis.com/token',
-        iat: now,
-        exp: now + 3600,
-        jti: randomUUID(),
-      }),
-    ).toString('base64url');
-    const unsigned = `${header}.${claim}`;
-    const signer = createSign('RSA-SHA256');
-    signer.update(unsigned);
-    signer.end();
-    const signature = signer
-      .sign(sa.private_key.replace(/\\n/g, '\n'))
-      .toString('base64url');
-    const assertion = `${unsigned}.${signature}`;
-
-    const tokenRes = await fetch(
-      sa.token_uri || 'https://oauth2.googleapis.com/token',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-          assertion,
-        }).toString(),
-      },
-    );
-    const tokenJson = (await tokenRes.json()) as {
-      access_token?: string;
-      expires_in?: number;
-      error?: string;
-      error_description?: string;
-    };
-    if (!tokenRes.ok || !tokenJson.access_token) {
-      this.logger.error(
-        `OAuth SA falló: ${tokenJson.error_description || tokenJson.error || tokenRes.status}`,
-      );
-      throw new BadRequestException(
-        'No se pudo autenticar reCAPTCHA en el servidor.',
-      );
-    }
-
+    const token = await fetchServiceAccountAccessToken(sa, this.logger);
     this.cachedAccessToken = {
-      value: tokenJson.access_token,
-      expiresAt: now + (tokenJson.expires_in ?? 3600),
+      value: token.accessToken,
+      expiresAt: now + token.expiresIn,
     };
-    return tokenJson.access_token;
+    return token.accessToken;
   }
 
-  private async assertViaSiteverify(token: string, secret: string) {
-    let data: SiteVerifyResponse;
-    try {
-      const response = await fetch(
-        'https://www.google.com/recaptcha/api/siteverify',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            secret,
-            response: token,
-          }).toString(),
-        },
-      );
-      data = (await response.json()) as SiteVerifyResponse;
-    } catch (err) {
-      this.logger.error(
-        `No se pudo contactar siteverify: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      throw new BadRequestException(
-        'No se pudo verificar reCAPTCHA. Inténtalo de nuevo.',
-      );
-    }
-
-    if (!data.success) {
-      const codes = data['error-codes'] ?? [];
-      this.logger.warn(
-        `reCAPTCHA siteverify inválido (len=${token.length}): ${codes.join(', ') || 'sin detalle'}`,
-      );
-      if (codes.includes('timeout-or-duplicate')) {
-        throw new BadRequestException(
-          'El captcha ya se usó o expiró. Vuelve a marcarlo e inicia sesión de inmediato.',
-        );
-      }
-      if (
-        codes.includes('invalid-input-response') ||
-        codes.includes('bad-request')
-      ) {
-        throw new BadRequestException(
-          'El captcha no es válido para este dominio. Completa el captcha de nuevo.',
-        );
-      }
-      throw new BadRequestException(
-        'La verificación reCAPTCHA falló. Inténtalo de nuevo.',
-      );
-    }
+  private assertViaSiteverify(token: string, secret: string) {
+    return assertRecaptchaSiteverify(token, secret, this.logger);
   }
 }

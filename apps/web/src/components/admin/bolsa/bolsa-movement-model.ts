@@ -1,6 +1,7 @@
 import type {
   AnalisisDermaPiel360UnitsResponse,
   AnalisisPiel360UnitsResponse,
+  BolsaPlanCupo,
 } from "@/lib/queries/admin-bolsa-units";
 
 export type MovementStatus = "Devolución" | "Activación" | "Consumo" | "Activa";
@@ -28,7 +29,7 @@ export type MovementRow = {
 export type BolsaTypeFilter = "all" | "aesthetic" | "derm";
 
 const ACTION_LABELS: Record<string, string> = {
-  subscription_credits: "Recarga suscripción",
+  subscription_credits: "Recarga de suscripción",
   permanent_credits: "Compra de unidades",
   permanent_unit: "Compra de unidades",
   permanent_unit_2b: "Compra de unidades",
@@ -41,7 +42,34 @@ const ACTION_LABELS: Record<string, string> = {
   compensation_from_customer_service: "Compensación",
   subscription_return: "Cupo devuelto del plan",
   subscription_reserve: "Cupo asignado al plan",
+  recharge: "Recarga",
 };
+
+/** Las recargas estéticas vencen 300 días después de la fecha de ingreso. */
+const AESTHETIC_RECHARGE_DAYS = 300;
+
+function aestheticRechargeExpiresAt(timestamp: string | null): string {
+  if (!timestamp) return "—";
+  const entered = new Date(timestamp);
+  if (Number.isNaN(entered.getTime())) return "—";
+  const expires = new Date(entered);
+  expires.setDate(expires.getDate() + AESTHETIC_RECHARGE_DAYS);
+  return expires.toLocaleDateString("es-CO");
+}
+
+const RECHARGE_KINDS = new Set([
+  "recharge",
+  "permanent_unit",
+  "permanent_unit_2b",
+  "permanent_credits",
+  "subscription_unit",
+  "subscription_credits",
+  "trial_gift_api",
+]);
+
+export function isRechargeMovement(row: MovementRow) {
+  return row.delta > 0 && row.rawKind != null && RECHARGE_KINDS.has(row.rawKind);
+}
 
 export function historyActionLabel(action: string) {
   const failed = action.endsWith("_failed");
@@ -89,11 +117,48 @@ export function movementStatusBadgeClass(status: MovementStatus) {
   return "bg-emerald-100 text-emerald-800 hover:bg-emerald-100";
 }
 
+function assignmentRow(
+  cupo: BolsaPlanCupo,
+  unitType: "aesthetic" | "derm",
+  unitLabel: string,
+): MovementRow {
+  return {
+    id: `plan-${unitType}-${cupo.id}`,
+    unitType,
+    unitLabel,
+    rechargedAt: new Date(cupo.assignedAt).toLocaleString("es-CO"),
+    sortAt: new Date(cupo.assignedAt).getTime(),
+    quantity: cupo.credits,
+    expiresAt: "—",
+    addedBy: `${cupo.planName} · ${cupo.holderName} (${cupo.analyses} análisis)`,
+    status: "Activación",
+    delta: -cupo.credits,
+    source: unitType === "derm" ? "analisisdermapiel360" : "analisispiel360",
+    actionLabel: "Cupo asignado al plan",
+    note: cupo.holderEmail,
+    addedByEmail: cupo.holderEmail,
+    targetId: null,
+    dstActions: [],
+    rawKind: "subscription_reserve",
+  };
+}
+
 export function buildBolsaMovements(
   aestheticHistory: AnalisisPiel360UnitsResponse["history"] | undefined,
   dermHistory: AnalisisDermaPiel360UnitsResponse["history"] | undefined,
+  aestheticCupos: BolsaPlanCupo[] | undefined,
+  dermCupos: BolsaPlanCupo[] | undefined,
   typeFilter: BolsaTypeFilter,
+  onlyRecharges: boolean,
 ): MovementRow[] {
+  const assignments = [
+    ...(dermCupos ?? []).map((cupo) =>
+      assignmentRow(cupo, "derm", "Análisis dermatológico"),
+    ),
+    ...(aestheticCupos ?? []).map((cupo) =>
+      assignmentRow(cupo, "aesthetic", "Análisis estéticos / Fitzpatrick"),
+    ),
+  ];
   const liveRows: MovementRow[] = (aestheticHistory ?? [])
     .filter((h) => h.delta !== 0)
     .map((h) => {
@@ -107,7 +172,8 @@ export function buildBolsaMovements(
           : "—",
         sortAt: h.timestamp ? new Date(h.timestamp).getTime() : 0,
         quantity: Math.abs(h.delta),
-        expiresAt: "—",
+        expiresAt:
+          h.delta > 0 ? aestheticRechargeExpiresAt(h.timestamp) : "—",
         addedBy: h.note?.trim()
           ? `${actionLabel} · ${h.note.trim()}`
           : actionLabel,
@@ -152,7 +218,10 @@ export function buildBolsaMovements(
     };
   });
 
-  const all = [...liveRows, ...dermRows].sort((a, b) => b.sortAt - a.sortAt);
+  const topUps = [...liveRows, ...dermRows].filter(isRechargeMovement);
+  const all = (onlyRecharges ? topUps : assignments).sort(
+    (a, b) => b.sortAt - a.sortAt,
+  );
   if (typeFilter === "all") return all;
   return all.filter((row) => row.unitType === typeFilter);
 }

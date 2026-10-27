@@ -10,7 +10,6 @@ const ARCHIVOS_LARGOS_HEREDADOS = [
   "src/agenda/agenda.service.ts",
   "src/analyses/analyses.service.ts",
   "src/auth/auth.service.ts",
-  "src/auth/recaptcha.service.ts",
   "src/billing/billing.service.ts",
   "src/doctor-reports/doctor-reports.queries.ts",
   "src/doctors/doctors.service.ts",

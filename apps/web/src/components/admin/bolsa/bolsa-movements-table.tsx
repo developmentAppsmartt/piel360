@@ -1,8 +1,7 @@
 "use client";
 
-import { CalendarDays, Eye, Filter, MoreVertical } from "lucide-react";
+import { Eye, MoreVertical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import { cn } from "@/lib/utils";
 import {
@@ -12,61 +11,39 @@ import {
 } from "@/components/admin/bolsa/unit-pools";
 import {
   movementStatusBadgeClass,
-  type BolsaTypeFilter,
   type MovementRow,
 } from "@/components/admin/bolsa/bolsa-movement-model";
+import type { ReactNode } from "react";
 
 export function BolsaMovementsTable({
   rows,
   loading,
-  typeFilter,
-  onTypeFilter,
   pools,
   fallbackPool,
   onSelect,
+  toolbar,
+  emptyLabel,
+  title = "Créditos asignados a planes",
 }: {
   rows: MovementRow[];
   loading: boolean;
-  typeFilter: BolsaTypeFilter;
-  onTypeFilter: (next: BolsaTypeFilter) => void;
   pools: UnitPool[];
   fallbackPool: UnitPool;
   onSelect: (row: MovementRow) => void;
+  toolbar: ReactNode;
+  emptyLabel: string;
+  title?: string;
 }) {
   return (
-    <ModuleCard className="overflow-hidden p-0">
+    <ModuleCard className="min-w-0 overflow-hidden p-0">
       <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between">
         <ModuleCardTitle className="text-base">
-          Movimientos de unidades
+          {title}
         </ModuleCardTitle>
-        <div className="flex flex-wrap gap-2">
-          <select
-            value={typeFilter}
-            onChange={(e) => onTypeFilter(e.target.value as BolsaTypeFilter)}
-            className="h-9 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30"
-          >
-            <option value="all">Todos los tipos</option>
-            <option value="aesthetic">Análisis estéticos / Fitzpatrick</option>
-            <option value="derm">Análisis dermatológico</option>
-          </select>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-muted-foreground"
-          >
-            <CalendarDays className="size-4" />
-            Historial Estético
-          </Button>
-          <Button type="button" variant="outline" size="sm" className="gap-1.5">
-            <Filter className="size-4" />
-            Filtros
-          </Button>
-        </div>
+        {toolbar}
       </div>
-
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[880px] text-left text-sm">
+        <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="bg-muted/40 text-xs tracking-wide text-muted-foreground uppercase">
             <tr>
               <th className="px-4 py-3 font-semibold">Tipo de unidad</th>
@@ -81,42 +58,28 @@ export function BolsaMovementsTable({
           <tbody>
             {loading ? (
               <tr>
-                <td
-                  colSpan={7}
-                  className="px-4 py-8 text-center text-muted-foreground"
-                >
+                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
                   Cargando movimientos…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td
-                  colSpan={7}
-                  className="px-4 py-8 text-center text-muted-foreground"
-                >
-                  No hay movimientos registrados para este filtro.
+                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                  {emptyLabel}
                 </td>
               </tr>
             ) : (
               rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="border-t border-border hover:bg-muted/30"
-                >
+                <tr key={row.id} className="border-t border-border hover:bg-muted/30">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
                       <PoolIcon
-                        pool={
-                          pools.find((p) => p.id === row.unitType) ??
-                          fallbackPool
-                        }
+                        pool={pools.find((p) => p.id === row.unitType) ?? fallbackPool}
                       />
                       <span className="font-medium">{row.unitLabel}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {row.rechargedAt}
-                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{row.rechargedAt}</td>
                   <td
                     className={cn(
                       "px-4 py-3 font-medium tabular-nums",
@@ -126,9 +89,7 @@ export function BolsaMovementsTable({
                     {row.delta < 0 ? "−" : "+"}
                     {formatUnits(row.quantity)}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {row.expiresAt}
-                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{row.expiresAt}</td>
                   <td className="px-4 py-3">{row.addedBy}</td>
                   <td className="px-4 py-3">
                     <Badge className={movementStatusBadgeClass(row.status)}>

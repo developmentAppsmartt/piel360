@@ -3,6 +3,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClientFetch } from "@/lib/api-client";
 
+export type BolsaPlanCupo = {
+  id: string;
+  planName: string;
+  holderName: string;
+  holderEmail: string | null;
+  analyses: number;
+  credits: number;
+  used: number;
+  remaining: number;
+  assignedAt: string;
+};
+
 export type AnalisisPiel360UnitPool = {
   id: "aesthetic";
   name: string;
@@ -52,6 +64,7 @@ export type AnalisisPiel360UnitsResponse = {
     dstActions: string[];
     note?: string | null;
   }>;
+  planCupos: BolsaPlanCupo[];
 };
 
 export type AnalisisDermaPiel360UnitPool = {
@@ -81,6 +94,7 @@ export type AnalisisDermaPiel360UnitsResponse = {
     addedBy: string;
     addedByEmail: string | null;
   }>;
+  planCupos: BolsaPlanCupo[];
 };
 
 export type CreateAnalisisDermaPiel360RechargeInput = {
@@ -139,6 +153,39 @@ export function usePrebolsa() {
       apiClientFetch<PrebolsaResponse>("/admin/bolsa-unidades/prebolsa"),
     staleTime: 15_000,
   });
+}
+
+function usePrebolsaMutation<T>(
+  mutationFn: (id: string) => Promise<T>,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "bolsa-unidades"],
+      });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "subscriptions"] });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "plans"] });
+      await queryClient.invalidateQueries({ queryKey: ["plans"] });
+    },
+  });
+}
+
+export function useActivatePrebolsa() {
+  return usePrebolsaMutation((id) =>
+    apiClientFetch(`/admin/bolsa-unidades/prebolsa/${id}/activate`, {
+      method: "POST",
+    }),
+  );
+}
+
+export function useDiscardPrebolsa() {
+  return usePrebolsaMutation((id) =>
+    apiClientFetch(`/admin/bolsa-unidades/prebolsa/${id}`, {
+      method: "DELETE",
+    }),
+  );
 }
 
 export function usePlanPoolAlerts() {

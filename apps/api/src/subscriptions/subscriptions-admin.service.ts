@@ -268,6 +268,67 @@ export class SubscriptionsAdminService {
     return loadAdminSubscriptionById(this.prisma, updated.id, providers);
   }
 
+  /** Activa una compra que sigue en prebolsa y aparta los créditos del plan. */
+  async activatePrebolsa(id: string) {
+    const existing = await this.prisma.subscription.findUnique({
+      where: { id: BigInt(id) },
+      include: { plan: true },
+    });
+    if (!existing || existing.status !== 'pending') {
+      throw new BadRequestException('Esta prebolsa ya no está pendiente');
+    }
+    if (!existing.plan.isActive) {
+      throw new BadRequestException('Plan no disponible');
+    }
+    const pool = await this.planPool.evaluatePlan(
+      existing.plan,
+      await this.planPool.getBalances(),
+    );
+    if (!pool.poolPurchasable) {
+      throw new BadRequestException('No hay créditos en bolsa');
+    }
+    const endsAt = computeSubscriptionEndsAt(existing.plan);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.subscription.update({
+        where: { id: existing.id },
+        data: { status: 'active', awaitingPool: false, endsAt },
+      });
+      await this.subscriptionPool.allocateForSubscription(
+        tx,
+        existing.id,
+        existing.plan,
+      );
+      if (existing.plan.planType === 'business') {
+        await syncOrganizationSeatLimitForUser(tx, existing.userId);
+      }
+    });
+
+    return { id, status: 'active' as const };
+  }
+
+  /**
+   * Saca la petición de la prebolsa. Si el pago ya entró, se cancela y se
+   * conserva la factura. Si nadie pagó, se borra la compra a medias.
+   */
+  async discardPrebolsa(id: string) {
+    const existing = await this.prisma.subscription.findUnique({
+      where: { id: BigInt(id) },
+    });
+    if (!existing || existing.status !== 'pending') {
+      throw new BadRequestException('Esta prebolsa ya no está pendiente');
+    }
+    if (existing.awaitingPool) {
+      await this.prisma.subscription.update({
+        where: { id: existing.id },
+        data: { status: 'cancelled', awaitingPool: false },
+      });
+      return { id, removed: 'cancelled' as const };
+    }
+    await this.prisma.subscription.delete({ where: { id: existing.id } });
+    return { id, removed: 'deleted' as const };
+  }
+
   /** Borra la suscripción — cascada solo sobre su propio `SubscriptionUsage`
    * (`onDelete: Cascade` en el schema), no afecta otras suscripciones ni los
    * `Analysis` en sí. */

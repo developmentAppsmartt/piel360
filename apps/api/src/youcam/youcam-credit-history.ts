@@ -13,23 +13,19 @@ type HistoryRow = {
   action?: string;
   target_id?: string;
   info?: {
-    credits?: Array<{
-      amount?: number;
-      amount_dec?: number;
-    }>;
+    credits?: Array<{ amount?: number; amount_dec?: number }>;
     dst_actions?: string[];
   };
 };
 
 const PAGE_SIZE = 30;
-/** El proveedor solo devuelve 30 por página. Con menos, una ráfaga de
- * análisis tapa la compra y la bolsa no explica a dónde se fueron. */
+/** Una sola página de 30 esconde la compra cuando hay muchos análisis. */
 const MAX_PAGES = 15;
 
 /**
  * `GET /s2s/v1.0/client/credit/history`.
- * Sin `Content-Type: application/json` el proveedor responde 415 y el
- * historial llega vacío: la bolsa muestra consumidas en 0.
+ * Sin `Content-Type: application/json` el proveedor responde 415 y la bolsa
+ * muestra el historial estético vacío.
  */
 export async function fetchAnalisisPiel360CreditHistory(input: {
   baseUrl: string;
@@ -51,20 +47,13 @@ export async function fetchAnalisisPiel360CreditHistory(input: {
         'Content-Type': 'application/json',
       },
     });
-    if (!response.ok) {
-      await input.onError(response);
-    }
+    if (!response.ok) await input.onError(response);
 
     const json = (await response.json()) as {
-      result?: {
-        next_token?: string | null;
-        history?: HistoryRow[];
-      };
+      result?: { next_token?: string | null; history?: HistoryRow[] };
     };
     const history = json.result?.history ?? [];
-    for (const row of history) {
-      items.push(mapHistoryRow(row));
-    }
+    for (const row of history) items.push(mapHistoryRow(row));
 
     const next = json.result?.next_token ?? null;
     if (!next || history.length === 0) break;

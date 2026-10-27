@@ -73,11 +73,15 @@ export function UnitPoolCard({
   pool,
   live,
   liveLabel,
+  totalLabel,
+  usedLabel,
   loading,
 }: {
   pool: UnitPool;
   live?: boolean;
   liveLabel?: string;
+  totalLabel?: string;
+  usedLabel?: string;
   loading?: boolean;
 }) {
   const pct =
@@ -125,7 +129,7 @@ export function UnitPoolCard({
       <div className="mt-5 grid grid-cols-3 gap-2 border-t border-border/80 pt-4 text-center text-xs">
         <div>
           <p className="text-muted-foreground">
-            {live ? "Saldo + uso reciente" : "Total compradas"}
+            {totalLabel ?? (live ? "Saldo + uso reciente" : "Total compradas")}
           </p>
           <p className="mt-0.5 font-semibold tabular-nums">
             {formatUnits(pool.total)}
@@ -133,7 +137,7 @@ export function UnitPoolCard({
         </div>
         <div>
           <p className="text-muted-foreground">
-            {live ? "Consumidas (historial)" : "Consumidas"}
+            {usedLabel ?? (live ? "Consumidas (historial)" : "Consumidas")}
           </p>
           <p className="mt-0.5 font-semibold tabular-nums">
             {formatUnits(pool.used)}
@@ -155,12 +159,10 @@ const DISTRIBUTION_LEGEND: Record<string, string> = {
   derm: "Dermatológico",
 };
 
-const DONUT_RADIUS = 46;
-const DONUT_CIRCUMFERENCE = 2 * Math.PI * DONUT_RADIUS;
-
 export function DistributionDonut({ pools }: { pools: UnitPool[] }) {
   const slices = useMemo(() => {
     const total = pools.reduce((sum, p) => sum + p.available, 0);
+    const circumference = 2 * Math.PI * 46;
     const built = pools.reduce<{
       cursor: number;
       arcs: Array<{
@@ -175,7 +177,7 @@ export function DistributionDonut({ pools }: { pools: UnitPool[] }) {
     }>(
       (acc, p) => {
         const value = p.available;
-        const len = total > 0 ? (value / total) * DONUT_CIRCUMFERENCE : 0;
+        const len = total > 0 ? (value / total) * circumference : 0;
         return {
           cursor: acc.cursor + len,
           arcs: [
@@ -186,7 +188,7 @@ export function DistributionDonut({ pools }: { pools: UnitPool[] }) {
               value,
               percent: total > 0 ? (value / total) * 100 : 0,
               accent: p.accent,
-              dash: `${len} ${DONUT_CIRCUMFERENCE - len}`,
+              dash: `${len} ${circumference - len}`,
               dashOffset: acc.cursor,
             },
           ],
@@ -205,7 +207,7 @@ export function DistributionDonut({ pools }: { pools: UnitPool[] }) {
           <circle
             cx="64"
             cy="64"
-            r={DONUT_RADIUS}
+            r={46}
             fill="none"
             strokeWidth="12"
             className="stroke-muted"
@@ -215,7 +217,7 @@ export function DistributionDonut({ pools }: { pools: UnitPool[] }) {
               key={slice.id}
               cx="64"
               cy="64"
-              r={DONUT_RADIUS}
+              r={46}
               fill="none"
               strokeWidth="12"
               strokeDasharray={slice.dash}
@@ -240,7 +242,10 @@ export function DistributionDonut({ pools }: { pools: UnitPool[] }) {
 
       <ul className="w-full min-w-0 space-y-3 border-t border-border/70 pt-4">
         {slices.map((slice) => (
-          <li key={slice.id} className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-2.5">
+          <li
+            key={slice.id}
+            className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-2.5"
+          >
             <span
               className={cn(
                 "mt-1 size-2.5 rounded-full",

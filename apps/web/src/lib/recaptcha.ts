@@ -4,10 +4,13 @@
  * puntuación, así que el token sale cuando el usuario la marca. El API lo
  * verifica con CreateAssessment (`apps/api/src/auth/recaptcha.service.ts`).
  * Sin `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` no se carga nada y el login sigue sin
- * token, igual que antes.
+ * token, igual que antes. En `next dev` tampoco: el API local no exige la
+ * casilla.
  */
 export const RECAPTCHA_SITE_KEY =
-  process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY?.trim() ?? "";
+  process.env.NODE_ENV === "production"
+    ? (process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY?.trim() ?? "")
+    : "";
 
 /** `render=explicit`: la casilla se dibuja donde dice el formulario. */
 export const RECAPTCHA_SCRIPT_URL = RECAPTCHA_SITE_KEY
