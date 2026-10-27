@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +20,29 @@ import { DoctorHeader } from '../../doctor/patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../../doctor/patients/styles/patients.styles';
 import { createYoucamFlowStyles } from '../youcam-flow/styles/youcamFlow.styles';
 import { YoucamConsentStep } from '../youcam-flow/YoucamConsentStep';
+
+const REUSE_MS = 120_000;
+const inflightCreates = new Map<string, Promise<{ analysisId: string }>>();
+
+function startFitzpatrick(patientId: string, imageUri: string) {
+  const key = `${patientId}|${imageUri}`;
+  const existing = inflightCreates.get(key);
+  if (existing) return existing;
+  const pending = fitzpatrickService
+    .createAnalysis({ patientId, imageUri })
+    .then(
+      (value) => {
+        setTimeout(() => inflightCreates.delete(key), REUSE_MS);
+        return value;
+      },
+      (err: unknown) => {
+        inflightCreates.delete(key);
+        throw err;
+      },
+    );
+  inflightCreates.set(key, pending);
+  return pending;
+}
 
 const TIPS: { icon: (typeof Icons)[keyof typeof Icons]; text: string }[] = [
   {
@@ -65,20 +88,20 @@ export function FitzpatrickAnalysisFlow({
     [branding.colors],
   );
   const [busy, setBusy] = useState(false);
+  const started = useRef(false);
   const [step, setStep] = useState<'consent' | 'capture'>('consent');
   const label = ANALYSIS_PROVIDER_STATIC_LABELS.fitzpatrick;
 
   async function handleStart() {
-    if (busy || !patientId) return;
+    if (started.current || !patientId) return;
+    started.current = true;
     setBusy(true);
     try {
       const capture = await requireGuidedFaceCapture();
-      const created = await fitzpatrickService.createAnalysis({
-        patientId,
-        imageUri: capture.uri,
-      });
+      const created = await startFitzpatrick(patientId, capture.uri);
       onAnalysisCreated(created.analysisId);
     } catch (err) {
+      started.current = false;
       const code =
         err && typeof err === 'object' && 'code' in err
           ? String((err as { code?: string }).code)
