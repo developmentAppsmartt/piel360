@@ -5,7 +5,6 @@ import { reglaMaxLineas } from "../../packages/config/eslint.max-lines.mjs";
 
 /** Deuda del día que entró `max-lines`: esta lista solo puede encoger. */
 const ARCHIVOS_LARGOS_HEREDADOS = [
-  "src/app/admin/(panel)/bolsa-unidades/page.tsx",
   "src/app/admin/(panel)/configuracion/empresas-aliadas/page.tsx",
   "src/app/doctor/(panel)/configuracion/company-profile-section.tsx",
   "src/app/doctor/(panel)/configuracion/doctor-profile-form.tsx",

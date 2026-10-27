@@ -41,7 +41,7 @@ export class AnalisisPiel360UnitsService {
         );
         return [] as AnalisisPiel360FeatureSku[];
       }),
-      this.youcam.getCreditHistory(30).catch((err) => {
+      this.youcam.getCreditHistory().catch((err) => {
         this.logger.warn(
           `credit/history no disponible: ${err instanceof Error ? err.message : String(err)}`,
         );
@@ -68,12 +68,21 @@ export class AnalisisPiel360UnitsService {
       )
       .reduce((sum, b) => sum + b.amount, 0);
 
-    const consumedFromHistory = history
-      .filter((h) => h.delta < 0)
-      .reduce((sum, h) => sum + Math.abs(h.delta), 0);
+    // Un análisis fallido vuelve como movimiento positivo (`*_failed`).
+    // Si se suma al consumo, la compra de 1.000 parece gastada dos veces.
+    const consumedFromHistory = Math.max(
+      0,
+      history.reduce((sum, item) => {
+        if (item.delta < 0) return sum + Math.abs(item.delta);
+        if (item.delta > 0 && item.action.endsWith('_failed')) {
+          return sum - item.delta;
+        }
+        return sum;
+      }, 0),
+    );
 
     const rechargedFromHistory = history
-      .filter((h) => h.delta > 0)
+      .filter((h) => h.delta > 0 && !h.action.endsWith('_failed'))
       .reduce((sum, h) => sum + h.delta, 0);
 
     const apiHistory = history.map(serializeHistory);

@@ -18,6 +18,16 @@ const POLL_MS = 2500;
 const MAX_WAIT_MS = 120_000;
 
 /**
+ * El efecto se vuelve a montar si el padre re-renderiza (callbacks nuevos)
+ * o al refrescar la cuenta tras el POST. Sin esta caché, cada montaje abre
+ * otra tarea de análisis estético y el proveedor cobra otra vez la misma foto.
+ */
+const inflightCreates = new Map<
+  string,
+  Promise<{ analysisId: string }>
+>();
+
+/**
  * Loader estilo Perfect (arcos) mientras se sube y procesa el análisis YouCam.
  * Al terminar navega a resultados vía onDone.
  */
@@ -38,7 +48,10 @@ export function YoucamProcessingStep({
   const dashOff = Math.max(10, Math.round(10 * scale));
   const spin = useRef(new Animated.Value(0)).current;
   const [label, setLabel] = useState('Analizando tu piel…');
-  const cancelled = useRef(false);
+  const onDoneRef = useRef(onDone);
+  const onErrorRef = useRef(onError);
+  onDoneRef.current = onDone;
+  onErrorRef.current = onError;
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -54,40 +67,48 @@ export function YoucamProcessingStep({
   }, [spin]);
 
   useEffect(() => {
-    cancelled.current = false;
+    let cancelled = false;
     const started = Date.now();
+    const key = `${patientId}|${imageUri}`;
 
     (async () => {
       try {
         setLabel('Enviando captura…');
-        const created = await youcamService.createAnalysis({
-          patientId,
-          imageUri,
-        });
-        if (cancelled.current) return;
+        let pending = inflightCreates.get(key);
+        if (!pending) {
+          pending = youcamService.createAnalysis({ patientId, imageUri });
+          inflightCreates.set(key, pending);
+          void pending.finally(() => {
+            if (inflightCreates.get(key) === pending) inflightCreates.delete(key);
+          });
+        }
+        const created = await pending;
+        if (cancelled) return;
 
         setLabel('Procesando métricas faciales…');
-        while (!cancelled.current && Date.now() - started < MAX_WAIT_MS) {
+        while (!cancelled && Date.now() - started < MAX_WAIT_MS) {
           const status = await analysesService.getProcessingStatus(
             created.analysisId,
           );
+          if (cancelled) return;
           if (status.error) {
-            onError(status.error);
+            onErrorRef.current(status.error);
             return;
           }
           if (status.isValid) {
             setLabel('Listo');
-            onDone(created.analysisId);
+            onDoneRef.current(created.analysisId);
             return;
           }
           await new Promise((r) => setTimeout(r, POLL_MS));
         }
 
+        if (cancelled) return;
         // Timeout: el análisis sigue en backend; el profesional lo verá.
-        onDone(created.analysisId);
+        onDoneRef.current(created.analysisId);
       } catch (e) {
-        if (cancelled.current) return;
-        onError(
+        if (cancelled) return;
+        onErrorRef.current(
           e instanceof ApiError
             ? e.message
             : e instanceof Error
@@ -98,9 +119,9 @@ export function YoucamProcessingStep({
     })();
 
     return () => {
-      cancelled.current = true;
+      cancelled = true;
     };
-  }, [patientId, imageUri, onDone, onError]);
+  }, [patientId, imageUri]);
 
   const rotate = spin.interpolate({
     inputRange: [0, 1],

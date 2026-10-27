@@ -79,25 +79,35 @@ export class FitzpatrickAnalysesService {
       );
     }
 
+    const meta = await sharp(image).metadata();
+    const orientation = meta.orientation ?? 1;
+    const swapSides =
+      orientation === 5 ||
+      orientation === 6 ||
+      orientation === 7 ||
+      orientation === 8;
+    let width = meta.width ?? 0;
+    let height = meta.height ?? 0;
+    if (swapSides) [width, height] = [height, width];
     let upload = image;
-    let { width, height } = imageSize(upload);
-    width = width ?? 0;
-    height = height ?? 0;
     let longSide = Math.max(width, height);
-    if (width > 0 && height > 0 && longSide > MAX_LONG_SIDE_PX) {
-      const scale = MAX_LONG_SIDE_PX / longSide;
-      const targetWidth = Math.max(1, Math.round(width * scale));
-      const targetHeight = Math.max(1, Math.round(height * scale));
-      upload = await sharp(image)
-        .resize(targetWidth, targetHeight, { fit: 'fill' })
-        .jpeg({ quality: 92 })
-        .toBuffer();
+    if (width > 0 && height > 0 && (orientation > 1 || longSide > MAX_LONG_SIDE_PX)) {
+      let pipeline = sharp(image).rotate();
+      if (longSide > MAX_LONG_SIDE_PX) {
+        const scale = MAX_LONG_SIDE_PX / longSide;
+        pipeline = pipeline.resize(
+          Math.max(1, Math.round(width * scale)),
+          Math.max(1, Math.round(height * scale)),
+          { fit: 'fill' },
+        );
+      }
+      upload = await pipeline.jpeg({ quality: 92 }).toBuffer();
       const resized = imageSize(upload);
-      width = resized.width ?? targetWidth;
-      height = resized.height ?? targetHeight;
+      width = resized.width ?? width;
+      height = resized.height ?? height;
       longSide = Math.max(width, height);
       this.logger.log(
-        `Fototipo: imagen redimensionada a ${width}x${height} para no pasar de ${MAX_LONG_SIDE_PX}px`,
+        `Fototipo: imagen preparada a ${width}x${height} (orientación ${orientation})`,
       );
     }
     const shortSide = Math.min(width, height);
