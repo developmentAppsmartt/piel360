@@ -122,7 +122,7 @@ export class PlansService {
   async findAll(user?: JwtPayload) {
     const [plans, ivaPercent, usdtToCop] = await Promise.all([
       this.prisma.plan.findMany({
-        where: { isActive: true, replacedAt: null },
+        where: { isActive: true },
         include: { provider: true },
         orderBy: { price: 'asc' },
       }),
@@ -163,7 +163,6 @@ export class PlansService {
   async findAllAdmin() {
     const [plans, ivaPercent, usdtToCop] = await Promise.all([
       this.prisma.plan.findMany({
-        where: { replacedAt: null },
         include: { provider: true, _count: { select: { subscriptions: true } } },
         orderBy: { id: 'asc' },
       }),
@@ -238,11 +237,6 @@ export class PlansService {
     const existing = await this.prisma.plan.findUniqueOrThrow({
       where: { id: BigInt(id) },
     });
-    if (existing.replacedAt) {
-      throw new BadRequestException(
-        'Este plan ya fue reemplazado. Edita la versión vigente.',
-      );
-    }
     const planType = dto.planType ?? existing.planType;
     const isIndividual = planType === 'individual';
 
@@ -258,80 +252,44 @@ export class PlansService {
       throw new BadRequestException('El plan individual solo puede incluir un análisis');
     }
 
-    const data = this.savedPlanData(existing, dto, providerIds);
-    const comprado = await this.prisma.subscription.count({
-      where: { planId: existing.id },
+    const actualizado = await this.prisma.plan.update({
+      where: { id: BigInt(id) },
+      data: {
+        name: dto.name,
+        planType: dto.planType,
+        analysisProviderId: BigInt(providerIds[0]),
+        analysisProviderIds: providerIds,
+        analysisLimit: dto.analysisLimit,
+        analysisLimits: toInternalProviderKeys(dto.analysisLimits) as
+          | Prisma.InputJsonValue
+          | undefined,
+        price: dto.price,
+        durationDays: dto.durationDays,
+        maxUsers: isIndividual ? 1 : dto.maxUsers,
+        modules: isIndividual ? [] : dto.modules,
+        roleLimits: isIndividual ? {} : dto.roleLimits,
+        isActive: dto.isActive,
+        description: dto.description,
+        ...(dto.features !== undefined
+          ? { features: normalizePlanFeatures(dto.features) ?? [] }
+          : {}),
+        ...(dto.coverage !== undefined
+          ? { coverage: normalizePlanCoverage(dto.coverage) ?? {} }
+          : {}),
+        ...(dto.headerColor !== undefined
+          ? { headerColor: dto.headerColor.trim() || 'brand' }
+          : {}),
+        ...(dto.apiCosts !== undefined
+          ? { apiCosts: normalizeApiCosts(dto.apiCosts) ?? {} }
+          : {}),
+        ...(dto.ivaEnabled !== undefined ? { ivaEnabled: dto.ivaEnabled } : {}),
+        ...(dto.showUsdtPrice !== undefined
+          ? { showUsdtPrice: dto.showUsdtPrice }
+          : {}),
+      },
+      include: { provider: true },
     });
-    // Sin compras se edita la misma fila. Con compras (aunque el pago siga
-    // pendiente) la fila queda intacta y el catálogo ofrece la nueva.
-    if (comprado === 0) {
-      const actualizado = await this.prisma.plan.update({
-        where: { id: existing.id },
-        data,
-        include: { provider: true },
-      });
-      return toPublicPlanProviders(actualizado);
-    }
-
-    const creado = await this.prisma.$transaction(async (tx) => {
-      const row = await tx.plan.create({
-        data,
-        include: { provider: true },
-      });
-      await tx.plan.update({
-        where: { id: existing.id },
-        data: { replacedAt: new Date() },
-      });
-      return row;
-    });
-    return toPublicPlanProviders(creado);
-  }
-
-  /** Valores que quedarían guardados. Lo omitido en el DTO se hereda. */
-  private savedPlanData(
-    existing: Plan,
-    dto: UpdatePlanDto,
-    providerIds: string[],
-  ): Prisma.PlanUncheckedCreateInput {
-    const planType = dto.planType ?? existing.planType;
-    const isIndividual = planType === 'individual';
-    return {
-      name: dto.name ?? existing.name,
-      planType,
-      analysisProviderId: BigInt(providerIds[0]),
-      analysisProviderIds: providerIds,
-      analysisLimit: dto.analysisLimit ?? existing.analysisLimit,
-      analysisLimits: (dto.analysisLimits !== undefined
-        ? (toInternalProviderKeys(dto.analysisLimits) ?? {})
-        : existing.analysisLimits) as Prisma.InputJsonValue,
-      price: dto.price ?? existing.price,
-      durationDays: dto.durationDays ?? existing.durationDays,
-      maxUsers: isIndividual ? 1 : (dto.maxUsers ?? existing.maxUsers),
-      modules: (isIndividual
-        ? []
-        : (dto.modules ?? existing.modules)) as Prisma.InputJsonValue,
-      roleLimits: (isIndividual
-        ? {}
-        : (dto.roleLimits ?? existing.roleLimits)) as Prisma.InputJsonValue,
-      isActive: dto.isActive ?? existing.isActive,
-      description:
-        dto.description !== undefined ? dto.description : existing.description,
-      features: (dto.features !== undefined
-        ? (normalizePlanFeatures(dto.features) ?? [])
-        : existing.features) as Prisma.InputJsonValue,
-      coverage: (dto.coverage !== undefined
-        ? (normalizePlanCoverage(dto.coverage) ?? {})
-        : existing.coverage) as Prisma.InputJsonValue,
-      headerColor:
-        dto.headerColor !== undefined
-          ? dto.headerColor.trim() || 'brand'
-          : existing.headerColor,
-      apiCosts: (dto.apiCosts !== undefined
-        ? (normalizeApiCosts(dto.apiCosts) ?? {})
-        : existing.apiCosts) as Prisma.InputJsonValue,
-      ivaEnabled: dto.ivaEnabled ?? existing.ivaEnabled,
-      showUsdtPrice: dto.showUsdtPrice ?? existing.showUsdtPrice,
-    };
+    return toPublicPlanProviders(actualizado);
   }
 
   /** Devuelve la fila borrada, asi que sus claves tambien salen publicas.

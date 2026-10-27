@@ -156,7 +156,7 @@ export class PaymentsService {
     const plan = await this.prisma.plan.findUnique({
       where: { id: BigInt(dto.planId) },
     });
-    if (!plan || !plan.isActive || plan.replacedAt) {
+    if (!plan || !plan.isActive) {
       throw new BadRequestException('Plan no disponible');
     }
 

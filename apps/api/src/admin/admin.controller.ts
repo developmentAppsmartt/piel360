@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { RequirePermission } from '../auth/permissions.decorator';
@@ -9,6 +18,7 @@ import { CreateAnalisisDermaPiel360RechargeDto } from './dto/create-skiniver-rec
 import { AnalisisPiel360UnitsService } from './perfectcorp-units.service';
 import { AnalisisDermaPiel360UnitsService } from './skiniver-units.service';
 import { PlanPoolAvailabilityService } from '../plans/plan-pool-availability.service';
+import { SubscriptionsAdminService } from '../subscriptions/subscriptions-admin.service';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -18,6 +28,7 @@ export class AdminController {
     private readonly analisisPiel360Units: AnalisisPiel360UnitsService,
     private readonly analisisDermaPiel360Units: AnalisisDermaPiel360UnitsService,
     private readonly planPool: PlanPoolAvailabilityService,
+    private readonly subscriptionsAdmin: SubscriptionsAdminService,
   ) {}
 
   @Get('dashboard-stats')
@@ -54,6 +65,18 @@ export class AdminController {
   @RequirePermission('admin.unit_wallet')
   getPrebolsa() {
     return this.planPool.listPrebolsa();
+  }
+
+  @Post('bolsa-unidades/prebolsa/:id/activate')
+  @RequirePermission('admin.unit_wallet')
+  activatePrebolsa(@Param('id') id: string) {
+    return this.subscriptionsAdmin.activatePrebolsa(id);
+  }
+
+  @Delete('bolsa-unidades/prebolsa/:id')
+  @RequirePermission('admin.unit_wallet')
+  discardPrebolsa(@Param('id') id: string) {
+    return this.subscriptionsAdmin.discardPrebolsa(id);
   }
 
   /** Planes activos sin créditos suficientes en la bolsa correspondiente. */

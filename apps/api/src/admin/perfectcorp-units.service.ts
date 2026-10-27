@@ -8,9 +8,19 @@ import {
   type AnalisisPiel360FeatureSku,
 } from '../youcam/youcam.service';
 import { POOL_PUBLIC_ALIASES } from '@piel360/shared';
+import { listBolsaPlanCupos } from './bolsa-plan-cupos';
 
 const EXPIRING_SOON_MS = 30 * 24 * 60 * 60 * 1000;
-const PERFECTCORP_PROVIDER = 'perfectcorp';
+
+/** Recarga de la cuenta (compra de unidades). Los cobros de un análisis
+ * y sus devoluciones no son una asignación a un plan. */
+function isBagPurchase(item: AnalisisPiel360CreditHistoryItem): boolean {
+  if (item.delta <= 0 || item.action.endsWith('_failed')) return false;
+  return (
+    !item.action.includes('skin_analysis') &&
+    !item.action.includes('fitzpatrick')
+  );
+}
 
 /** Costo documentado Perfect Corp cuando el endpoint feature-cost no responde. */
 const FALLBACK_FEATURE_COSTS = {
@@ -33,7 +43,7 @@ export class AnalisisPiel360UnitsService {
    * compartidas). Dermatológico (Skiniver) no usa este saldo.
    */
   async getAestheticUnitPool() {
-    const [balances, skus, history, localMovements] = await Promise.all([
+    const [balances, skus, history, planCupos] = await Promise.all([
       this.youcam.getCreditBalances(),
       this.youcam.getFeatureCosts().catch((err) => {
         this.logger.warn(
@@ -47,14 +57,7 @@ export class AnalisisPiel360UnitsService {
         );
         return [] as AnalisisPiel360CreditHistoryItem[];
       }),
-      this.prisma.platformUnitRecharge.findMany({
-        where: {
-          provider: PERFECTCORP_PROVIDER,
-          kind: { in: ['subscription_return', 'subscription_reserve'] },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 80,
-      }),
+      listBolsaPlanCupos(this.prisma, 'perfectcorp'),
     ]);
 
     const available = balances.reduce((sum, b) => sum + b.amount, 0);
@@ -68,36 +71,15 @@ export class AnalisisPiel360UnitsService {
       )
       .reduce((sum, b) => sum + b.amount, 0);
 
-    // Un análisis fallido vuelve como movimiento positivo (`*_failed`).
-    // Si se suma al consumo, la compra de 1.000 parece gastada dos veces.
-    const consumedFromHistory = Math.max(
+    const reservedInPlans = planCupos.reduce(
+      (sum, row) => sum + row.credits,
       0,
-      history.reduce((sum, item) => {
-        if (item.delta < 0) return sum + Math.abs(item.delta);
-        if (item.delta > 0 && item.action.endsWith('_failed')) {
-          return sum - item.delta;
-        }
-        return sum;
-      }, 0),
     );
-
-    const rechargedFromHistory = history
-      .filter((h) => h.delta > 0 && !h.action.endsWith('_failed'))
-      .reduce((sum, h) => sum + h.delta, 0);
-
-    const apiHistory = history.map(serializeHistory);
-    const subscriptionHistory = localMovements.map((row) => ({
-      id: `local-${row.id.toString()}`,
-      action:
-        row.kind === 'subscription_return'
-          ? 'subscription_return'
-          : 'subscription_reserve',
-      delta: row.quantity,
-      timestamp: row.createdAt.toISOString(),
-      targetId: null as string | null,
-      dstActions: [] as string[],
-      note: row.note,
-    }));
+    const purchases = history.filter(isBagPurchase);
+    const rechargedFromHistory = purchases.reduce(
+      (sum, item) => sum + item.delta,
+      0,
+    );
 
     return {
       source: POOL_PUBLIC_ALIASES.perfectcorp,
@@ -107,17 +89,17 @@ export class AnalisisPiel360UnitsService {
         name: 'Análisis estéticos / Fitzpatrick',
         accent: 'aesthetic' as const,
         available: round2(available),
-        /** Aprox. desde historial reciente + saldo actual. */
-        total: round2(available + consumedFromHistory),
-        used: round2(consumedFromHistory),
-        reserved: 0,
+        total: round2(available + reservedInPlans),
+        used: round2(reservedInPlans),
+        reserved: round2(reservedInPlans),
         expiringSoon: round2(expiringSoon),
         unitLabel: 'unidades' as const,
         rechargedRecent: round2(rechargedFromHistory),
       },
       balances: balances.map(serializeBalance),
       featureCosts: summarizeFeatureCosts(skus),
-      history: [...subscriptionHistory, ...apiHistory].sort((a, b) => {
+      planCupos,
+      history: purchases.map(serializeHistory).sort((a, b) => {
         const ta = a.timestamp ? new Date(a.timestamp).getTime() : 0;
         const tb = b.timestamp ? new Date(b.timestamp).getTime() : 0;
         return tb - ta;
@@ -144,9 +126,7 @@ function serializeHistory(h: AnalisisPiel360CreditHistoryItem) {
     id: h.id,
     action: h.action,
     delta: round2(h.delta),
-    timestamp: h.timestampMs
-      ? new Date(h.timestampMs).toISOString()
-      : null,
+    timestamp: h.timestampMs ? new Date(h.timestampMs).toISOString() : null,
     targetId: h.targetId,
     dstActions: h.dstActions,
   };

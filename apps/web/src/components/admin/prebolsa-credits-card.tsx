@@ -10,7 +10,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { usePrebolsa, type PrebolsaStage } from "@/lib/queries/admin-bolsa-units";
+import { ApiError } from "@/lib/api-error";
+import {
+  useActivatePrebolsa,
+  useDiscardPrebolsa,
+  usePrebolsa,
+  type PrebolsaItem,
+  type PrebolsaStage,
+} from "@/lib/queries/admin-bolsa-units";
 
 const STAGE_LABEL: Record<PrebolsaStage, string> = {
   pendingPayment: "Pendiente de pago",
@@ -41,10 +48,96 @@ function Counter({
   );
 }
 
+function PrebolsaActions({
+  item,
+  busy,
+  onActivate,
+  onDiscard,
+}: {
+  item: PrebolsaItem;
+  busy: boolean;
+  onActivate: (item: PrebolsaItem) => void;
+  onDiscard: (item: PrebolsaItem) => void;
+}) {
+  return (
+    <div className="flex justify-end gap-2">
+      <Button
+        type="button"
+        size="sm"
+        disabled={busy}
+        onClick={() => onActivate(item)}
+      >
+        Activar
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={busy}
+        onClick={() => onDiscard(item)}
+      >
+        Eliminar
+      </Button>
+    </div>
+  );
+}
+
 export function PrebolsaCreditsCard() {
   const prebolsa = usePrebolsa();
+  const activate = useActivatePrebolsa();
+  const discard = useDiscardPrebolsa();
   const [open, setOpen] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const counts = prebolsa.data?.counts;
+  const busyId = activate.isPending
+    ? activate.variables
+    : discard.isPending
+      ? discard.variables
+      : null;
+
+  function activateItem(item: PrebolsaItem) {
+    const unpaid = item.stage === "pendingPayment";
+    const confirmed = window.confirm(
+      unpaid
+        ? `Esta compra aún no tiene el pago confirmado. ¿Activar igual «${item.plan.name}» para ${item.user.name}? Se apartan ${item.poolRequired} créditos.`
+        : `¿Activar «${item.plan.name}» para ${item.user.name}? Se apartan ${item.poolRequired} créditos de la bolsa.`,
+    );
+    if (!confirmed) return;
+    if (item.poolAvailable < item.poolRequired) {
+      setActionError("No hay créditos en bolsa");
+      return;
+    }
+    setActionError(null);
+    activate.mutate(item.id, {
+      onError: (err) => {
+        setActionError(
+          err instanceof ApiError
+            ? err.message
+            : "No se pudo activar la prebolsa",
+        );
+      },
+    });
+  }
+
+  function discardItem(item: PrebolsaItem) {
+    const paid = item.stage !== "pendingPayment";
+    const confirmed = window.confirm(
+      paid
+        ? `¿Eliminar la prebolsa de ${item.user.name}? El pago ya quedó registrado y la petición se cancela.`
+        : `¿Eliminar la prebolsa de ${item.user.name} (${item.plan.name})?`,
+    );
+    if (!confirmed) return;
+    setActionError(null);
+    discard.mutate(item.id, {
+      onError: (err) => {
+        setActionError(
+          err instanceof ApiError
+            ? err.message
+            : "No se pudo eliminar la prebolsa",
+        );
+      },
+    });
+  }
 
   return (
     <>
@@ -135,14 +228,18 @@ export function PrebolsaCreditsCard() {
       </section>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-3xl">
+        <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>Prebolsas</DialogTitle>
             <DialogDescription>
-              Las marcadas como listas las toma el cron en el siguiente minuto,
-              de la más antigua a la más nueva, si los créditos siguen alcanzando.
+              Activar aparta los créditos y pasa el plan a activo. Eliminar
+              saca la petición: si nadie pagó se borra; si el pago ya entró,
+              se cancela.
             </DialogDescription>
           </DialogHeader>
+          {actionError ? (
+            <p className="text-sm text-destructive">{actionError}</p>
+          ) : null}
           <div className="max-h-[24rem] overflow-auto">
             <table className="w-full text-left text-sm">
               <thead className="text-xs text-muted-foreground">
@@ -151,13 +248,14 @@ export function PrebolsaCreditsCard() {
                   <th className="py-2 pr-3 font-medium">Plan</th>
                   <th className="py-2 pr-3 font-medium">Créditos</th>
                   <th className="py-2 pr-3 font-medium">Bolsa</th>
-                  <th className="py-2 font-medium">Estado</th>
+                  <th className="py-2 pr-3 font-medium">Estado</th>
+                  <th className="py-2 text-right font-medium">Acción</th>
                 </tr>
               </thead>
               <tbody>
                 {(prebolsa.data?.items ?? []).length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-6 text-muted-foreground">
+                    <td colSpan={6} className="py-6 text-muted-foreground">
                       No hay compras en prebolsa.
                     </td>
                   </tr>
@@ -176,7 +274,15 @@ export function PrebolsaCreditsCard() {
                         </span>
                       </td>
                       <td className="py-2 pr-3">{item.poolLabel}</td>
-                      <td className="py-2">{STAGE_LABEL[item.stage]}</td>
+                      <td className="py-2 pr-3">{STAGE_LABEL[item.stage]}</td>
+                      <td className="py-2">
+                        <PrebolsaActions
+                          item={item}
+                          busy={busyId === item.id}
+                          onActivate={activateItem}
+                          onDiscard={discardItem}
+                        />
+                      </td>
                     </tr>
                   ))
                 )}

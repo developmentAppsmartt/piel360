@@ -31,6 +31,7 @@ import { SubscriptionsController } from './subscriptions.controller';
   controllers: [SubscriptionsController],
   exports: [
     SubscriptionsService,
+    SubscriptionsAdminService,
     SubscriptionCreditsService,
     SubscriptionPoolService,
   ],

@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SubscriptionPoolService } from '../subscriptions/subscription-pool.service';
 import type { CreateAnalisisDermaPiel360RechargeDto } from './dto/create-skiniver-recharge.dto';
 import { POOL_PUBLIC_ALIASES } from '@piel360/shared';
+import { listBolsaPlanCupos } from './bolsa-plan-cupos';
 
 const SKINIVER_PROVIDER = 'skiniver';
 const EXPIRING_SOON_MS = 30 * 24 * 60 * 60 * 1000;
@@ -17,7 +18,13 @@ export class AnalisisDermaPiel360UnitsService {
   async getDermUnitPool() {
     await this.subscriptionPool.syncActiveSubscriptionPools();
 
-    const [recharges, history, committed, analisisDermaPiel360Provider] = await Promise.all([
+    const [
+      recharges,
+      history,
+      committed,
+      analisisDermaPiel360Provider,
+      planCupos,
+    ] = await Promise.all([
       this.prisma.platformUnitRecharge.findMany({
         where: {
           provider: SKINIVER_PROVIDER,
@@ -44,6 +51,7 @@ export class AnalisisDermaPiel360UnitsService {
         where: { slug: SKINIVER_PROVIDER },
         select: { id: true },
       }),
+      listBolsaPlanCupos(this.prisma, 'skiniver'),
     ]);
 
     const now = Date.now();
@@ -77,6 +85,7 @@ export class AnalisisDermaPiel360UnitsService {
         expiringSoon,
         unitLabel: 'créditos' as const,
       },
+      planCupos,
       history: history.map((r) => ({
         id: r.id.toString(),
         kind: r.kind,
@@ -95,9 +104,13 @@ export class AnalisisDermaPiel360UnitsService {
     };
   }
 
-  async createRecharge(dto: CreateAnalisisDermaPiel360RechargeDto, createdById: bigint) {
-    const expiresAt =
-      dto.expiresAt?.trim() ? new Date(dto.expiresAt) : undefined;
+  async createRecharge(
+    dto: CreateAnalisisDermaPiel360RechargeDto,
+    createdById: bigint,
+  ) {
+    const expiresAt = dto.expiresAt?.trim()
+      ? new Date(dto.expiresAt)
+      : undefined;
     if (expiresAt && Number.isNaN(expiresAt.getTime())) {
       throw new BadRequestException('Fecha de vencimiento inválida');
     }

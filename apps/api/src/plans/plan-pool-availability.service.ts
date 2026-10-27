@@ -11,6 +11,7 @@ import {
   toPublicPoolSlug,
   toPublicProviderSlug,
 } from '@piel360/shared';
+import { bagCreditsForPlan } from '../subscriptions/bag-credits';
 
 export type PlanPoolStatus = {
   poolProvider: PoolProvider;
@@ -39,14 +40,15 @@ export class PlanPoolAvailabilityService {
   ) {}
 
   async getBalances(): Promise<PoolBalances> {
-    const [skiniver, perfectcorpApi, committedAnalisisPiel360] = await Promise.all([
-      this.subscriptionPool.getAnalisisDermaPiel360Available(),
-      this.youcam
-        .getCreditBalances()
-        .then((rows) => rows.reduce((sum, row) => sum + row.amount, 0))
-        .catch(() => 0),
-      this.subscriptionPool.getCommittedCredits(this.prisma, 'perfectcorp'),
-    ]);
+    const [skiniver, perfectcorpApi, committedAnalisisPiel360] =
+      await Promise.all([
+        this.subscriptionPool.getAnalisisDermaPiel360Available(),
+        this.youcam
+          .getCreditBalances()
+          .then((rows) => rows.reduce((sum, row) => sum + row.amount, 0))
+          .catch(() => 0),
+        this.subscriptionPool.getCommittedCredits(this.prisma, 'perfectcorp'),
+      ]);
 
     return {
       skiniver,
@@ -62,15 +64,24 @@ export class PlanPoolAvailabilityService {
   }
 
   async evaluatePlan(
-    plan: Pick<Plan, 'analysisProviderIds' | 'analysisProviderId' | 'analysisLimit'>,
+    plan: Pick<
+      Plan,
+      | 'analysisProviderIds'
+      | 'analysisProviderId'
+      | 'analysisLimit'
+      | 'analysisLimits'
+    >,
     balances: PoolBalances,
     slugMap?: Map<string, string>,
   ): Promise<PlanPoolStatus> {
     const map = slugMap ?? (await this.providerSlugMap());
-    const poolProvider = await this.subscriptionPool.resolvePoolProvider(plan, map);
+    const poolProvider = await this.subscriptionPool.resolvePoolProvider(
+      plan,
+      map,
+    );
     const available =
       poolProvider === 'skiniver' ? balances.skiniver : balances.perfectcorp;
-    const required = plan.analysisLimit;
+    const required = bagCreditsForPlan(plan, map);
     const poolPurchasable = required <= 0 || available >= required;
     const poolLabel = POOL_LABELS[poolProvider];
 
@@ -85,7 +96,9 @@ export class PlanPoolAvailabilityService {
     };
   }
 
-  async enrichPlans<T extends Plan>(plans: T[]): Promise<Array<T & PlanPoolStatus>> {
+  async enrichPlans<T extends Plan>(
+    plans: T[],
+  ): Promise<Array<T & PlanPoolStatus>> {
     if (plans.length === 0) return [];
     const [balances, slugMap] = await Promise.all([
       this.getBalances(),
@@ -101,7 +114,7 @@ export class PlanPoolAvailabilityService {
 
   async getAlerts() {
     const plans = await this.prisma.plan.findMany({
-      where: { isActive: true, replacedAt: null },
+      where: { isActive: true },
       include: { provider: true },
       orderBy: { name: 'asc' },
     });
@@ -186,8 +199,11 @@ export class PlanPoolAvailabilityService {
         [POOL_PUBLIC_ALIASES.perfectcorp]: balances.perfectcorp,
       },
       counts: {
-        pendingPayment: items.filter((item) => item.stage === 'pendingPayment').length,
-        awaitingCredits: items.filter((item) => item.stage === 'awaitingCredits').length,
+        pendingPayment: items.filter((item) => item.stage === 'pendingPayment')
+          .length,
+        awaitingCredits: items.filter(
+          (item) => item.stage === 'awaitingCredits',
+        ).length,
         ready: items.filter((item) => item.stage === 'ready').length,
       },
       items,
@@ -195,7 +211,14 @@ export class PlanPoolAvailabilityService {
   }
 
   async assertPlanPurchasable(
-    plan: Pick<Plan, 'analysisProviderIds' | 'analysisProviderId' | 'analysisLimit' | 'isActive'>,
+    plan: Pick<
+      Plan,
+      | 'analysisProviderIds'
+      | 'analysisProviderId'
+      | 'analysisLimit'
+      | 'analysisLimits'
+      | 'isActive'
+    >,
   ): Promise<void> {
     if (!plan.isActive) {
       throw new BadRequestException('Plan no disponible');

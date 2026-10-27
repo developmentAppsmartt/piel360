@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import type { Plan, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { parsePlanProviderIds } from '../plans/plan-providers.util';
+import { bagCreditsForPlan } from './bag-credits';
 
 export type PoolProvider = 'skiniver' | 'perfectcorp';
 
@@ -16,10 +17,10 @@ type Db = PrismaService | Prisma.TransactionClient;
 export class SubscriptionPoolService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async resolvePoolProvider(
+  resolvePoolProvider(
     plan: Pick<Plan, 'analysisProviderIds' | 'analysisProviderId'>,
     providerSlugsById: Map<string, string>,
-  ): Promise<PoolProvider> {
+  ): PoolProvider {
     const ids = parsePlanProviderIds(plan);
     const slugs = ids
       .map((id) => providerSlugsById.get(id))
@@ -34,7 +35,10 @@ export class SubscriptionPoolService {
     return 'skiniver';
   }
 
-  async getCommittedCredits(db: Db, poolProvider: PoolProvider): Promise<number> {
+  async getCommittedCredits(
+    db: Db,
+    poolProvider: PoolProvider,
+  ): Promise<number> {
     const rows = await db.subscriptionPoolAllocation.findMany({
       where: { poolProvider },
       select: { allocated: true, returned: true },
@@ -43,7 +47,9 @@ export class SubscriptionPoolService {
   }
 
   /** Solo recargas admin (`kind=recharge`) alimentan el saldo de la bolsa. */
-  async getAnalisisDermaPiel360RechargeTotal(db: Db = this.prisma): Promise<number> {
+  async getAnalisisDermaPiel360RechargeTotal(
+    db: Db = this.prisma,
+  ): Promise<number> {
     const now = Date.now();
     const recharges = await db.platformUnitRecharge.findMany({
       where: {
@@ -58,7 +64,9 @@ export class SubscriptionPoolService {
       .reduce((sum, r) => sum + r.quantity, 0);
   }
 
-  async getAnalisisDermaPiel360Available(db: Db = this.prisma): Promise<number> {
+  async getAnalisisDermaPiel360Available(
+    db: Db = this.prisma,
+  ): Promise<number> {
     const [total, committed] = await Promise.all([
       this.getAnalisisDermaPiel360RechargeTotal(db),
       this.getCommittedCredits(db, 'skiniver'),
@@ -73,7 +81,10 @@ export class SubscriptionPoolService {
     return new Map(rows.map((r) => [r.id.toString(), r.slug]));
   }
 
-  private async consumedCredits(db: Db, subscriptionId: bigint): Promise<number> {
+  private async consumedCredits(
+    db: Db,
+    subscriptionId: bigint,
+  ): Promise<number> {
     const used = await db.subscriptionUsage.aggregate({
       where: { subscriptionId },
       _sum: { quantity: true },
@@ -81,7 +92,10 @@ export class SubscriptionPoolService {
     return used._sum.quantity ?? 0;
   }
 
-  private async assertAnalisisDermaPiel360Available(db: Db, required: number): Promise<void> {
+  private async assertAnalisisDermaPiel360Available(
+    db: Db,
+    required: number,
+  ): Promise<void> {
     if (required <= 0) return;
     const available = await this.getAnalisisDermaPiel360Available(db);
     if (available < required) {
@@ -121,10 +135,49 @@ export class SubscriptionPoolService {
   }
 
   /**
+   * Las filas viejas guardan la cantidad de análisis (20) donde la bolsa
+   * tiene que guardar créditos (20 × 22 = 440). Se reescribe a créditos
+   * antes de comparar, para no reservar otra vez encima.
+   */
+  private storedAsAnalysisCount(
+    allocation: { allocated: number; returned: number },
+    plan: Plan,
+    credits: number,
+  ): boolean {
+    if (credits <= plan.analysisLimit || plan.analysisLimit <= 0) return false;
+    const net = allocation.allocated - allocation.returned;
+    return (
+      allocation.allocated > 0 &&
+      allocation.allocated <= plan.analysisLimit &&
+      net <= plan.analysisLimit
+    );
+  }
+
+  private async rewriteAllocationToCredits(
+    db: Db,
+    subscriptionId: bigint,
+    allocation: { allocated: number; returned: number; poolProvider: string },
+    plan: Plan,
+    credits: number,
+    poolProvider: PoolProvider,
+  ): Promise<void> {
+    const ratio = credits / plan.analysisLimit;
+    await db.subscriptionPoolAllocation.update({
+      where: { subscriptionId },
+      data: {
+        poolProvider,
+        allocated: Math.round(allocation.allocated * ratio),
+        returned: Math.round(allocation.returned * ratio),
+      },
+    });
+  }
+
+  /**
    * Reserva créditos de la bolsa al activar una suscripción.
-   * - Alta nueva: reserva `plan.analysisLimit`.
-   * - Reactivación tras cancelar: vuelve a comprometer exactamente lo
-   *   devuelto (`returned`), no el total del plan.
+   * La cantidad es en créditos del proveedor (estético × 22, fototipo × 10,
+   * dermatológico × 1), no la cantidad de análisis del plan.
+   * Reactivación tras cancelar: vuelve a comprometer exactamente lo
+   * devuelto (`returned`), no el total del plan.
    */
   async allocateForSubscription(
     db: Db,
@@ -133,15 +186,29 @@ export class SubscriptionPoolService {
     options?: { recordMovement?: boolean },
   ): Promise<void> {
     const recordMovement = options?.recordMovement !== false;
-    const quantity = plan.analysisLimit;
-    if (quantity <= 0) return;
-
     const slugMap = await this.providerSlugMap(db);
     const poolProvider = await this.resolvePoolProvider(plan, slugMap);
+    const quantity = bagCreditsForPlan(plan, slugMap);
+    if (quantity <= 0) return;
 
     const existing = await db.subscriptionPoolAllocation.findUnique({
       where: { subscriptionId },
     });
+
+    if (existing && this.storedAsAnalysisCount(existing, plan, quantity)) {
+      await this.rewriteAllocationToCredits(
+        db,
+        subscriptionId,
+        existing,
+        plan,
+        quantity,
+        poolProvider,
+      );
+      const ratio = quantity / plan.analysisLimit;
+      existing.allocated = Math.round(existing.allocated * ratio);
+      existing.returned = Math.round(existing.returned * ratio);
+      existing.poolProvider = poolProvider;
+    }
 
     // Reactivar: solo re-comprometer lo que se había devuelto a la bolsa.
     if (existing && existing.returned > 0) {
@@ -167,9 +234,7 @@ export class SubscriptionPoolService {
       return;
     }
 
-    const netCommitted = existing
-      ? existing.allocated - existing.returned
-      : 0;
+    const netCommitted = existing ? existing.allocated - existing.returned : 0;
 
     if (netCommitted >= quantity) return;
 
@@ -225,11 +290,29 @@ export class SubscriptionPoolService {
       return 0;
     }
 
+    const plan = allocation.subscription.plan;
+    const slugMap = await this.providerSlugMap(db);
+    const credits = bagCreditsForPlan(plan, slugMap);
+    if (this.storedAsAnalysisCount(allocation, plan, credits)) {
+      const poolProvider = await this.resolvePoolProvider(plan, slugMap);
+      await this.rewriteAllocationToCredits(
+        db,
+        subscriptionId,
+        allocation,
+        plan,
+        credits,
+        poolProvider,
+      );
+      const ratio = credits / plan.analysisLimit;
+      allocation.allocated = Math.round(allocation.allocated * ratio);
+      allocation.returned = Math.round(allocation.returned * ratio);
+    }
+
     const consumed = await this.consumedCredits(db, subscriptionId);
-    const remaining = Math.max(
-      0,
-      allocation.subscription.plan.analysisLimit - consumed,
-    );
+    const perAnalysis =
+      plan.analysisLimit > 0 ? credits / plan.analysisLimit : 1;
+    const unusedAnalyses = Math.max(0, plan.analysisLimit - consumed);
+    const remaining = Math.round(unusedAnalyses * perAnalysis);
     const toReturn = Math.min(
       remaining,
       allocation.allocated - allocation.returned,
@@ -258,13 +341,18 @@ export class SubscriptionPoolService {
       include: { plan: true, poolAllocation: true },
     });
 
+    const slugMap = await this.providerSlugMap(db);
     let synced = 0;
     for (const sub of activeSubs) {
       const net = sub.poolAllocation
         ? sub.poolAllocation.allocated - sub.poolAllocation.returned
         : 0;
+      const credits = bagCreditsForPlan(sub.plan, slugMap);
       const needsRecommit = (sub.poolAllocation?.returned ?? 0) > 0;
-      if (needsRecommit || net < sub.plan.analysisLimit) {
+      const legacyUnits =
+        sub.poolAllocation != null &&
+        this.storedAsAnalysisCount(sub.poolAllocation, sub.plan, credits);
+      if (needsRecommit || legacyUnits || net < credits) {
         await this.allocateForSubscription(db, sub.id, sub.plan, {
           recordMovement: false,
         });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Info, Plus, RefreshCw, Shield } from "lucide-react";
+import { CalendarDays, Info, Plus, RefreshCw, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import {
@@ -15,8 +15,10 @@ import {
   AnalisisDermaPiel360RechargeDialog,
   MovementDetailDialog,
 } from "@/components/admin/bolsa/bolsa-movement-dialogs";
+import { BolsaPlanCupos } from "@/components/admin/bolsa/bolsa-plan-cupos";
 import {
   buildBolsaMovements,
+  type BolsaTypeFilter,
   type MovementRow,
 } from "@/components/admin/bolsa/bolsa-movement-model";
 import { BolsaMovementsTable } from "@/components/admin/bolsa/bolsa-movements-table";
@@ -71,17 +73,24 @@ export default function BolsaUnidadesPage() {
   const pools: UnitPool[] = [aestheticPool, dermPool];
   const estimate = analisisPiel360Pool.data?.featureCosts.estimatedPerAnalysis;
 
+  const [movementView, setMovementView] = useState<"all" | "recharges">("all");
   const recharges = useMemo(
     () =>
       buildBolsaMovements(
         analisisPiel360Pool.data?.history,
         analisisdermapiel360.data?.history,
+        analisisPiel360Pool.data?.planCupos,
+        analisisdermapiel360.data?.planCupos,
         typeFilter,
+        movementView === "recharges",
       ),
     [
       analisisPiel360Pool.data?.history,
       analisisdermapiel360.data?.history,
+      analisisPiel360Pool.data?.planCupos,
+      analisisdermapiel360.data?.planCupos,
       typeFilter,
+      movementView,
     ],
   );
   const movementsLoading =
@@ -138,7 +147,16 @@ export default function BolsaUnidadesPage() {
             />
             Actualizar Dermatológico
           </Button>
-          <Button type="button" variant="outline" size="sm">
+          <Button
+            type="button"
+            variant={movementView === "recharges" ? "default" : "outline"}
+            size="sm"
+            onClick={() =>
+              setMovementView((current) =>
+                current === "recharges" ? "all" : "recharges",
+              )
+            }
+          >
             Historial de recargas
           </Button>
           <Button
@@ -243,25 +261,19 @@ export default function BolsaUnidadesPage() {
               pool={aestheticPool}
               live={Boolean(analisisPiel360Pool.data)}
               liveLabel="Estético"
+              totalLabel="Saldo + en planes"
+              usedLabel="En planes"
               loading={analisisPiel360Pool.isLoading && !analisisPiel360Pool.data}
             />
             <UnitPoolCard
               pool={dermPool}
               live={Boolean(analisisdermapiel360.data)}
               liveLabel="Dermatológico"
+              totalLabel="Total compradas"
+              usedLabel="En planes"
               loading={analisisdermapiel360.isLoading && !analisisdermapiel360.data}
             />
           </div>
-
-          <BolsaMovementsTable
-            rows={recharges}
-            loading={movementsLoading}
-            typeFilter={typeFilter}
-            onTypeFilter={setTypeFilter}
-            pools={pools}
-            fallbackPool={aestheticPool}
-            onSelect={setSelectedMovement}
-          />
         </div>
 
         <aside className="min-w-0 space-y-4">
@@ -282,6 +294,57 @@ export default function BolsaUnidadesPage() {
             )}
           </ModuleCard>
         </aside>
+      </div>
+
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
+        <BolsaPlanCupos
+          aesthetic={analisisPiel360Pool.data?.planCupos ?? []}
+          derm={analisisdermapiel360.data?.planCupos ?? []}
+        />
+        <BolsaMovementsTable
+          rows={recharges}
+          loading={movementsLoading}
+          pools={pools}
+          fallbackPool={aestheticPool}
+          onSelect={setSelectedMovement}
+          title={
+            movementView === "recharges"
+              ? "Historial de recargas"
+              : "Créditos asignados a planes"
+          }
+          emptyLabel={
+            movementView === "recharges"
+              ? "No hay ingresos de créditos para este filtro."
+              : "No hay planes con créditos apartados para este filtro."
+          }
+          toolbar={
+            <div className="flex flex-wrap gap-2">
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value as BolsaTypeFilter)}
+                className="h-9 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                <option value="all">Todos los tipos</option>
+                <option value="aesthetic">Análisis estéticos / Fitzpatrick</option>
+                <option value="derm">Análisis dermatológico</option>
+              </select>
+              <Button
+                type="button"
+                variant={typeFilter === "aesthetic" ? "default" : "outline"}
+                size="sm"
+                className="gap-1.5"
+                onClick={() =>
+                  setTypeFilter((current) =>
+                    current === "aesthetic" ? "all" : "aesthetic",
+                  )
+                }
+              >
+                <CalendarDays className="size-4" />
+                Historial Estético
+              </Button>
+            </div>
+          }
+        />
       </div>
 
       <div className="rounded-xl border border-sky-200/80 bg-sky-50 px-4 py-3 text-sm text-sky-950 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-100">
