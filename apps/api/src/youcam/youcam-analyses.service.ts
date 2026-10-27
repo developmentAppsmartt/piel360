@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { InjectQueue } from '@nestjs/bullmq';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import {
@@ -31,10 +32,21 @@ const POLL_ATTEMPTS = 20;
 // aun cuando YouCam ya tenía la respuesta lista.
 const POLL_INITIAL_DELAY_MS = 8_000;
 const POLL_BACKOFF_DELAY_MS = 15_000;
+// La app reenvía la misma foto si la pantalla se vuelve a montar mientras
+// espera. La tarea del proveedor ya se cobró: se devuelve el análisis creado.
+const SAME_PHOTO_WINDOW_MS = 2 * 60 * 1000;
 
 @Injectable()
 export class AnalisisPiel360AnalysesService {
   private readonly logger = new Logger(AnalisisPiel360AnalysesService.name);
+  private readonly inflightByPhoto = new Map<
+    string,
+    Promise<{ analysisId: string }>
+  >();
+  private readonly recentByPhoto = new Map<
+    string,
+    { analysisId: string; at: number }
+  >();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -53,8 +65,33 @@ export class AnalisisPiel360AnalysesService {
     image: Buffer,
     currentUser: JwtPayload,
   ) {
+    const photoKey = `${dto.patientId}:${createHash('sha256').update(image).digest('hex')}`;
+    this.forgetStalePhotos();
+    const recent = this.recentByPhoto.get(photoKey);
+    if (recent) {
+      this.logger.warn(
+        `Análisis estético repetido: se reutiliza ${recent.analysisId} (patientId=${dto.patientId})`,
+      );
+      return { analysisId: recent.analysisId };
+    }
+    const pending = this.inflightByPhoto.get(photoKey);
+    if (pending) return pending;
+
+    const run = this.createAnalysisInner(dto, image, currentUser)
+      .then((result) => {
+        this.recentByPhoto.set(photoKey, {
+          analysisId: result.analysisId,
+          at: Date.now(),
+        });
+        return result;
+      })
+      .finally(() => {
+        this.inflightByPhoto.delete(photoKey);
+      });
+    this.inflightByPhoto.set(photoKey, run);
+
     try {
-      return await this.createAnalysisInner(dto, image, currentUser);
+      return await run;
     } catch (err) {
       if (err instanceof BadRequestException) throw err;
       this.logger.error(
@@ -239,5 +276,12 @@ export class AnalisisPiel360AnalysesService {
     }
 
     return { analysisId: analysis.id.toString() };
+  }
+
+  private forgetStalePhotos() {
+    const cutoff = Date.now() - SAME_PHOTO_WINDOW_MS;
+    for (const [key, recent] of this.recentByPhoto) {
+      if (recent.at < cutoff) this.recentByPhoto.delete(key);
+    }
   }
 }

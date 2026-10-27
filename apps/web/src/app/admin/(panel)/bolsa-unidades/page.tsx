@@ -1,607 +1,34 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  CalendarDays,
-  Eye,
-  Filter,
-  Info,
-  MoreVertical,
-  Plus,
-  RefreshCw,
-  Shield,
-  Sparkles,
-  Stethoscope,
-} from "lucide-react";
-import { UnitRing } from "@/components/admin/unit-ring";
-import { Badge } from "@/components/ui/badge";
+import { Info, Plus, RefreshCw, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  ModuleCard,
-  ModuleCardTitle,
-  ModuleMetric,
-} from "@/components/ui/module-card";
-import {
-  useAnalisisPiel360Units,
   useAnalisisDermaPiel360Units,
-  useCreateAnalisisDermaPiel360Recharge,
+  useAnalisisPiel360Units,
 } from "@/lib/queries/admin-bolsa-units";
 import { PoolCreditsAlert } from "@/components/admin/pool-credits-alert";
 import { PrebolsaCreditsCard } from "@/components/admin/prebolsa-credits-card";
-import { ApiError } from "@/lib/api-error";
 import { cn } from "@/lib/utils";
-
-type UnitPool = {
-  id: "aesthetic" | "derm";
-  name: string;
-  accent: "aesthetic" | "derm";
-  available: number;
-  total: number;
-  used: number;
-  reserved: number;
-  expiringSoon: number;
-  unitLabel: "unidades" | "créditos";
-};
-
-const EMPTY_AESTHETIC_POOL: UnitPool = {
-  id: "aesthetic",
-  name: "Análisis estéticos / Fitzpatrick",
-  accent: "aesthetic",
-  available: 0,
-  total: 0,
-  used: 0,
-  reserved: 0,
-  expiringSoon: 0,
-  unitLabel: "unidades",
-};
-
-const EMPTY_DERM_POOL: UnitPool = {
-  id: "derm",
-  name: "Análisis dermatológico (créditos)",
-  accent: "derm",
-  available: 0,
-  total: 0,
-  used: 0,
-  reserved: 0,
-  expiringSoon: 0,
-  unitLabel: "créditos",
-};
-
-function formatInt(n: number) {
-  return Math.round(n).toLocaleString("es-CO");
-}
-
-function formatUnits(n: number) {
-  return n.toLocaleString("es-CO", {
-    maximumFractionDigits: 2,
-  });
-}
-
-function PoolIcon({ pool }: { pool: UnitPool }) {
-  const Icon = pool.accent === "aesthetic" ? Sparkles : Stethoscope;
-  return (
-    <span
-      className={cn(
-        "flex size-9 items-center justify-center rounded-xl",
-        pool.accent === "aesthetic"
-          ? "bg-primary/10 text-primary"
-          : "bg-emerald-500/10 text-emerald-600",
-      )}
-    >
-      <Icon className="size-4" />
-    </span>
-  );
-}
-
-function UnitPoolCard({
-  pool,
-  live,
-  liveLabel,
-  loading,
-}: {
-  pool: UnitPool;
-  live?: boolean;
-  liveLabel?: string;
-  loading?: boolean;
-}) {
-  const pct =
-    pool.total > 0 ? Math.min(100, (pool.available / pool.total) * 100) : 0;
-  const isAesthetic = pool.accent === "aesthetic";
-
-  return (
-    <ModuleCard>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <PoolIcon pool={pool} />
-            <p
-              className={cn(
-                "text-[11px] font-bold tracking-[0.06em] uppercase",
-                isAesthetic ? "text-primary" : "text-emerald-600",
-              )}
-            >
-              {isAesthetic ? "Estético / Fitzpatrick" : "Dermatológico"}
-            </p>
-            {live ? (
-              <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
-                {liveLabel ?? "En vivo"}
-              </Badge>
-            ) : null}
-          </div>
-          <h2 className="mt-3 text-[15px] font-semibold leading-snug">
-            {pool.name}
-          </h2>
-          <ModuleMetric className="mt-4">
-            {loading ? "—" : formatUnits(pool.available)}
-          </ModuleMetric>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            {pool.unitLabel} disponibles
-          </p>
-        </div>
-        <UnitRing
-          percent={pct}
-          label="Disponible"
-          progressClassName={
-            isAesthetic ? "stroke-primary" : "stroke-emerald-500"
-          }
-        />
-      </div>
-      <div className="mt-5 grid grid-cols-3 gap-2 border-t border-border/80 pt-4 text-center text-xs">
-        <div>
-          <p className="text-muted-foreground">
-            {live ? "Saldo + uso reciente" : "Total compradas"}
-          </p>
-          <p className="mt-0.5 font-semibold tabular-nums">
-            {formatUnits(pool.total)}
-          </p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">
-            {live ? "Consumidas (historial)" : "Consumidas"}
-          </p>
-          <p className="mt-0.5 font-semibold tabular-nums">
-            {formatUnits(pool.used)}
-          </p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">Vencen pronto</p>
-          <p className="mt-0.5 font-semibold tabular-nums text-amber-600">
-            {formatUnits(pool.expiringSoon)}
-          </p>
-        </div>
-      </div>
-    </ModuleCard>
-  );
-}
-
-const DISTRIBUTION_LEGEND: Record<string, string> = {
-  aesthetic: "Estético / Fitzpatrick",
-  derm: "Dermatológico",
-};
-
-function DistributionDonut({ pools }: { pools: UnitPool[] }) {
-  const slices = useMemo(() => {
-    const total = pools.reduce((sum, p) => sum + p.available, 0);
-    return pools.map((p) => ({
-      id: p.id,
-      label: p.name,
-      value: p.available,
-      percent: total > 0 ? (p.available / total) * 100 : 0,
-      accent: p.accent,
-    }));
-  }, [pools]);
-  const total = slices.reduce((sum, s) => sum + s.value, 0);
-  let offset = 0;
-  const r = 46;
-  const c = 2 * Math.PI * r;
-
-  return (
-    <div className="flex flex-col items-center gap-5">
-      <div className="relative size-32 shrink-0">
-        <svg viewBox="0 0 128 128" className="size-full -rotate-90">
-          <circle
-            cx="64"
-            cy="64"
-            r={r}
-            fill="none"
-            strokeWidth="12"
-            className="stroke-muted"
-          />
-          {slices.map((slice) => {
-            const len = total > 0 ? (slice.value / total) * c : 0;
-            const dash = `${len} ${c - len}`;
-            const el = (
-              <circle
-                key={slice.id}
-                cx="64"
-                cy="64"
-                r={r}
-                fill="none"
-                strokeWidth="12"
-                strokeDasharray={dash}
-                strokeDashoffset={-offset}
-                className={
-                  slice.accent === "aesthetic"
-                    ? "stroke-primary"
-                    : "stroke-emerald-500"
-                }
-              />
-            );
-            offset += len;
-            return el;
-          })}
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center px-2 text-center">
-          <p className="text-base font-bold leading-none tabular-nums">
-            {formatUnits(total)}
-          </p>
-          <p className="mt-1 text-[10px] leading-tight text-muted-foreground">
-            Total unidades
-          </p>
-        </div>
-      </div>
-
-      <ul className="w-full space-y-3 border-t border-border/70 pt-4">
-        {slices.map((slice) => (
-          <li key={slice.id} className="flex items-start gap-2.5">
-            <span
-              className={cn(
-                "mt-1 size-2.5 shrink-0 rounded-full",
-                slice.accent === "aesthetic" ? "bg-primary" : "bg-emerald-500",
-              )}
-            />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-baseline justify-between gap-2">
-                <p className="text-xs font-medium leading-snug text-foreground">
-                  {DISTRIBUTION_LEGEND[slice.id] ?? slice.label}
-                </p>
-                <span className="shrink-0 text-xs font-semibold tabular-nums text-foreground">
-                  {slice.percent.toFixed(1)}%
-                </span>
-              </div>
-              <p className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">
-                {formatUnits(slice.value)} unidades
-              </p>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function historyActionLabel(action: string) {
-  const map: Record<string, string> = {
-    subscription_credits: "Recarga suscripción",
-    permanent_credits: "Créditos permanentes",
-    renew: "Renovación",
-    expire: "Vencimiento",
-    sign_up_gift: "Regalo registro",
-    subscriber_gift: "Regalo suscriptor",
-    compensation_from_customer_service: "Compensación",
-    subscription_return: "Cancelación de suscripción",
-    subscription_reserve: "Activación de suscripción",
-  };
-  return map[action] ?? action.replaceAll("_", " ");
-}
-
-function analisisDermaPiel360MovementStatus(kind: string | undefined, quantity: number) {
-  if (kind === "subscription_return") return "Devolución" as const;
-  if (kind === "subscription_reserve") return "Activación" as const;
-  if (quantity < 0) return "Consumo" as const;
-  return "Activa" as const;
-}
-
-function analisisPiel360MovementStatus(action: string, delta: number) {
-  if (action === "subscription_return") return "Devolución" as const;
-  if (action === "subscription_reserve") return "Activación" as const;
-  if (delta < 0) return "Consumo" as const;
-  return "Activa" as const;
-}
-
-type MovementStatus = "Devolución" | "Activación" | "Consumo" | "Activa";
-
-type MovementRow = {
-  id: string;
-  unitType: "aesthetic" | "derm";
-  unitLabel: string;
-  rechargedAt: string;
-  sortAt: number;
-  quantity: number;
-  delta: number;
-  expiresAt: string;
-  addedBy: string;
-  status: MovementStatus;
-  source: "analisispiel360" | "analisisdermapiel360";
-  actionLabel: string;
-  note: string | null;
-  addedByEmail: string | null;
-  targetId: string | null;
-  dstActions: string[];
-  rawKind: string | null;
-};
-
-function movementStatusBadgeClass(status: MovementStatus) {
-  if (status === "Consumo" || status === "Activación") {
-    return "bg-amber-100 text-amber-900 hover:bg-amber-100";
-  }
-  if (status === "Devolución") {
-    return "bg-sky-100 text-sky-900 hover:bg-sky-100";
-  }
-  return "bg-emerald-100 text-emerald-800 hover:bg-emerald-100";
-}
-
-function DetailField({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-1">
-      <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-        {label}
-      </p>
-      <div className="text-sm text-foreground">{children}</div>
-    </div>
-  );
-}
-
-function MovementDetailDialog({
-  movement,
-  pools,
-  open,
-  onOpenChange,
-}: {
-  movement: MovementRow | null;
-  pools: UnitPool[];
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  if (!movement) return null;
-  const pool =
-    pools.find((p) => p.id === movement.unitType) ?? pools[0] ?? EMPTY_AESTHETIC_POOL;
-  const signedQty =
-    movement.delta < 0
-      ? `−${formatUnits(movement.quantity)}`
-      : `+${formatUnits(movement.quantity)}`;
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Detalle del movimiento</DialogTitle>
-          <DialogDescription>
-            Información registrada para este movimiento de la bolsa de unidades.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 px-3 py-3">
-            <PoolIcon pool={pool} />
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold">{movement.unitLabel}</p>
-              <p className="text-xs text-muted-foreground">
-                {movement.source === "analisispiel360" ? "Estético" : "Dermatológico"}
-              </p>
-            </div>
-            <Badge className={movementStatusBadgeClass(movement.status)}>
-              {movement.status}
-            </Badge>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <DetailField label="Fecha">{movement.rechargedAt}</DetailField>
-            <DetailField label="Cantidad">
-              <span
-                className={cn(
-                  "font-semibold tabular-nums",
-                  movement.delta < 0 && "text-destructive",
-                )}
-              >
-                {signedQty}{" "}
-                <span className="font-normal text-muted-foreground">
-                  {pool.unitLabel}
-                </span>
-              </span>
-            </DetailField>
-            <DetailField label="Vencimiento">{movement.expiresAt}</DetailField>
-            <DetailField label="Acción">{movement.actionLabel}</DetailField>
-            <DetailField label="Origen">{movement.addedBy}</DetailField>
-            {movement.addedByEmail ? (
-              <DetailField label="Correo">{movement.addedByEmail}</DetailField>
-            ) : null}
-            {movement.rawKind ? (
-              <DetailField label="Tipo interno">
-                <span className="font-mono text-xs">{movement.rawKind}</span>
-              </DetailField>
-            ) : null}
-            {movement.targetId ? (
-              <DetailField label="Referencia / target">
-                <span className="font-mono text-xs break-all">{movement.targetId}</span>
-              </DetailField>
-            ) : null}
-          </div>
-
-          {movement.note ? (
-            <DetailField label="Nota">
-              <p className="rounded-lg border border-border bg-background px-3 py-2 whitespace-pre-wrap">
-                {movement.note}
-              </p>
-            </DetailField>
-          ) : null}
-
-          {movement.dstActions.length > 0 ? (
-            <DetailField label="Acciones del proveedor (dst)">
-              <ul className="flex flex-wrap gap-1.5">
-                {movement.dstActions.map((action) => (
-                  <li key={action}>
-                    <Badge variant="secondary" className="font-mono text-[11px]">
-                      {action}
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
-            </DetailField>
-          ) : null}
-
-          <DetailField label="ID del movimiento">
-            <span className="font-mono text-xs break-all text-muted-foreground">
-              {movement.id}
-            </span>
-          </DetailField>
-        </div>
-
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cerrar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function AnalisisDermaPiel360RechargeDialog({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const [quantity, setQuantity] = useState("");
-  const [expiresAt, setExpiresAt] = useState("");
-  const [note, setNote] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const recharge = useCreateAnalisisDermaPiel360Recharge();
-
-  const reset = () => {
-    setQuantity("");
-    setExpiresAt("");
-    setNote("");
-    setError(null);
-  };
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) reset();
-        onOpenChange(next);
-      }}
-    >
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Recargar créditos dermatológicos</DialogTitle>
-          <DialogDescription>
-            Registra una compra o renovación de créditos dermatológicos. El
-            saldo disponible se calcula como recargas activas menos análisis
-            realizados en la plataforma.
-          </DialogDescription>
-        </DialogHeader>
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setError(null);
-            const parsed = Number(quantity.replace(/\./g, "").replace(",", "."));
-            if (!Number.isFinite(parsed) || parsed < 1) {
-              setError("Ingresa una cantidad válida (mínimo 1).");
-              return;
-            }
-            void recharge
-              .mutateAsync({
-                quantity: Math.round(parsed),
-                expiresAt: expiresAt.trim() || undefined,
-                note: note.trim() || undefined,
-              })
-              .then(() => {
-                reset();
-                onOpenChange(false);
-              })
-              .catch((err) => {
-                setError(
-                  err instanceof ApiError
-                    ? err.message
-                    : "No se pudo registrar la recarga.",
-                );
-              });
-          }}
-        >
-          <div className="space-y-1.5">
-            <label
-              htmlFor="analisisdermapiel360-quantity"
-              className="text-sm font-medium"
-            >
-              Cantidad de créditos
-            </label>
-            <input
-              id="analisisdermapiel360-quantity"
-              type="number"
-              min={1}
-              step={1}
-              required
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              placeholder="Ej. 3000"
-              className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="analisisdermapiel360-expires" className="text-sm font-medium">
-              Vencimiento (opcional)
-            </label>
-            <input
-              id="analisisdermapiel360-expires"
-              type="date"
-              value={expiresAt}
-              onChange={(e) => setExpiresAt(e.target.value)}
-              className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="analisisdermapiel360-note" className="text-sm font-medium">
-              Nota / referencia (opcional)
-            </label>
-            <textarea
-              id="analisisdermapiel360-note"
-              value={note}
-              onChange={(e) => setNote(e.target.value.slice(0, 500))}
-              rows={3}
-              placeholder="Factura, orden de compra, contacto del proveedor…"
-              className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30"
-            />
-          </div>
-          {error ? (
-            <p className="text-sm text-destructive">{error}</p>
-          ) : null}
-          <DialogFooter className="sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={recharge.isPending}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={recharge.isPending}>
-              {recharge.isPending ? "Registrando…" : "Registrar recarga"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
+import {
+  AnalisisDermaPiel360RechargeDialog,
+  MovementDetailDialog,
+} from "@/components/admin/bolsa/bolsa-movement-dialogs";
+import {
+  buildBolsaMovements,
+  type MovementRow,
+} from "@/components/admin/bolsa/bolsa-movement-model";
+import { BolsaMovementsTable } from "@/components/admin/bolsa/bolsa-movements-table";
+import {
+  DistributionDonut,
+  EMPTY_AESTHETIC_POOL,
+  EMPTY_DERM_POOL,
+  UnitPoolCard,
+  formatInt,
+  formatUnits,
+  type UnitPool,
+} from "@/components/admin/bolsa/unit-pools";
 
 export default function BolsaUnidadesPage() {
   const [typeFilter, setTypeFilter] = useState<"all" | "aesthetic" | "derm">(
@@ -644,77 +71,19 @@ export default function BolsaUnidadesPage() {
   const pools: UnitPool[] = [aestheticPool, dermPool];
   const estimate = analisisPiel360Pool.data?.featureCosts.estimatedPerAnalysis;
 
-  const recharges = useMemo((): MovementRow[] => {
-    const liveHistory = analisisPiel360Pool.data?.history ?? [];
-    const liveRows: MovementRow[] = liveHistory
-      .filter((h) => h.delta !== 0)
-      .map((h) => {
-        const actionLabel = historyActionLabel(h.action);
-        return {
-          id: `pc-${h.id}`,
-          unitType: "aesthetic",
-          unitLabel: "Análisis estéticos / Fitzpatrick",
-          rechargedAt: h.timestamp
-            ? new Date(h.timestamp).toLocaleString("es-CO")
-            : "—",
-          sortAt: h.timestamp ? new Date(h.timestamp).getTime() : 0,
-          quantity: Math.abs(h.delta),
-          expiresAt: "—",
-          addedBy: h.note?.trim()
-            ? `${actionLabel} · ${h.note.trim()}`
-            : actionLabel,
-          status: analisisPiel360MovementStatus(h.action, h.delta),
-          delta: h.delta,
-          source: "analisispiel360",
-          actionLabel,
-          note: h.note?.trim() || null,
-          addedByEmail: null,
-          targetId: h.targetId,
-          dstActions: h.dstActions ?? [],
-          rawKind: h.action,
-        };
-      });
-
-    const analisisDermaPiel360Rows: MovementRow[] = (analisisdermapiel360.data?.history ?? []).map(
-      (h) => {
-        const actionLabel = h.kind
-          ? historyActionLabel(h.kind)
-          : h.quantity < 0
-            ? "Consumo"
-            : "Recarga";
-        return {
-          id: `sv-${h.id}`,
-          unitType: "derm",
-          unitLabel: "Análisis dermatológico",
-          rechargedAt: new Date(h.createdAt).toLocaleString("es-CO"),
-          sortAt: new Date(h.createdAt).getTime(),
-          quantity: Math.abs(h.quantity),
-          expiresAt: h.expiresAt
-            ? new Date(h.expiresAt).toLocaleDateString("es-CO")
-            : "—",
-          addedBy: h.note?.trim()
-            ? `${h.addedBy} · ${h.note.trim()}`
-            : h.addedBy,
-          status: analisisDermaPiel360MovementStatus(h.kind, h.quantity),
-          delta: h.quantity,
-          source: "analisisdermapiel360",
-          actionLabel,
-          note: h.note?.trim() || null,
-          addedByEmail: h.addedByEmail,
-          targetId: null,
-          dstActions: [],
-          rawKind: h.kind ?? null,
-        };
-      },
-    );
-
-    const all = [...liveRows, ...analisisDermaPiel360Rows].sort(
-      (a, b) => b.sortAt - a.sortAt,
-    );
-    if (typeFilter === "all") return all;
-    return all.filter((r) => r.unitType === typeFilter);
-  }, [analisisPiel360Pool.data?.history, analisisdermapiel360.data?.history, typeFilter]);
-
+  const recharges = useMemo(
+    () =>
+      buildBolsaMovements(
+        analisisPiel360Pool.data?.history,
+        analisisdermapiel360.data?.history,
+        typeFilter,
+      ),
+    [
+      analisisPiel360Pool.data?.history,
+      analisisdermapiel360.data?.history,
+      typeFilter,
+    ],
+  );
   const movementsLoading =
     typeFilter === "all"
       ? analisisPiel360Pool.isLoading || analisisdermapiel360.isLoading
@@ -723,7 +92,7 @@ export default function BolsaUnidadesPage() {
         : analisisdermapiel360.isLoading;
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <PoolCreditsAlert />
       <PrebolsaCreditsCard />
 
@@ -867,8 +236,8 @@ export default function BolsaUnidadesPage() {
         </ModuleCard>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
-        <div className="space-y-6">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
+        <div className="min-w-0 space-y-6">
           <div className="grid gap-4 md:grid-cols-2">
             <UnitPoolCard
               pool={aestheticPool}
@@ -884,156 +253,19 @@ export default function BolsaUnidadesPage() {
             />
           </div>
 
-          <ModuleCard className="overflow-hidden p-0">
-            <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between">
-              <ModuleCardTitle className="text-base">
-                Movimientos de unidades
-              </ModuleCardTitle>
-              <div className="flex flex-wrap gap-2">
-                <select
-                  value={typeFilter}
-                  onChange={(e) =>
-                    setTypeFilter(e.target.value as typeof typeFilter)
-                  }
-                  className="h-9 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30"
-                >
-                  <option value="all">Todos los tipos</option>
-                  <option value="aesthetic">
-                    Análisis estéticos / Fitzpatrick
-                  </option>
-                  <option value="derm">Análisis dermatológico</option>
-                </select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 text-muted-foreground"
-                >
-                  <CalendarDays className="size-4" />
-                  Historial Estético
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                >
-                  <Filter className="size-4" />
-                  Filtros
-                </Button>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[880px] text-left text-sm">
-                <thead className="bg-muted/40 text-xs tracking-wide text-muted-foreground uppercase">
-                  <tr>
-                    <th className="px-4 py-3 font-semibold">Tipo de unidad</th>
-                    <th className="px-4 py-3 font-semibold">Fecha</th>
-                    <th className="px-4 py-3 font-semibold">Cantidad</th>
-                    <th className="px-4 py-3 font-semibold">
-                      Fecha de vencimiento
-                    </th>
-                    <th className="px-4 py-3 font-semibold">Origen / acción</th>
-                    <th className="px-4 py-3 font-semibold">Estado</th>
-                    <th className="px-4 py-3 font-semibold" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {movementsLoading ? (
-                    <tr>
-                      <td
-                        colSpan={7}
-                        className="px-4 py-8 text-center text-muted-foreground"
-                      >
-                        Cargando movimientos…
-                      </td>
-                    </tr>
-                  ) : recharges.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={7}
-                        className="px-4 py-8 text-center text-muted-foreground"
-                      >
-                        No hay movimientos registrados para este filtro.
-                      </td>
-                    </tr>
-                  ) : (
-                    recharges.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="border-t border-border hover:bg-muted/30"
-                    >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2.5">
-                          <PoolIcon
-                            pool={
-                              pools.find((p) => p.id === row.unitType) ??
-                              aestheticPool
-                            }
-                          />
-                          <span className="font-medium">{row.unitLabel}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {row.rechargedAt}
-                      </td>
-                      <td
-                        className={cn(
-                          "px-4 py-3 font-medium tabular-nums",
-                          "delta" in row && row.delta < 0
-                            ? "text-destructive"
-                            : null,
-                        )}
-                      >
-                        {"delta" in row && row.delta < 0 ? "−" : "+"}
-                        {formatUnits(row.quantity)}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {row.expiresAt}
-                      </td>
-                      <td className="px-4 py-3">{row.addedBy}</td>
-                      <td className="px-4 py-3">
-                        <Badge
-                          className={cn(movementStatusBadgeClass(row.status))}
-                        >
-                          {row.status}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            type="button"
-                            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                            aria-label="Ver detalle"
-                            onClick={() => setSelectedMovement(row)}
-                          >
-                            <Eye className="size-4" />
-                          </button>
-                          <button
-                            type="button"
-                            className="rounded-md p-1 text-muted-foreground hover:bg-muted"
-                            aria-label="Más acciones"
-                          >
-                            <MoreVertical className="size-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <div className="border-t border-border px-4 py-3 text-xs text-muted-foreground">
-              Mostrando {recharges.length} movimiento
-              {recharges.length === 1 ? "" : "s"}
-            </div>
-          </ModuleCard>
+          <BolsaMovementsTable
+            rows={recharges}
+            loading={movementsLoading}
+            typeFilter={typeFilter}
+            onTypeFilter={setTypeFilter}
+            pools={pools}
+            fallbackPool={aestheticPool}
+            onSelect={setSelectedMovement}
+          />
         </div>
 
-        <aside className="space-y-4">
-          <ModuleCard className="overflow-hidden p-4">
+        <aside className="min-w-0 space-y-4">
+          <ModuleCard className="p-4">
             <ModuleCardTitle className="text-sm">
               Distribución de unidades
             </ModuleCardTitle>

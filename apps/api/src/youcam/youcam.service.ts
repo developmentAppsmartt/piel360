@@ -6,6 +6,12 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ANALISIS_PIEL360_DST_ACTIONS } from '@piel360/shared';
 import type { AnalisisPiel360Results } from '@piel360/shared';
+import {
+  fetchAnalisisPiel360CreditHistory,
+  type AnalisisPiel360CreditHistoryItem,
+} from './youcam-credit-history';
+
+export type { AnalisisPiel360CreditHistoryItem };
 
 interface UploadUrlResponse {
   data: {
@@ -47,15 +53,6 @@ export type AnalisisPiel360FeatureSku = {
   unit: string;
   procUnit: number;
   runTaskUrl: string;
-};
-
-export type AnalisisPiel360CreditHistoryItem = {
-  id: string;
-  timestampMs: number;
-  action: string;
-  targetId: string | null;
-  delta: number;
-  dstActions: string[];
 };
 
 /**
@@ -153,50 +150,16 @@ export class AnalisisPiel360Service {
     return skus;
   }
 
-  /** `GET /s2s/v1.0/client/credit/history` — historial reciente de unidades. */
-  async getCreditHistory(
-    pageSize = 20,
-  ): Promise<AnalisisPiel360CreditHistoryItem[]> {
-    const url = new URL(`${this.baseUrl}/s2s/v1.0/client/credit/history`);
-    url.searchParams.set('page_size', String(Math.min(Math.max(pageSize, 1), 30)));
-
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${this.apiKey}` },
-    });
-    if (!response.ok) {
-      await this.throwAnalisisPiel360Error(response, 'PerfectCorp client/credit/history');
-    }
-
-    const json = (await response.json()) as {
-      result?: {
-        history?: Array<{
-          id?: number | string;
-          timestamp?: number;
-          action?: string;
-          target_id?: string;
-          info?: {
-            credits?: Array<{
-              amount?: number;
-              amount_dec?: number;
-            }>;
-            dst_actions?: string[];
-          };
-        }>;
-      };
-    };
-
-    return (json.result?.history ?? []).map((row) => {
-      const delta = (row.info?.credits ?? []).reduce((sum, c) => {
-        return sum + Number(c.amount_dec ?? c.amount ?? 0);
-      }, 0);
-      return {
-        id: String(row.id ?? ''),
-        timestampMs: Number(row.timestamp ?? 0),
-        action: row.action ?? 'unknown',
-        targetId: row.target_id ?? null,
-        delta,
-        dstActions: row.info?.dst_actions ?? [],
-      };
+  /** `GET /s2s/v1.0/client/credit/history` — historial de unidades, varias páginas. */
+  getCreditHistory(): Promise<AnalisisPiel360CreditHistoryItem[]> {
+    return fetchAnalisisPiel360CreditHistory({
+      baseUrl: this.baseUrl,
+      apiKey: this.apiKey,
+      onError: (response) =>
+        this.throwAnalisisPiel360Error(
+          response,
+          'PerfectCorp client/credit/history',
+        ),
     });
   }
 

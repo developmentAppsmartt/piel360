@@ -101,7 +101,7 @@ export class PlanPoolAvailabilityService {
 
   async getAlerts() {
     const plans = await this.prisma.plan.findMany({
-      where: { isActive: true },
+      where: { isActive: true, replacedAt: null },
       include: { provider: true },
       orderBy: { name: 'asc' },
     });

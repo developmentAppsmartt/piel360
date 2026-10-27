@@ -597,6 +597,9 @@ model Plan {
   /** Si true, el catálogo muestra el precio del plan convertido a USDT. */
   showUsdtPrice      Boolean  @default(false) @map("show_usdt_price")
   isActive           Boolean  @default(true) @map("is_active")
+  /// Se fija al publicar una versión nueva. La fila vieja se queda para las
+  /// suscripciones que ya la compraron: cupo, precio y vigencia no cambian.
+  replacedAt         DateTime? @map("replaced_at")
   description        String?  @db.Text
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
