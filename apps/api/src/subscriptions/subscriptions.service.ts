@@ -115,7 +115,10 @@ export class SubscriptionsService {
 
     if (APPROVED_STATUSES.includes(wompiStatus)) {
       const balances = await this.planPool.getBalances();
-      const pool = await this.planPool.evaluatePlan(subscription.plan, balances);
+      const pool = await this.planPool.evaluatePlan(
+        subscription.plan,
+        balances,
+      );
       if (!pool.poolPurchasable) {
         await this.holdPaidSubscriptionInPrebolsa(
           subscription,
@@ -164,7 +167,7 @@ export class SubscriptionsService {
       await this.mail.send({
         to: subscription.user.email,
         subject: 'Pago recibido — tu plan está en prebolsa — Piel360',
-        html: `<p>Hola ${subscription.user.name},</p><p>Recibimos el pago del plan <strong>${subscription.plan.name}</strong>. Se activará en cuanto haya ${subscription.plan.analysisLimit} créditos de ese análisis en la bolsa.</p>`,
+        html: `<p>Hola ${subscription.user.name},</p><p>Recibimos el pago del plan <strong>${subscription.plan.name}</strong>. Se activará en cuanto la bolsa tenga los créditos de ese plan.</p>`,
       });
     } catch (err) {
       this.logger.error(
@@ -258,7 +261,10 @@ export class SubscriptionsService {
     let balances = await this.planPool.getBalances();
     let activated = 0;
     for (const subscription of waiting) {
-      const pool = await this.planPool.evaluatePlan(subscription.plan, balances);
+      const pool = await this.planPool.evaluatePlan(
+        subscription.plan,
+        balances,
+      );
       if (!pool.poolPurchasable) continue;
       try {
         await this.activatePaidSubscription(

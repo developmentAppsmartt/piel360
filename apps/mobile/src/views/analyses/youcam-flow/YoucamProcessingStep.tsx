@@ -16,6 +16,31 @@ type YoucamProcessingStepProps = {
 
 const POLL_MS = 2500;
 const MAX_WAIT_MS = 120_000;
+const REUSE_MS = 120_000;
+
+/**
+ * El efecto se vuelve a montar si el padre re-renderiza. Sin esta caché,
+ * cada montaje hace otro POST y el proveedor cobra la misma foto otra vez.
+ */
+const inflightCreates = new Map<string, Promise<{ analysisId: string }>>();
+
+function startCreate(patientId: string, imageUri: string) {
+  const key = `${patientId}|${imageUri}`;
+  const existing = inflightCreates.get(key);
+  if (existing) return existing;
+  const pending = youcamService.createAnalysis({ patientId, imageUri }).then(
+    (value) => {
+      setTimeout(() => inflightCreates.delete(key), REUSE_MS);
+      return value;
+    },
+    (err: unknown) => {
+      inflightCreates.delete(key);
+      throw err;
+    },
+  );
+  inflightCreates.set(key, pending);
+  return pending;
+}
 
 /**
  * Loader estilo Perfect (arcos) mientras se sube y procesa el análisis YouCam.
@@ -39,6 +64,10 @@ export function YoucamProcessingStep({
   const spin = useRef(new Animated.Value(0)).current;
   const [label, setLabel] = useState('Analizando tu piel…');
   const cancelled = useRef(false);
+  const onDoneRef = useRef(onDone);
+  const onErrorRef = useRef(onError);
+  onDoneRef.current = onDone;
+  onErrorRef.current = onError;
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -60,10 +89,7 @@ export function YoucamProcessingStep({
     (async () => {
       try {
         setLabel('Enviando captura…');
-        const created = await youcamService.createAnalysis({
-          patientId,
-          imageUri,
-        });
+        const created = await startCreate(patientId, imageUri);
         if (cancelled.current) return;
 
         setLabel('Procesando métricas faciales…');
@@ -72,22 +98,22 @@ export function YoucamProcessingStep({
             created.analysisId,
           );
           if (status.error) {
-            onError(status.error);
+            onErrorRef.current(status.error);
             return;
           }
           if (status.isValid) {
             setLabel('Listo');
-            onDone(created.analysisId);
+            onDoneRef.current(created.analysisId);
             return;
           }
           await new Promise((r) => setTimeout(r, POLL_MS));
         }
 
         // Timeout: el análisis sigue en backend; el profesional lo verá.
-        onDone(created.analysisId);
+        onDoneRef.current(created.analysisId);
       } catch (e) {
         if (cancelled.current) return;
-        onError(
+        onErrorRef.current(
           e instanceof ApiError
             ? e.message
             : e instanceof Error
@@ -100,7 +126,7 @@ export function YoucamProcessingStep({
     return () => {
       cancelled.current = true;
     };
-  }, [patientId, imageUri, onDone, onError]);
+  }, [patientId, imageUri]);
 
   const rotate = spin.interpolate({
     inputRange: [0, 1],

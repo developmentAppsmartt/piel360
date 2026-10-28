@@ -597,6 +597,11 @@ model Plan {
   /** Si true, el catálogo muestra el precio del plan convertido a USDT. */
   showUsdtPrice      Boolean  @default(false) @map("show_usdt_price")
   isActive           Boolean  @default(true) @map("is_active")
+  /**
+   * Si el plan ya tiene compras, editarlo crea otra fila y marca esta.
+   * Las compras siguen en esta fila; el catálogo deja de ofrecerla.
+   */
+  replacedAt         DateTime? @map("replaced_at")
   description        String?  @db.Text
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")

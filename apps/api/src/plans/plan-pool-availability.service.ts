@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import type { Plan } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -12,6 +12,7 @@ import {
   toPublicProviderSlug,
 } from '@piel360/shared';
 import { bagCreditsForPlan } from '../subscriptions/bag-credits';
+import { aestheticRechargeCredits } from '../youcam/youcam-credit-history';
 
 export type PlanPoolStatus = {
   poolProvider: PoolProvider;
@@ -33,6 +34,8 @@ const POOL_LABELS: Record<PoolProvider, string> = {
 
 @Injectable()
 export class PlanPoolAvailabilityService {
+  private readonly logger = new Logger(PlanPoolAvailabilityService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly subscriptionPool: SubscriptionPoolService,
@@ -40,19 +43,26 @@ export class PlanPoolAvailabilityService {
   ) {}
 
   async getBalances(): Promise<PoolBalances> {
-    const [skiniver, perfectcorpApi, committedAnalisisPiel360] =
-      await Promise.all([
-        this.subscriptionPool.getAnalisisDermaPiel360Available(),
-        this.youcam
-          .getCreditBalances()
-          .then((rows) => rows.reduce((sum, row) => sum + row.amount, 0))
-          .catch(() => 0),
-        this.subscriptionPool.getCommittedCredits(this.prisma, 'perfectcorp'),
-      ]);
+    await this.subscriptionPool.syncActiveSubscriptionPools();
+    const [skiniver, history, committedAnalisisPiel360] = await Promise.all([
+      this.subscriptionPool.getAnalisisDermaPiel360Available(),
+      this.youcam.getCreditHistory().catch((err: unknown) => {
+        this.logger.warn(
+          `No se pudo leer el historial estético para la bolsa: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+        return [];
+      }),
+      this.subscriptionPool.getCommittedCredits(this.prisma, 'perfectcorp'),
+    ]);
 
     return {
       skiniver,
-      perfectcorp: Math.max(0, perfectcorpApi - committedAnalisisPiel360),
+      perfectcorp: Math.max(
+        0,
+        aestheticRechargeCredits(history) - committedAnalisisPiel360,
+      ),
     };
   }
 
@@ -75,10 +85,7 @@ export class PlanPoolAvailabilityService {
     slugMap?: Map<string, string>,
   ): Promise<PlanPoolStatus> {
     const map = slugMap ?? (await this.providerSlugMap());
-    const poolProvider = await this.subscriptionPool.resolvePoolProvider(
-      plan,
-      map,
-    );
+    const poolProvider = this.subscriptionPool.resolvePoolProvider(plan, map);
     const available =
       poolProvider === 'skiniver' ? balances.skiniver : balances.perfectcorp;
     const required = bagCreditsForPlan(plan, map);
@@ -114,7 +121,7 @@ export class PlanPoolAvailabilityService {
 
   async getAlerts() {
     const plans = await this.prisma.plan.findMany({
-      where: { isActive: true },
+      where: { isActive: true, replacedAt: null },
       include: { provider: true },
       orderBy: { name: 'asc' },
     });
@@ -218,9 +225,10 @@ export class PlanPoolAvailabilityService {
       | 'analysisLimit'
       | 'analysisLimits'
       | 'isActive'
+      | 'replacedAt'
     >,
   ): Promise<void> {
-    if (!plan.isActive) {
+    if (!plan.isActive || plan.replacedAt) {
       throw new BadRequestException('Plan no disponible');
     }
     const status = await this.evaluatePlan(plan, await this.getBalances());

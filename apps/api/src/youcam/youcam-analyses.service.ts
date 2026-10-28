@@ -19,6 +19,11 @@ import { StorageService } from '../storage/storage.service';
 import { SubscriptionCreditsService } from '../subscriptions/subscription-credits.service';
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
 import { getAnalysisProviderIdBySlug } from '../plans/plan-providers.util';
+import {
+  recentAnalysisKey,
+  rememberRecentAnalysis,
+  reuseRecentAnalysis,
+} from '../analyses/recent-analysis-create';
 import type { CreateAnalisisPiel360AnalysisDto } from './dto/create-youcam-analysis.dto';
 import { YOUCAM_POLL_QUEUE, type AnalisisPiel360PollJobData } from './queues';
 import { AnalisisPiel360Service } from './youcam.service';
@@ -49,6 +54,24 @@ export class AnalisisPiel360AnalysesService {
 
   /** `POST /youcam/analyses` — MIGRACION.md §2.5/§4.2. */
   async createAnalysis(
+    dto: CreateAnalisisPiel360AnalysisDto,
+    image: Buffer,
+    currentUser: JwtPayload,
+  ) {
+    const key = recentAnalysisKey({
+      userId: currentUser.sub,
+      patientId: dto.patientId,
+      image,
+    });
+    const reused = reuseRecentAnalysis(key);
+    if (reused) return reused;
+    return rememberRecentAnalysis(
+      key,
+      this.createGuarded(dto, image, currentUser),
+    );
+  }
+
+  private async createGuarded(
     dto: CreateAnalisisPiel360AnalysisDto,
     image: Buffer,
     currentUser: JwtPayload,

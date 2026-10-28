@@ -156,7 +156,7 @@ export class PaymentsService {
     const plan = await this.prisma.plan.findUnique({
       where: { id: BigInt(dto.planId) },
     });
-    if (!plan || !plan.isActive) {
+    if (!plan || !plan.isActive || plan.replacedAt) {
       throw new BadRequestException('Plan no disponible');
     }
 
@@ -166,9 +166,13 @@ export class PaymentsService {
         select: { membershipType: true, empresa: true, empresaReferida: true },
       });
       if (doctor) {
-        const expectedPlanType = isEnterpriseDoctor(doctor) ? 'business' : 'individual';
+        const expectedPlanType = isEnterpriseDoctor(doctor)
+          ? 'business'
+          : 'individual';
         if (plan.planType !== expectedPlanType) {
-          throw new BadRequestException('Este plan no está disponible para tu tipo de cuenta');
+          throw new BadRequestException(
+            'Este plan no está disponible para tu tipo de cuenta',
+          );
         }
       }
     }

@@ -8,19 +8,13 @@ import {
   type AnalisisPiel360FeatureSku,
 } from '../youcam/youcam.service';
 import { POOL_PUBLIC_ALIASES } from '@piel360/shared';
+import { SubscriptionPoolService } from '../subscriptions/subscription-pool.service';
+import {
+  aestheticRechargeCredits,
+  aestheticRechargesExpiringSoon,
+  isAestheticBagPurchase,
+} from '../youcam/youcam-credit-history';
 import { listBolsaPlanCupos } from './bolsa-plan-cupos';
-
-const EXPIRING_SOON_MS = 30 * 24 * 60 * 60 * 1000;
-
-/** Recarga de la cuenta (compra de unidades). Los cobros de un análisis
- * y sus devoluciones no son una asignación a un plan. */
-function isBagPurchase(item: AnalisisPiel360CreditHistoryItem): boolean {
-  if (item.delta <= 0 || item.action.endsWith('_failed')) return false;
-  return (
-    !item.action.includes('skin_analysis') &&
-    !item.action.includes('fitzpatrick')
-  );
-}
 
 /** Costo documentado Perfect Corp cuando el endpoint feature-cost no responde. */
 const FALLBACK_FEATURE_COSTS = {
@@ -36,6 +30,7 @@ export class AnalisisPiel360UnitsService {
   constructor(
     private readonly youcam: AnalisisPiel360Service,
     private readonly prisma: PrismaService,
+    private readonly subscriptionPool: SubscriptionPoolService,
   ) {}
 
   /**
@@ -43,6 +38,7 @@ export class AnalisisPiel360UnitsService {
    * compartidas). Dermatológico (Skiniver) no usa este saldo.
    */
   async getAestheticUnitPool() {
+    await this.subscriptionPool.syncActiveSubscriptionPools();
     const [balances, skus, history, planCupos] = await Promise.all([
       this.youcam.getCreditBalances(),
       this.youcam.getFeatureCosts().catch((err) => {
@@ -60,26 +56,13 @@ export class AnalisisPiel360UnitsService {
       listBolsaPlanCupos(this.prisma, 'perfectcorp'),
     ]);
 
-    const available = balances.reduce((sum, b) => sum + b.amount, 0);
-    const now = Date.now();
-    const expiringSoon = balances
-      .filter(
-        (b) =>
-          b.expiryMs != null &&
-          b.expiryMs > now &&
-          b.expiryMs - now <= EXPIRING_SOON_MS,
-      )
-      .reduce((sum, b) => sum + b.amount, 0);
-
     const reservedInPlans = planCupos.reduce(
       (sum, row) => sum + row.credits,
       0,
     );
-    const purchases = history.filter(isBagPurchase);
-    const rechargedFromHistory = purchases.reduce(
-      (sum, item) => sum + item.delta,
-      0,
-    );
+    const purchases = history.filter(isAestheticBagPurchase);
+    const recharged = aestheticRechargeCredits(history);
+    const available = Math.max(0, recharged - reservedInPlans);
 
     return {
       source: POOL_PUBLIC_ALIASES.perfectcorp,
@@ -89,12 +72,12 @@ export class AnalisisPiel360UnitsService {
         name: 'Análisis estéticos / Fitzpatrick',
         accent: 'aesthetic' as const,
         available: round2(available),
-        total: round2(available + reservedInPlans),
+        total: round2(recharged),
         used: round2(reservedInPlans),
         reserved: round2(reservedInPlans),
-        expiringSoon: round2(expiringSoon),
+        expiringSoon: round2(aestheticRechargesExpiringSoon(history)),
         unitLabel: 'unidades' as const,
-        rechargedRecent: round2(rechargedFromHistory),
+        rechargedRecent: round2(recharged),
       },
       balances: balances.map(serializeBalance),
       featureCosts: summarizeFeatureCosts(skus),

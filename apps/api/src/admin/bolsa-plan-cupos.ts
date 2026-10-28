@@ -62,24 +62,33 @@ export async function listBolsaPlanCupos(
         0,
       );
       const analyses = Math.max(0, plan.analysisLimit);
-      const credits = bagCreditsForPlan(plan, slugById);
-      const perAnalysis = analyses > 0 ? credits / analyses : 1;
-      const fullyReturned = row.allocated > 0 && row.returned >= row.allocated;
+      const fullCredits = bagCreditsForPlan(plan, slugById);
+      const netStored = Math.max(0, row.allocated - row.returned);
+      // Filas viejas guardan análisis (20) donde la bolsa guarda créditos (440).
+      const legacy =
+        fullCredits > analyses &&
+        analyses > 0 &&
+        row.allocated > 0 &&
+        row.allocated <= analyses;
+      const reserved = legacy
+        ? Math.round(netStored * (fullCredits / analyses))
+        : netStored;
+      const perAnalysis = analyses > 0 ? fullCredits / analyses : 1;
       const unusedAnalyses = Math.max(0, analyses - used);
-      const remaining = fullyReturned
-        ? 0
-        : Math.round(Math.min(unusedAnalyses * perAnalysis, credits));
+      const remaining = Math.round(
+        Math.min(unusedAnalyses * perAnalysis, reserved),
+      );
       return {
         id: row.subscriptionId.toString(),
         planName: plan.name,
         holderName,
         holderEmail: user.email,
         analyses,
-        credits,
+        credits: reserved,
         used,
         remaining,
         assignedAt: row.subscription.createdAt.toISOString(),
       };
     })
-    .filter((row) => row.remaining > 0);
+    .filter((row) => row.credits > 0);
 }

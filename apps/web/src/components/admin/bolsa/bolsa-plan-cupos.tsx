@@ -29,10 +29,9 @@ export function BolsaPlanCupos({
   derm: BolsaPlanCupo[];
 }) {
   const rows = summarizeByPlan([...derm, ...aesthetic]);
-  if (rows.length === 0) return null;
 
   return (
-    <ModuleCard className="h-full overflow-hidden p-0">
+    <ModuleCard className="h-full min-w-0 overflow-hidden p-0">
       <div className="border-b border-border p-4">
         <ModuleCardTitle className="text-base">Planes y créditos</ModuleCardTitle>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -50,15 +49,28 @@ export function BolsaPlanCupos({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr key={row.planName} className="border-t border-border">
-                <td className="px-4 py-3 font-medium">{row.planName}</td>
-                <td className="px-4 py-3 tabular-nums">{formatInt(row.analyses)}</td>
-                <td className="px-4 py-3 font-medium tabular-nums">
-                  {formatInt(row.credits)}
+            {rows.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={3}
+                  className="px-4 py-6 text-sm text-muted-foreground"
+                >
+                  No hay planes con créditos apartados.
                 </td>
               </tr>
-            ))}
+            ) : (
+              rows.map((row) => (
+                <tr key={row.planName} className="border-t border-border">
+                  <td className="px-4 py-3 font-medium">{row.planName}</td>
+                  <td className="px-4 py-3 tabular-nums">
+                    {formatInt(row.analyses)}
+                  </td>
+                  <td className="px-4 py-3 font-medium tabular-nums">
+                    {formatInt(row.credits)}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

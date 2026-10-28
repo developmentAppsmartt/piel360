@@ -63,6 +63,52 @@ export async function fetchAnalisisPiel360CreditHistory(input: {
   return items;
 }
 
+const AESTHETIC_RECHARGE_MS = 300 * 24 * 60 * 60 * 1000;
+const EXPIRING_SOON_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** Compra de unidades. Un análisis y su devolución no entran a la bolsa. */
+export function isAestheticBagPurchase(
+  item: AnalisisPiel360CreditHistoryItem,
+): boolean {
+  if (item.delta <= 0 || item.action.endsWith('_failed')) return false;
+  return (
+    !item.action.includes('skin_analysis') &&
+    !item.action.includes('fitzpatrick')
+  );
+}
+
+function rechargeStillCounts(
+  item: AnalisisPiel360CreditHistoryItem,
+  now: number,
+): boolean {
+  if (!isAestheticBagPurchase(item)) return false;
+  if (!item.timestampMs) return true;
+  return now - item.timestampMs < AESTHETIC_RECHARGE_MS;
+}
+
+/** Recargas vigentes: 300 días desde el ingreso, sin los cobros de cada análisis. */
+export function aestheticRechargeCredits(
+  history: AnalisisPiel360CreditHistoryItem[],
+  now = Date.now(),
+): number {
+  return history.reduce((sum, item) => {
+    if (!rechargeStillCounts(item, now)) return sum;
+    return sum + item.delta;
+  }, 0);
+}
+
+export function aestheticRechargesExpiringSoon(
+  history: AnalisisPiel360CreditHistoryItem[],
+  now = Date.now(),
+): number {
+  return history.reduce((sum, item) => {
+    if (!rechargeStillCounts(item, now) || !item.timestampMs) return sum;
+    const left = item.timestampMs + AESTHETIC_RECHARGE_MS - now;
+    if (left > EXPIRING_SOON_MS) return sum;
+    return sum + item.delta;
+  }, 0);
+}
+
 function mapHistoryRow(row: HistoryRow): AnalisisPiel360CreditHistoryItem {
   const delta = (row.info?.credits ?? []).reduce((sum, credit) => {
     return sum + Number(credit.amount_dec ?? credit.amount ?? 0);

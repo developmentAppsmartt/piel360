@@ -261,7 +261,7 @@ export default function BolsaUnidadesPage() {
               pool={aestheticPool}
               live={Boolean(analisisPiel360Pool.data)}
               liveLabel="Estético"
-              totalLabel="Saldo + en planes"
+              totalLabel="Total recargado"
               usedLabel="En planes"
               loading={analisisPiel360Pool.isLoading && !analisisPiel360Pool.data}
             />

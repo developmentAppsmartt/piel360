@@ -130,6 +130,7 @@ export class SubscriptionCreditsService {
     return analysisLimit - (usage._sum.quantity ?? 0);
   }
 
+  /** Un análisis gasta 1 del cupo ya asignado. La bolsa no se vuelve a tocar. */
   async consumeCredit(db: Db, subscriptionId: bigint, analysisId: bigint) {
     return db.subscriptionUsage.create({
       data: { subscriptionId, analysisId, quantity: 1 },

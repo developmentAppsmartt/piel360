@@ -11,6 +11,11 @@ import { SpecialtyAccessService } from '../specialty-access/specialty-access.ser
 import { getAnalysisProviderIdBySlug } from '../plans/plan-providers.util';
 import type { CreateFitzpatrickAnalysisDto } from './dto/create-fitzpatrick-analysis.dto';
 import { FitzpatrickService } from './fitzpatrick.service';
+import {
+  recentAnalysisKey,
+  rememberRecentAnalysis,
+  reuseRecentAnalysis,
+} from '../analyses/recent-analysis-create';
 
 const FITZPATRICK_PROVIDER_SLUG = 'fitzpatrick';
 // docs/ai_fitzpatrick_skin_type.md — "File Specs & Errors": lado corto ≥320px,
@@ -40,6 +45,24 @@ export class FitzpatrickAnalysesService {
    * sube la imagen, crea la tarea, espera el resultado dentro de la misma
    * petición HTTP y ya crea el `Analysis` completo. */
   async createAnalysis(
+    dto: CreateFitzpatrickAnalysisDto,
+    image: Buffer,
+    currentUser: JwtPayload,
+  ) {
+    const key = recentAnalysisKey({
+      userId: currentUser.sub,
+      patientId: dto.patientId,
+      image,
+    });
+    const reused = reuseRecentAnalysis(key);
+    if (reused) return reused;
+    return rememberRecentAnalysis(
+      key,
+      this.createAnalysisInner(dto, image, currentUser),
+    );
+  }
+
+  private async createAnalysisInner(
     dto: CreateFitzpatrickAnalysisDto,
     image: Buffer,
     currentUser: JwtPayload,
