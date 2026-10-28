@@ -99,11 +99,15 @@ export function AnalisisPiel360Viewer({
   }
 
   return (
-      <ModuleCard className="overflow-hidden p-0">
+      // El ancho se limita en vez del alto: con `max-h` la caja quedaba
+      // apaisada en una columna ancha y `object-cover` cortaba la cara arriba y
+      // abajo (en el móvil se veía completa). `contain` en la foto y en las
+      // máscaras: miden lo mismo, así que siguen alineadas.
+      <ModuleCard className="mx-auto w-full max-w-md overflow-hidden p-0">
         <div
           ref={viewerRef}
           className={cn(
-            "relative aspect-[4/5] max-h-[420px] w-full overflow-hidden bg-muted touch-none select-none",
+            "relative aspect-[4/5] w-full overflow-hidden bg-muted touch-none select-none",
             canPan ? "cursor-grab active:cursor-grabbing" : "cursor-default",
           )}
           onPointerDown={onViewerPointerDown}
@@ -123,7 +127,7 @@ export function AnalisisPiel360Viewer({
               <img
                 src={imageUrl!}
                 alt="Foto del análisis"
-                className="absolute inset-0 size-full object-cover"
+                className="absolute inset-0 size-full object-contain"
               />
               {overviewMaskUrls
                 ? overviewMaskUrls.map((url) => (
@@ -132,7 +136,7 @@ export function AnalisisPiel360Viewer({
                       key={url}
                       src={url}
                       alt=""
-                      className="absolute inset-0 size-full object-cover"
+                      className="absolute inset-0 size-full object-contain"
                     />
                   ))
                 : maskUrl && (
@@ -140,7 +144,7 @@ export function AnalisisPiel360Viewer({
                     <img
                       src={maskUrl}
                       alt={badgeLabel ?? "Máscara"}
-                      className="absolute inset-0 size-full object-cover"
+                      className="absolute inset-0 size-full object-contain"
                     />
                   )}
             </>
