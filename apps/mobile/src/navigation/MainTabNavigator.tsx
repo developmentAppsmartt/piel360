@@ -393,7 +393,8 @@ export function MainTabNavigator() {
         {activeTab === 'profile' || (isDoctor && !doctorActive) ? (
           <ProfileView onOpenMessages={openInbox} />
         ) : null}
-        {planRestricted && user ? (
+        {(planRestricted || (accountStatus?.expiredPlans?.length ?? 0) > 0) &&
+        user ? (
           <NoActivePlanModal
             userId={user.id}
             expiredPlans={accountStatus?.expiredPlans ?? []}

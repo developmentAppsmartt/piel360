@@ -7,6 +7,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.media.ExifInterface
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.os.Bundle
@@ -471,9 +473,8 @@ class SkinAnalysisCaptureActivity : AppCompatActivity() {
         override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
           captureLoader.stop()
           captureLoader.visibility = View.GONE
-          // CameraX entrega el sensor completo aunque se pida 1440×1920.
-          // Fototipo rechaza un lado mayor de 4096 px.
-          limitLongSide(outFile, MAX_LONG_SIDE_PX)
+          // El A50 guarda el sensor de lado y el fototipo rechaza más de 4096 px.
+          prepareCaptureFile(outFile, MAX_LONG_SIDE_PX)
           val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
           BitmapFactory.decodeFile(outFile.absolutePath, bounds)
           val result =
@@ -520,41 +521,78 @@ class SkinAnalysisCaptureActivity : AppCompatActivity() {
   }
 
   /**
-   * El proveedor de fototipo no acepta un lado mayor de 4096 px. La captura
-   * guiada suele salir más grande; se reescribe el JPEG antes de devolverlo.
+   * Endereza la captura (el A50 guarda el sensor de lado) y la deja con el
+   * lado largo en 4096 px, que es el máximo del fototipo.
    */
-  private fun limitLongSide(file: File, maxLongSide: Int) {
+  private fun prepareCaptureFile(file: File, maxLongSide: Int) {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeFile(file.absolutePath, bounds)
     val srcW = bounds.outWidth
     val srcH = bounds.outHeight
-    if (srcW <= 0 || srcH <= 0 || maxOf(srcW, srcH) <= maxLongSide) return
+    if (srcW <= 0 || srcH <= 0) return
+    val rotation = exifRotationDegrees(file)
+    val orientedLong =
+      if (rotation == 90 || rotation == 270) maxOf(srcH, srcW) else maxOf(srcW, srcH)
+    if (rotation == 0 && orientedLong <= maxLongSide) return
 
     var sample = 1
-    while (maxOf(srcW, srcH) / sample > maxLongSide * 2) sample *= 2
+    while (orientedLong / sample > maxLongSide * 2) sample *= 2
     val decoded =
       BitmapFactory.decodeFile(
         file.absolutePath,
         BitmapFactory.Options().apply { inSampleSize = sample },
       ) ?: return
-    val scale = maxLongSide.toFloat() / maxOf(decoded.width, decoded.height)
-    val targetW = maxOf(1, Math.round(decoded.width * scale))
-    val targetH = maxOf(1, Math.round(decoded.height * scale))
-    val scaled =
-      if (decoded.width == targetW && decoded.height == targetH) {
+    val upright =
+      if (rotation == 0) {
         decoded
       } else {
-        Bitmap.createScaledBitmap(decoded, targetW, targetH, true)
+        val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
+        val turned =
+          Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
+        if (turned !== decoded) decoded.recycle()
+        turned
+      }
+    val scale =
+      if (maxOf(upright.width, upright.height) > maxLongSide) {
+        maxLongSide.toFloat() / maxOf(upright.width, upright.height)
+      } else {
+        1f
+      }
+    val targetW = maxOf(1, Math.round(upright.width * scale))
+    val targetH = maxOf(1, Math.round(upright.height * scale))
+    val scaled =
+      if (targetW == upright.width && targetH == upright.height) {
+        upright
+      } else {
+        Bitmap.createScaledBitmap(upright, targetW, targetH, true)
       }
     try {
       FileOutputStream(file).use { out ->
         scaled.compress(Bitmap.CompressFormat.JPEG, 92, out)
       }
     } catch (e: Exception) {
-      Log.w(TAG, "No se pudo achicar la captura", e)
+      Log.w(TAG, "No se pudo preparar la captura", e)
     } finally {
-      if (scaled !== decoded) scaled.recycle()
-      decoded.recycle()
+      if (scaled !== upright) scaled.recycle()
+      upright.recycle()
+    }
+  }
+
+  private fun exifRotationDegrees(file: File): Int {
+    return try {
+      when (
+        ExifInterface(file.absolutePath).getAttributeInt(
+          ExifInterface.TAG_ORIENTATION,
+          ExifInterface.ORIENTATION_NORMAL,
+        )
+      ) {
+        ExifInterface.ORIENTATION_ROTATE_90, ExifInterface.ORIENTATION_TRANSPOSE -> 90
+        ExifInterface.ORIENTATION_ROTATE_180 -> 180
+        ExifInterface.ORIENTATION_ROTATE_270, ExifInterface.ORIENTATION_TRANSVERSE -> 270
+        else -> 0
+      }
+    } catch (_: Exception) {
+      0
     }
   }
 

@@ -219,7 +219,13 @@ export function buildBolsaMovements(
   });
 
   const topUps = [...liveRows, ...dermRows].filter(isRechargeMovement);
-  const all = (onlyRecharges ? topUps : assignments).sort(
+  // La tabla de asignaciones solo ve cupos con créditos todavía apartados.
+  // Al cancelar, ese cupo llega a cero y la fila se iba; la devolución queda
+  // en el libro local y hay que pintarla aparte.
+  const returns = [...liveRows, ...dermRows].filter(
+    (row) => row.rawKind === "subscription_return",
+  );
+  const all = (onlyRecharges ? topUps : [...assignments, ...returns]).sort(
     (a, b) => b.sortAt - a.sortAt,
   );
   if (typeFilter === "all") return all;

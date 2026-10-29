@@ -169,7 +169,18 @@ export class AccountStatusService {
       .slice(0, MAX_EXPIRED_PLANS)
       .map(({ ts: _ts, ...info }) => info);
 
-    return { planRestricted: true, expiredPlans, depletedPlans: [] };
+    // Los módulos siguen mientras algún plan esté dentro de los 60 días.
+    // planRestricted solo corta el menú cuando esa ventana ya pasó, o cuando
+    // no quedó ninguna suscripción de la que sacar la fecha.
+    const retainsAccess = expiredPlans.some(
+      (plan) => new Date(plan.dataDeletionAt) > now,
+    );
+
+    return {
+      planRestricted: !retainsAccess,
+      expiredPlans,
+      depletedPlans: [],
+    };
   }
 
   /**

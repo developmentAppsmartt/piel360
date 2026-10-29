@@ -39,22 +39,29 @@ export class AnalisisPiel360UnitsService {
    */
   async getAestheticUnitPool() {
     await this.subscriptionPool.syncActiveSubscriptionPools();
-    const [balances, skus, history, planCupos] = await Promise.all([
-      this.youcam.getCreditBalances(),
-      this.youcam.getFeatureCosts().catch((err) => {
-        this.logger.warn(
-          `feature-cost no disponible: ${err instanceof Error ? err.message : String(err)}`,
-        );
-        return [] as AnalisisPiel360FeatureSku[];
-      }),
-      this.youcam.getCreditHistory().catch((err) => {
-        this.logger.warn(
-          `credit/history no disponible: ${err instanceof Error ? err.message : String(err)}`,
-        );
-        return [] as AnalisisPiel360CreditHistoryItem[];
-      }),
-      listBolsaPlanCupos(this.prisma, 'perfectcorp'),
-    ]);
+    const [balances, skus, history, planCupos, localReturns] =
+      await Promise.all([
+        this.youcam.getCreditBalances(),
+        this.youcam.getFeatureCosts().catch((err) => {
+          this.logger.warn(
+            `feature-cost no disponible: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          return [] as AnalisisPiel360FeatureSku[];
+        }),
+        this.youcam.getCreditHistory().catch((err) => {
+          this.logger.warn(
+            `credit/history no disponible: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          return [] as AnalisisPiel360CreditHistoryItem[];
+        }),
+        listBolsaPlanCupos(this.prisma, 'perfectcorp'),
+        this.prisma.platformUnitRecharge.findMany({
+          where: { provider: 'perfectcorp', kind: 'subscription_return' },
+          orderBy: { createdAt: 'desc' },
+          take: 80,
+          select: { id: true, quantity: true, note: true, createdAt: true },
+        }),
+      ]);
 
     const reservedInPlans = planCupos.reduce(
       (sum, row) => sum + row.credits,
@@ -82,7 +89,18 @@ export class AnalisisPiel360UnitsService {
       balances: balances.map(serializeBalance),
       featureCosts: summarizeFeatureCosts(skus),
       planCupos,
-      history: purchases.map(serializeHistory).sort((a, b) => {
+      history: [
+        ...localReturns.map((row) => ({
+          id: `return-${row.id.toString()}`,
+          action: 'subscription_return',
+          delta: row.quantity,
+          timestamp: row.createdAt.toISOString(),
+          targetId: null,
+          dstActions: [] as string[],
+          note: row.note,
+        })),
+        ...purchases.map(serializeHistory),
+      ].sort((a, b) => {
         const ta = a.timestamp ? new Date(a.timestamp).getTime() : 0;
         const tb = b.timestamp ? new Date(b.timestamp).getTime() : 0;
         return tb - ta;

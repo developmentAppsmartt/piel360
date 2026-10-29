@@ -1,4 +1,11 @@
-import { Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  forwardRef,
+} from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { BillingService } from '../billing/billing.service';
 import { MailService } from '../mail/mail.service';
@@ -88,6 +95,58 @@ export class SubscriptionsService {
         ),
       ),
     );
+  }
+
+  /** Análisis que descontaron crédito de esta suscripción: paciente y momento del cobro. */
+  async listConsumptions(userId: bigint, subscriptionId: string) {
+    const ctx = await this.orgContext.resolve(userId.toString());
+    this.orgContext.assertTeamPermission(ctx, 'billing');
+
+    let id: bigint;
+    try {
+      id = BigInt(subscriptionId);
+    } catch {
+      throw new BadRequestException('Suscripción no válida');
+    }
+
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { id },
+      select: { userId: true },
+    });
+    if (!subscription || subscription.userId !== ctx.subscriptionUserId) {
+      throw new NotFoundException('Suscripción no encontrada');
+    }
+
+    const usages = await this.prisma.subscriptionUsage.findMany({
+      where: { subscriptionId: id },
+      select: {
+        id: true,
+        createdAt: true,
+        analysis: {
+          select: {
+            id: true,
+            patientId: true,
+            patient: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return usages.map((usage) => {
+      const patient = usage.analysis.patient;
+      const patientName = [patient.firstName, patient.lastName]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+      return {
+        id: usage.id.toString(),
+        analysisId: usage.analysis.id.toString(),
+        patientId: usage.analysis.patientId.toString(),
+        consumedAt: usage.createdAt.toISOString(),
+        patientName: patientName || 'Paciente sin nombre',
+      };
+    });
   }
 
   /**
