@@ -1326,6 +1326,7 @@ model PlatformUnitRecharge {
    * recharge — recarga admin (cuenta para el saldo).
    * subscription_return — devolución al cancelar (solo historial).
    * subscription_reserve — reserva al activar (solo historial).
+   * balance_writeoff — créditos que no vuelven al borrar un plan.
    */
   kind        String    @default("recharge")
   quantity    Int

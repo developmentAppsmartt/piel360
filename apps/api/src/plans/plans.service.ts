@@ -28,6 +28,7 @@ import {
   resolvePlanProviderIdsFromDto,
 } from './plan-providers.util';
 import { PlanPoolAvailabilityService } from './plan-pool-availability.service';
+import { sealSkiniverCreditsBeforePlanDelete } from '../subscriptions/derm-spent-credits';
 
 function normalizePlanFeatures(
   features: PlanFeatureDto[] | undefined,
@@ -349,8 +350,10 @@ export class PlansService {
   /** Devuelve la fila borrada, asi que sus claves tambien salen publicas.
    * No lleva relacion `provider`, por eso no pasa por `toPublicPlanProviders`. */
   async remove(id: string) {
+    const planId = BigInt(id);
+    await sealSkiniverCreditsBeforePlanDelete(this.prisma, planId);
     const borrado = await this.prisma.plan.delete({
-      where: { id: BigInt(id) },
+      where: { id: planId },
     });
     return {
       ...borrado,
