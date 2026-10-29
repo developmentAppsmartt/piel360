@@ -3,6 +3,7 @@ import type { Plan, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { parsePlanProviderIds } from '../plans/plan-providers.util';
 import { bagCreditsForPlan } from './bag-credits';
+import { dermCreditsSpentOutsidePlans } from './derm-spent-credits';
 
 export type PoolProvider = 'skiniver' | 'perfectcorp';
 
@@ -67,11 +68,12 @@ export class SubscriptionPoolService {
   async getAnalisisDermaPiel360Available(
     db: Db = this.prisma,
   ): Promise<number> {
-    const [total, committed] = await Promise.all([
+    const [total, committed, spent] = await Promise.all([
       this.getAnalisisDermaPiel360RechargeTotal(db),
       this.getCommittedCredits(db, 'skiniver'),
+      dermCreditsSpentOutsidePlans(db),
     ]);
-    return Math.max(0, total - committed);
+    return Math.max(0, total - committed - spent);
   }
 
   private async providerSlugMap(db: Db) {
@@ -187,7 +189,7 @@ export class SubscriptionPoolService {
   ): Promise<void> {
     const recordMovement = options?.recordMovement !== false;
     const slugMap = await this.providerSlugMap(db);
-    const poolProvider = await this.resolvePoolProvider(plan, slugMap);
+    const poolProvider = this.resolvePoolProvider(plan, slugMap);
     const quantity = bagCreditsForPlan(plan, slugMap);
     if (quantity <= 0) return;
 
@@ -294,7 +296,7 @@ export class SubscriptionPoolService {
     const slugMap = await this.providerSlugMap(db);
     const credits = bagCreditsForPlan(plan, slugMap);
     if (this.storedAsAnalysisCount(allocation, plan, credits)) {
-      const poolProvider = await this.resolvePoolProvider(plan, slugMap);
+      const poolProvider = this.resolvePoolProvider(plan, slugMap);
       await this.rewriteAllocationToCredits(
         db,
         subscriptionId,

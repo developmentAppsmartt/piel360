@@ -12,7 +12,7 @@ import {
   toPublicProviderSlug,
 } from '@piel360/shared';
 import { bagCreditsForPlan } from '../subscriptions/bag-credits';
-import { aestheticRechargeCredits } from '../youcam/youcam-credit-history';
+import { consumableAestheticBalance } from '../youcam/youcam-credit-history';
 
 export type PlanPoolStatus = {
   poolProvider: PoolProvider;
@@ -44,11 +44,11 @@ export class PlanPoolAvailabilityService {
 
   async getBalances(): Promise<PoolBalances> {
     await this.subscriptionPool.syncActiveSubscriptionPools();
-    const [skiniver, history, committedAnalisisPiel360] = await Promise.all([
+    const [skiniver, balances, committedAnalisisPiel360] = await Promise.all([
       this.subscriptionPool.getAnalisisDermaPiel360Available(),
-      this.youcam.getCreditHistory().catch((err: unknown) => {
+      this.youcam.getCreditBalances().catch((err: unknown) => {
         this.logger.warn(
-          `No se pudo leer el historial estético para la bolsa: ${
+          `No se pudo leer el saldo estético de la plataforma: ${
             err instanceof Error ? err.message : String(err)
           }`,
         );
@@ -56,13 +56,11 @@ export class PlanPoolAvailabilityService {
       }),
       this.subscriptionPool.getCommittedCredits(this.prisma, 'perfectcorp'),
     ]);
+    const live = consumableAestheticBalance(balances).live;
 
     return {
       skiniver,
-      perfectcorp: Math.max(
-        0,
-        aestheticRechargeCredits(history) - committedAnalisisPiel360,
-      ),
+      perfectcorp: Math.max(0, live - committedAnalisisPiel360),
     };
   }
 

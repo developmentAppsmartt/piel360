@@ -261,7 +261,7 @@ export default function BolsaUnidadesPage() {
               pool={aestheticPool}
               live={Boolean(analisisPiel360Pool.data)}
               liveLabel="Estético"
-              totalLabel="Total recargado"
+              totalLabel="Saldo vigente"
               usedLabel="En planes"
               loading={analisisPiel360Pool.isLoading && !analisisPiel360Pool.data}
             />
@@ -351,10 +351,14 @@ export default function BolsaUnidadesPage() {
         <p className="flex gap-2">
           <Info className="mt-0.5 size-4 shrink-0 text-sky-600 dark:text-sky-300" />
           <span>
-            Estético y Fototipo comparten la misma bolsa; la recarga se hace
-            en el portal del proveedor. La bolsa Dermatológica se registra aquí
-            con &quot;Recargar Dermatológico&quot;: el saldo es recargas activas
-            menos análisis dermatológicos consumidos en la plataforma. Para
+            Estético y Fototipo comparten la misma bolsa. Al actualizar, el
+            saldo disponible es el que el proveedor tiene vigente para
+            consumir, menos lo que sigue apartado en planes activos. La
+            recarga se hace en el portal del proveedor. La bolsa Dermatológica
+            se registra aquí con &quot;Recargar Dermatológico&quot;: cuenta las
+            recargas que no han vencido, resta lo apartado en planes activos y
+            no devuelve créditos de planes eliminados que ya se usaron o
+            vencieron. Para
             ampliar el plan dermatológico contacta{" "}
             <a
               href="mailto:info@skinive.com"
