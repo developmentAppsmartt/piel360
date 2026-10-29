@@ -27,7 +27,9 @@ export default async function DoctorPanelLayout({
   );
 
   const active = isDoctorVerificationActive(session.verificationStatus);
+  const expiredPlans = account?.expiredPlans ?? [];
   const planRestricted = active && Boolean(account?.planRestricted);
+  const retainsAccess = active && !planRestricted && expiredPlans.length > 0;
   const subtitle = !active
     ? "Verificación pendiente"
     : planRestricted
@@ -70,10 +72,11 @@ export default async function DoctorPanelLayout({
           <strong>compras y facturación</strong> y tu <strong>cuenta</strong>.
         </div>
       ) : null}
-      {planRestricted ? (
+      {planRestricted || retainsAccess ? (
         <NoActivePlanNotice
           userId={session.sub}
-          expiredPlans={account?.expiredPlans ?? []}
+          expiredPlans={expiredPlans}
+          retainsAccess={retainsAccess}
         />
       ) : null}
       {active && !planRestricted && account?.depletedPlans?.length ? (

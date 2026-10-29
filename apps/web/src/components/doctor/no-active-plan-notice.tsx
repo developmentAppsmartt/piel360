@@ -38,9 +38,12 @@ function joinPlanNames(names: string[]) {
 export function NoActivePlanNotice({
   userId,
   expiredPlans,
+  retainsAccess = false,
 }: {
   userId: string;
   expiredPlans: ExpiredPlanInfo[];
+  /** La suscripción ya venció, pero los módulos siguen hasta la fecha de borrado. */
+  retainsAccess?: boolean;
 }) {
   const storageKey = `piel360:no-plan-notice:${userId}`;
   const [open, setOpen] = useState(false);
@@ -61,9 +64,20 @@ export function NoActivePlanNotice({
     <>
       <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
         <p>
-          {expired ? "Tu suscripción finalizó." : "No tienes un plan activo."} Mientras
-          tanto solo puedes usar <strong>Inicio</strong>, <strong>Reportes</strong>,{" "}
-          <strong>Planes y suscripciones</strong> y <strong>Soporte</strong>.
+          {retainsAccess ? (
+            <>
+              Tu suscripción finalizó. Tu información y tus módulos siguen
+              disponibles durante {EXPIRED_PLAN_DATA_RETENTION_DAYS} días, hasta
+              las fechas del aviso.
+            </>
+          ) : (
+            <>
+              {expired ? "Tu suscripción finalizó." : "No tienes un plan activo."}{" "}
+              Mientras tanto solo puedes usar <strong>Inicio</strong>,{" "}
+              <strong>Reportes</strong>, <strong>Planes y suscripciones</strong> y{" "}
+              <strong>Soporte</strong>.
+            </>
+          )}
         </p>
         <Link
           href="/doctor/planes"

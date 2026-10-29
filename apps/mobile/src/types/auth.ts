@@ -49,7 +49,10 @@ export type AccountStatus = {
   disabledReason: string | null;
   disabledAt: string | null;
   disabledScope: 'user' | 'organization' | null;
-  /** Profesional verificado sin plan vigente: menú limitado. */
+  /**
+   * Menú limitado. Durante los 60 días posteriores al vencimiento llega en
+   * false y expiredPlans trae las fechas: el aviso se muestra y los módulos siguen.
+   */
   planRestricted: boolean;
   expiredPlans: ExpiredPlanInfo[];
   /** Planes vigentes que consumieron todos sus análisis. */

@@ -33,6 +33,7 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import type { Subscription } from "@/lib/queries/subscriptions";
 import { cn } from "@/lib/utils";
+import { BillingPlanConsumptions } from "./billing-plan-consumptions";
 import {
   BillingCreditsBar,
   BillingPlanAvatar,
@@ -130,6 +131,7 @@ export function BillingPlanDetailDialog({
         {sub ? (
           <DetailBody
             sub={sub}
+            open={open}
             onOpenHistory={onOpenHistory}
             showTeamFeatures={showTeamFeatures}
             customerName={customerName}
@@ -142,11 +144,13 @@ export function BillingPlanDetailDialog({
 
 function DetailBody({
   sub,
+  open,
   onOpenHistory,
   showTeamFeatures,
   customerName,
 }: {
   sub: Subscription;
+  open: boolean;
   onOpenHistory: () => void;
   showTeamFeatures: boolean;
   customerName?: string | null;
@@ -276,6 +280,8 @@ function DetailBody({
           </BillRow>
         </Panel>
       </div>
+
+      <BillingPlanConsumptions subscriptionId={sub.id} active={open} />
 
       {showTeamFeatures ? (
         <section className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4">
