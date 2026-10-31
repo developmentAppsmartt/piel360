@@ -80,7 +80,6 @@ export function SkiniverAnalysisFlow({
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
   const [importantNotes, setImportantNotes] = useState('');
-  const [notesLoaded, setNotesLoaded] = useState(false);
   const label = ANALYSIS_PROVIDER_STATIC_LABELS.skiniver;
   const regionLabel = selection
     ? BODY_PARTS_INFO[selection.bodyRegion]?.label ?? selection.bodyRegion
@@ -96,12 +95,9 @@ export function SkiniverAnalysisFlow({
       try {
         const patient = await patientsService.getById(patientId);
         if (cancelled) return;
-        setImportantNotes(patient.importantNotes ?? '');
         setProfileGender(patient.gender ?? null);
       } catch {
-        // El análisis puede seguir sin las notas.
-      } finally {
-        if (!cancelled) setNotesLoaded(true);
+        // Sin el género del perfil se usa el modelo por defecto.
       }
     })();
     return () => {
@@ -109,22 +105,12 @@ export function SkiniverAnalysisFlow({
     };
   }, [patientId]);
 
-  async function persistImportantNotes() {
-    const next = importantNotes.trim();
-    try {
-      await patientsService.update(patientId, { importantNotes: next });
-    } catch {
-      // No bloquear el análisis si falla el guardado de notas.
-    }
-  }
-
   async function handlePick(source: 'camera' | 'library') {
     if (picking || !patientId || !selection) return;
     setPicking(true);
     try {
       const asset = await elegirImagen(source);
       if (!asset) return;
-      await persistImportantNotes();
       setImageUri(asset.uri);
       setStep('processing');
     } catch (err) {
@@ -155,6 +141,7 @@ export function SkiniverAnalysisFlow({
           patientId={patientId}
           imageUri={imageUri}
           selection={selection}
+          doctorNotes={importantNotes}
           onDone={onAnalysisCreated}
           onError={(message) => {
             Alert.alert(label, maskVendorMessage(message));
@@ -233,10 +220,7 @@ export function SkiniverAnalysisFlow({
                 { borderRadius: 999 },
                 !selection && styles.primaryBtnDisabled, pressed && { backgroundColor: branding.colors.buttonHover }]}
               disabled={!selection}
-              onPress={() => {
-                void persistImportantNotes();
-                setStep('capture');
-              }}
+              onPress={() => setStep('capture')}
             >
               <Text style={styles.primaryBtnText}>Continuar</Text>
             </Pressable>
@@ -295,7 +279,7 @@ export function SkiniverAnalysisFlow({
               onChangeText={setImportantNotes}
               multiline
               maxLength={500}
-              editable={notesLoaded && !picking}
+              editable={!picking}
               textAlignVertical="top"
               placeholder="Alergias, antecedentes, observaciones clínicas…"
               placeholderTextColor={branding.colors.muted}

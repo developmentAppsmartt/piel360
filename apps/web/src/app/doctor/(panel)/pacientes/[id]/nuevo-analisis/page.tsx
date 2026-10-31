@@ -10,7 +10,6 @@ import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import { ApiError } from "@/lib/api-error";
 import { cn } from "@/lib/utils";
 import { useCreateAnalysis } from "@/lib/queries/analyses";
-import { usePatient, useUpdatePatient } from "@/lib/queries/patients";
 
 type Step = "region" | "captura" | "enviar" | "resultados";
 
@@ -43,35 +42,15 @@ export default function NuevoAnalisisPage() {
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [importantNotes, setImportantNotes] = useState("");
-  const [notesHydrated, setNotesHydrated] = useState(false);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const { data: patient } = usePatient(patientId);
-  const updatePatient = useUpdatePatient(patientId);
   const createAnalysis = useCreateAnalysis();
-
-  useEffect(() => {
-    if (!patient || notesHydrated) return;
-    setImportantNotes(patient.importantNotes ?? "");
-    setNotesHydrated(true);
-  }, [patient, notesHydrated]);
 
   useEffect(() => {
     return () => {
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
     };
   }, []);
-
-  async function persistNotes() {
-    const next = importantNotes.trim();
-    const current = (patient?.importantNotes ?? "").trim();
-    if (next === current) return;
-    try {
-      await updatePatient.mutateAsync({ importantNotes: next });
-    } catch {
-      // No bloquear el análisis si falla el guardado de notas.
-    }
-  }
 
   async function handleSubmit() {
     if (!photo) return;
@@ -80,11 +59,11 @@ export default function NuevoAnalisisPage() {
       setProgress((current) => (current < 95 ? current + Math.floor(Math.random() * 5) + 1 : current));
     }, 200);
     try {
-      await persistNotes();
       const created = await createAnalysis.mutateAsync({
         patientId,
         image: photo.file,
         ...bodySelection,
+        doctorNotes: importantNotes.trim() || undefined,
       });
       setProgress(100);
       setAnalysisId(created.id);
@@ -122,10 +101,7 @@ export default function NuevoAnalisisPage() {
           <div className="flex gap-2">
             <Button
               type="button"
-              onClick={() => {
-                void persistNotes();
-                setStep("captura");
-              }}
+              onClick={() => setStep("captura")}
             >
               {bodySelection ? "Continuar" : "Omitir"}
             </Button>

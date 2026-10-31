@@ -4,6 +4,7 @@ import {
   IsNumberString,
   IsOptional,
   IsString,
+  MaxLength,
 } from 'class-validator';
 
 export class CreateAnalysisDto {
@@ -28,4 +29,10 @@ export class CreateAnalysisDto {
   @Type(() => Number)
   @IsNumber()
   zCoord?: number;
+
+  /** Notas de este análisis. No se copian al paciente ni al siguiente. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  doctorNotes?: string;
 }
