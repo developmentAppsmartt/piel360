@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
-import * as ImagePicker from 'expo-image-picker';
+import { elegirImagen } from '../../../services/elegir-imagen';
 import { AppIcon } from '../../../components/AppIcon';
 import { Icons } from '../../../components/icons';
 import type { ChatStyles } from '../styles/chat.styles';
@@ -47,20 +47,8 @@ export function ChatComposer({
 
   async function pickImage() {
     if (sending) return;
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert(
-        'Permiso',
-        'Necesitamos acceso a tu galería para enviar imágenes.',
-      );
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.85,
-    });
-    if (result.canceled || !result.assets[0]) return;
-    const asset = result.assets[0];
+    const asset = await elegirImagen('library', { calidad: 0.85 });
+    if (!asset) return;
     const mimeType = asset.mimeType ?? 'image/jpeg';
     const name =
       asset.fileName ??

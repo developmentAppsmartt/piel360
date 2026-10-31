@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import * as ImagePicker from 'expo-image-picker';
+import { elegirImagen } from '../../../../services/elegir-imagen';
 import { AppIcon } from '../../../../components/AppIcon';
 import { CalendarDateField } from '../../../../components/CalendarDateField';
 import { Icons } from '../../../../components/icons';
@@ -471,33 +471,8 @@ export function PatientDetailView({
 
   async function captureAndSendImage(source: 'camera' | 'library') {
     if (sendingImage) return;
-    const permission =
-      source === 'camera'
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert(
-        'Permiso necesario',
-        source === 'camera'
-          ? 'Necesitamos acceso a la cámara para capturar la imagen.'
-          : 'Necesitamos acceso a la galería para enviar la imagen.',
-      );
-      return;
-    }
-
-    const result =
-      source === 'camera'
-        ? await ImagePicker.launchCameraAsync({
-            mediaTypes: ['images'],
-            quality: 0.85,
-          })
-        : await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            quality: 0.85,
-          });
-    if (result.canceled || !result.assets[0]?.uri) return;
-
-    const asset = result.assets[0];
+    const asset = await elegirImagen(source, { calidad: 0.85 });
+    if (!asset) return;
     setSendingImage(true);
     try {
       const conversationId = await openPatientChat();

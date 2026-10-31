@@ -86,6 +86,7 @@ export interface CreateAnalysisInput {
   xCoord?: number;
   yCoord?: number;
   zCoord?: number;
+  doctorNotes?: string;
 }
 
 export interface ConfirmAnalysisInput {
@@ -184,6 +185,9 @@ export function useCreateAnalysis() {
       if (fields.xCoord !== undefined) form.append("xCoord", String(fields.xCoord));
       if (fields.yCoord !== undefined) form.append("yCoord", String(fields.yCoord));
       if (fields.zCoord !== undefined) form.append("zCoord", String(fields.zCoord));
+      if (fields.doctorNotes?.trim()) {
+        form.append("doctorNotes", fields.doctorNotes.trim());
+      }
 
       return apiClientFetch<AnalysisDetail>("/analyses", { method: "POST", body: form });
     },

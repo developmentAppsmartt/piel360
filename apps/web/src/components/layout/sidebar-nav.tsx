@@ -535,7 +535,7 @@ export function SidebarNav({
   return (
     <nav
       className={cn(
-        "flex flex-1 flex-col gap-1 overflow-x-hidden overflow-y-auto pt-2 pb-3",
+        "flex min-h-0 flex-1 flex-col gap-1 overflow-x-hidden overflow-y-auto pt-2 pb-3",
         collapsed ? "px-2" : "px-3",
       )}
     >

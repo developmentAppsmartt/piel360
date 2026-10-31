@@ -150,6 +150,14 @@ const MAX_IMAGE_ZOOM = 2.5;
 const IMAGE_ZOOM_STEP = 0.25;
 const ZERO_PAN = { x: 0, y: 0 };
 
+function distanciaToques(
+  touches: ReadonlyArray<{ pageX: number; pageY: number }>,
+): number {
+  if (touches.length < 2) return 0;
+  const [a, b] = touches;
+  return Math.hypot(a.pageX - b.pageX, a.pageY - b.pageY);
+}
+
 function clampImagePan(
   pan: { x: number; y: number },
   zoom: number,
@@ -445,6 +453,7 @@ export function YoucamResultsSection({
   const [imagePan, setImagePan] = useState(ZERO_PAN);
   const viewerSize = useRef({ width: 0, height: 0 });
   const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const pinchStart = useRef<{ distance: number; zoom: number } | null>(null);
   const imageZoomRef = useRef(imageZoom);
   const imagePanRef = useRef(imagePan);
   imageZoomRef.current = imageZoom;
@@ -453,13 +462,24 @@ export function YoucamResultsSection({
   const imagePanResponder = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponder: (_e, g) =>
-          imageZoomRef.current > MIN_IMAGE_ZOOM &&
-          (Math.abs(g.dx) > 2 || Math.abs(g.dy) > 2),
-        onMoveShouldSetPanResponderCapture: (_e, g) =>
-          imageZoomRef.current > MIN_IMAGE_ZOOM &&
-          (Math.abs(g.dx) > 2 || Math.abs(g.dy) > 2),
+        onMoveShouldSetPanResponder: (e, g) =>
+          e.nativeEvent.touches.length >= 2 ||
+          (imageZoomRef.current > MIN_IMAGE_ZOOM &&
+            (Math.abs(g.dx) > 2 || Math.abs(g.dy) > 2)),
+        onMoveShouldSetPanResponderCapture: (e, g) =>
+          e.nativeEvent.touches.length >= 2 ||
+          (imageZoomRef.current > MIN_IMAGE_ZOOM &&
+            (Math.abs(g.dx) > 2 || Math.abs(g.dy) > 2)),
         onPanResponderGrant: (e) => {
+          const distance = distanciaToques(e.nativeEvent.touches);
+          if (distance > 0) {
+            pinchStart.current = {
+              distance,
+              zoom: imageZoomRef.current,
+            };
+            return;
+          }
+          pinchStart.current = null;
           panStart.current = {
             x: e.nativeEvent.pageX,
             y: e.nativeEvent.pageY,
@@ -468,6 +488,44 @@ export function YoucamResultsSection({
           };
         },
         onPanResponderMove: (e) => {
+          const distance = distanciaToques(e.nativeEvent.touches);
+          if (distance > 0) {
+            if (!pinchStart.current) {
+              pinchStart.current = {
+                distance,
+                zoom: imageZoomRef.current,
+              };
+              return;
+            }
+            const zoom = Math.min(
+              MAX_IMAGE_ZOOM,
+              Math.max(
+                MIN_IMAGE_ZOOM,
+                pinchStart.current.zoom *
+                  (distance / pinchStart.current.distance),
+              ),
+            );
+            imageZoomRef.current = zoom;
+            setImageZoom(zoom);
+            setImagePan((pan) =>
+              clampImagePan(
+                zoom <= MIN_IMAGE_ZOOM ? ZERO_PAN : pan,
+                zoom,
+                viewerSize.current.width,
+                viewerSize.current.height,
+              ),
+            );
+            return;
+          }
+          if (pinchStart.current) {
+            pinchStart.current = null;
+            panStart.current = {
+              x: e.nativeEvent.pageX,
+              y: e.nativeEvent.pageY,
+              panX: imagePanRef.current.x,
+              panY: imagePanRef.current.y,
+            };
+          }
           if (imageZoomRef.current <= MIN_IMAGE_ZOOM) return;
           setImagePan(
             clampImagePan(
@@ -484,6 +542,9 @@ export function YoucamResultsSection({
               viewerSize.current.height,
             ),
           );
+        },
+        onPanResponderRelease: () => {
+          pinchStart.current = null;
         },
         onPanResponderTerminationRequest: () => false,
       }),

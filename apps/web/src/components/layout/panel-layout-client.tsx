@@ -155,6 +155,11 @@ function PanelLayoutInner({
 }) {
   const { collapsed, mobileOpen, setMobileOpen, closeMobile } =
     usePanelLayout();
+  // Cerrar en el mismo clic desmonta el enlace antes de que el navegador
+  // siga el href: en el celular el menú se cierra y la pantalla no cambia.
+  function closeMobileAfterTap() {
+    window.setTimeout(closeMobile, 0);
+  }
 
   return (
     <div className="flex min-h-full flex-1 overflow-x-clip bg-[#F5F6FA] dark:bg-background">
@@ -170,24 +175,24 @@ function PanelLayoutInner({
       />
 
       {mobileOpen ? (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <button
-            type="button"
-            aria-label="Cerrar menú"
-            className="absolute inset-0 bg-black/40"
-            onClick={closeMobile}
-          />
+        <div className="fixed inset-0 z-50 flex md:hidden">
           <SidebarChrome
             items={resolvedNav}
             isMonitor={isMonitor}
             collapsed={false}
-            onNavigate={closeMobile}
+            onNavigate={closeMobileAfterTap}
             showCloseButton
             onClose={closeMobile}
             sidebarUser={sidebarUser}
             userRole={user.role}
             userEmpresa={user.empresa}
-            className="relative z-10 h-full shadow-xl"
+            className="z-10 h-dvh max-h-dvh overflow-hidden shadow-xl"
+          />
+          <button
+            type="button"
+            aria-label="Cerrar menú"
+            className="min-w-0 flex-1 bg-black/40"
+            onClick={closeMobile}
           />
         </div>
       ) : null}

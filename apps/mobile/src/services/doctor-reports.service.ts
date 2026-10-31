@@ -43,8 +43,9 @@ export const doctorReportsService = {
     filters: DoctorReportsFilters,
   ): Promise<SkiniverReport> {
     const qs = toQuery(filters);
-    return apiRequest<SkiniverReport>(`/doctor/reports/skiniver?${qs}`, {
-      auth: true,
-    });
+    return apiRequest<SkiniverReport>(
+      `/doctor/reports/analisisdermapiel360?${qs}`,
+      { auth: true },
+    );
   },
 };
