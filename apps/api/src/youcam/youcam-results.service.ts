@@ -6,6 +6,7 @@ import { ReportEmailService } from '../reports/report-email.service';
 import { StorageService } from '../storage/storage.service';
 import { SubscriptionCreditsService } from '../subscriptions/subscription-credits.service';
 import { analisisPiel360MaskKey } from './mask-key.util';
+import { quitarVeloGrisMascara } from './mask-veil';
 import { normalizeAnalisisPiel360Results } from './youcam-normalize.util';
 import {
   patientLatestSkinAgeData,
@@ -134,8 +135,10 @@ export class AnalisisPiel360ResultsService {
 
   private async downloadMask(analysisId: bigint, key: string, url: string) {
     try {
-      const buffer = await this.storage.downloadToBuffer(url);
+      const downloaded = await this.storage.downloadToBuffer(url);
       const ext = url.includes('.png') ? 'png' : 'jpg';
+      const buffer =
+        ext === 'png' ? await quitarVeloGrisMascara(downloaded) : downloaded;
       // Sin extensión en la key (a diferencia de original/colored/masked de
       // Skiniver) — así AnalysesService.withImageUrls puede reconstruirla
       // solo con `type`+`region` (ya disponibles en aiRawResponse.output[])

@@ -7,7 +7,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { StatusBar } from 'expo-status-bar';
 import { AppIcon } from '../../../components/AppIcon';
 import { KeyboardAwareScrollView } from '../../../components/KeyboardAwareScrollView';
@@ -20,6 +19,7 @@ import {
   bodyModelGenderFromPatient,
   type BodySelection,
 } from '../../../data/bodyRegions';
+import { elegirImagen } from '../../../services/elegir-imagen';
 import { patientsService } from '../../../services/patients.service';
 import { DoctorHeader } from '../../doctor/patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../../doctor/patients/styles/patients.styles';
@@ -42,38 +42,6 @@ type SkiniverAnalysisFlowProps = {
   /** Compat: solicitudes al paciente se hacen desde la ficha. */
   skipModeChoice?: boolean;
 };
-
-async function pickCloseUp(source: 'camera' | 'library'): Promise<string | null> {
-  if (source === 'camera') {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Cámara', 'Necesitamos permiso de cámara para la zona marcada.');
-      return null;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      quality: 0.95,
-      allowsEditing: true,
-      aspect: [1, 1],
-    });
-    if (result.canceled || !result.assets[0]?.uri) return null;
-    return result.assets[0].uri;
-  }
-
-  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted) {
-    Alert.alert('Galería', 'Necesitamos acceso a la galería.');
-    return null;
-  }
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ['images'],
-    quality: 0.95,
-    allowsEditing: true,
-    aspect: [1, 1],
-  });
-  if (result.canceled || !result.assets[0]?.uri) return null;
-  return result.assets[0].uri;
-}
 
 function shortHeaderTitle(patientName?: string): string {
   const base = 'Dermatológico';
@@ -154,11 +122,18 @@ export function SkiniverAnalysisFlow({
     if (picking || !patientId || !selection) return;
     setPicking(true);
     try {
+      const asset = await elegirImagen(source);
+      if (!asset) return;
       await persistImportantNotes();
-      const uri = await pickCloseUp(source);
-      if (!uri) return;
-      setImageUri(uri);
+      setImageUri(asset.uri);
       setStep('processing');
+    } catch (err) {
+      Alert.alert(
+        'Imagen',
+        err instanceof Error
+          ? err.message
+          : 'No se pudo abrir la cámara o la galería.',
+      );
     } finally {
       setPicking(false);
     }
@@ -301,7 +276,7 @@ export function SkiniverAnalysisFlow({
             <Text style={styles.title}>Foto de la zona</Text>
             <Text style={styles.subtitle}>
               Enfoca de cerca {regionLabel ?? 'la zona marcada'}. Usa buena luz y
-              recorta para que la lesión ocupe el marco.
+              que la lesión ocupe la foto.
             </Text>
 
             <Text
