@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -6,20 +6,23 @@ import {
   ScrollView,
   Text,
   View,
-} from 'react-native';
-import { StatusBar } from 'expo-status-bar';
-import { AppIcon } from '../../../components/AppIcon';
-import { Icons } from '../../../components/icons';
-import { useBranding } from '../../../context/BrandingContext';
-import { ANALYSIS_PROVIDER_STATIC_LABELS, maskVendorMessage } from '../../../data/analysisProviderLabel';
-import { ANALYSIS_CONSENT_COPY } from '../../../data/legal/documents';
-import { requireGuidedFaceCapture } from '../../../native/guidedCapture';
-import { ApiError } from '../../../services/api.client';
-import { fitzpatrickService } from '../../../services/fitzpatrick.service';
-import { DoctorHeader } from '../../doctor/patients/components/DoctorHeader';
-import { createDoctorPatientsStyles } from '../../doctor/patients/styles/patients.styles';
-import { createYoucamFlowStyles } from '../youcam-flow/styles/youcamFlow.styles';
-import { YoucamConsentStep } from '../youcam-flow/YoucamConsentStep';
+} from "react-native";
+import { StatusBar } from "expo-status-bar";
+import { AppIcon } from "../../../components/AppIcon";
+import { Icons } from "../../../components/icons";
+import { useBranding } from "../../../context/BrandingContext";
+import {
+  ANALYSIS_PROVIDER_STATIC_LABELS,
+  maskVendorMessage,
+} from "../../../data/analysisProviderLabel";
+import { ANALYSIS_CONSENT_COPY } from "../../../data/legal/documents";
+import { requireGuidedFaceCapture } from "../../../native/guidedCapture";
+import { ApiError } from "../../../services/api.client";
+import { fitzpatrickService } from "../../../services/fitzpatrick.service";
+import { DoctorHeader } from "../../doctor/patients/components/DoctorHeader";
+import { createDoctorPatientsStyles } from "../../doctor/patients/styles/patients.styles";
+import { createYoucamFlowStyles } from "../youcam-flow/styles/youcamFlow.styles";
+import { YoucamConsentStep } from "../youcam-flow/YoucamConsentStep";
 
 const REUSE_MS = 120_000;
 const inflightCreates = new Map<string, Promise<{ analysisId: string }>>();
@@ -36,6 +39,8 @@ function startFitzpatrick(patientId: string, imageUri: string) {
         return value;
       },
       (err: unknown) => {
+        // El reintento tiene que llegar al API: ahí se consulta la tarea ya
+        // abierta y no se crea otra. Borrar la promesa fallida lo permite.
         inflightCreates.delete(key);
         throw err;
       },
@@ -47,15 +52,15 @@ function startFitzpatrick(patientId: string, imageUri: string) {
 const TIPS: { icon: (typeof Icons)[keyof typeof Icons]; text: string }[] = [
   {
     icon: Icons.smile,
-    text: 'Selfie frontal sin maquillaje ni filtros',
+    text: "Selfie frontal sin maquillaje ni filtros",
   },
   {
     icon: Icons.alertCircle,
-    text: 'Iluminación uniforme en el rostro (el sistema valida luz/pose)',
+    text: "Iluminación uniforme en el rostro (el sistema valida luz/pose)",
   },
   {
     icon: Icons.camera,
-    text: 'Centra la cara en el óvalo hasta que el sistema tome la captura',
+    text: "Centra la cara en el óvalo hasta que el sistema tome la captura",
   },
 ];
 
@@ -88,8 +93,10 @@ export function FitzpatrickAnalysisFlow({
     [branding.colors],
   );
   const [busy, setBusy] = useState(false);
+  const [capturaUri, setCapturaUri] = useState<string | null>(null);
+  const capturaRef = useRef<string | null>(null);
   const started = useRef(false);
-  const [step, setStep] = useState<'consent' | 'capture'>('consent');
+  const [step, setStep] = useState<"consent" | "capture">("consent");
   const label = ANALYSIS_PROVIDER_STATIC_LABELS.fitzpatrick;
 
   async function handleStart() {
@@ -97,23 +104,33 @@ export function FitzpatrickAnalysisFlow({
     started.current = true;
     setBusy(true);
     try {
-      const capture = await requireGuidedFaceCapture();
-      const created = await startFitzpatrick(patientId, capture.uri);
+      let uri = capturaRef.current;
+      if (!uri) {
+        const capture = await requireGuidedFaceCapture();
+        uri = capture.uri;
+        capturaRef.current = uri;
+        setCapturaUri(uri);
+      }
+      const created = await startFitzpatrick(patientId, uri);
       onAnalysisCreated(created.analysisId);
     } catch (err) {
-      started.current = false;
       const code =
-        err && typeof err === 'object' && 'code' in err
+        err && typeof err === "object" && "code" in err
           ? String((err as { code?: string }).code)
-          : '';
-      if (code === 'E_CANCELLED') return;
+          : "";
+      if (code === "E_CANCELLED") {
+        started.current = false;
+        return;
+      }
+      // Otro toque vuelve a consultar la misma foto. No abre la cámara.
+      started.current = false;
       Alert.alert(
         label,
         err instanceof ApiError
           ? maskVendorMessage(err.message)
           : err instanceof Error
             ? maskVendorMessage(err.message)
-            : 'No se pudo completar el análisis de fototipo.',
+            : "No se pudo completar el análisis de fototipo.",
       );
     } finally {
       setBusy(false);
@@ -128,18 +145,18 @@ export function FitzpatrickAnalysisFlow({
         title={
           patientName
             ? `Fototipo · ${patientName.length > 22 ? `${patientName.slice(0, 20)}…` : patientName}`
-            : 'Fototipo'
+            : "Fototipo"
         }
         showBack
         onBack={() => {
-          if (step === 'capture') setStep('consent');
+          if (step === "capture") setStep("consent");
           else onClose();
         }}
         onOpenMenu={onOpenMenu ?? (() => undefined)}
         onOpenMessages={onOpenMessages}
       />
 
-      {step === 'consent' ? (
+      {step === "consent" ? (
         <YoucamConsentStep
           title={ANALYSIS_CONSENT_COPY.fitzpatrick.title}
           subtitle={ANALYSIS_CONSENT_COPY.fitzpatrick.subtitle}
@@ -148,20 +165,23 @@ export function FitzpatrickAnalysisFlow({
           checkboxLabel={ANALYSIS_CONSENT_COPY.fitzpatrick.checkbox}
           ctaLabel={ANALYSIS_CONSENT_COPY.fitzpatrick.cta}
           privacyDocId={ANALYSIS_CONSENT_COPY.fitzpatrick.privacyDocId}
-          onNext={() => setStep('capture')}
+          onNext={() => setStep("capture")}
           onCancel={onClose}
         />
       ) : null}
 
-      {step === 'capture' ? (
+      {step === "capture" ? (
         <View style={styles.card}>
           <Text style={styles.title}>{label}</Text>
           <Text style={styles.subtitle}>
-            Captura guiada facial (misma herramienta que el análisis estético). No
-            se admite foto libre ni galería.
+            Captura guiada facial (misma herramienta que el análisis estético).
+            No se admite foto libre ni galería.
           </Text>
 
-          <ScrollView style={styles.tipList} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.tipList}
+            showsVerticalScrollIndicator={false}
+          >
             {TIPS.map((tip) => (
               <View key={tip.text} style={styles.tipRow}>
                 <View style={styles.tipIcon}>
@@ -177,14 +197,20 @@ export function FitzpatrickAnalysisFlow({
           </ScrollView>
 
           <Pressable
-            style={({ pressed }) => [styles.primaryBtn, busy && { opacity: 0.7 }, pressed && { backgroundColor: branding.colors.buttonHover }]}
+            style={({ pressed }) => [
+              styles.primaryBtn,
+              busy && { opacity: 0.7 },
+              pressed && { backgroundColor: branding.colors.buttonHover },
+            ]}
             disabled={busy}
             onPress={() => void handleStart()}
           >
             {busy ? (
               <ActivityIndicator color={branding.colors.buttonText} />
             ) : (
-              <Text style={styles.primaryBtnText}>Iniciar captura</Text>
+              <Text style={styles.primaryBtnText}>
+                {capturaUri ? "Consultar de nuevo" : "Iniciar captura"}
+              </Text>
             )}
           </Pressable>
 
