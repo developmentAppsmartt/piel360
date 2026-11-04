@@ -161,6 +161,7 @@ export function AnalisisPiel360ResultsSection({
         overviewMaskUrls={isOverview ? overviewMaskUrls : null}
         maskUrl={maskUrl}
         badgeLabel={badgeLabel}
+        metricType={selected?.type ?? null}
       />
 
       <div className="flex flex-wrap gap-2">
