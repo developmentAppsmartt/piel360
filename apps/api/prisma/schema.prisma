@@ -63,6 +63,8 @@ model User {
   alliedDispersals       SubscriptionInvoice[] @relation("AlliedDispersedBy")
   sessions               UserSession[]
   branding               AccountBranding?
+  clinicalProfilesUpdated PatientClinicalProfile[] @relation("ClinicalProfileUpdatedBy")
+  consentsRecorded       PatientConsent[]         @relation("ConsentRecordedBy")
 
   @@map("users")
 }
@@ -408,10 +410,107 @@ model Patient {
   conversations Conversation[]
   analysisRequests AnalysisRequest[]
   appointments  Appointment[]
+  clinicalProfile        PatientClinicalProfile?
+  clinicalHistoryAnswers PatientClinicalHistoryAnswer[]
+  consents               PatientConsent[]
 
   /** Scoping multi-tenant: base de todo filtro "pacientes de este doctor". */
   @@index([doctorId], map: "idx_patients_doctor_id")
   @@map("patients")
+}
+
+/**
+ * Historia clínica que llena el profesional (1:1 con el paciente). Aparte de
+ * `surveyResponses`, que es la encuesta del propio paciente. Las columnas de
+ * opciones tienen CHECK en la migración: los valores viven en
+ * `packages/shared/src/patient-clinical-history.ts`.
+ */
+model PatientClinicalProfile {
+  patientId              BigInt   @id @map("patient_id")
+  consultationReason     String?  @map("consultation_reason") @db.Text
+  sunExposure            String?  @map("sun_exposure")
+  cosmeticRoutine        String?  @map("cosmetic_routine") @db.Text
+  recentProcedures       String?  @map("recent_procedures") @db.Text
+  relevantMedication     String?  @map("relevant_medication") @db.Text
+  knownAllergies         String?  @map("known_allergies") @db.Text
+  dermatologicalHistory  String?  @map("dermatological_history") @db.Text
+  frequentSensitivity    String?  @map("frequent_sensitivity")
+  pregnancyLactation     String?  @map("pregnancy_lactation")
+  smoking                String?
+  alcohol                String?
+  sleepQuality           String?  @map("sleep_quality")
+  stressLevel            String?  @map("stress_level")
+  menopause              String?
+  pcos                   String?
+  contraceptiveMethod    String?  @map("contraceptive_method") @db.Text
+  expectations           String?  @db.Text
+  recoveryAvailability   String?  @map("recovery_availability")
+  /** «Detalle (opcional)» de los antecedentes estéticos previos. */
+  aestheticHistoryDetail String?  @map("aesthetic_history_detail") @db.Text
+  updatedByUserId        BigInt?  @map("updated_by_user_id")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  updatedBy User?   @relation("ClinicalProfileUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+
+  @@map("patient_clinical_profiles")
+}
+
+/** Grupos del catálogo de preguntas Sí/No («Historia clínica general», …). */
+model ClinicalHistoryGroup {
+  key       String @id
+  label     String
+  sortOrder Int    @map("sort_order")
+
+  items ClinicalHistoryItem[]
+
+  @@map("clinical_history_groups")
+}
+
+/** Pregunta Sí/No del catálogo. Agregar una es un INSERT, no una columna. */
+model ClinicalHistoryItem {
+  id        BigInt  @id @default(autoincrement())
+  key       String  @unique
+  groupKey  String  @map("group_key")
+  label     String
+  sortOrder Int     @map("sort_order")
+  active    Boolean @default(true)
+
+  group   ClinicalHistoryGroup           @relation(fields: [groupKey], references: [key])
+  answers PatientClinicalHistoryAnswer[]
+
+  @@map("clinical_history_items")
+}
+
+/** Sin fila = sin responder; `answer` false = el profesional marcó «No». */
+model PatientClinicalHistoryAnswer {
+  patientId BigInt   @map("patient_id")
+  itemId    BigInt   @map("item_id")
+  answer    Boolean
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  patient Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  item    ClinicalHistoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@id([patientId, itemId])
+  @@map("patient_clinical_history_answers")
+}
+
+/** photos | informed. `recordedAt` solo cambia cuando cambia `granted`. */
+model PatientConsent {
+  id               BigInt   @id @default(autoincrement())
+  patientId        BigInt   @map("patient_id")
+  consentType      String   @map("consent_type")
+  granted          Boolean
+  recordedByUserId BigInt?  @map("recorded_by_user_id")
+  recordedAt       DateTime @map("recorded_at")
+
+  patient    Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  recordedBy User?   @relation("ConsentRecordedBy", fields: [recordedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([patientId, consentType])
+  @@map("patient_consents")
 }
 
 /** Solicitud de análisis del doctor al paciente (desbloquea «Nuevo Análisis» en mobile). */
