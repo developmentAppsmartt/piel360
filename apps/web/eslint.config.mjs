@@ -8,7 +8,6 @@ const ARCHIVOS_LARGOS_HEREDADOS = [
   "src/app/admin/(panel)/configuracion/empresas-aliadas/page.tsx",
   "src/app/doctor/(panel)/configuracion/company-profile-section.tsx",
   "src/app/doctor/(panel)/configuracion/personalizacion/identidad-corporativa/identidad-corporativa-view.tsx",
-  "src/app/doctor/(panel)/configuracion/personalizacion/rangos-puntuacion/rangos-puntuacion-view.tsx",
   "src/components/admin/labor-technician-profiles-manager.tsx",
   "src/components/admin/plan-wizard-form.tsx",
   "src/components/admin/plans-manager.tsx",

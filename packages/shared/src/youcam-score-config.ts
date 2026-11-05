@@ -5,6 +5,7 @@
  * Regular / Promedio / Buena y reemplazar el texto de cada nivel.
  * Lo que no se configura usa los valores de este archivo.
  */
+import { reportableCategoryKey } from "./skin-report.js";
 import {
   ANALISIS_PIEL360_MAIN_METRIC_TYPES,
   type AnalisisPiel360ScoreBand,
@@ -18,6 +19,40 @@ export const ANALISIS_PIEL360_SCORE_BANDS: readonly AnalisisPiel360ScoreBand[] =
 
 /** Métricas que se configuran (una por tipo de análisis estético). */
 export const ANALISIS_PIEL360_SCORE_CONFIG_METRICS: readonly string[] = ANALISIS_PIEL360_MAIN_METRIC_TYPES;
+
+/**
+ * Subcategorías (regiones) que se configuran aparte de su métrica. Son las
+ * que trae el proveedor bajo el mismo `type` (verificadas en producción);
+ * `whole` es la métrica general. Lo que una subcategoría no defina lo hereda
+ * de su métrica.
+ */
+export const ANALISIS_PIEL360_SCORE_SUBCATEGORIES: Readonly<Record<string, readonly string[]>> = {
+  hd_wrinkle: ["forehead", "glabellar", "crowfeet", "periocular", "nasolabial", "marionette"],
+  hd_pore: ["forehead", "nose", "cheek"],
+};
+
+/** Clave en `metrics`: `hd_wrinkle:forehead` para una subcategoría
+ * configurable; la métrica sola para cualquier otra región. */
+export function scoreConfigKey(type: string, region?: string | null): string {
+  return region && ANALISIS_PIEL360_SCORE_SUBCATEGORIES[type]?.includes(region)
+    ? reportableCategoryKey(type, region)
+    : type;
+}
+
+/** `hd_wrinkle:forehead` → { type: "hd_wrinkle", region: "forehead" }. */
+export function parseScoreConfigKey(key: string): { type: string; region: string | null } {
+  const [type = key, region] = key.split(":");
+  return { type, region: region ?? null };
+}
+
+/** Todas las claves configurables: primero las métricas y después sus
+ * subcategorías (al validar, la subcategoría necesita a su métrica ya lista). */
+export const ANALISIS_PIEL360_SCORE_CONFIG_KEYS: readonly string[] = [
+  ...ANALISIS_PIEL360_SCORE_CONFIG_METRICS,
+  ...Object.entries(ANALISIS_PIEL360_SCORE_SUBCATEGORIES).flatMap(([type, regions]) =>
+    regions.map((region) => reportableCategoryKey(type, region)),
+  ),
+];
 
 /** Puntaje < regularMax → Regular; < promedioMax → Promedio; resto → Buena. */
 export const DEFAULT_SCORE_RANGES = { regularMax: 70, promedioMax: 90 } as const;
@@ -175,14 +210,31 @@ export function defaultAnalisisPiel360Advice(
 
 export type ResolvedScoreRanges = { regularMax: number; promedioMax: number };
 
+/** Lo configurado que aplica, del más específico al más general: la
+ * subcategoría (si `region` es una configurable) y luego su métrica. */
+function configEntries(
+  config: AnalisisPiel360ScoreConfig | null | undefined,
+  type: string | null | undefined,
+  region?: string | null,
+): AnalisisPiel360MetricScoreConfig[] {
+  if (!type) return [];
+  const key = scoreConfigKey(type, region);
+  return [key !== type ? config?.metrics?.[key] : undefined, config?.metrics?.[type]].filter(
+    (entry): entry is AnalisisPiel360MetricScoreConfig => !!entry,
+  );
+}
+
 export function resolveScoreRanges(
   config: AnalisisPiel360ScoreConfig | null | undefined,
   type: string | null | undefined,
+  region?: string | null,
 ): ResolvedScoreRanges {
-  const m = (type && config?.metrics?.[type]) || {};
+  const entries = configEntries(config, type, region);
   return {
-    regularMax: m.regularMax ?? DEFAULT_SCORE_RANGES.regularMax,
-    promedioMax: m.promedioMax ?? DEFAULT_SCORE_RANGES.promedioMax,
+    regularMax:
+      entries.find((e) => e.regularMax != null)?.regularMax ?? DEFAULT_SCORE_RANGES.regularMax,
+    promedioMax:
+      entries.find((e) => e.promedioMax != null)?.promedioMax ?? DEFAULT_SCORE_RANGES.promedioMax,
   };
 }
 
@@ -190,51 +242,65 @@ export function configuredAnalisisPiel360ScoreBand(
   score: number,
   type: string | null | undefined,
   config: AnalisisPiel360ScoreConfig | null | undefined,
+  region?: string | null,
 ): AnalisisPiel360ScoreBand {
-  const { regularMax, promedioMax } = resolveScoreRanges(config, type);
+  const { regularMax, promedioMax } = resolveScoreRanges(config, type, region);
   if (score < regularMax) return "regular";
   if (score < promedioMax) return "promedio";
   return "buena";
 }
 
-/** Texto del nivel: el configurado o el texto por defecto. */
+/** Texto del nivel: el de la subcategoría, el de la métrica o el de PIEL 360. */
 export function configuredAnalisisPiel360Advice(
   type: string | null | undefined,
   band: AnalisisPiel360ScoreBand,
   config: AnalisisPiel360ScoreConfig | null | undefined,
+  region?: string | null,
 ): string {
-  const custom = type ? config?.metrics?.[type]?.texts?.[band] : null;
-  return custom?.trim() ? custom : defaultAnalisisPiel360Advice(type, band);
+  const custom = configEntries(config, type, region)
+    .map((entry) => entry.texts?.[band])
+    .find((text) => text?.trim());
+  return custom ?? defaultAnalisisPiel360Advice(type, band);
 }
 
-/** Valida y limpia lo que envía el CRM; lanza un mensaje legible si algo no cuadra. */
+/**
+ * Valida y limpia lo que envía el CRM; lanza un mensaje legible si algo no
+ * cuadra. Solo guarda lo que difiere de lo heredado (el valor por defecto en
+ * una métrica, su métrica en una subcategoría): así lo que no se tocó sigue a
+ * su base si esta cambia después.
+ */
 export function sanitizeAnalisisPiel360ScoreConfig(input: unknown): AnalisisPiel360ScoreConfig {
   const raw = (input ?? {}) as Partial<AnalisisPiel360ScoreConfig>;
   const int = (v: unknown) =>
     typeof v === "number" && Number.isFinite(v) ? Math.round(v) : null;
   const metrics: Record<string, AnalisisPiel360MetricScoreConfig> = {};
-  for (const type of ANALISIS_PIEL360_SCORE_CONFIG_METRICS) {
-    const m = raw.metrics?.[type];
+  for (const key of ANALISIS_PIEL360_SCORE_CONFIG_KEYS) {
+    const m = raw.metrics?.[key];
     if (!m) continue;
-    const reg = int(m.regularMax) ?? DEFAULT_SCORE_RANGES.regularMax;
-    const prom = int(m.promedioMax) ?? DEFAULT_SCORE_RANGES.promedioMax;
+    const { type, region } = parseScoreConfigKey(key);
+    // Las métricas van primero en la lista: aquí ya están limpias.
+    const base = region ? { metrics } : null;
+    const inherited = resolveScoreRanges(base, type);
+    const reg = int(m.regularMax) ?? inherited.regularMax;
+    const prom = int(m.promedioMax) ?? inherited.promedioMax;
     if (reg < 1 || prom > 100 || reg >= prom) {
       throw new Error(
         "Regular, Promedio y Buena deben ir en orden y cada uno tener al menos un punto.",
       );
     }
     const entry: AnalisisPiel360MetricScoreConfig = {};
-    if (reg !== DEFAULT_SCORE_RANGES.regularMax) entry.regularMax = reg;
-    if (prom !== DEFAULT_SCORE_RANGES.promedioMax) entry.promedioMax = prom;
+    if (reg !== inherited.regularMax) entry.regularMax = reg;
+    if (prom !== inherited.promedioMax) entry.promedioMax = prom;
     const texts: AnalisisPiel360BandTexts = {};
     for (const band of ANALISIS_PIEL360_SCORE_BANDS) {
       const value = m.texts?.[band];
-      if (typeof value === "string" && value.trim()) {
-        texts[band] = value.trim().slice(0, 1000);
+      const text = typeof value === "string" ? value.trim().slice(0, 1000) : "";
+      if (text && text !== configuredAnalisisPiel360Advice(type, band, base)) {
+        texts[band] = text;
       }
     }
     if (Object.keys(texts).length) entry.texts = texts;
-    if (Object.keys(entry).length) metrics[type] = entry;
+    if (Object.keys(entry).length) metrics[key] = entry;
   }
   return { metrics };
 }

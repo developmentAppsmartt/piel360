@@ -534,6 +534,11 @@ export function YoucamResultsSection({
             : ''
         }.${ageDiff != null ? ` Diferencia ${formatSignedYears(ageDiff)}.` : ''}`
       : `${baseCopy}${skinTypeHint}`;
+  // Zona de Arrugas o Poros: puede tener rangos y textos propios.
+  const subRegion =
+    activeRegion && activeRegion.region !== DEFAULT_REGION
+      ? activeRegion.region
+      : null;
   const adviceText =
     !isFototipo &&
     !isSkinAge &&
@@ -543,10 +548,9 @@ export function YoucamResultsSection({
     copyType !== 'all'
       ? scorer.advice(
           copyType,
-          scorer.band(copyType, activeScore),
-          activeRegion && activeRegion.region !== DEFAULT_REGION
-            ? activeRegion.label
-            : null,
+          scorer.band(copyType, activeScore, subRegion),
+          subRegion ? activeRegion?.label : null,
+          subRegion,
         )
       : null;
 
