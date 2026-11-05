@@ -26,7 +26,10 @@ import type {
 } from '../../../types/analysis';
 import { skiniverDiagnosisLabel } from '../../../types/skiniver-labels';
 import { FITZPATRICK_SCALES } from '../../../data/fitzpatrickLabels';
-import { ANALYSIS_PROVIDER_STATIC_LABELS } from '../../../data/analysisProviderLabel';
+import {
+  ANALYSIS_PROVIDER_STATIC_LABELS,
+  maskVendorMessage,
+} from '../../../data/analysisProviderLabel';
 import { DoctorHeader } from '../patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
 import { ConfirmAnalysisForm } from './components/ConfirmAnalysisForm';
@@ -239,7 +242,7 @@ export function AnalysisDetailView({
   const raw = (analysis?.aiRawResponse ?? null) as YoucamRawResponse | null;
   const youcamError =
     isYoucam && raw && raw.error === true
-      ? raw.message ?? 'Error al procesar el análisis'
+      ? maskVendorMessage(raw.message ?? 'Error al procesar el análisis')
       : null;
 
   function handleHeaderBack() {

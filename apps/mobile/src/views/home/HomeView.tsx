@@ -6,7 +6,6 @@ import {
   Pressable,
   ScrollView,
   Text,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -248,15 +247,11 @@ export function HomeView({
   const { logout, user } = useAuth();
   const branding = useBranding();
   const notifications = useNotificationsOptional();
-  const { width: windowWidth } = useWindowDimensions();
   const styles = useMemo(() => createHomeStyles(branding.colors), [branding.colors]);
   const headerStyles = useMemo(
     () => createDoctorPatientsStyles(branding.colors),
     [branding.colors],
   );
-  /** Ancho útil del scroll (paddingHorizontal 16 × 2). Banner ~2:1. */
-  const bannerWidth = Math.max(0, windowWidth - 32);
-  const bannerHeight = Math.round(bannerWidth / 2);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -752,16 +747,6 @@ export function HomeView({
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={[styles.welcomeCard, { width: bannerWidth }]}>
-            <Image
-              source={require('../../../assets/banner.png')}
-              style={[styles.welcomeBanner, { width: bannerWidth, height: bannerHeight }]}
-              resizeMode="contain"
-              accessibilityLabel="Bienvenido a Piel 360 AI. Tu piel tiene mucho que decir. Escúchala aquí."
-              accessibilityIgnoresInvertColors
-            />
-          </View>
-
           <Pressable
             style={styles.profileRow}
             onPress={() => void openProfileConfig()}

@@ -1,4 +1,4 @@
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Alert, Image, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppIcon } from '../../../../components/AppIcon';
 import { BrandLogo } from '../../../../components/BrandLogo';
@@ -50,6 +50,7 @@ export function DoctorHeader({
   const branding = useBranding();
   const { isTablet } = useDeviceLayout();
   const logoHeight = isTablet ? 68 : 44;
+  const companyLogo = branding.companyLogoImage;
   const onDark = styles.headerIcon.color as string;
   const notifications = useNotificationsOptional();
   const badgeCount =
@@ -76,9 +77,23 @@ export function DoctorHeader({
           style={[
             styles.headerLogo,
             isTablet && { maxHeight: 72, maxWidth: 240 },
+            companyLogo && { maxWidth: isTablet ? 160 : 108 },
             { tintColor: branding.colors.iconOnHeader },
           ]}
         />
+        {companyLogo ? (
+          <>
+            <View style={styles.headerLogoDivider} />
+            <View style={styles.headerCompanyLogoChip}>
+              <Image
+                source={companyLogo}
+                style={styles.headerCompanyLogo}
+                resizeMode="contain"
+                accessibilityLabel="Logo de la empresa"
+              />
+            </View>
+          </>
+        ) : null}
       </View>
       <View style={styles.headerActions}>
         <Pressable

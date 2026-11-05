@@ -13,6 +13,25 @@ import { useAnalysis, useConfirmAnalysis } from "@/lib/queries/analyses";
 
 type AnalisisPiel360SubView = "detail" | "progress" | "report";
 
+function mensajeSinProveedor(texto: string): string {
+  if (!/proveedor|\bprovider\b/i.test(texto)) return texto;
+  const sin = texto
+    .replace(
+      /[:,.]?\s*(por favor[:,.]?\s*)?(contacte|contacta|please contact)(\s+\w+){0,6}\s+(proveedores|proveedor|provider)\b[.!]*/gi,
+      "",
+    )
+    .replace(/\bproveedores\b|\bproveedor\b|\bprovider\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([,.])/g, "$1")
+    .trim();
+  const base = sin.replace(/^[\s,.;:]+|[\s,.;:]+$/g, "");
+  const nucleo = base.length > 0 ? base : "No se pudo completar el análisis";
+  if (/unos minutos/i.test(nucleo)) {
+    return nucleo.endsWith(".") ? nucleo : `${nucleo}.`;
+  }
+  return `${nucleo}. Intenta de nuevo en unos minutos.`;
+}
+
 /** Vista de resultados de un análisis (Skiniver o YouCam) — alineada a mobile.
  * `hideConfirm` oculta el formulario de confirmación (flujo paciente). */
 export function AnalysisResultsView({
@@ -44,7 +63,7 @@ export function AnalysisResultsView({
     typeof analysis.data.aiRawResponse === "object" &&
     "error" in analysis.data.aiRawResponse &&
     analysis.data.aiRawResponse.error === true
-      ? analysis.data.aiRawResponse.message
+      ? mensajeSinProveedor(String(analysis.data.aiRawResponse.message ?? ""))
       : null;
 
   if (analysis.isLoading) {
@@ -75,8 +94,10 @@ export function AnalysisResultsView({
     <div className="space-y-6">
       {isAnalisisPiel360 && !analysis.data.isValid && analisisPiel360Error && (
         <p className="text-destructive">
-          El análisis no se pudo procesar: {analisisPiel360Error}. Intenta nuevamente con
-          una foto de mejor resolución.
+          El análisis no se pudo procesar: {analisisPiel360Error}
+          {/unos minutos/i.test(analisisPiel360Error)
+            ? ""
+            : ". Intenta nuevamente con una foto de mejor resolución."}
         </p>
       )}
 
