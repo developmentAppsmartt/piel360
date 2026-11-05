@@ -41,11 +41,14 @@ function BodyModel({
   uri,
   onSelect,
   anchorPoint,
+  anchorRegion,
   onAnchored,
 }: {
   uri: string;
   onSelect?: (region: string, point: THREE.Vector3) => void;
   anchorPoint?: [number, number, number] | null;
+  /** Región guardada con el análisis: decide cómo corregir el punto. */
+  anchorRegion?: string | null;
   onAnchored?: (point: [number, number, number]) => void;
 }) {
   const { scene } = useGLTF(uri);
@@ -53,9 +56,15 @@ function BodyModel({
   useEffect(() => {
     normalizeModel(scene);
     if (!anchorPoint || !onAnchored) return;
-    const snapped = placeSavedPoint(scene, new THREE.Vector3(...anchorPoint));
+    const snapped = placeSavedPoint(
+      scene,
+      new THREE.Vector3(...anchorPoint),
+      anchorRegion
+        ? (point) => inferBodyPartFromPoint(point) === anchorRegion
+        : undefined,
+    );
     onAnchored([snapped.x, snapped.y, snapped.z]);
-  }, [scene, anchorPoint, onAnchored]);
+  }, [scene, anchorPoint, anchorRegion, onAnchored]);
 
   function handleClick(event: ThreeEvent<MouseEvent>) {
     if (!onSelect) return;
@@ -231,6 +240,7 @@ export function BodySelector3D({
                 uri={modelUri}
                 onSelect={readOnly ? undefined : handleSelect}
                 anchorPoint={readOnly ? focusPoint : null}
+                anchorRegion={readOnly ? focusRegion : null}
                 onAnchored={readOnly ? handleAnchored : undefined}
               />
             </Suspense>

@@ -105,23 +105,89 @@ function snapPointToBody(
   return { point: placed, distance: bestDist };
 }
 
-/** Ubica el punto guardado sobre la figura, corrigiendo coords antiguas. */
+/** El punto de la piel más cercano, buscando en todos los triángulos. Solo
+ * para cuando los rayos no encuentran piel cerca: un brazo marcado en la otra
+ * figura queda a otra altura y los rayos horizontales pasan de largo. */
+function closestSurfacePoint(
+  root: THREE.Object3D,
+  point: THREE.Vector3,
+): SnapResult {
+  root.updateMatrixWorld(true);
+  const triangle = new THREE.Triangle();
+  const candidate = new THREE.Vector3();
+  let best: SnapResult = { point: point.clone(), distance: Infinity };
+  root.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    const position = child.geometry.attributes.position;
+    const index = child.geometry.index;
+    const count = index ? index.count : position.count;
+    const vertex = (i: number) =>
+      new THREE.Vector3()
+        .fromBufferAttribute(position, index ? index.getX(i) : i)
+        .applyMatrix4(child.matrixWorld);
+    for (let i = 0; i < count; i += 3) {
+      triangle.set(vertex(i), vertex(i + 1), vertex(i + 2));
+      triangle.closestPointToPoint(point, candidate);
+      const distance = candidate.distanceTo(point);
+      if (distance < best.distance) {
+        const normal = triangle.getNormal(new THREE.Vector3());
+        best = {
+          point: candidate.clone().add(normal.multiplyScalar(0.012)),
+          distance,
+        };
+      }
+    }
+  });
+  return best.distance <= 0.45
+    ? best
+    : { point: point.clone(), distance: Infinity };
+}
+
+/** Rayos primero (baratos); si no encuentran piel cerca, la superficie más cercana. */
+function placeOnSkin(root: THREE.Object3D, point: THREE.Vector3): SnapResult {
+  const snapped = snapPointToBody(root, point);
+  return snapped.distance <= 0.05 ? snapped : closestSurfacePoint(root, point);
+}
+
+/**
+ * Ubica el punto guardado sobre la figura, corrigiendo coords antiguas.
+ * Espejo de `apps/web/src/lib/body-placement.ts`: si cambias uno, cambia el
+ * otro.
+ *
+ * `matchesRegion` decide entre colocarlo tal cual o con la corrección antigua
+ * cuando ninguno cae solo en la piel: la corrección mueve el punto ~35 cm y,
+ * en un brazo marcado en la otra figura, lo dejaba sobre la piel… pero en el
+ * pecho. La región guardada con el análisis dice cuál es el bueno.
+ */
 export function placeSavedPoint(
   root: THREE.Object3D,
   saved: THREE.Vector3,
+  matchesRegion?: (point: THREE.Vector3) => boolean,
 ): THREE.Vector3 {
-  const direct = snapPointToBody(root, saved);
   const bounds = root.userData.piel360Bounds as THREE.Box3 | undefined;
   const outside = bounds
     ? !bounds.clone().expandByScalar(0.03).containsPoint(saved)
     : false;
-  if (!outside && direct.distance <= 0.05) return direct.point;
+  const quick = snapPointToBody(root, saved);
+  if (!outside && quick.distance <= 0.05) return quick.point;
 
+  const direct = placeOnSkin(root, saved);
   const legacyPoint = legacyPointToCurrent(root, saved);
   if (!legacyPoint) return direct.point;
-  const legacy = snapPointToBody(root, legacyPoint);
-  if (outside && legacy.distance === Infinity) return legacyPoint;
-  return outside || legacy.distance < direct.distance
-    ? legacy.point
-    : direct.point;
+  const legacy = placeOnSkin(root, legacyPoint);
+
+  // De los que caen en su región, el que menos mueve el punto.
+  const sameRegion = [direct, legacy]
+    .filter((c) => c.distance !== Infinity && matchesRegion?.(c.point))
+    .sort((a, b) => a.point.distanceTo(saved) - b.point.distanceTo(saved))[0];
+  if (sameRegion) return sameRegion.point;
+  // Sin región que lo confirme, el criterio de siempre.
+  if (!matchesRegion || direct.distance === Infinity) {
+    if (outside && legacy.distance === Infinity) return legacyPoint;
+    return outside || legacy.distance < direct.distance
+      ? legacy.point
+      : direct.point;
+  }
+  // Con región pero sin coincidencia: el que menos se aleja de lo marcado.
+  return direct.point;
 }

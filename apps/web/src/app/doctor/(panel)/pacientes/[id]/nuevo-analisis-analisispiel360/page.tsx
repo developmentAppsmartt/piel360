@@ -8,6 +8,8 @@ import { AnalisisPiel360Capture } from "@/components/analyses/youcam-capture";
 import { Button } from "@/components/ui/button";
 import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import { ApiError } from "@/lib/api-error";
+import { genderFromPatient } from "@/lib/body-model";
+import { usePatient } from "@/lib/queries/patients";
 import { useCreateAnalisisPiel360Analysis } from "@/lib/queries/youcam";
 
 type Step = "consentimiento" | "captura" | "enviar" | "resultados";
@@ -22,6 +24,7 @@ interface BodySelection {
 export default function NuevoAnalisisAnalisisPiel360Page() {
   const { id: patientId } = useParams<{ id: string }>();
   const router = useRouter();
+  const { data: patient } = usePatient(patientId);
 
   const [step, setStep] = useState<Step>("consentimiento");
   const [consented, setConsented] = useState(false);
@@ -78,7 +81,10 @@ export default function NuevoAnalisisAnalisisPiel360Page() {
 
           <div className="space-y-2">
             <h2 className="text-lg font-medium">Región (opcional)</h2>
-            <BodySelector onSelect={setBodySelection} />
+            <BodySelector
+              onSelect={setBodySelection}
+              patientGender={genderFromPatient(patient?.gender)}
+            />
           </div>
 
           <div className="flex gap-2">

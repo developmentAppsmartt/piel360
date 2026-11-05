@@ -8,6 +8,7 @@ import { PhotoCapture } from "@/components/analyses/photo-capture";
 import { Button } from "@/components/ui/button";
 import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import { ApiError } from "@/lib/api-error";
+import { genderFromPatient } from "@/lib/body-model";
 import { cn } from "@/lib/utils";
 import { useCreateAnalysis } from "@/lib/queries/analyses";
 import { usePatient, useUpdatePatient } from "@/lib/queries/patients";
@@ -42,19 +43,14 @@ export default function NuevoAnalisisPage() {
   const [bodySelection, setBodySelection] = useState<BodySelection | null>(null);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const [importantNotes, setImportantNotes] = useState("");
-  const [notesHydrated, setNotesHydrated] = useState(false);
+  // null = sin editar: se muestran las del paciente (que carga después).
+  const [notesDraft, setImportantNotes] = useState<string | null>(null);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { data: patient } = usePatient(patientId);
   const updatePatient = useUpdatePatient(patientId);
   const createAnalysis = useCreateAnalysis();
-
-  useEffect(() => {
-    if (!patient || notesHydrated) return;
-    setImportantNotes(patient.importantNotes ?? "");
-    setNotesHydrated(true);
-  }, [patient, notesHydrated]);
+  const importantNotes = notesDraft ?? patient?.importantNotes ?? "";
 
   useEffect(() => {
     return () => {
@@ -118,7 +114,10 @@ export default function NuevoAnalisisPage() {
             />
             <p className="text-xs text-muted-foreground">{importantNotes.length}/500</p>
           </div>
-          <BodySelector onSelect={setBodySelection} />
+          <BodySelector
+            onSelect={setBodySelection}
+            patientGender={genderFromPatient(patient?.gender)}
+          />
           <div className="flex gap-2">
             <Button
               type="button"
