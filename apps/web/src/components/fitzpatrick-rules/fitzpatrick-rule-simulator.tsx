@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, FlaskConical, Layers3, Pill, Play, Sparkles } from "lucide-react";
+import { CalendarDays, Layers3, Pill, Play, Sparkles } from "lucide-react";
 import type { FitzpatrickScale } from "@piel360/shared";
 import { FITZPATRICK_SCALES } from "@piel360/shared";
 import { Button } from "@/components/ui/button";
@@ -8,16 +8,22 @@ import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import { FITZPATRICK_TYPES } from "@/lib/fitzpatrick-labels";
 import { fitzpatrickPriorityLabel } from "@/lib/fitzpatrick-rules-ui";
 import type { FitzpatrickSimulationResult } from "@/lib/queries/fitzpatrick-rules";
+import { SKIN_TYPE_OPTIONS } from "@/lib/skin-type-options";
 
 export function FitzpatrickRuleSimulator({
   fitzpatrickScale,
   onScaleChange,
+  skinType,
+  onSkinTypeChange,
   onSimulate,
   loading,
   result,
 }: {
   fitzpatrickScale: FitzpatrickScale;
   onScaleChange: (scale: FitzpatrickScale) => void;
+  /** "" = sin biotipo. */
+  skinType: string;
+  onSkinTypeChange: (skinType: string) => void;
   onSimulate: () => void;
   loading?: boolean;
   result?: FitzpatrickSimulationResult | null;
@@ -27,7 +33,7 @@ export function FitzpatrickRuleSimulator({
       <div>
         <ModuleCardTitle>Simulador de reglas</ModuleCardTitle>
         <p className="mt-1 text-sm text-muted-foreground">
-          Prueba qué regla se aplicaría para un fototipo de ejemplo.
+          Prueba qué regla se aplicaría para un fototipo y biotipo de ejemplo.
         </p>
       </div>
 
@@ -41,6 +47,22 @@ export function FitzpatrickRuleSimulator({
           {FITZPATRICK_SCALES.map((scale) => (
             <option key={scale} value={scale}>
               Fototipo {scale} — {FITZPATRICK_TYPES[scale].label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="block space-y-1.5 text-sm">
+        <span className="font-medium">Biotipo</span>
+        <select
+          value={skinType}
+          onChange={(event) => onSkinTypeChange(event.target.value)}
+          className="h-10 w-full rounded-xl border border-border bg-background px-3 outline-none focus:border-primary/50"
+        >
+          <option value="">Sin biotipo</option>
+          {SKIN_TYPE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
             </option>
           ))}
         </select>
@@ -63,7 +85,8 @@ export function FitzpatrickRuleSimulator({
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              {result.snapshot.message ?? "Ninguna regla coincide con este fototipo."}
+              {result.snapshot.message ??
+                "Ninguna regla coincide con este fototipo y biotipo."}
             </p>
           )}
 

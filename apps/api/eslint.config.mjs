@@ -13,7 +13,6 @@ const ARCHIVOS_LARGOS_HEREDADOS = [
   "src/billing/billing.service.ts",
   "src/doctor-reports/doctor-reports.queries.ts",
   "src/doctors/doctors.service.ts",
-  "src/fitzpatrick-rules/fitzpatrick-rules.service.ts",
   "src/messages/messages.service.ts",
   "src/organizations/organizations.service.ts",
   "src/patients/patients.service.ts",

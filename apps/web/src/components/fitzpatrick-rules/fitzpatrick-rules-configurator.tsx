@@ -37,6 +37,8 @@ export function FitzpatrickRulesConfigurator() {
   const treatmentsQuery = useTreatments({ kind: "treatment" });
 
   const [fitzpatrickScale, setFitzpatrickScale] = useState<FitzpatrickScale>("III");
+  /** "" = sin biotipo: así se ve qué recibe un paciente al que no se le conoce. */
+  const [skinType, setSkinType] = useState("");
   const [simulation, setSimulation] = useState<FitzpatrickSimulationResult | null>(null);
 
   const catalog = useMemo<CatalogMaps>(() => {
@@ -61,7 +63,10 @@ export function FitzpatrickRulesConfigurator() {
   );
 
   async function handleSimulate() {
-    const result = await simulate.mutateAsync({ fitzpatrickScale });
+    const result = await simulate.mutateAsync({
+      fitzpatrickScale,
+      skinType: skinType || undefined,
+    });
     setSimulation(result);
   }
 
@@ -95,6 +100,8 @@ export function FitzpatrickRulesConfigurator() {
         <ModuleCardDescription className="mt-2 text-sm leading-relaxed">
           Cada regla condiciona sus recomendaciones a un único <strong>fototipo (I a VI)</strong>{" "}
           del paciente. Si necesitas cubrir varios fototipos, crea una regla por cada uno.
+          Puedes limitarla además a uno o varios <strong>biotipos</strong>: si coinciden
+          varias, gana la que limita biotipo.
         </ModuleCardDescription>
       </ModuleCard>
 
@@ -128,6 +135,8 @@ export function FitzpatrickRulesConfigurator() {
         <FitzpatrickRuleSimulator
           fitzpatrickScale={fitzpatrickScale}
           onScaleChange={setFitzpatrickScale}
+          skinType={skinType}
+          onSkinTypeChange={setSkinType}
           onSimulate={() => void handleSimulate()}
           loading={simulate.isPending}
           result={simulation}

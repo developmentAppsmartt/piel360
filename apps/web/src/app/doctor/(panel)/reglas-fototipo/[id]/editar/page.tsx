@@ -18,7 +18,9 @@ export default function EditFitzpatrickRulePage() {
   }
 
   return (
+    // La regla solo se lee al montar: con otra regla, formulario nuevo.
     <FitzpatrickRuleForm
+      key={ruleQuery.data.id}
       rule={ruleQuery.data}
       onSubmit={async (input) => {
         await updateRule.mutateAsync({ id, input });

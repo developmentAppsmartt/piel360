@@ -167,7 +167,14 @@ export function RecommendationsPanel({
       const snapshot = fitzpatrickQuery.data?.snapshot;
       const rule = fitzpatrickQuery.data?.matchedRule;
       if (rule) {
-        return `Según fototipo${snapshot?.fitzpatrickScale ? ` (Tipo ${snapshot.fitzpatrickScale})` : ""}: ${rule.label}`;
+        // Con qué datos coincidió: el fototipo y, si se conoce, el biotipo.
+        const details = [
+          snapshot?.fitzpatrickScale ? `Tipo ${snapshot.fitzpatrickScale}` : null,
+          snapshot?.skinType
+            ? `biotipo ${analisisPiel360SkinTypeLabel(snapshot.skinType)}`
+            : null,
+        ].filter(Boolean);
+        return `Según fototipo${details.length ? ` (${details.join(" · ")})` : ""}: ${rule.label}`;
       }
       return snapshot?.message ?? null;
     }

@@ -1356,6 +1356,8 @@ model FitzpatrickRule {
   description        String?  @db.Text
   /** "I" | "II" | "III" | "IV" | "V" | "VI" — FITZPATRICK_SCALES. */
   fitzpatrickScale   String   @map("fitzpatrick_scale")
+  /** Biotipos (`hd_skin_type`) a los que aplica; vacío = todos. */
+  skinTypes          Json     @default("[]") @map("skin_types")
   /** low | medium | high | very_high */
   priority           String   @default("medium")
   /** green | blue | orange | amber | red — decoración UI */

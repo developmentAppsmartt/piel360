@@ -13,6 +13,8 @@ export interface FitzpatrickRule {
   label: string;
   description: string | null;
   fitzpatrickScale: FitzpatrickScale;
+  /** Biotipos a los que aplica; vacío = todos. */
+  skinTypes: string[];
   priority: FitzpatrickRulePriority;
   colorKey: FitzpatrickRuleColorKey;
   sortOrder: number;
@@ -29,6 +31,7 @@ export interface FitzpatrickRuleInput {
   label: string;
   description?: string;
   fitzpatrickScale: FitzpatrickScale;
+  skinTypes?: string[];
   priority?: FitzpatrickRulePriority;
   colorKey?: FitzpatrickRuleColorKey;
   sortOrder?: number;
@@ -56,6 +59,8 @@ export interface FitzpatrickRuleGroupPreview {
 export interface FitzpatrickSimulationResult {
   snapshot: {
     fitzpatrickScale: string | null;
+    /** Biotipo con el que se eligió la regla; null si no se conoce. */
+    skinType?: string | null;
     message: string | null;
   };
   matchedRule: FitzpatrickRule | null;
@@ -119,7 +124,7 @@ export function useDeleteFitzpatrickRule() {
 
 export function useSimulateFitzpatrickRule() {
   return useMutation({
-    mutationFn: (input: { fitzpatrickScale: FitzpatrickScale }) =>
+    mutationFn: (input: { fitzpatrickScale: FitzpatrickScale; skinType?: string }) =>
       apiClientFetch<FitzpatrickSimulationResult>("/fitzpatrick-rules/simulate", {
         method: "POST",
         body: JSON.stringify(input),

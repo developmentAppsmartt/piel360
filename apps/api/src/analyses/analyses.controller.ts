@@ -19,7 +19,7 @@ import { RequirePermission } from '../auth/permissions.decorator';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import type { JwtPayload } from '../auth/types';
-import { FitzpatrickRulesService } from '../fitzpatrick-rules/fitzpatrick-rules.service';
+import { FitzpatrickRecommendationsService } from '../fitzpatrick-rules/fitzpatrick-recommendations.service';
 import { RoutinesService } from '../routines/routines.service';
 import { SkinAgeRecommendationsService } from '../skin-age-rules/skin-age-recommendations.service';
 import { TreatmentsService } from '../treatments/treatments.service';
@@ -39,7 +39,7 @@ export class AnalysesController {
     private readonly analysesService: AnalysesService,
     private readonly consumptionService: AnalysisConsumptionService,
     private readonly skinAgeRecommendations: SkinAgeRecommendationsService,
-    private readonly fitzpatrickRulesService: FitzpatrickRulesService,
+    private readonly fitzpatrickRecommendationsService: FitzpatrickRecommendationsService,
     private readonly routinesService: RoutinesService,
     private readonly treatmentsService: TreatmentsService,
   ) {}
@@ -129,7 +129,7 @@ export class AnalysesController {
     @Param('id') id: string,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.fitzpatrickRulesService.careRecommendationsForAnalysis(
+    return this.fitzpatrickRecommendationsService.careRecommendationsForAnalysis(
       user.sub,
       id,
     );
