@@ -17,8 +17,15 @@ export const ANALISIS_PIEL360_SCORE_BANDS: readonly AnalisisPiel360ScoreBand[] =
   "buena",
 ];
 
-/** Métricas que se configuran (una por tipo de análisis estético). */
-export const ANALISIS_PIEL360_SCORE_CONFIG_METRICS: readonly string[] = ANALISIS_PIEL360_MAIN_METRIC_TYPES;
+/** Clave de la puntuación general (el `type` que trae la IA para ella). */
+export const ANALISIS_PIEL360_OVERALL_TYPE = "all";
+
+/** Métricas que se configuran: la puntuación general (la barra del reporte la
+ * usa) y una por tipo de análisis estético. */
+export const ANALISIS_PIEL360_SCORE_CONFIG_METRICS: readonly string[] = [
+  ANALISIS_PIEL360_OVERALL_TYPE,
+  ...ANALISIS_PIEL360_MAIN_METRIC_TYPES,
+];
 
 /**
  * Subcategorías (regiones) que se configuran aparte de su métrica. Son las

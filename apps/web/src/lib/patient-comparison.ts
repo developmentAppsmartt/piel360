@@ -54,6 +54,19 @@ export function isDermatologicalAnalysis(a: AnalysisKindRow): boolean {
   return !a.analisisPiel360TaskId && !a.fitzpatrickTaskId;
 }
 
+/** Filtro de la tabla de análisis de la ficha del paciente. */
+export type AnalysisTypeFilter = "all" | "aesthetic" | "derm" | "fitzpatrick";
+
+export function filterAnalysesByType<T extends AnalysisKindRow>(
+  analyses: T[],
+  type: AnalysisTypeFilter,
+): T[] {
+  if (type === "all") return analyses;
+  if (type === "aesthetic") return analyses.filter((a) => !!a.analisisPiel360TaskId);
+  if (type === "derm") return analyses.filter(isDermatologicalAnalysis);
+  return analyses.filter((a) => !!a.fitzpatrickTaskId);
+}
+
 export function formatAnalysisDate(iso: string): string {
   return new Date(iso).toLocaleString("es-CO", {
     day: "2-digit",
@@ -61,6 +74,19 @@ export function formatAnalysisDate(iso: string): string {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+  });
+}
+
+/** Con segundos: en la comparación dos análisis del mismo minuto se veían
+ * iguales en los selectores de fecha. */
+export function formatAnalysisDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("es-CO", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
   });
 }
 

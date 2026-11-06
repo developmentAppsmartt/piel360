@@ -2,11 +2,19 @@
 
 import { useMemo } from "react";
 import { ArrowLeft, Download } from "lucide-react";
-import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
+import {
+  ANALISIS_PIEL360_OVERALL_TYPE,
+  configuredAnalisisPiel360ScoreBand,
+  resolveScoreRanges,
+} from "@piel360/shared";
+import { FitzpatrickResultsSection } from "@/components/analyses/fitzpatrick-results-section";
+import { ModuleCard } from "@/components/ui/module-card";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api-error";
 import { type AnalysisDetail, useDownloadAnalisisPiel360Report } from "@/lib/queries/analyses";
+import { useEffectiveScoreConfig } from "@/lib/queries/score-config";
 import { ANALISIS_PIEL360_METRIC_LABELS, analisisPiel360SkinTypeLabel } from "@/lib/youcam-metric-labels";
+import { buildReportRows } from "@/lib/youcam-report-rows";
 import {
   chronologicalAgeYears,
   formatSignedYears,
@@ -14,32 +22,18 @@ import {
   skinAgeDifferenceMessage,
 } from "@/lib/skin-age";
 import {
-  parseAnalisisPiel360Metrics,
   ANALISIS_PIEL360_MAIN_METRIC_TYPES,
+  parseAnalisisPiel360Metrics,
   analisisPiel360OverallScore,
-  analisisPiel360ScoreBand,
   analisisPiel360ScoreBandLabel,
   analisisPiel360ScoresByType,
   analisisPiel360SkinAge,
   analisisPiel360SkinType,
   type AnalisisPiel360RawResponse,
 } from "@/lib/youcam-metrics";
-const RADAR_TYPES = [
-  "hd_moisture",
-  "hd_oiliness",
-  "hd_firmness",
-  "hd_age_spot",
-  "hd_wrinkle",
-  "hd_texture",
-  "hd_pore",
-  "hd_acne",
-] as const;
-
-const BAND_COLOR = {
-  regular: "#F59E0B",
-  promedio: "#3B82F6",
-  buena: "#22C55E",
-} as const;
+import { ReportMetricCard } from "./report/report-metric-card";
+import { ReportRadarChart } from "./report/report-radar-chart";
+import { ScoreRangeBar } from "./report/report-score-bar";
 
 function formatStamp(iso: string): string {
   const d = new Date(iso);
@@ -53,105 +47,46 @@ function formatStamp(iso: string): string {
   });
 }
 
+const MAIN_METRIC_SET = new Set<string>(ANALISIS_PIEL360_MAIN_METRIC_TYPES);
+
+/** El mismo resumen que el reporte de la app móvil. */
 function buildSummary(
   scores: Record<string, number>,
   overall: number | null,
+  skinTypeLabel: string | null,
 ): string {
+  // Solo métricas principales: `scores` también trae `skin_age` y `all`, y el
+  // resumen llegaba a pedir «cuidado en Edad de la piel».
   const lows = Object.entries(scores)
-    .filter(([, v]) => v < 70)
+    .filter(([type, v]) => MAIN_METRIC_SET.has(type) && v < 70)
     .sort((a, b) => a[1] - b[1])
     .slice(0, 3)
     .map(([type]) => ANALISIS_PIEL360_METRIC_LABELS[type] ?? type);
+  const typeHint = skinTypeLabel ? ` Tu tipo de piel es ${skinTypeLabel.toLowerCase()}.` : "";
 
   if (overall != null && overall >= 90) {
-    return "Su piel está en buen estado general. Mantén tu rutina de cuidado y protección solar diaria.";
+    return `Ya vas camino a una gran piel.${typeHint} Mantén tu rutina y protección solar diaria. Revisa el detalle de cada métrica abajo.`;
+  }
+  if (overall != null && overall >= 70) {
+    return `Vas en el promedio.${typeHint}${
+      lows.length ? ` Un poco más de cuidado en ${lows.join(", ")} puede marcar la diferencia.` : ""
+    } Revisa el análisis completo abajo.`;
   }
   if (lows.length === 0) {
-    return "Su piel está en el promedio. Revisa las zonas detalladas abajo para priorizar tu rutina.";
+    return `Hay margen de mejora general.${typeHint} Prioriza hidratación, SPF y una rutina constante.`;
   }
-  return `Prioriza mejorar: ${lows.join(", ")}. Considera hidratación adecuada, protección solar y consulta dermatológica si persisten las molestias.`;
+  return `Prioriza mejorar: ${lows.join(", ")}.${typeHint} Considera hidratación, protección solar y seguimiento dermatológico si persisten las molestias.`;
 }
 
-function RadarChart({
-  scores,
-  color,
-}: {
-  scores: Record<string, number>;
-  color: string;
-}) {
-  const size = 280;
-  const cx = size / 2;
-  const cy = size / 2;
-  const radius = 95;
-  const axes = RADAR_TYPES.filter((t) => scores[t] != null);
-  if (axes.length < 3) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        No hay suficientes métricas para el radar.
-      </p>
-    );
-  }
+const ageTone = (diff: number) =>
+  diff < 0
+    ? "text-emerald-600 dark:text-emerald-400"
+    : diff > 0
+      ? "text-red-600 dark:text-red-400"
+      : "text-muted-foreground";
 
-  const points = axes.map((type, i) => {
-    const angle = -Math.PI / 2 + (i * 2 * Math.PI) / axes.length;
-    const value = Math.max(0, Math.min(100, scores[type] ?? 0)) / 100;
-    return {
-      type,
-      value: scores[type] ?? 0,
-      x: cx + Math.cos(angle) * radius * value,
-      y: cy + Math.sin(angle) * radius * value,
-      lx: cx + Math.cos(angle) * (radius + 20),
-      ly: cy + Math.sin(angle) * (radius + 20),
-      ax: cx + Math.cos(angle) * radius,
-      ay: cy + Math.sin(angle) * radius,
-    };
-  });
-
-  const polygon = points.map((p) => `${p.x},${p.y}`).join(" ");
-
-  return (
-    <svg viewBox={`0 0 ${size} ${size}`} className="mx-auto h-64 w-64">
-      {[0.25, 0.5, 0.75, 1].map((ring) => (
-        <circle
-          key={ring}
-          cx={cx}
-          cy={cy}
-          r={radius * ring}
-          fill="none"
-          className="stroke-border"
-        />
-      ))}
-      {points.map((p) => (
-        <line
-          key={p.type}
-          x1={cx}
-          y1={cy}
-          x2={p.ax}
-          y2={p.ay}
-          className="stroke-border"
-        />
-      ))}
-      <polygon
-        points={polygon}
-        fill={`${color}33`}
-        stroke={color}
-        strokeWidth={2}
-      />
-      {points.map((p) => (
-        <text
-          key={`t-${p.type}`}
-          x={p.lx}
-          y={p.ly}
-          textAnchor="middle"
-          className="fill-foreground text-[9px] font-bold"
-        >
-          {Math.round(p.value)}
-        </text>
-      ))}
-    </svg>
-  );
-}
-
+/** «Reporte Salud de la Piel»: mismo orden y contenido que el de la app
+ * móvil; los niveles, las barras y los textos usan Rangos de puntuación. */
 export function AnalisisPiel360ReportView({
   analysis,
   patientName,
@@ -162,28 +97,29 @@ export function AnalisisPiel360ReportView({
   onBack: () => void;
 }) {
   const metrics = useMemo(
-    () =>
-      parseAnalisisPiel360Metrics(analysis.aiRawResponse as AnalisisPiel360RawResponse | null),
+    () => parseAnalisisPiel360Metrics(analysis.aiRawResponse as AnalisisPiel360RawResponse | null),
     [analysis.aiRawResponse],
   );
+  const { data: scoreConfig } = useEffectiveScoreConfig();
   // Puntuación ajustada (uiScore): la elige el doctor; sin toggle en el análisis.
-  const preferRaw = false;
-  const scores = useMemo(() => analisisPiel360ScoresByType(metrics, preferRaw), [metrics]);
+  const scores = useMemo(() => analisisPiel360ScoresByType(metrics, false), [metrics]);
+  const rows = useMemo(() => buildReportRows(metrics, analysis.masks), [metrics, analysis.masks]);
   const overall = analisisPiel360OverallScore(metrics);
   const skinAge = analysis.skinAgeYears ?? analisisPiel360SkinAge(metrics);
   const chronologicalAge =
-    analysis.chronologicalAgeYears ??
-    chronologicalAgeYears(analysis.patient?.birthDate, analysis.createdAt);
-  const ageDiff =
-    analysis.skinAgeDifference ??
-    skinAgeDifference(skinAge, chronologicalAge);
+    analysis.chronologicalAgeYears ?? chronologicalAgeYears(analysis.patient?.birthDate, analysis.createdAt);
+  const ageDiff = analysis.skinAgeDifference ?? skinAgeDifference(skinAge, chronologicalAge);
   const skinType = analisisPiel360SkinType(metrics);
-  const band = overall != null ? analisisPiel360ScoreBand(overall) : null;
+  const skinTypeLabel = skinType ? analisisPiel360SkinTypeLabel(skinType) : null;
+  const fitzpatrickType = analysis.patient?.fitzpatrickType ?? null;
+  const band =
+    overall != null
+      ? configuredAnalisisPiel360ScoreBand(overall, ANALISIS_PIEL360_OVERALL_TYPE, scoreConfig)
+      : null;
+  const photoUrl = analysis.hasOriginalPhoto ? analysis.imageUrl : null;
   const name =
     patientName ??
-    (analysis.patient
-      ? `${analysis.patient.firstName} ${analysis.patient.lastName}`.trim()
-      : "Paciente");
+    (analysis.patient ? `${analysis.patient.firstName} ${analysis.patient.lastName}`.trim() : "Paciente");
 
   const downloadReport = useDownloadAnalisisPiel360Report(analysis.id);
 
@@ -201,21 +137,6 @@ export function AnalisisPiel360ReportView({
     }
   }
 
-  const gridTypes = useMemo(() => {
-    const types = new Set<string>([...ANALISIS_PIEL360_MAIN_METRIC_TYPES]);
-    for (const key of Object.keys(scores)) {
-      if (
-        key !== "all" &&
-        key !== "skin_age" &&
-        key !== "resize_image" &&
-        key !== "hd_skin_type"
-      ) {
-        types.add(key);
-      }
-    }
-    return [...types].filter((t) => scores[t] != null);
-  }, [scores]);
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
@@ -228,9 +149,7 @@ export function AnalisisPiel360ReportView({
           >
             <ArrowLeft className="size-5" />
           </button>
-          <h2 className="text-lg font-bold tracking-tight">
-            Reporte Salud de la Piel
-          </h2>
+          <h2 className="text-lg font-bold tracking-tight">Reporte Salud de la Piel</h2>
         </div>
         <button
           type="button"
@@ -240,47 +159,40 @@ export function AnalisisPiel360ReportView({
           onClick={() => void handleDownloadPdf()}
         >
           <Download className="size-4" />
-          <span className="text-sm font-medium">
-            {downloadReport.isPending ? "Generando…" : "Descargar PDF"}
-          </span>
+          <span className="text-sm font-medium">{downloadReport.isPending ? "Generando…" : "Descargar PDF"}</span>
         </button>
       </div>
 
       <ModuleCard className="space-y-4">
         <div className="flex items-center gap-3">
           <div className="size-14 overflow-hidden rounded-full bg-primary/10">
-            {analysis.hasOriginalPhoto && analysis.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={analysis.imageUrl}
-                alt=""
-                className="size-full object-cover"
-              />
+            {photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- URL firmada de S3
+              <img src={photoUrl} alt="" className="size-full object-cover" />
             ) : null}
           </div>
           <div>
             <p className="font-semibold">Paciente: {name}</p>
-            <p className="text-sm text-muted-foreground">
-              {formatStamp(analysis.createdAt)}
-            </p>
+            <p className="text-sm text-muted-foreground">{formatStamp(analysis.createdAt)}</p>
           </div>
         </div>
 
         <div className="space-y-1 text-sm">
           <p>
-            Tipo de piel: <span className="font-semibold">{skinType ? analisisPiel360SkinTypeLabel(skinType) : "—"}</span>
+            Tipo de piel: <span className="font-semibold">{skinTypeLabel ?? "—"}</span>
           </p>
+          {fitzpatrickType ? (
+            <p>
+              Piel: <span className="font-semibold">Tipo {fitzpatrickType}</span>
+            </p>
+          ) : null}
           <p>
             Puntuación de la piel:{" "}
-            <span className="font-semibold">
-              {overall != null ? Math.round(overall) : "—"}
-            </span>
+            <span className="font-semibold">{overall != null ? Math.round(overall) : "—"}</span>
           </p>
           <p>
             Edad de tu piel:{" "}
-            <span className="font-semibold">
-              {skinAge != null ? `${Math.round(skinAge)} años` : "—"}
-            </span>
+            <span className="font-semibold">{skinAge != null ? `${Math.round(skinAge)} años` : "—"}</span>
           </p>
           <p>
             Edad cronológica:{" "}
@@ -290,30 +202,8 @@ export function AnalisisPiel360ReportView({
           </p>
           {ageDiff != null ? (
             <>
-              <p
-                className={cn(
-                  "font-semibold",
-                  ageDiff < 0
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : ageDiff > 0
-                      ? "text-red-600 dark:text-red-400"
-                      : "text-muted-foreground",
-                )}
-              >
-                Diferencia: {formatSignedYears(ageDiff)}
-              </p>
-              <p
-                className={cn(
-                  "font-medium",
-                  ageDiff < 0
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : ageDiff > 0
-                      ? "text-red-600 dark:text-red-400"
-                      : "text-muted-foreground",
-                )}
-              >
-                {skinAgeDifferenceMessage(ageDiff)}
-              </p>
+              <p className={cn("font-semibold", ageTone(ageDiff))}>Diferencia: {formatSignedYears(ageDiff)}</p>
+              <p className={cn("font-medium", ageTone(ageDiff))}>{skinAgeDifferenceMessage(ageDiff)}</p>
             </>
           ) : null}
           {band ? (
@@ -323,87 +213,37 @@ export function AnalisisPiel360ReportView({
           ) : null}
         </div>
 
+        {fitzpatrickType ? <FitzpatrickResultsSection analysis={analysis} compact silentIfEmpty /> : null}
+
         {overall != null ? (
-          <div>
-            <div className="flex h-3 overflow-hidden rounded-full">
-              <div className="bg-amber-500" style={{ flex: 70 }} />
-              <div className="bg-blue-500" style={{ flex: 20 }} />
-              <div className="bg-green-500" style={{ flex: 10 }} />
-            </div>
-            <div className="relative mt-1 h-6">
-              <span
-                className="absolute top-0 -translate-x-1/2 rounded bg-foreground px-1.5 py-0.5 text-[10px] font-bold text-background"
-                style={{ left: `${Math.max(0, Math.min(100, overall))}%` }}
-              >
-                {Math.round(overall)}
-              </span>
-            </div>
-            <div className="mt-1 flex justify-between text-xs font-semibold">
-              <span className="text-amber-600">Regular</span>
-              <span className="text-blue-600">Promedio</span>
-              <span className="text-green-600">Buena</span>
-            </div>
-          </div>
+          <ScoreRangeBar
+            score={overall}
+            ranges={resolveScoreRanges(scoreConfig, ANALISIS_PIEL360_OVERALL_TYPE)}
+          />
         ) : null}
 
         <div className="rounded-xl bg-muted/50 p-4">
-          <p className="text-xs font-bold tracking-wide text-muted-foreground">
-            RESUMEN
-          </p>
-          <p className="mt-1 text-sm leading-relaxed">
-            {buildSummary(scores, overall)}
-          </p>
+          <p className="text-xs font-bold tracking-wide text-muted-foreground">RESUMEN</p>
+          <p className="mt-1 text-sm leading-relaxed">{buildSummary(scores, overall, skinTypeLabel)}</p>
         </div>
 
         <div className="rounded-xl bg-muted/50 p-4">
-          <p className="text-xs font-bold tracking-wide text-muted-foreground">
-            OBSERVACIONES DEL MÉDICO
-          </p>
+          <p className="text-xs font-bold tracking-wide text-muted-foreground">OBSERVACIONES DEL MÉDICO</p>
           <p className="mt-1 text-sm leading-relaxed whitespace-pre-line">
-            {analysis.doctorNotes?.trim()
-              ? analysis.doctorNotes
-              : "Sin observaciones del médico todavía."}
+            {analysis.doctorNotes?.trim() ? analysis.doctorNotes : "Sin observaciones del médico todavía."}
           </p>
         </div>
 
         <div className="flex justify-center py-2">
-          <RadarChart scores={scores} color="var(--primary)" />
+          <ReportRadarChart scores={scores} color="var(--primary)" />
         </div>
       </ModuleCard>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        {gridTypes.map((type) => {
-          const score = scores[type] ?? 0;
-          const itemBand = analisisPiel360ScoreBand(score);
-          const color = BAND_COLOR[itemBand];
-          return (
-            <ModuleCard key={type} className="space-y-2 p-4">
-              <div className="flex items-start justify-between gap-2">
-                <ModuleCardTitle className="text-sm">
-                  {ANALISIS_PIEL360_METRIC_LABELS[type] ?? type}
-                </ModuleCardTitle>
-                <span
-                  className="text-xs font-bold"
-                  style={{ color }}
-                >
-                  {analisisPiel360ScoreBandLabel(itemBand)}
-                </span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${Math.max(0, Math.min(100, score))}%`,
-                    backgroundColor: color,
-                  }}
-                />
-              </div>
-              <p className="text-right text-sm font-bold tabular-nums">
-                {Math.round(score)}
-              </p>
-            </ModuleCard>
-          );
-        })}
+      <h3 className="text-base font-semibold">Detalle por métrica</h3>
+      <div className="grid gap-3 lg:grid-cols-2">
+        {rows.map((row) => (
+          <ReportMetricCard key={row.key} row={row} photoUrl={photoUrl} scoreConfig={scoreConfig} />
+        ))}
       </div>
     </div>
   );

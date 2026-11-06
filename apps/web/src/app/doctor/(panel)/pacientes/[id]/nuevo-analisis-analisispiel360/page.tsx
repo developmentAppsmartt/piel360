@@ -11,6 +11,7 @@ import { ApiError } from "@/lib/api-error";
 import { genderFromPatient } from "@/lib/body-model";
 import { usePatient } from "@/lib/queries/patients";
 import { useCreateAnalisisPiel360Analysis } from "@/lib/queries/youcam";
+import { useWizardStep } from "@/lib/use-wizard-step";
 
 type Step = "consentimiento" | "captura" | "enviar" | "resultados";
 
@@ -26,7 +27,7 @@ export default function NuevoAnalisisAnalisisPiel360Page() {
   const router = useRouter();
   const { data: patient } = usePatient(patientId);
 
-  const [step, setStep] = useState<Step>("consentimiento");
+  const [step, goTo] = useWizardStep<Step>("consentimiento");
   const [consented, setConsented] = useState(false);
   const [photo, setPhoto] = useState<Blob | null>(null);
   const [bodySelection, setBodySelection] = useState<BodySelection | null>(null);
@@ -43,7 +44,7 @@ export default function NuevoAnalisisAnalisisPiel360Page() {
         ...bodySelection,
       });
       setAnalysisId(created.analysisId);
-      setStep("resultados");
+      goTo("resultados");
     } catch {
       // El error queda expuesto vía createAnalysis.error, renderizado más abajo.
     }
@@ -68,7 +69,7 @@ export default function NuevoAnalisisAnalisisPiel360Page() {
             />
             El paciente acepta la captura y el análisis de su imagen facial.
           </label>
-          <Button type="button" disabled={!consented} onClick={() => setStep("captura")}>
+          <Button type="button" disabled={!consented} onClick={() => goTo("captura")}>
             Continuar
           </Button>
         </div>
@@ -88,10 +89,10 @@ export default function NuevoAnalisisAnalisisPiel360Page() {
           </div>
 
           <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={() => setStep("consentimiento")}>
+            <Button type="button" variant="outline" onClick={() => goTo("consentimiento")}>
               Atrás
             </Button>
-            <Button type="button" disabled={!photo} onClick={() => setStep("enviar")}>
+            <Button type="button" disabled={!photo} onClick={() => goTo("enviar")}>
               Continuar
             </Button>
           </div>
@@ -112,7 +113,7 @@ export default function NuevoAnalisisAnalisisPiel360Page() {
             </p>
           )}
           <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={() => setStep("captura")}>
+            <Button type="button" variant="outline" onClick={() => goTo("captura")}>
               Atrás
             </Button>
             <Button type="button" disabled={createAnalysis.isPending} onClick={handleSubmit}>

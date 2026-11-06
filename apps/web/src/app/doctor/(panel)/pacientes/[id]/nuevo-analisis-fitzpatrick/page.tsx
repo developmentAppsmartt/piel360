@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import { ApiError } from "@/lib/api-error";
 import { useCreateFitzpatrickAnalysis } from "@/lib/queries/fitzpatrick";
+import { useWizardStep } from "@/lib/use-wizard-step";
 
 type Step = "consentimiento" | "captura" | "enviar" | "resultados";
 
@@ -15,7 +16,7 @@ export default function NuevoAnalisisFitzpatrickPage() {
   const { id: patientId } = useParams<{ id: string }>();
   const router = useRouter();
 
-  const [step, setStep] = useState<Step>("consentimiento");
+  const [step, goTo] = useWizardStep<Step>("consentimiento");
   const [consented, setConsented] = useState(false);
   const [photo, setPhoto] = useState<Blob | null>(null);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
@@ -27,7 +28,7 @@ export default function NuevoAnalisisFitzpatrickPage() {
     try {
       const created = await createAnalysis.mutateAsync({ patientId, image: photo });
       setAnalysisId(created.analysisId);
-      setStep("resultados");
+      goTo("resultados");
     } catch {
       // El error queda expuesto vía createAnalysis.error, renderizado más abajo.
     }
@@ -52,7 +53,7 @@ export default function NuevoAnalisisFitzpatrickPage() {
             />
             El paciente acepta la captura y el análisis de su imagen facial.
           </label>
-          <Button type="button" disabled={!consented} onClick={() => setStep("captura")}>
+          <Button type="button" disabled={!consented} onClick={() => goTo("captura")}>
             Continuar
           </Button>
         </div>
@@ -64,10 +65,10 @@ export default function NuevoAnalisisFitzpatrickPage() {
           {photo && <p className="text-sm text-muted-foreground">Foto capturada correctamente.</p>}
 
           <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={() => setStep("consentimiento")}>
+            <Button type="button" variant="outline" onClick={() => goTo("consentimiento")}>
               Atrás
             </Button>
-            <Button type="button" disabled={!photo} onClick={() => setStep("enviar")}>
+            <Button type="button" disabled={!photo} onClick={() => goTo("enviar")}>
               Continuar
             </Button>
           </div>
@@ -88,7 +89,7 @@ export default function NuevoAnalisisFitzpatrickPage() {
             </p>
           )}
           <div className="flex gap-2">
-            <Button type="button" variant="outline" disabled={createAnalysis.isPending} onClick={() => setStep("captura")}>
+            <Button type="button" variant="outline" disabled={createAnalysis.isPending} onClick={() => goTo("captura")}>
               Atrás
             </Button>
             <Button type="button" disabled={createAnalysis.isPending} onClick={handleSubmit}>
