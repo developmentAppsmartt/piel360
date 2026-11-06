@@ -80,7 +80,7 @@ function TabRow({
     <div
       role="tablist"
       aria-label={label}
-      className="inline-flex flex-wrap gap-1 rounded-lg border border-border bg-muted/40 p-0.5"
+      className="flex w-full flex-wrap gap-1 rounded-lg border border-border bg-muted/40 p-0.5"
     >
       {items.map((item) => (
         <button

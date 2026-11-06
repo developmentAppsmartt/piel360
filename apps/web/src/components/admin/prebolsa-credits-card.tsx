@@ -48,6 +48,18 @@ function Counter({
   );
 }
 
+function confirmCopy(kind: "activate" | "discard", item: PrebolsaItem) {
+  if (kind === "activate") {
+    const base = `¿Activar «${item.plan.name}» para ${item.user.name}? Se apartan ${item.poolRequired} créditos`;
+    return item.stage === "pendingPayment"
+      ? `Esta compra aún no tiene el pago confirmado. ${base}.`
+      : `${base} de la bolsa.`;
+  }
+  return item.stage === "pendingPayment"
+    ? `¿Eliminar la prebolsa de ${item.user.name} (${item.plan.name})?`
+    : `¿Eliminar la prebolsa de ${item.user.name}? El pago ya quedó registrado y la petición se cancela.`;
+}
+
 function PrebolsaActions({
   item,
   busy,
@@ -88,6 +100,10 @@ export function PrebolsaCreditsCard() {
   const discard = useDiscardPrebolsa();
   const [open, setOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [pending, setPending] = useState<{
+    kind: "activate" | "discard";
+    item: PrebolsaItem;
+  } | null>(null);
   const counts = prebolsa.data?.counts;
   const busyId = activate.isPending
     ? activate.variables
@@ -95,45 +111,24 @@ export function PrebolsaCreditsCard() {
       ? discard.variables
       : null;
 
-  function activateItem(item: PrebolsaItem) {
-    const unpaid = item.stage === "pendingPayment";
-    const confirmed = window.confirm(
-      unpaid
-        ? `Esta compra aún no tiene el pago confirmado. ¿Activar igual «${item.plan.name}» para ${item.user.name}? Se apartan ${item.poolRequired} créditos.`
-        : `¿Activar «${item.plan.name}» para ${item.user.name}? Se apartan ${item.poolRequired} créditos de la bolsa.`,
-    );
-    if (!confirmed) return;
-    if (item.poolAvailable < item.poolRequired) {
+  function runPending() {
+    if (!pending) return;
+    const { kind, item } = pending;
+    setPending(null);
+    if (kind === "activate" && item.poolAvailable < item.poolRequired) {
       setActionError("No hay créditos en bolsa");
       return;
     }
     setActionError(null);
-    activate.mutate(item.id, {
+    const mutation = kind === "activate" ? activate : discard;
+    mutation.mutate(item.id, {
       onError: (err) => {
         setActionError(
           err instanceof ApiError
             ? err.message
-            : "No se pudo activar la prebolsa",
-        );
-      },
-    });
-  }
-
-  function discardItem(item: PrebolsaItem) {
-    const paid = item.stage !== "pendingPayment";
-    const confirmed = window.confirm(
-      paid
-        ? `¿Eliminar la prebolsa de ${item.user.name}? El pago ya quedó registrado y la petición se cancela.`
-        : `¿Eliminar la prebolsa de ${item.user.name} (${item.plan.name})?`,
-    );
-    if (!confirmed) return;
-    setActionError(null);
-    discard.mutate(item.id, {
-      onError: (err) => {
-        setActionError(
-          err instanceof ApiError
-            ? err.message
-            : "No se pudo eliminar la prebolsa",
+            : kind === "activate"
+              ? "No se pudo activar la prebolsa"
+              : "No se pudo eliminar la prebolsa",
         );
       },
     });
@@ -279,8 +274,8 @@ export function PrebolsaCreditsCard() {
                         <PrebolsaActions
                           item={item}
                           busy={busyId === item.id}
-                          onActivate={activateItem}
-                          onDiscard={discardItem}
+                          onActivate={(item) => setPending({ kind: "activate", item })}
+                          onDiscard={(item) => setPending({ kind: "discard", item })}
                         />
                       </td>
                     </tr>
@@ -288,6 +283,36 @@ export function PrebolsaCreditsCard() {
                 )}
               </tbody>
             </table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={pending !== null}
+        onOpenChange={(next) => {
+          if (!next) setPending(null);
+        }}
+      >
+        <DialogContent className="z-[80] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {pending?.kind === "discard" ? "Eliminar prebolsa" : "Activar prebolsa"}
+            </DialogTitle>
+            <DialogDescription>
+              {pending ? confirmCopy(pending.kind, pending.item) : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setPending(null)}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant={pending?.kind === "discard" ? "destructive" : "default"}
+              onClick={runPending}
+            >
+              {pending?.kind === "discard" ? "Eliminar" : "Activar"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

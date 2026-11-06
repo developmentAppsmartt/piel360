@@ -119,7 +119,7 @@ export function ReportFilters({
         <div
           role="tablist"
           aria-label="Periodo"
-          className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5"
+          className="flex max-w-full flex-wrap rounded-lg border border-border bg-muted/40 p-0.5"
         >
           {PRESETS.map((preset) => (
             <button

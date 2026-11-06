@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+import { elegirImagen } from '../../services/elegir-imagen';
 import { useAuth } from '../../context/AuthContext';
 import { useBranding } from '../../context/BrandingContext';
 import { ApiError } from '../../services/api.client';
@@ -304,26 +304,16 @@ export function ProfileView({ onBack, onOpenMessages }: ProfileViewProps) {
 
   async function handleChangeAvatar() {
     if (avatarBusy) return;
-    const permission =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert(
-        'Permiso necesario',
-        'Necesitamos acceso a tu galería para cambiar la foto de perfil.',
-      );
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.85,
+    const asset = await elegirImagen('library', {
+      editar: true,
+      relacion: [1, 1],
+      calidad: 0.85,
     });
-    if (result.canceled || !result.assets[0]?.uri) return;
+    if (!asset) return;
 
     setAvatarBusy(true);
     try {
-      const uploaded = await usersService.uploadAvatar(result.assets[0].uri);
+      const uploaded = await usersService.uploadAvatar(asset.uri);
       const url = resolveMediaUrl(uploaded.avatarUrl);
       setLocalAvatarUrl(url);
       if (isDoctor && doctor) {

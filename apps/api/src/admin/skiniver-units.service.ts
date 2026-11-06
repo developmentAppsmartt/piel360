@@ -59,8 +59,8 @@ export class AnalisisDermaPiel360UnitsService {
       .filter((r) => !r.expiresAt || r.expiresAt.getTime() > now)
       .reduce((sum, r) => sum + r.quantity, 0);
 
-    const totalPurchased = recharges.reduce((sum, r) => sum + r.quantity, 0);
-    const available = Math.max(0, activeTotal - committed);
+    const available =
+      await this.subscriptionPool.getAnalisisDermaPiel360Available();
     const expiringSoon = recharges
       .filter(
         (r) =>
@@ -79,7 +79,7 @@ export class AnalisisDermaPiel360UnitsService {
         name: 'Análisis dermatológico (créditos)',
         accent: 'derm' as const,
         available,
-        total: totalPurchased,
+        total: activeTotal,
         used: committed,
         reserved: committed,
         expiringSoon,

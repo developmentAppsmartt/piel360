@@ -13,13 +13,12 @@ import { useAuth } from '../../context/AuthContext';
 import { useBranding } from '../../context/BrandingContext';
 import { nosologiesService } from '../../services/nosologies.service';
 import type { NosologyCategory } from '../../types/nosology';
-import { AccountDrawer } from '../doctor/patients/components/AccountDrawer';
+import { DoctorAccountMenu } from '../doctor/patients/components/DoctorAccountMenu';
 import { PaymentsBillingView } from '../doctor/payments/PaymentsBillingView';
 import { PaymentsView } from '../doctor/payments/PaymentsView';
 import { DiagnosisLanguageView } from '../doctor/settings/DiagnosisLanguageView';
 import { SupportChatView } from '../support/SupportChatView';
 import { ChangePasswordFlow } from '../auth/forgot-password/ForgotPasswordView';
-import { LegalDocumentModal } from '../../components/legal/LegalDocumentModal';
 import type { LegalDocId } from '../../data/legal/documents';
 import { AppModuleChrome } from '../shared/AppModuleChrome';
 import { NosologySearchBar } from './components/NosologySearchBar';
@@ -51,6 +50,7 @@ export function NosologiesView({
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [showingPayments, setShowingPayments] = useState(false);
   const [showingLanguage, setShowingLanguage] = useState(false);
   const [showingBilling, setShowingBilling] = useState(false);
@@ -113,6 +113,8 @@ export function NosologiesView({
       setShowingPassword(true);
     } else if (id === 'acuerdo') {
       setLegalDoc('terms-professional');
+    } else if (id === 'compartir') {
+      setInviteOpen(true);
     } else
       Alert.alert(
         'Próximamente',
@@ -140,15 +142,14 @@ export function NosologiesView({
           onOpenMenu={() => setMenuOpen(true)}
           onOpenMessages={onOpenMessages}
         />
-        <AccountDrawer
-          visible={menuOpen}
-          onClose={() => setMenuOpen(false)}
+        <DoctorAccountMenu
+          menuOpen={menuOpen}
+          onCloseMenu={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
-        />
-        <LegalDocumentModal
-          docId={legalDoc}
-          visible={legalDoc != null}
-          onClose={() => setLegalDoc(null)}
+          inviteOpen={inviteOpen}
+          onCloseInvite={() => setInviteOpen(false)}
+          legalDoc={legalDoc}
+          onCloseLegal={() => setLegalDoc(null)}
         />
       </>
     );
@@ -166,15 +167,14 @@ export function NosologiesView({
           onOpenMenu={() => setMenuOpen(true)}
           onOpenMessages={onOpenMessages}
         />
-        <AccountDrawer
-          visible={menuOpen}
-          onClose={() => setMenuOpen(false)}
+        <DoctorAccountMenu
+          menuOpen={menuOpen}
+          onCloseMenu={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
-        />
-        <LegalDocumentModal
-          docId={legalDoc}
-          visible={legalDoc != null}
-          onClose={() => setLegalDoc(null)}
+          inviteOpen={inviteOpen}
+          onCloseInvite={() => setInviteOpen(false)}
+          legalDoc={legalDoc}
+          onCloseLegal={() => setLegalDoc(null)}
         />
       </>
     );
@@ -188,15 +188,14 @@ export function NosologiesView({
           onOpenMenu={() => setMenuOpen(true)}
           onOpenMessages={onOpenMessages}
         />
-        <AccountDrawer
-          visible={menuOpen}
-          onClose={() => setMenuOpen(false)}
+        <DoctorAccountMenu
+          menuOpen={menuOpen}
+          onCloseMenu={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
-        />
-        <LegalDocumentModal
-          docId={legalDoc}
-          visible={legalDoc != null}
-          onClose={() => setLegalDoc(null)}
+          inviteOpen={inviteOpen}
+          onCloseInvite={() => setInviteOpen(false)}
+          legalDoc={legalDoc}
+          onCloseLegal={() => setLegalDoc(null)}
         />
       </>
     );

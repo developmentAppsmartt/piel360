@@ -75,6 +75,15 @@
     android:paddingTop="@dimen/skin_top_padding"
     android:paddingHorizontal="16dp">
 
+    <ImageView
+      android:layout_width="@dimen/skin_logo_width"
+      android:layout_height="@dimen/skin_logo_height"
+      android:layout_gravity="center_horizontal"
+      android:adjustViewBounds="true"
+      android:contentDescription="PIEL 360"
+      android:scaleType="fitCenter"
+      android:src="@drawable/logo_piel360_capture" />
+
     <RelativeLayout
       android:layout_width="match_parent"
       android:layout_height="@dimen/skin_header_row_height">
@@ -171,22 +180,61 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_gravity="bottom"
-    android:gravity="center_horizontal"
-    android:orientation="vertical"
-    android:paddingBottom="28dp"
-    android:paddingHorizontal="24dp">
+    android:orientation="vertical">
 
     <!-- Solo visible si el AAR Perfect no carga (último recurso). -->
     <Button
       android:id="@+id/btn_capture"
       android:layout_width="match_parent"
       android:layout_height="48dp"
+      android:layout_marginHorizontal="24dp"
+      android:layout_marginBottom="8dp"
       android:backgroundTint="#6C4EE3"
       android:enabled="false"
       android:text="Capturar"
       android:textAllCaps="false"
       android:textColor="#FFFFFF"
       android:visibility="gone" />
+
+    <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:background="#E60B1C33"
+      android:gravity="center"
+      android:orientation="horizontal"
+      android:paddingVertical="12dp"
+      android:paddingHorizontal="16dp">
+
+      <View
+        android:layout_width="28dp"
+        android:layout_height="1dp"
+        android:layout_marginEnd="10dp"
+        android:background="#3DDCFF" />
+
+      <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:letterSpacing="0.08"
+        android:text="POWERED BY"
+        android:textColor="#3DDCFF"
+        android:textSize="@dimen/skin_powered_label"
+        android:textStyle="bold" />
+
+      <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:text="PIEL 360"
+        android:textColor="#7AF0FF"
+        android:textSize="@dimen/skin_powered_brand"
+        android:textStyle="bold" />
+
+      <View
+        android:layout_width="28dp"
+        android:layout_height="1dp"
+        android:layout_marginStart="10dp"
+        android:background="#3DDCFF" />
+    </LinearLayout>
   </LinearLayout>
 
   <TextView

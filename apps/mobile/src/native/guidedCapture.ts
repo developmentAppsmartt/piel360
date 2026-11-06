@@ -4,6 +4,7 @@ import {
   skinAnalysisNative,
   type GuidedCaptureResult,
 } from './SkinAnalysis';
+import { camaraPermitida } from '../services/elegir-imagen';
 
 function isExpoGo(): boolean {
   return (
@@ -41,6 +42,10 @@ export async function requireGuidedFaceCapture(): Promise<GuidedCaptureResult> {
     throw new Error(
       'El módulo SkinAnalysis no está en esta instalación. Desinstala com.piel360.app e instala el APK release recién generado.',
     );
+  }
+
+  if (!(await camaraPermitida())) {
+    throw new Error('Necesitamos permiso de cámara para la captura.');
   }
 
   // perfectSdk es opcional: sin AAR de Perfect seguimos con CameraX.

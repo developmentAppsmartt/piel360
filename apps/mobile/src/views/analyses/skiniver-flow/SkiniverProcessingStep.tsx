@@ -18,6 +18,7 @@ type SkiniverProcessingStepProps = {
   patientId: string;
   imageUri: string;
   selection: BodySelection;
+  doctorNotes?: string;
   onDone: (analysisId: string) => void;
   onError: (message: string) => void;
 };
@@ -44,6 +45,7 @@ function createKey(
   patientId: string,
   imageUri: string,
   selection: BodySelection,
+  doctorNotes?: string,
 ): string {
   return [
     patientId,
@@ -52,6 +54,7 @@ function createKey(
     selection.xCoord,
     selection.yCoord,
     selection.zCoord,
+    doctorNotes?.trim() ?? '',
   ].join('|');
 }
 
@@ -63,6 +66,7 @@ export function SkiniverProcessingStep({
   patientId,
   imageUri,
   selection,
+  doctorNotes,
   onDone,
   onError,
 }: SkiniverProcessingStepProps) {
@@ -179,7 +183,7 @@ export function SkiniverProcessingStep({
     let cancelled = false;
     finished.current = false;
     let tick: ReturnType<typeof setInterval> | null = null;
-    const key = createKey(patientId, imageUri, selection);
+    const key = createKey(patientId, imageUri, selection, doctorNotes);
 
     const bumpProgress = (target: number) => {
       if (cancelled) return;
@@ -218,6 +222,7 @@ export function SkiniverProcessingStep({
             xCoord: selection.xCoord,
             yCoord: selection.yCoord,
             zCoord: selection.zCoord,
+            doctorNotes,
           });
           inflightCreates.set(key, pending);
         }
@@ -260,7 +265,7 @@ export function SkiniverProcessingStep({
       cancelled = true;
       if (tick) clearInterval(tick);
     };
-  }, [patientId, imageUri, selection]);
+  }, [patientId, imageUri, selection, doctorNotes]);
 
   const translateY = scanY.interpolate({
     inputRange: [0, 1],

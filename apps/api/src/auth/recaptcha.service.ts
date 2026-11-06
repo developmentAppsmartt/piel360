@@ -146,11 +146,11 @@ export class RecaptchaService {
    */
   appliesTo(client: 'web' | 'mobile', platform?: string): boolean {
     if (!this.isEnabled()) return false;
-    // `pnpm start` local no define NODE_ENV y el CRM no pinta la casilla.
-    // Exigir el token solo cuando el proceso es de producción.
+    // `pnpm start` local no define NODE_ENV. El CRM no pinta la casilla y
+    // el móvil de desarrollo no trae el SDK. El token solo se exige en producción.
     const nodeEnv =
       this.config.get<string>('NODE_ENV')?.trim() || process.env.NODE_ENV;
-    if (client === 'web' && nodeEnv !== 'production') return false;
+    if (nodeEnv !== 'production') return false;
     if (client === 'web') return true;
     const p = platform?.trim().toLowerCase();
     return (p === 'android' || p === 'ios') && Boolean(this.siteKey(p));

@@ -31,6 +31,11 @@ export class SubscriptionsController {
     return this.subscriptionsService.findMine(BigInt(user.sub));
   }
 
+  @Get('me/subscriptions/:id/consumos')
+  listConsumptions(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.subscriptionsService.listConsumptions(BigInt(user.sub), id);
+  }
+
   @Get('admin/subscriptions')
   @UseGuards(PermissionsGuard)
   @RequirePermission('view_any_subscription')

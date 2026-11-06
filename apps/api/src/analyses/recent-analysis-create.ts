@@ -1,6 +1,43 @@
 import { createHash } from 'node:crypto';
+import type { Analysis } from '@prisma/client';
+import type { PrismaService } from '../prisma/prisma.service';
 
 const WINDOW_MS = 2 * 60 * 1000;
+
+export function captureSha256(image: Buffer): string {
+  return createHash('sha256').update(image).digest('hex');
+}
+
+/** Error permanente ya guardado en la fila. No es un análisis en curso. */
+export function mensajeDeAnalisisFallido(raw: unknown): string | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const body = raw as { error?: unknown; message?: unknown };
+  if (!body.error) return null;
+  return typeof body.message === 'string' && body.message
+    ? body.message
+    : 'Error en el análisis';
+}
+
+/** La fila de esta foto, si ya se abrió una tarea. */
+export function buscarCaptura(
+  prisma: PrismaService,
+  input: {
+    patientId: bigint;
+    userId: bigint;
+    providerId: bigint;
+    captureSha256: string;
+  },
+): Promise<Analysis | null> {
+  return prisma.analysis.findFirst({
+    where: {
+      patientId: input.patientId,
+      userId: input.userId,
+      providerId: input.providerId,
+      captureSha256: input.captureSha256,
+    },
+    orderBy: { id: 'desc' },
+  });
+}
 
 type Slot = {
   at: number;
@@ -15,8 +52,7 @@ export function recentAnalysisKey(input: {
   patientId: string;
   image: Buffer;
 }): string {
-  const hash = createHash('sha256').update(input.image).digest('hex');
-  return `${input.userId}:${input.patientId}:${hash}`;
+  return `${input.userId}:${input.patientId}:${captureSha256(input.image)}`;
 }
 
 export function reuseRecentAnalysis(
@@ -32,9 +68,10 @@ export function reuseRecentAnalysis(
 }
 
 /**
- * El proveedor cobra al abrir la tarea, antes de que exista la fila.
- * La segunda petición de la misma foto espera la primera y no vuelve a cobrar.
- * Si falla, se olvida para que el reintento sí salga.
+ * Une las peticiones simultáneas de la misma foto para que solo la primera
+ * hable con el proveedor. Si esa petición falla antes de guardar la tarea,
+ * se olvida y un reintento puede salir. Si la tarea ya quedó guardada, la
+ * fila (`buscarCaptura`) responde y no se abre otra.
  */
 export function rememberRecentAnalysis(
   key: string,

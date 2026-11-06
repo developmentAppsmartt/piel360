@@ -46,10 +46,6 @@ export function createDoctorHomeStyles(colors: AppBranding['colors']) {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    companyLogo: {
-      width: 96,
-      height: 56,
-    },
     avatarImage: {
       width: 64,
       height: 64,

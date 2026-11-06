@@ -26,6 +26,19 @@ export function recaptchaSiteKeyForPlatform(): string {
   return '';
 }
 
+function apiLocal(): boolean {
+  const url = (process.env.EXPO_PUBLIC_API_URL ?? '').toLowerCase();
+  return (
+    url.includes('localhost') ||
+    url.includes('127.0.0.1') ||
+    url.includes('10.0.2.2') ||
+    /https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(url)
+  );
+}
+
 export function isRecaptchaNativeReady(): boolean {
+  // Desarrollo o API local: no pedir token. Un APK release contra
+  // api.piel360.com sigue verificando.
+  if (__DEV__ || apiLocal()) return false;
   return RECAPTCHA_ENABLED && Boolean(recaptchaSiteKeyForPlatform());
 }

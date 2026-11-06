@@ -46,6 +46,26 @@ export function useMySubscriptions(enabled = true) {
   });
 }
 
+export interface SubscriptionConsumption {
+  id: string;
+  analysisId: string;
+  patientId: string;
+  consumedAt: string;
+  patientName: string;
+}
+
+export function useSubscriptionConsumptions(subscriptionId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ["me", "subscriptions", subscriptionId, "consumos"],
+    queryFn: () =>
+      apiClientFetch<SubscriptionConsumption[]>(
+        `/me/subscriptions/${subscriptionId}/consumos`,
+      ),
+    enabled: Boolean(subscriptionId) && enabled,
+    refetchOnMount: "always",
+  });
+}
+
 // GET /admin/subscriptions — shape distinta de `Subscription` (esa es la del
 // propio usuario, `/me/subscriptions`): acá `user` viene incluido (con
 // `select` explícito en el backend, sin el hash de contraseña) y no hay

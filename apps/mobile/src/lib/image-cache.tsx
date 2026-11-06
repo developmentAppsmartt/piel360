@@ -4,10 +4,15 @@ import { StyleSheet, View } from 'react-native';
 /**
  * Las URLs firmadas de S3 cambian en cada respuesta (firma y fecha en la query),
  * así que se cachean por la ruta del archivo para no descargarlas otra vez.
+ * `v2`: se reescribieron las máscaras estéticas para quitar el velo gris.
+ * Sin este sufijo el disco seguía pintando la copia opaca.
  */
+const CACHE_DE_IMAGEN = 'v2';
+
 export function cachedImageSource(uri: string): ImageSource {
   const queryAt = uri.indexOf('?');
-  return { uri, cacheKey: queryAt < 0 ? uri : uri.slice(0, queryAt) };
+  const ruta = queryAt < 0 ? uri : uri.slice(0, queryAt);
+  return { uri, cacheKey: `${ruta}#${CACHE_DE_IMAGEN}` };
 }
 
 /** Descarga en segundo plano las imágenes para que aparezcan sin espera al elegirlas. */

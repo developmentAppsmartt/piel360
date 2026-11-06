@@ -191,6 +191,7 @@ export class AnalysesService {
           xCoord: dto.xCoord,
           yCoord: dto.yCoord,
           zCoord: dto.zCoord,
+          doctorNotes: dto.doctorNotes?.trim() || null,
           isValid: true,
           // La API real de Skiniver devuelve `prob` como string (ej. "91"),
           // aunque el tipo declarado sea number — confirmado en vivo, no es

@@ -97,6 +97,28 @@ export function aestheticRechargeCredits(
   }, 0);
 }
 
+/**
+ * Saldo que el proveedor todavía deja consumir.
+ * El historial de compras suma recargas viejas ya gastadas o vencidas;
+ * el saldo en vivo es el que coincide con la plataforma.
+ */
+export function consumableAestheticBalance(
+  balances: Array<{ amount: number; expiryMs: number | null }>,
+  now = Date.now(),
+): { live: number; expiringSoon: number } {
+  let live = 0;
+  let expiringSoon = 0;
+  for (const row of balances) {
+    if (!Number.isFinite(row.amount) || row.amount <= 0) continue;
+    if (row.expiryMs != null && row.expiryMs <= now) continue;
+    live += row.amount;
+    if (row.expiryMs != null && row.expiryMs - now <= EXPIRING_SOON_MS) {
+      expiringSoon += row.amount;
+    }
+  }
+  return { live, expiringSoon };
+}
+
 export function aestheticRechargesExpiringSoon(
   history: AnalisisPiel360CreditHistoryItem[],
   now = Date.now(),

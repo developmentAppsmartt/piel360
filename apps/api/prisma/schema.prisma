@@ -537,6 +537,8 @@ model Analysis {
   id              BigInt    @id @default(autoincrement())
   analisisPiel360TaskId String? @map("youcam_task_id")
   fitzpatrickTaskId String? @map("fitzpatrick_task_id")
+  /// Huella de la foto enviada. La misma foto no abre otra tarea del proveedor.
+  captureSha256   String?   @map("capture_sha256")
   patientId       BigInt    @map("patient_id")
   userId          BigInt?   @map("user_id")
   providerId      BigInt?   @map("provider_id")
@@ -590,6 +592,7 @@ model Analysis {
   @@index([analisisPiel360TaskId])
   @@index([fitzpatrickTaskId])
   @@index([patientId], map: "idx_analyses_patient_id")
+  @@index([patientId, captureSha256], map: "idx_analyses_patient_capture_sha")
   @@index([userId], map: "idx_analyses_user_id")
   @@index([analisisPiel360TaskId], map: "idx_analyses_youcam_task_id")
   @@index([sharedWithPatient], map: "idx_analyses_shared_with_patient")
@@ -1427,6 +1430,7 @@ model PlatformUnitRecharge {
    * recharge — recarga admin (cuenta para el saldo).
    * subscription_return — devolución al cancelar (solo historial).
    * subscription_reserve — reserva al activar (solo historial).
+   * balance_writeoff — créditos que no vuelven al borrar un plan.
    */
   kind        String    @default("recharge")
   quantity    Int

@@ -20,6 +20,9 @@ import { SubscriptionCreditsService } from '../subscriptions/subscription-credit
 import { SpecialtyAccessService } from '../specialty-access/specialty-access.service';
 import { getAnalysisProviderIdBySlug } from '../plans/plan-providers.util';
 import {
+  buscarCaptura,
+  captureSha256,
+  mensajeDeAnalisisFallido,
   recentAnalysisKey,
   rememberRecentAnalysis,
   reuseRecentAnalysis,
@@ -96,6 +99,8 @@ export class AnalisisPiel360AnalysesService {
     await this.patients.findOne(dto.patientId, currentUser); // scoping, igual que Skiniver
 
     const userId = BigInt(currentUser.sub);
+    const patientId = BigInt(dto.patientId);
+    const sha = captureSha256(image);
     await this.specialtyAccess.assertCanUseProvider(
       userId,
       YOUCAM_PROVIDER_SLUG,
@@ -103,6 +108,28 @@ export class AnalisisPiel360AnalysesService {
         patientId: dto.patientId,
       },
     );
+    const analisisPiel360ProviderId = await getAnalysisProviderIdBySlug(
+      this.prisma,
+      YOUCAM_PROVIDER_SLUG,
+    );
+    const yaAbierto = await buscarCaptura(this.prisma, {
+      patientId,
+      userId,
+      providerId: analisisPiel360ProviderId,
+      captureSha256: sha,
+    });
+    if (yaAbierto?.analisisPiel360TaskId) {
+      if (
+        !yaAbierto.isValid &&
+        !mensajeDeAnalisisFallido(yaAbierto.aiRawResponse)
+      ) {
+        await this.encolarConsulta(
+          yaAbierto.id,
+          yaAbierto.analisisPiel360TaskId,
+        );
+      }
+      return { analysisId: yaAbierto.id.toString() };
+    }
     const billingUserId =
       await this.subscriptions.resolveBillingUserIdForAnalysis(
         userId,
@@ -198,17 +225,13 @@ export class AnalisisPiel360AnalysesService {
       throw err;
     }
 
-    const analisisPiel360ProviderId = await getAnalysisProviderIdBySlug(
-      this.prisma,
-      YOUCAM_PROVIDER_SLUG,
-    );
-
     const analysis = await this.prisma.analysis.create({
       data: {
-        patientId: BigInt(dto.patientId),
+        patientId,
         userId,
         providerId: analisisPiel360ProviderId,
         analisisPiel360TaskId: taskId,
+        captureSha256: sha,
         imagePath: 'youcam',
         bodyRegion: dto.bodyRegion,
         xCoord: dto.xCoord,
@@ -244,10 +267,17 @@ export class AnalisisPiel360AnalysesService {
       );
     }
 
+    await this.encolarConsulta(analysis.id, taskId);
+
+    return { analysisId: analysis.id.toString() };
+  }
+
+  /** GET de la tarea ya abierta. No crea otra. */
+  private async encolarConsulta(analysisId: bigint, taskId: string) {
     try {
       await this.pollQueue.add(
         'poll',
-        { analysisId: analysis.id.toString(), taskId },
+        { analysisId: analysisId.toString(), taskId },
         {
           attempts: POLL_ATTEMPTS,
           backoff: { type: 'exponential', delay: POLL_BACKOFF_DELAY_MS },
@@ -255,12 +285,10 @@ export class AnalisisPiel360AnalysesService {
         },
       );
     } catch (error) {
-      // El análisis ya existe; el webhook de YouCam puede completar sin poll.
+      // El análisis ya existe; el webhook puede completar sin poll.
       this.logger.warn(
-        `No se pudo encolar poll YouCam del análisis ${analysis.id}: ${String(error)}`,
+        `No se pudo encolar poll del análisis ${analysisId}: ${String(error)}`,
       );
     }
-
-    return { analysisId: analysis.id.toString() };
   }
 }

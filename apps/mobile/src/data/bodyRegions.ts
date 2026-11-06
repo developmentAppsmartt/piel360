@@ -174,14 +174,16 @@ export function cameraForBodyPoint(point: [number, number, number]): {
   };
 }
 
-/** Límites de órbita del selector 3D (pinch / scroll). */
+/** Límites de órbita del selector 3D (pinch / scroll).
+ * El cuerpo mide 1.8 y el objetivo está en el torso: por debajo de ~0.65
+ * la cámara entra en la malla y la figura desaparece. */
 export const BODY_SELECTOR_ORBIT = {
-  /** Zoom máximo (acercar). */
-  minDistance: 0.25,
-  /** Zoom mínimo (alejar) — figura completa con margen. */
-  maxDistance: 16,
+  /** Zoom máximo (acercar), todavía fuera de la piel. */
+  minDistance: 0.7,
+  /** Zoom mínimo (alejar). La figura sigue ocupando el recuadro. */
+  maxDistance: 5.5,
   /** Velocidad de pinch/dolly. */
-  zoomSpeed: 1.15,
+  zoomSpeed: 1,
 } as const;
 
 /** Mapea el género del perfil al modelo 3D (hombre/mujer). */

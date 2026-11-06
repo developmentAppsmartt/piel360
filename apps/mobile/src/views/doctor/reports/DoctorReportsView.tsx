@@ -771,8 +771,7 @@ function DermatologicoTab({
     return (
       <View style={styles.card}>
         <Text style={styles.emptyBody}>
-          No se pudo cargar el reporte dermatológico. Verifica que la API tenga
-          el endpoint `/doctor/reports/skiniver` desplegado.
+          No se pudo cargar el reporte dermatológico. Inténtalo de nuevo.
         </Text>
       </View>
     );

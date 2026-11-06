@@ -19,6 +19,10 @@
   <dimen name="skin_badge_gap">8dp</dimen>
   <dimen name="skin_badge_row_margin_top">14dp</dimen>
   <dimen name="skin_badge_row_margin_h">16dp</dimen>
+  <dimen name="skin_logo_width">340dp</dimen>
+  <dimen name="skin_logo_height">120dp</dimen>
+  <dimen name="skin_powered_label">16sp</dimen>
+  <dimen name="skin_powered_brand">20sp</dimen>
   <dimen name="skin_guide_text">38sp</dimen>
   <dimen name="skin_countdown_text">96sp</dimen>
 </resources>

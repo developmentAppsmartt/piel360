@@ -16,6 +16,7 @@ export type CreateSkiniverAnalysisInput = {
   xCoord?: number;
   yCoord?: number;
   zCoord?: number;
+  doctorNotes?: string;
 };
 
 export const analysesService = {
@@ -46,6 +47,9 @@ export const analysesService = {
     if (input.xCoord !== undefined) form.append('xCoord', String(input.xCoord));
     if (input.yCoord !== undefined) form.append('yCoord', String(input.yCoord));
     if (input.zCoord !== undefined) form.append('zCoord', String(input.zCoord));
+    if (input.doctorNotes?.trim()) {
+      form.append('doctorNotes', input.doctorNotes.trim());
+    }
 
     const created = await apiRequest<AnalysisDetail>('/analyses', {
       method: 'POST',

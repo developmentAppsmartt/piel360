@@ -31,10 +31,9 @@ import { DiagnosisLanguageView } from '../settings/DiagnosisLanguageView';
 import type { AnalysisProviderSlug } from '../../../data/analysisProviderLabel';
 import { SupportChatView } from '../../support/SupportChatView';
 import { AboutPiel360Modal } from '../../../components/about/AboutPiel360';
-import { LegalDocumentModal } from '../../../components/legal/LegalDocumentModal';
 import type { LegalDocId } from '../../../data/legal/documents';
 import { ChangePasswordFlow } from '../../auth/forgot-password/ForgotPasswordView';
-import { AccountDrawer } from './components/AccountDrawer';
+import { DoctorAccountMenu } from './components/DoctorAccountMenu';
 import { DoctorHeader } from './components/DoctorHeader';
 import { PatientDetailView } from './components/PatientDetailView';
 import { PatientListRow } from './components/PatientListRow';
@@ -106,6 +105,7 @@ export function DoctorPatientsView({
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [showingPayments, setShowingPayments] = useState(false);
   const [showingLanguage, setShowingLanguage] = useState(false);
@@ -168,6 +168,8 @@ export function DoctorPatientsView({
       setShowingReports(false);
       setShowingFototipo(false);
       setShowingEdadPiel(true);
+    } else if (id === 'compartir') {
+      setInviteOpen(true);
     } else
       Alert.alert(
         'Próximamente',
@@ -253,15 +255,14 @@ export function DoctorPatientsView({
           onOpenMenu={() => setMenuOpen(true)}
           onOpenMessages={onOpenMessages}
         />
-        <AccountDrawer
-          visible={menuOpen}
-          onClose={() => setMenuOpen(false)}
+        <DoctorAccountMenu
+          menuOpen={menuOpen}
+          onCloseMenu={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
-        />
-        <LegalDocumentModal
-          docId={legalDoc}
-          visible={legalDoc != null}
-          onClose={() => setLegalDoc(null)}
+          inviteOpen={inviteOpen}
+          onCloseInvite={() => setInviteOpen(false)}
+          legalDoc={legalDoc}
+          onCloseLegal={() => setLegalDoc(null)}
         />
       </>
     );
@@ -275,15 +276,14 @@ export function DoctorPatientsView({
           onOpenMenu={() => setMenuOpen(true)}
           onOpenMessages={onOpenMessages}
         />
-        <AccountDrawer
-          visible={menuOpen}
-          onClose={() => setMenuOpen(false)}
+        <DoctorAccountMenu
+          menuOpen={menuOpen}
+          onCloseMenu={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
-        />
-        <LegalDocumentModal
-          docId={legalDoc}
-          visible={legalDoc != null}
-          onClose={() => setLegalDoc(null)}
+          inviteOpen={inviteOpen}
+          onCloseInvite={() => setInviteOpen(false)}
+          legalDoc={legalDoc}
+          onCloseLegal={() => setLegalDoc(null)}
         />
       </>
     );
@@ -297,15 +297,14 @@ export function DoctorPatientsView({
           onOpenMenu={() => setMenuOpen(true)}
           onOpenMessages={onOpenMessages}
         />
-        <AccountDrawer
-          visible={menuOpen}
-          onClose={() => setMenuOpen(false)}
+        <DoctorAccountMenu
+          menuOpen={menuOpen}
+          onCloseMenu={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
-        />
-        <LegalDocumentModal
-          docId={legalDoc}
-          visible={legalDoc != null}
-          onClose={() => setLegalDoc(null)}
+          inviteOpen={inviteOpen}
+          onCloseInvite={() => setInviteOpen(false)}
+          legalDoc={legalDoc}
+          onCloseLegal={() => setLegalDoc(null)}
         />
       </>
     );
@@ -326,15 +325,14 @@ export function DoctorPatientsView({
           onOpenMenu={() => setMenuOpen(true)}
           onOpenMessages={onOpenMessages}
         />
-        <AccountDrawer
-          visible={menuOpen}
-          onClose={() => setMenuOpen(false)}
+        <DoctorAccountMenu
+          menuOpen={menuOpen}
+          onCloseMenu={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
-        />
-        <LegalDocumentModal
-          docId={legalDoc}
-          visible={legalDoc != null}
-          onClose={() => setLegalDoc(null)}
+          inviteOpen={inviteOpen}
+          onCloseInvite={() => setInviteOpen(false)}
+          legalDoc={legalDoc}
+          onCloseLegal={() => setLegalDoc(null)}
         />
       </>
     );
@@ -355,15 +353,14 @@ export function DoctorPatientsView({
           onOpenMenu={() => setMenuOpen(true)}
           onOpenMessages={onOpenMessages}
         />
-        <AccountDrawer
-          visible={menuOpen}
-          onClose={() => setMenuOpen(false)}
+        <DoctorAccountMenu
+          menuOpen={menuOpen}
+          onCloseMenu={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
-        />
-        <LegalDocumentModal
-          docId={legalDoc}
-          visible={legalDoc != null}
-          onClose={() => setLegalDoc(null)}
+          inviteOpen={inviteOpen}
+          onCloseInvite={() => setInviteOpen(false)}
+          legalDoc={legalDoc}
+          onCloseLegal={() => setLegalDoc(null)}
         />
       </>
     );
@@ -383,15 +380,14 @@ export function DoctorPatientsView({
           onOpenMenu={() => setMenuOpen(true)}
           onOpenMessages={onOpenMessages}
         />
-        <AccountDrawer
-          visible={menuOpen}
-          onClose={() => setMenuOpen(false)}
+        <DoctorAccountMenu
+          menuOpen={menuOpen}
+          onCloseMenu={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
-        />
-        <LegalDocumentModal
-          docId={legalDoc}
-          visible={legalDoc != null}
-          onClose={() => setLegalDoc(null)}
+          inviteOpen={inviteOpen}
+          onCloseInvite={() => setInviteOpen(false)}
+          legalDoc={legalDoc}
+          onCloseLegal={() => setLegalDoc(null)}
         />
       </>
     );
@@ -408,15 +404,14 @@ export function DoctorPatientsView({
           onOpenMenu={() => setMenuOpen(true)}
           onOpenMessages={onOpenMessages}
         />
-        <AccountDrawer
-          visible={menuOpen}
-          onClose={() => setMenuOpen(false)}
+        <DoctorAccountMenu
+          menuOpen={menuOpen}
+          onCloseMenu={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
-        />
-        <LegalDocumentModal
-          docId={legalDoc}
-          visible={legalDoc != null}
-          onClose={() => setLegalDoc(null)}
+          inviteOpen={inviteOpen}
+          onCloseInvite={() => setInviteOpen(false)}
+          legalDoc={legalDoc}
+          onCloseLegal={() => setLegalDoc(null)}
         />
       </>
     );
@@ -440,15 +435,14 @@ export function DoctorPatientsView({
             );
           }}
         />
-        <AccountDrawer
-          visible={menuOpen}
-          onClose={() => setMenuOpen(false)}
+        <DoctorAccountMenu
+          menuOpen={menuOpen}
+          onCloseMenu={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
-        />
-        <LegalDocumentModal
-          docId={legalDoc}
-          visible={legalDoc != null}
-          onClose={() => setLegalDoc(null)}
+          inviteOpen={inviteOpen}
+          onCloseInvite={() => setInviteOpen(false)}
+          legalDoc={legalDoc}
+          onCloseLegal={() => setLegalDoc(null)}
         />
       </>
     );
@@ -466,15 +460,14 @@ export function DoctorPatientsView({
           onOpenMenu={() => setMenuOpen(true)}
           onCreated={() => void load()}
         />
-        <AccountDrawer
-          visible={menuOpen}
-          onClose={() => setMenuOpen(false)}
+        <DoctorAccountMenu
+          menuOpen={menuOpen}
+          onCloseMenu={() => setMenuOpen(false)}
           onSelect={handleMenuSelect}
-        />
-        <LegalDocumentModal
-          docId={legalDoc}
-          visible={legalDoc != null}
-          onClose={() => setLegalDoc(null)}
+          inviteOpen={inviteOpen}
+          onCloseInvite={() => setInviteOpen(false)}
+          legalDoc={legalDoc}
+          onCloseLegal={() => setLegalDoc(null)}
         />
       </>
     );
@@ -582,15 +575,14 @@ export function DoctorPatientsView({
         </ScrollView>
       )}
 
-      <AccountDrawer
-        visible={menuOpen}
-        onClose={() => setMenuOpen(false)}
+      <DoctorAccountMenu
+        menuOpen={menuOpen}
+        onCloseMenu={() => setMenuOpen(false)}
         onSelect={handleMenuSelect}
-      />
-      <LegalDocumentModal
-        docId={legalDoc}
-        visible={legalDoc != null}
-        onClose={() => setLegalDoc(null)}
+        inviteOpen={inviteOpen}
+        onCloseInvite={() => setInviteOpen(false)}
+        legalDoc={legalDoc}
+        onCloseLegal={() => setLegalDoc(null)}
       />
       <AboutPiel360Modal
         visible={showingAbout}

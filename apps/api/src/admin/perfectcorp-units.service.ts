@@ -10,8 +10,7 @@ import {
 import { POOL_PUBLIC_ALIASES } from '@piel360/shared';
 import { SubscriptionPoolService } from '../subscriptions/subscription-pool.service';
 import {
-  aestheticRechargeCredits,
-  aestheticRechargesExpiringSoon,
+  consumableAestheticBalance,
   isAestheticBagPurchase,
 } from '../youcam/youcam-credit-history';
 import { listBolsaPlanCupos } from './bolsa-plan-cupos';
@@ -39,30 +38,40 @@ export class AnalisisPiel360UnitsService {
    */
   async getAestheticUnitPool() {
     await this.subscriptionPool.syncActiveSubscriptionPools();
-    const [balances, skus, history, planCupos] = await Promise.all([
-      this.youcam.getCreditBalances(),
-      this.youcam.getFeatureCosts().catch((err) => {
-        this.logger.warn(
-          `feature-cost no disponible: ${err instanceof Error ? err.message : String(err)}`,
-        );
-        return [] as AnalisisPiel360FeatureSku[];
-      }),
-      this.youcam.getCreditHistory().catch((err) => {
-        this.logger.warn(
-          `credit/history no disponible: ${err instanceof Error ? err.message : String(err)}`,
-        );
-        return [] as AnalisisPiel360CreditHistoryItem[];
-      }),
-      listBolsaPlanCupos(this.prisma, 'perfectcorp'),
-    ]);
+    const [balances, skus, history, planCupos, localReturns] =
+      await Promise.all([
+        this.youcam.getCreditBalances(),
+        this.youcam.getFeatureCosts().catch((err) => {
+          this.logger.warn(
+            `feature-cost no disponible: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          return [] as AnalisisPiel360FeatureSku[];
+        }),
+        this.youcam.getCreditHistory().catch((err) => {
+          this.logger.warn(
+            `credit/history no disponible: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          return [] as AnalisisPiel360CreditHistoryItem[];
+        }),
+        listBolsaPlanCupos(this.prisma, 'perfectcorp'),
+        this.prisma.platformUnitRecharge.findMany({
+          where: { provider: 'perfectcorp', kind: 'subscription_return' },
+          orderBy: { createdAt: 'desc' },
+          take: 80,
+          select: { id: true, quantity: true, note: true, createdAt: true },
+        }),
+      ]);
 
     const reservedInPlans = planCupos.reduce(
       (sum, row) => sum + row.credits,
       0,
     );
     const purchases = history.filter(isAestheticBagPurchase);
-    const recharged = aestheticRechargeCredits(history);
-    const available = Math.max(0, recharged - reservedInPlans);
+    // El número de la bolsa es el saldo vigente del proveedor, no la suma
+    // de recargas históricas: esas siguen en el historial aunque ya se
+    // gastaron o vencieron (por eso 2100 en pantalla y 5 en la plataforma).
+    const live = consumableAestheticBalance(balances);
+    const available = Math.max(0, live.live - reservedInPlans);
 
     return {
       source: POOL_PUBLIC_ALIASES.perfectcorp,
@@ -72,17 +81,28 @@ export class AnalisisPiel360UnitsService {
         name: 'Análisis estéticos / Fitzpatrick',
         accent: 'aesthetic' as const,
         available: round2(available),
-        total: round2(recharged),
+        total: round2(live.live),
         used: round2(reservedInPlans),
         reserved: round2(reservedInPlans),
-        expiringSoon: round2(aestheticRechargesExpiringSoon(history)),
+        expiringSoon: round2(live.expiringSoon),
         unitLabel: 'unidades' as const,
-        rechargedRecent: round2(recharged),
+        rechargedRecent: round2(live.live),
       },
       balances: balances.map(serializeBalance),
       featureCosts: summarizeFeatureCosts(skus),
       planCupos,
-      history: purchases.map(serializeHistory).sort((a, b) => {
+      history: [
+        ...localReturns.map((row) => ({
+          id: `return-${row.id.toString()}`,
+          action: 'subscription_return',
+          delta: row.quantity,
+          timestamp: row.createdAt.toISOString(),
+          targetId: null,
+          dstActions: [] as string[],
+          note: row.note,
+        })),
+        ...purchases.map(serializeHistory),
+      ].sort((a, b) => {
         const ta = a.timestamp ? new Date(a.timestamp).getTime() : 0;
         const tb = b.timestamp ? new Date(b.timestamp).getTime() : 0;
         return tb - ta;

@@ -37,7 +37,12 @@ export type AccountStatus = {
   disabledAt: string | null;
   /** `organization`: el deshabilitado es el dueño de la empresa del usuario. */
   disabledScope: "user" | "organization" | null;
-  /** `true` solo para profesionales/empresas verificados sin plan vigente. */
+  /**
+   * `true` cuando el profesional verificado no tiene plan vigente y ya pasaron
+   * los 60 días de consulta (o nunca tuvo suscripción). Durante esos 60 días
+   * es `false` y `expiredPlans` trae las fechas: el aviso se muestra y los
+   * módulos siguen.
+   */
   planRestricted: boolean;
   /** Planes vencidos más recientes (uno por plan) — vacío si nunca tuvo plan. */
   expiredPlans: ExpiredPlanInfo[];
@@ -62,7 +67,12 @@ export const NO_PLAN_MENU_HREFS = [
   "/doctor/soporte",
 ] as const;
 
+/** El detalle de un análisis ya hecho: se abre desde el registro del plan. */
+const ANALYSIS_DETAIL_PATH =
+  /^\/doctor\/pacientes\/[^/]+\/analisis\/[^/]+$/;
+
 export function clinicalPathAllowedWithoutPlan(pathname: string): boolean {
+  if (ANALYSIS_DETAIL_PATH.test(pathname)) return true;
   return NO_PLAN_ALLOWED_CLINICAL_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
