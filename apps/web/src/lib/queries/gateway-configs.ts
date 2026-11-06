@@ -42,3 +42,17 @@ export function useUpdateGatewayConfig(id: string) {
     },
   });
 }
+
+export type GatewaySecrets = {
+  publicKey: string;
+  privateKey: string | null;
+  integritySecret: string | null;
+  webhookSecret: string | null;
+  payoutApiKey: string | null;
+  payoutUserPrincipalId: string | null;
+};
+
+/** A propósito fuera de React Query: los secretos no se guardan en caché. */
+export function revealGatewaySecrets(id: string) {
+  return apiClientFetch<GatewaySecrets>(`/payments/admin/gateway-configs/${id}/secrets`);
+}

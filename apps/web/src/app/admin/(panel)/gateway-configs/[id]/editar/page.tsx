@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { AlliedPayoutsOverviewPanel } from "@/components/admin/allied-payouts-overview-panel";
 import { BillingRatesCard } from "@/components/admin/billing-rates-card";
 import { GatewayConfigForm } from "@/components/admin/gateway-config-form";
+import { GatewaySecretsPanel } from "@/components/admin/gateway-secrets-panel";
 import { useGatewayConfigs, useUpdateGatewayConfig } from "@/lib/queries/gateway-configs";
 
 export default function EditarPasarelaPage() {
@@ -52,6 +53,7 @@ export default function EditarPasarelaPage() {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
         <div className="space-y-6">
           <BillingRatesCard />
+          <GatewaySecretsPanel configId={config.id} />
           <GatewayConfigForm
             defaultValues={config}
             submitLabel="Guardar cambios"

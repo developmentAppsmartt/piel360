@@ -91,8 +91,9 @@ export function UnitPoolCard({
   return (
     <ModuleCard>
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1">
+          {/* Con wrap la insignia baja de línea; sin él se metía bajo el anillo. */}
+          <div className="flex flex-wrap items-center gap-2">
             <PoolIcon pool={pool} />
             <p
               className={cn(
