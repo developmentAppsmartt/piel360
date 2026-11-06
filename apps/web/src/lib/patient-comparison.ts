@@ -54,6 +54,19 @@ export function isDermatologicalAnalysis(a: AnalysisKindRow): boolean {
   return !a.analisisPiel360TaskId && !a.fitzpatrickTaskId;
 }
 
+/** Filtro de la tabla de análisis de la ficha del paciente. */
+export type AnalysisTypeFilter = "all" | "aesthetic" | "derm" | "fitzpatrick";
+
+export function filterAnalysesByType<T extends AnalysisKindRow>(
+  analyses: T[],
+  type: AnalysisTypeFilter,
+): T[] {
+  if (type === "all") return analyses;
+  if (type === "aesthetic") return analyses.filter((a) => !!a.analisisPiel360TaskId);
+  if (type === "derm") return analyses.filter(isDermatologicalAnalysis);
+  return analyses.filter((a) => !!a.fitzpatrickTaskId);
+}
+
 export function formatAnalysisDate(iso: string): string {
   return new Date(iso).toLocaleString("es-CO", {
     day: "2-digit",

@@ -18,13 +18,11 @@ const ARCHIVOS_LARGOS_HEREDADOS = [
   "src/components/agenda/agenda-workspace.tsx",
   "src/components/agenda/patient-agenda-workspace.tsx",
   "src/components/analyses/analysis-consumption-view.tsx",
-  "src/components/analyses/youcam-report-view.tsx",
   "src/components/auth/doctor-register-form.tsx",
   "src/components/auth/empresa-register-form.tsx",
   "src/components/doctor/doctor-billing-hub.tsx",
   "src/components/layout/sidebar-nav.tsx",
   "src/components/maps/address-location-picker.tsx",
-  "src/components/patients/patient-comparison-view.tsx",
   "src/lib/mocks/admin-bolsa.ts",
 ];
 

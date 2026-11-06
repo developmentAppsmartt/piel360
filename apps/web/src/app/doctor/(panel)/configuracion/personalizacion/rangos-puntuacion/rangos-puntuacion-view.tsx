@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ArrowLeft, Loader2, RotateCcw } from "lucide-react";
 import {
-  ANALISIS_PIEL360_SCORE_CONFIG_METRICS,
+  ANALISIS_PIEL360_MAIN_METRIC_TYPES,
   configuredAnalisisPiel360Advice,
   defaultAnalisisPiel360Advice,
   parseScoreConfigKey,
@@ -28,7 +28,8 @@ export function RangosPuntuacionView() {
   const [draftState, setDraft] = useState<AnalisisPiel360ScoreConfig | null>(null);
   const draft = draftState ?? query.data ?? null;
   /** Clave de `metrics`: una métrica (`hd_wrinkle`) o una subcategoría (`hd_wrinkle:forehead`). */
-  const [selected, setSelected] = useState<string>(ANALISIS_PIEL360_SCORE_CONFIG_METRICS[0]);
+  // Abre en la primera métrica de verdad, no en el puntaje general.
+  const [selected, setSelected] = useState<string>(ANALISIS_PIEL360_MAIN_METRIC_TYPES[0]);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   // `sanitize` también quita lo igual a lo heredado: lo que no se cambió
