@@ -39,7 +39,13 @@ COPY . .
 # busque en otro.
 ENV PUPPETEER_CACHE_DIR=/app/.cache/puppeteer
 
-RUN pnpm install --frozen-lockfile
+# Solo el API y los paquetes del monorepo de los que depende (shared, config).
+# Sin el filtro se instalaba también la app móvil (~1.800 paquetes), y uno de
+# ellos (@iconify/json, de react-native-iconify) pesa cientos de MB: su
+# descarga se cortaba por timeout y tumbaba el build del 06/11/2026.
+# El workspace usa `nodeLinker: hoisted` (lo necesita Expo), y con él pnpm
+# ignora el filtro e instala todo: aquí se instala con el linker por defecto.
+RUN pnpm install --frozen-lockfile --filter @piel360/api... --config.node-linker=isolated
 
 # Chromium se instala de forma explicita y no confiando en el postinstall de
 # puppeteer: ese script deja la carpeta creada pero sin el ejecutable cuando la
