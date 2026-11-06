@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Info, Loader2, RotateCcw } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArrowLeft, Loader2, RotateCcw } from "lucide-react";
 import {
-  ANALISIS_PIEL360_METRIC_LABELS,
-  ANALISIS_PIEL360_SCORE_BANDS,
   ANALISIS_PIEL360_SCORE_CONFIG_METRICS,
+  configuredAnalisisPiel360Advice,
   defaultAnalisisPiel360Advice,
+  parseScoreConfigKey,
   resolveScoreRanges,
   sanitizeAnalisisPiel360ScoreConfig,
   type AnalisisPiel360MetricScoreConfig,
@@ -16,110 +16,39 @@ import {
 } from "@piel360/shared";
 import { cn } from "@/lib/utils";
 import { useMyScoreConfig, useUpdateScoreConfig } from "@/lib/queries/score-config";
-import {
-  SCORE_BAND_LABELS as BAND_LABELS,
-  SCORE_BAND_STYLES as BAND_STYLES,
-} from "@/lib/score-band-styles";
-
-const CARD_CLASS =
-  "rounded-2xl border border-border/80 bg-card p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]";
-
-const INPUT_CLASS =
-  "h-10 w-20 rounded-lg border border-border bg-background px-3 text-sm tabular-nums outline-none focus:border-primary focus:ring-2 focus:ring-primary/20";
-
-function metricLabel(type: string) {
-  return ANALISIS_PIEL360_METRIC_LABELS[type] ?? type;
-}
-
-function isCustomized(metric: AnalisisPiel360MetricScoreConfig | undefined) {
-  return !!metric && Object.keys(metric).length > 0;
-}
-
-/** Quita textos iguales al por defecto para que sigan las futuras mejoras del texto base. */
-function withoutDefaultTexts(config: AnalisisPiel360ScoreConfig): AnalisisPiel360ScoreConfig {
-  const metrics: AnalisisPiel360ScoreConfig["metrics"] = {};
-  for (const [type, metric] of Object.entries(config.metrics)) {
-    const texts = Object.fromEntries(
-      Object.entries(metric.texts ?? {}).filter(
-        ([band, text]) =>
-          text?.trim() &&
-          text.trim() !== defaultAnalisisPiel360Advice(type, band as AnalisisPiel360ScoreBand),
-      ),
-    );
-    metrics[type] = { ...metric, texts };
-  }
-  return { ...config, metrics };
-}
-
-function parseInt0(value: string): number | null {
-  if (value.trim() === "" || value.trim() === "-") return null;
-  const n = Number(value);
-  return Number.isFinite(n) ? Math.round(n) : null;
-}
-
-/** Campo numérico que deja borrar y reescribir sin saltar al valor anterior. */
-function NumberField({
-  value,
-  onChange,
-  min,
-  max,
-  label,
-}: {
-  value: number;
-  onChange: (value: number) => void;
-  min: number;
-  max: number;
-  label: string;
-}) {
-  const [text, setText] = useState(String(value));
-  useEffect(() => {
-    setText((prev) => (parseInt0(prev) === value ? prev : String(value)));
-  }, [value]);
-  return (
-    <input
-      type="number"
-      min={min}
-      max={max}
-      value={text}
-      aria-label={label}
-      onChange={(e) => {
-        setText(e.target.value);
-        const n = parseInt0(e.target.value);
-        if (n != null) onChange(n);
-      }}
-      onBlur={() => setText(String(value))}
-      className={INPUT_CLASS}
-    />
-  );
-}
+import { CARD_CLASS, isCustomized, metricLabel, scoreConfigKeyLabel } from "./score-config-labels";
+import { ScoreMetricNav } from "./score-metric-nav";
+import { ScoreRangesEditor } from "./score-ranges-editor";
+import { ScoreTextsEditor } from "./score-texts-editor";
 
 export function RangosPuntuacionView() {
   const query = useMyScoreConfig();
   const update = useUpdateScoreConfig();
-  const [draft, setDraft] = useState<AnalisisPiel360ScoreConfig | null>(null);
+  // null = sin cambios: se edita sobre lo guardado (que llega después).
+  const [draftState, setDraft] = useState<AnalisisPiel360ScoreConfig | null>(null);
+  const draft = draftState ?? query.data ?? null;
+  /** Clave de `metrics`: una métrica (`hd_wrinkle`) o una subcategoría (`hd_wrinkle:forehead`). */
   const [selected, setSelected] = useState<string>(ANALISIS_PIEL360_SCORE_CONFIG_METRICS[0]);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
-  useEffect(() => {
-    if (query.data && !draft) setDraft(query.data);
-  }, [query.data, draft]);
-
+  // `sanitize` también quita lo igual a lo heredado: lo que no se cambió
+  // sigue al texto o al rango de su base si esta mejora después.
   const normalized = useMemo(() => {
     if (!draft) return { config: null, error: null as string | null };
     try {
-      return { config: sanitizeAnalisisPiel360ScoreConfig(withoutDefaultTexts(draft)), error: null };
+      return { config: sanitizeAnalisisPiel360ScoreConfig(draft), error: null };
     } catch (err) {
       return { config: null, error: err instanceof Error ? err.message : "Configuración inválida" };
     }
   }, [draft]);
 
   const dirty = useMemo(() => {
-    if (!draft || !query.data) return false;
+    if (!draftState || !query.data) return false;
     if (!normalized.config) return true;
     return JSON.stringify(normalized.config) !== JSON.stringify(query.data);
-  }, [draft, normalized.config, query.data]);
+  }, [draftState, normalized.config, query.data]);
 
-  if (query.isLoading || (!draft && !query.isError)) {
+  if (query.isLoading) {
     return (
       <div className="flex items-center gap-2 py-10 text-sm text-muted-foreground">
         <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -137,42 +66,47 @@ export function RangosPuntuacionView() {
     );
   }
 
+  const { type, region } = parseScoreConfigKey(selected);
   const metric = draft.metrics[selected] ?? {};
-  const ranges = resolveScoreRanges(draft, selected);
+  const ranges = resolveScoreRanges(draft, type, region);
+  const inheritedFrom = region ? metricLabel(type) : "PIEL 360";
+  const inheritedText = (band: AnalisisPiel360ScoreBand) =>
+    region
+      ? configuredAnalisisPiel360Advice(type, band, draft)
+      : defaultAnalisisPiel360Advice(type, band);
 
-  const patchMetric = (patch: Partial<AnalisisPiel360MetricScoreConfig>) => {
+  const editDraft = (change: (prev: AnalisisPiel360ScoreConfig) => AnalisisPiel360ScoreConfig) => {
     setMessage(null);
-    setDraft((prev) => {
-      if (!prev) return prev;
-      const next = { ...(prev.metrics[selected] ?? {}), ...patch };
-      return { ...prev, metrics: { ...prev.metrics, [selected]: next } };
-    });
+    setDraft(change(draft));
   };
+
+  const patchMetric = (patch: Partial<AnalisisPiel360MetricScoreConfig>) =>
+    editDraft((prev) => ({
+      ...prev,
+      metrics: { ...prev.metrics, [selected]: { ...(prev.metrics[selected] ?? {}), ...patch } },
+    }));
 
   const setText = (band: AnalisisPiel360ScoreBand, value: string | null) =>
     patchMetric({ texts: { ...(metric.texts ?? {}), [band]: value } });
 
-  const resetMetric = () => {
-    setMessage(null);
-    setDraft((prev) => {
-      if (!prev) return prev;
+  const resetMetric = () =>
+    editDraft((prev) => {
       const metrics = { ...prev.metrics };
       delete metrics[selected];
       return { ...prev, metrics };
     });
-  };
 
   const discard = () => {
     setMessage(null);
-    if (query.data) setDraft(query.data);
+    setDraft(null);
   };
 
   const save = async () => {
     if (!normalized.config) return;
     setMessage(null);
     try {
-      const saved = await update.mutateAsync(normalized.config);
-      setDraft(saved);
+      await update.mutateAsync(normalized.config);
+      setDraft(null);
       setMessage({
         ok: true,
         text: "Cambios guardados. Se aplican a los análisis de tu cuenta, tu equipo y tus pacientes.",
@@ -184,8 +118,6 @@ export function RangosPuntuacionView() {
       });
     }
   };
-
-  const rangesValid = ranges.regularMax >= 1 && ranges.regularMax < ranges.promedioMax && ranges.promedioMax <= 100;
 
   return (
     <div className="space-y-5">
@@ -201,7 +133,7 @@ export function RangosPuntuacionView() {
           <h2 className="mt-1 text-xl font-semibold text-foreground">Rangos de puntuación</h2>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             Por cada métrica del análisis estético define los rangos de cada nivel y el
-            texto que verá el paciente.
+            texto que verá el paciente. Arrugas y Poros se pueden ajustar también por zona.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -239,126 +171,32 @@ export function RangosPuntuacionView() {
       ) : null}
 
       <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
-        <nav className={cn(CARD_CLASS, "h-fit p-2")} aria-label="Métricas">
-          <p className="px-3 pb-2 pt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Análisis estéticos
-          </p>
-          <ul className="space-y-0.5">
-            {ANALISIS_PIEL360_SCORE_CONFIG_METRICS.map((type) => (
-              <li key={type}>
-                <button
-                  type="button"
-                  onClick={() => setSelected(type)}
-                  className={cn(
-                    "flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm transition",
-                    type === selected
-                      ? "bg-primary/10 font-semibold text-primary"
-                      : "text-foreground/80 hover:bg-muted/60",
-                  )}
-                >
-                  <span className="truncate">{metricLabel(type)}</span>
-                  {isCustomized(draft.metrics[type]) ? (
-                    <span className="size-2 shrink-0 rounded-full bg-primary" title="Personalizada" />
-                  ) : null}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <ScoreMetricNav config={draft} selected={selected} onSelect={setSelected} />
 
         <div className="min-w-0 space-y-5">
           <section className={CARD_CLASS}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h3 className="text-lg font-semibold text-foreground">{metricLabel(selected)}</h3>
+                <h3 className="text-lg font-semibold text-foreground">{scoreConfigKeyLabel(selected)}</h3>
                 <p className="mt-0.5 text-sm text-muted-foreground">
-                  Lo que no cambies usa los valores por defecto de PIEL 360.
+                  {region
+                    ? `Lo que no cambies usa lo de ${metricLabel(type)}.`
+                    : "Lo que no cambies usa los valores por defecto de PIEL 360."}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                {isCustomized(draft.metrics[selected]) ? (
-                  <button
-                    type="button"
-                    onClick={resetMetric}
-                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                  >
-                    <RotateCcw className="size-3.5" aria-hidden />
-                    Restaurar métrica
-                  </button>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <h4 className="text-sm font-semibold text-foreground">Rangos</h4>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Puntaje de cada nivel, de 0 a 100. Al mover un límite se ajusta el nivel vecino.
-              </p>
-              <div className="mt-3 space-y-2.5">
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className={cn("w-24 rounded-full px-2.5 py-1 text-center text-xs font-semibold", BAND_STYLES.regular.chip)}>
-                    Regular
-                  </span>
-                  <span className="inline-flex h-10 w-20 items-center rounded-lg bg-muted px-3 text-sm tabular-nums text-muted-foreground">
-                    0
-                  </span>
-                  <span className="text-sm text-muted-foreground">a</span>
-                  <NumberField
-                    value={ranges.regularMax - 1}
-                    min={0}
-                    max={98}
-                    label="Regular hasta"
-                    onChange={(n) => patchMetric({ regularMax: n + 1 })}
-                  />
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className={cn("w-24 rounded-full px-2.5 py-1 text-center text-xs font-semibold", BAND_STYLES.promedio.chip)}>
-                    Promedio
-                  </span>
-                  <NumberField
-                    value={ranges.regularMax}
-                    min={1}
-                    max={99}
-                    label="Promedio desde"
-                    onChange={(n) => patchMetric({ regularMax: n })}
-                  />
-                  <span className="text-sm text-muted-foreground">a</span>
-                  <NumberField
-                    value={ranges.promedioMax - 1}
-                    min={1}
-                    max={99}
-                    label="Promedio hasta"
-                    onChange={(n) => patchMetric({ promedioMax: n + 1 })}
-                  />
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className={cn("w-24 rounded-full px-2.5 py-1 text-center text-xs font-semibold", BAND_STYLES.buena.chip)}>
-                    Buena
-                  </span>
-                  <NumberField
-                    value={ranges.promedioMax}
-                    min={2}
-                    max={100}
-                    label="Buena desde"
-                    onChange={(n) => patchMetric({ promedioMax: n })}
-                  />
-                  <span className="text-sm text-muted-foreground">a</span>
-                  <span className="inline-flex h-10 w-20 items-center rounded-lg bg-muted px-3 text-sm tabular-nums text-muted-foreground">
-                    100
-                  </span>
-                </div>
-              </div>
-              {rangesValid ? (
-                <div className="mt-4 flex h-2.5 max-w-md overflow-hidden rounded-full">
-                  <div className={BAND_STYLES.regular.bar} style={{ width: `${ranges.regularMax}%` }} />
-                  <div
-                    className={BAND_STYLES.promedio.bar}
-                    style={{ width: `${ranges.promedioMax - ranges.regularMax}%` }}
-                  />
-                  <div className={cn("flex-1", BAND_STYLES.buena.bar)} />
-                </div>
+              {isCustomized(draft.metrics[selected]) ? (
+                <button
+                  type="button"
+                  onClick={resetMetric}
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                >
+                  <RotateCcw className="size-3.5" aria-hidden />
+                  {region ? "Restaurar zona" : "Restaurar métrica"}
+                </button>
               ) : null}
             </div>
+
+            <ScoreRangesEditor key={selected} ranges={ranges} onPatch={patchMetric} />
 
             {normalized.error ? (
               <p className="mt-4 rounded-lg bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
@@ -367,65 +205,13 @@ export function RangosPuntuacionView() {
             ) : null}
           </section>
 
-          <section className={CARD_CLASS}>
-            <h4 className="text-base font-semibold text-foreground">
-              Textos por nivel
-            </h4>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              Se muestran al paciente según el nivel en que quede su puntaje.
-            </p>
-
-            <div className="mt-4 space-y-4">
-              {ANALISIS_PIEL360_SCORE_BANDS.map((band) => {
-                const fallback = defaultAnalisisPiel360Advice(selected, band);
-                const value = metric.texts?.[band] ?? fallback;
-                const isDefault = value.trim() === fallback;
-                const range =
-                  band === "regular"
-                    ? `0 – ${ranges.regularMax - 1}`
-                    : band === "promedio"
-                      ? `${ranges.regularMax} – ${ranges.promedioMax - 1}`
-                      : `${ranges.promedioMax} – 100`;
-                return (
-                  <div key={band}>
-                    <div className="mb-1.5 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold", BAND_STYLES[band].chip)}>
-                          {BAND_LABELS[band]}
-                        </span>
-                        <span className="text-xs tabular-nums text-muted-foreground">{range}</span>
-                        {isDefault ? (
-                          <span className="text-xs text-muted-foreground">· Por defecto</span>
-                        ) : null}
-                      </div>
-                      {!isDefault ? (
-                        <button
-                          type="button"
-                          onClick={() => setText(band, null)}
-                          className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
-                        >
-                          <RotateCcw className="size-3" aria-hidden />
-                          Usar texto por defecto
-                        </button>
-                      ) : null}
-                    </div>
-                    <textarea
-                      value={value}
-                      maxLength={1000}
-                      rows={3}
-                      onChange={(e) => setText(band, e.target.value)}
-                      className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                    />
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-4 flex items-start gap-3 rounded-xl bg-primary/5 px-4 py-3 text-sm text-foreground/80">
-              <Info className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-              <p>Si dejas un texto vacío o igual al de PIEL 360, se usa el texto por defecto.</p>
-            </div>
-          </section>
+          <ScoreTextsEditor
+            texts={metric.texts}
+            inheritedText={inheritedText}
+            inheritedFrom={inheritedFrom}
+            ranges={ranges}
+            onChange={setText}
+          />
         </div>
       </div>
     </div>

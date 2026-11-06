@@ -10,6 +10,7 @@ import {
   fetchAnalisisPiel360CreditHistory,
   type AnalisisPiel360CreditHistoryItem,
 } from './youcam-credit-history';
+import { mensajeSinProveedor } from '../analyses/mensaje-sin-proveedor';
 
 export type { AnalisisPiel360CreditHistoryItem };
 
@@ -296,7 +297,7 @@ export class AnalisisPiel360Service {
         (typeof rawError === 'string'
           ? rawError
           : (JSON.stringify(rawError ?? json.data) ?? 'Error desconocido'));
-      return { status: 'error', message };
+      return { status: 'error', message: mensajeSinProveedor(message) };
     }
     return { status: 'processing' };
   }
@@ -311,14 +312,13 @@ export class AnalisisPiel360Service {
     const body = await response.text();
     const friendly = this.describeAnalisisPiel360Error(body);
 
-    if (response.status >= 400 && response.status < 500) {
-      throw new BadRequestException(
-        friendly ?? `${context} respondió ${response.status}: ${body}`,
-      );
-    }
-    throw new InternalServerErrorException(
+    const visible = mensajeSinProveedor(
       friendly ?? `${context} respondió ${response.status}: ${body}`,
     );
+    if (response.status >= 400 && response.status < 500) {
+      throw new BadRequestException(visible);
+    }
+    throw new InternalServerErrorException(visible);
   }
 
   private describeAnalisisPiel360Error(body: string): string | null {
@@ -331,7 +331,9 @@ export class AnalisisPiel360Service {
         return 'Suscripción no disponible. Análisis Estético Piel 360 — contacta al administrador para recargar la cuenta.';
       }
       if (parsed.error) {
-        return `El análisis estético rechazó la solicitud: ${parsed.error}`;
+        return mensajeSinProveedor(
+          `El análisis estético rechazó la solicitud: ${parsed.error}`,
+        );
       }
     } catch {
       // El cuerpo no es JSON — se usa el mensaje genérico con el texto crudo.

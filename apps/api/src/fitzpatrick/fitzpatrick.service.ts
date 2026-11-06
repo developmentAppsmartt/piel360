@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { FitzpatrickResult } from '@piel360/shared';
+import { mensajeSinProveedor } from '../analyses/mensaje-sin-proveedor';
 
 interface UploadUrlResponse {
   data: {
@@ -137,8 +138,9 @@ export class FitzpatrickService {
     if (json.data.task_status === 'error') {
       return {
         status: 'error',
-        message:
+        message: mensajeSinProveedor(
           json.data.error_message || json.data.error || 'Error desconocido',
+        ),
       };
     }
     return { status: 'processing' };
@@ -149,13 +151,12 @@ export class FitzpatrickService {
     context: string,
   ): Promise<never> {
     const body = await response.text();
-    if (response.status >= 400 && response.status < 500) {
-      throw new BadRequestException(
-        `${context} respondió ${response.status}: ${body}`,
-      );
-    }
-    throw new InternalServerErrorException(
+    const visible = mensajeSinProveedor(
       `${context} respondió ${response.status}: ${body}`,
     );
+    if (response.status >= 400 && response.status < 500) {
+      throw new BadRequestException(visible);
+    }
+    throw new InternalServerErrorException(visible);
   }
 }

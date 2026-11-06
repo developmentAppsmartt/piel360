@@ -1,279 +1,144 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff } from "lucide-react";
-import { useState } from "react";
-import { useForm, Controller } from "react-hook-form";
-import { z } from "zod";
-import { isStrongPassword, PASSWORD_STRENGTH_MESSAGE } from "@piel360/shared";
+import { useForm, useWatch, Controller } from "react-hook-form";
+import type { PatientClinicalHistory } from "@piel360/shared";
 import { AddressLocationPicker } from "@/components/maps";
 import { Button } from "@/components/ui/button";
-import { ModuleCard, ModuleCardDescription, ModuleCardTitle } from "@/components/ui/module-card";
-import { PasswordRequirements } from "@/components/ui/password-requirements";
 import { ApiError } from "@/lib/api-error";
+import { PATIENT_BIRTH_TYPE_OPTIONS, PATIENT_DOC_TYPES, PATIENT_GENDER_OPTIONS } from "@/lib/patient-form-options";
 import {
-  PATIENT_BIRTH_TYPE_OPTIONS,
-  PATIENT_DOC_TYPES,
-  PATIENT_EXERCISE_DAYS_OPTIONS,
-  PATIENT_EXERCISE_DURATION_OPTIONS,
-  PATIENT_EXERCISE_HABIT_OPTIONS,
-  PATIENT_FITZ_OPTIONS,
-  PATIENT_GENDER_OPTIONS,
-  PATIENT_MASCOT_OPTIONS,
-  PATIENT_SKIN_OPTIONS,
-} from "@/lib/patient-form-options";
+  useClinicalHistoryCatalog,
+  usePatientClinicalHistory,
+  useSavePatientClinicalHistory,
+  type ClinicalHistoryGroups,
+} from "@/lib/queries/patient-clinical-history";
 import type { Patient, PatientInput } from "@/lib/queries/patients";
 import { chronologicalAgeYears } from "@/lib/skin-age";
-import { cn } from "@/lib/utils";
+import { ClinicalChecklistSection } from "./clinical-history/clinical-checklist-section";
+import { ConsultationSection } from "./clinical-history/consultation-section";
+import { ExpectationsConsentSection } from "./clinical-history/expectations-consent-section";
+import { HealthBackgroundSection } from "./clinical-history/health-background-section";
+import { LifestyleSection } from "./clinical-history/lifestyle-section";
+import { PatientAppAccessSection } from "./patient-app-access-section";
+import { PatientDermatologySection } from "./patient-dermatology-section";
+import { ChipGroup, FormField, FormSection, inputClass } from "./patient-form-fields";
+import {
+  createPatientSchema,
+  patientFormDefaults,
+  toClinicalInput,
+  toPatientInput,
+  type PatientFormValues,
+} from "./patient-form-schema";
 
-const inputClass =
-  "h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-primary/50 focus:ring-2 focus:ring-primary/20";
-
-function toCoord(value: unknown): number | null {
-  if (value == null || value === "") return null;
-  const n = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(n) ? n : null;
-}
-
-function createPatientSchema(isCreate: boolean) {
-  return z
-    .object({
-      firstName: z.string().min(1, "Requerido"),
-      lastName: z.string().min(1, "Requerido"),
-      email: z.string().email("Email inválido"),
-      password: z.string(),
-      createAppAccess: z.boolean(),
-      docType: z.string().min(1, "Requerido"),
-      docNumber: z.string().min(1, "Requerido"),
-      gender: z.string().min(1, "Requerido"),
-      address: z.string().min(1, "Requerido"),
-      lat: z.number().nullable(),
-      lng: z.number().nullable(),
-      areaCode: z.string().min(1, "Requerido"),
-      phone: z.string().min(1, "Requerido"),
-      birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
-      mascotType: z.string().min(1, "Requerido"),
-      birthType: z.string().min(1, "Requerido"),
-      exerciseHabit: z.string().min(1, "Requerido"),
-      exerciseDaysPerWeek: z.string().min(1, "Requerido"),
-      exerciseSessionDuration: z.string().min(1, "Requerido"),
-      skinType: z.string().min(1, "Requerido"),
-      fitzpatrickType: z.string().min(1, "Requerido"),
-      importantNotes: z.string().max(500, "Máximo 500 caracteres"),
-    })
-    .superRefine((values, ctx) => {
-      if (values.lat == null || values.lng == null) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["address"],
-          message: "Selecciona una ubicación en el mapa",
-        });
-      }
-      if (!isCreate || !values.createAppAccess) return;
-      const password = values.password.trim();
-      if (!isStrongPassword(password)) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["password"],
-          message: PASSWORD_STRENGTH_MESSAGE,
-        });
-      }
-    });
-}
-
-type PatientFormValues = z.infer<ReturnType<typeof createPatientSchema>>;
-
-function toDateInput(value: string | null | undefined): string {
-  if (!value) return "";
-  return value.slice(0, 10);
-}
-
-function opt(v: string): string | undefined {
-  const t = v.trim();
-  return t ? t : undefined;
-}
-
-function toInput(values: PatientFormValues, isCreate: boolean): PatientInput {
-  const includeAccess = isCreate && values.createAppAccess;
-  return {
-    firstName: values.firstName.trim(),
-    lastName: values.lastName.trim(),
-    // Correo de contacto — se manda siempre, no solo al crear cuenta (antes
-    // se perdía por completo al editar, ver toInput()/patients.service.ts).
-    email: opt(values.email),
-    ...(isCreate ? { createAppAccess: values.createAppAccess } : {}),
-    ...(includeAccess ? { password: opt(values.password) } : {}),
-    docType: opt(values.docType),
-    docNumber: opt(values.docNumber),
-    gender: opt(values.gender),
-    address: opt(values.address),
-    ...(values.lat != null && values.lng != null
-      ? { lat: values.lat, lng: values.lng }
-      : {}),
-    areaCode: opt(values.areaCode),
-    phone: opt(values.phone),
-    birthDate: opt(values.birthDate),
-    birthType: opt(values.birthType),
-    mascotType: opt(values.mascotType),
-    exerciseHabit: opt(values.exerciseHabit),
-    exerciseDaysPerWeek: opt(values.exerciseDaysPerWeek),
-    exerciseSessionDuration: opt(values.exerciseSessionDuration),
-    skinType: opt(values.skinType),
-    fitzpatrickType: opt(values.fitzpatrickType),
-    importantNotes: opt(values.importantNotes),
-  };
-}
-
-function FormField({
-  label,
-  id,
-  hint,
-  error,
-  required,
-  children,
-}: {
-  label: string;
-  id?: string;
-  hint?: string;
-  error?: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-foreground">
-        {label}
-        {required ? <span className="text-destructive"> *</span> : null}
-      </label>
-      {children}
-      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
-    </div>
-  );
-}
-
-function ChipGroup({
-  options,
-  value,
-  onChange,
-  allowClear = true,
-}: {
-  options: readonly { value: string; label: string }[];
-  value: string;
-  onChange: (v: string) => void;
-  allowClear?: boolean;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {options.map((o) => {
-        const active = value === o.value;
-        return (
-          <button
-            key={o.value}
-            type="button"
-            onClick={() => onChange(active && allowClear ? "" : o.value)}
-            className={cn(
-              "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
-              active
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-muted/50",
-            )}
-          >
-            {o.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-export function PatientForm({
-  defaultValues,
-  onSubmit,
-  submitLabel,
-  onCancel,
-}: {
+type PatientFormProps = {
   defaultValues?: Patient;
-  onSubmit: (input: PatientInput) => Promise<unknown>;
+  /** Guarda el paciente (POST o PATCH) y lo devuelve; la historia clínica se
+   * guarda después con su id. */
+  onSubmit: (input: PatientInput) => Promise<Patient>;
+  /** Paciente e historia guardados. */
+  onSaved: (patient: Patient) => void;
+  /** Solo en el alta: el paciente ya existe pero la historia no se guardó.
+   * La página lo lleva a editarlo para no crearlo dos veces. */
+  onHistoryFailed?: (patient: Patient, message: string) => void;
   submitLabel: string;
   onCancel?: () => void;
+};
+
+function errorMessage(err: unknown, fallback: string) {
+  if (err instanceof ApiError) {
+    return Array.isArray(err.message) ? err.message.join(", ") : err.message;
+  }
+  return err instanceof Error ? err.message : fallback;
+}
+
+/** La historia clínica se carga antes de montar el formulario: así entra en
+ * los valores iniciales y no hay que copiarla en un efecto. */
+export function PatientForm(props: PatientFormProps) {
+  const isCreate = !props.defaultValues;
+  const history = usePatientClinicalHistory(props.defaultValues?.id);
+  const catalog = useClinicalHistoryCatalog(isCreate);
+  const loading = isCreate ? catalog.isPending : history.isPending;
+  const failed = isCreate ? catalog.isError : history.isError;
+
+  if (loading) {
+    return <p className="text-sm text-muted-foreground">Cargando historia clínica…</p>;
+  }
+  if (failed) {
+    return (
+      <p className="text-sm text-destructive">No se pudo cargar la historia clínica del paciente.</p>
+    );
+  }
+  return (
+    <PatientFormBody
+      {...props}
+      history={history.data}
+      groups={history.data?.groups ?? catalog.data ?? []}
+    />
+  );
+}
+
+function PatientFormBody({
+  defaultValues,
+  onSubmit,
+  onSaved,
+  onHistoryFailed,
+  submitLabel,
+  onCancel,
+  history,
+  groups,
+}: PatientFormProps & {
+  history: PatientClinicalHistory | undefined;
+  groups: ClinicalHistoryGroups;
 }) {
   const isCreate = !defaultValues;
-  const [showPassword, setShowPassword] = useState(false);
-  const [passwordFocused, setPasswordFocused] = useState(false);
+  const saveHistory = useSavePatientClinicalHistory();
 
   const {
     register,
     handleSubmit,
     control,
-    watch,
     setValue,
     setError,
     formState: { errors, isSubmitting },
   } = useForm<PatientFormValues>({
     resolver: zodResolver(createPatientSchema(isCreate)),
-    defaultValues: {
-      firstName: defaultValues?.firstName ?? "",
-      lastName: defaultValues?.lastName ?? "",
-      email: defaultValues?.email ?? "",
-      password: "",
-      createAppAccess: false,
-      docType: defaultValues?.docType ?? "CC",
-      docNumber: defaultValues?.docNumber ?? "",
-      gender: defaultValues?.gender ?? "",
-      address: defaultValues?.address ?? "",
-      lat: toCoord(defaultValues?.lat),
-      lng: toCoord(defaultValues?.lng),
-      areaCode: defaultValues?.areaCode ?? "+57",
-      phone: defaultValues?.phone ?? "",
-      birthDate: toDateInput(defaultValues?.birthDate),
-      birthType: defaultValues?.birthType ?? "",
-      mascotType: defaultValues?.mascotType ?? "",
-      exerciseHabit: defaultValues?.exerciseHabit ?? "",
-      exerciseDaysPerWeek: defaultValues?.exerciseDaysPerWeek ?? "",
-      exerciseSessionDuration: defaultValues?.exerciseSessionDuration ?? "",
-      skinType: defaultValues?.skinType ?? "",
-      fitzpatrickType: defaultValues?.fitzpatrickType ?? "",
-      importantNotes: defaultValues?.importantNotes ?? "",
-    },
+    defaultValues: patientFormDefaults(defaultValues, history, groups),
   });
 
-  const fitz = watch("fitzpatrickType");
-  const createAppAccess = watch("createAppAccess");
-  const birthDateValue = watch("birthDate");
-  const addressValue = watch("address");
-  const latValue = watch("lat");
-  const lngValue = watch("lng");
-  const passwordValue = watch("password");
-  const importantNotesValue = watch("importantNotes");
+  const [birthDateValue, addressValue, latValue, lngValue] = useWatch({
+    control,
+    name: ["birthDate", "address", "lat", "lng"],
+  });
   const chronologicalAge = chronologicalAgeYears(birthDateValue || null, new Date());
-  const fitzHint = PATIENT_FITZ_OPTIONS.find((f) => f.value === fitz)?.hint;
 
   const submit = handleSubmit(async (values) => {
+    let saved: Patient;
     try {
-      await onSubmit(toInput(values, isCreate));
+      saved = await onSubmit(toPatientInput(values, isCreate));
     } catch (err) {
-      setError("root", {
-        message:
-          err instanceof ApiError
-            ? Array.isArray(err.message)
-              ? err.message.join(", ")
-              : err.message
-            : "No se pudo guardar el paciente.",
-      });
+      setError("root", { message: errorMessage(err, "No se pudo guardar el paciente.") });
+      return;
     }
+    try {
+      await saveHistory.mutateAsync({ patientId: saved.id, input: toClinicalInput(values) });
+    } catch (err) {
+      const message = `${
+        isCreate ? "El paciente se creó" : "Los datos del paciente se guardaron"
+      }, pero no se pudo guardar la historia clínica: ${errorMessage(err, "inténtalo de nuevo")}`;
+      if (isCreate && onHistoryFailed) onHistoryFailed(saved, message);
+      else setError("root", { message });
+      return;
+    }
+    onSaved(saved);
   });
 
   return (
     <form onSubmit={submit} className="mx-auto max-w-3xl space-y-6">
-      <ModuleCard className="space-y-5 p-5 sm:p-6">
-        <div>
-          <ModuleCardTitle>Datos personales</ModuleCardTitle>
-          <ModuleCardDescription className="mt-1">
-            Información de identificación y contacto básica del paciente.
-          </ModuleCardDescription>
-        </div>
-
+      <FormSection
+        title="Datos personales"
+        description="Información de identificación y contacto básica del paciente."
+      >
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField label="Nombres" id="firstName" required error={errors.firstName?.message}>
             <input id="firstName" className={inputClass} {...register("firstName")} />
@@ -307,11 +172,7 @@ export function PatientForm({
             name="gender"
             control={control}
             render={({ field }) => (
-              <ChipGroup
-                options={PATIENT_GENDER_OPTIONS}
-                value={field.value}
-                onChange={field.onChange}
-              />
+              <ChipGroup options={PATIENT_GENDER_OPTIONS} value={field.value} onChange={field.onChange} />
             )}
           />
         </FormField>
@@ -335,24 +196,16 @@ export function PatientForm({
             name="birthType"
             control={control}
             render={({ field }) => (
-              <ChipGroup
-                options={PATIENT_BIRTH_TYPE_OPTIONS}
-                value={field.value}
-                onChange={field.onChange}
-              />
+              <ChipGroup options={PATIENT_BIRTH_TYPE_OPTIONS} value={field.value} onChange={field.onChange} />
             )}
           />
         </FormField>
-      </ModuleCard>
+      </FormSection>
 
-      <ModuleCard className="space-y-5 p-5 sm:p-6">
-        <div>
-          <ModuleCardTitle>Contacto</ModuleCardTitle>
-          <ModuleCardDescription className="mt-1">
-            Correo, ubicación en el mapa y teléfono para comunicación con el paciente.
-          </ModuleCardDescription>
-        </div>
-
+      <FormSection
+        title="Contacto"
+        description="Correo, ubicación en el mapa y teléfono para comunicación con el paciente."
+      >
         <FormField
           label="Correo electrónico"
           id="email"
@@ -364,11 +217,7 @@ export function PatientForm({
         </FormField>
 
         <AddressLocationPicker
-          value={{
-            address: addressValue,
-            lat: latValue,
-            lng: lngValue,
-          }}
+          value={{ address: addressValue, lat: latValue, lng: lngValue }}
           onChange={(next) => {
             setValue("address", next.address, { shouldDirty: true });
             setValue("lat", next.lat, { shouldDirty: true });
@@ -387,232 +236,19 @@ export function PatientForm({
             <input id="phone" type="tel" className={inputClass} {...register("phone")} />
           </FormField>
         </div>
-      </ModuleCard>
+      </FormSection>
 
       {isCreate ? (
-        <ModuleCard className="space-y-5 p-5 sm:p-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <ModuleCardTitle>Acceso a la app</ModuleCardTitle>
-              <ModuleCardDescription className="mt-1">
-                Si lo activas, el paciente podrá iniciar sesión en Piel360 con correo y contraseña.
-              </ModuleCardDescription>
-            </div>
-            <Controller
-              name="createAppAccess"
-              control={control}
-              render={({ field }) => (
-                <label className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm">
-                  <input
-                    type="checkbox"
-                    className="size-4 accent-primary"
-                    checked={field.value}
-                    onChange={(e) => field.onChange(e.target.checked)}
-                  />
-                  Crear cuenta
-                </label>
-              )}
-            />
-          </div>
-
-          {createAppAccess ? (
-            <FormField
-              label="Contraseña"
-              id="password"
-              required
-              error={errors.password?.message}
-            >
-              <div className="relative max-w-sm">
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  className={cn(inputClass, "pr-10")}
-                  {...register("password", {
-                    onBlur: () => setPasswordFocused(false),
-                  })}
-                  onFocus={() => setPasswordFocused(true)}
-                />
-                <button
-                  type="button"
-                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                >
-                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </button>
-                {passwordFocused && passwordValue ? (
-                  <PasswordRequirements password={passwordValue} />
-                ) : null}
-              </div>
-            </FormField>
-          ) : (
-            <p className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-              El paciente se registrará solo en tu cartera. Podrás añadir acceso a la app más adelante
-              desde su perfil.
-            </p>
-          )}
-        </ModuleCard>
+        <PatientAppAccessSection control={control} register={register} errors={errors} />
       ) : null}
 
-      <ModuleCard className="space-y-5 p-5 sm:p-6">
-        <div>
-          <ModuleCardTitle>Perfil dermatológico</ModuleCardTitle>
-          <ModuleCardDescription className="mt-1">
-            Datos que ayudan a personalizar análisis y recomendaciones.
-          </ModuleCardDescription>
-        </div>
+      <PatientDermatologySection control={control} register={register} errors={errors} />
 
-        <FormField label="Mascota en el hogar" id="mascotType" required error={errors.mascotType?.message}>
-          <Controller
-            name="mascotType"
-            control={control}
-            render={({ field }) => (
-              <ChipGroup
-                options={PATIENT_MASCOT_OPTIONS}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            )}
-          />
-        </FormField>
-
-        <div className="space-y-4 rounded-2xl border border-border/70 bg-muted/20 p-4">
-          <div>
-            <p className="text-sm font-semibold text-foreground">Actividad física</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Datos sobre ejercicio o deporte regular.
-            </p>
-          </div>
-          <FormField
-            label="¿Realiza algún tipo de ejercicio o deporte de forma regular?"
-            id="exerciseHabit"
-            required
-            error={errors.exerciseHabit?.message}
-          >
-            <Controller
-              name="exerciseHabit"
-              control={control}
-              render={({ field }) => (
-                <ChipGroup
-                  options={PATIENT_EXERCISE_HABIT_OPTIONS}
-                  value={field.value}
-                  onChange={field.onChange}
-                />
-              )}
-            />
-          </FormField>
-          <FormField
-            label="¿Cuántos días a la semana dedica a estas actividades?"
-            id="exerciseDaysPerWeek"
-            required
-            error={errors.exerciseDaysPerWeek?.message}
-          >
-            <Controller
-              name="exerciseDaysPerWeek"
-              control={control}
-              render={({ field }) => (
-                <ChipGroup
-                  options={PATIENT_EXERCISE_DAYS_OPTIONS}
-                  value={field.value}
-                  onChange={field.onChange}
-                />
-              )}
-            />
-          </FormField>
-          <FormField
-            label="¿Cuánto tiempo dura cada sesión de entrenamiento?"
-            id="exerciseSessionDuration"
-            required
-            error={errors.exerciseSessionDuration?.message}
-          >
-            <Controller
-              name="exerciseSessionDuration"
-              control={control}
-              render={({ field }) => (
-                <ChipGroup
-                  options={PATIENT_EXERCISE_DURATION_OPTIONS}
-                  value={field.value}
-                  onChange={field.onChange}
-                />
-              )}
-            />
-          </FormField>
-        </div>
-
-        <FormField label="Tipo de piel" id="skinType" required error={errors.skinType?.message}>
-          <Controller
-            name="skinType"
-            control={control}
-            render={({ field }) => (
-              <ChipGroup
-                options={PATIENT_SKIN_OPTIONS}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            )}
-          />
-        </FormField>
-
-        <FormField
-          label="Fototipo Fitzpatrick"
-          id="fitzpatrickType"
-          required
-          error={errors.fitzpatrickType?.message}
-          hint={fitzHint ?? "Selecciona el tono más cercano al del paciente."}
-        >
-          <Controller
-            name="fitzpatrickType"
-            control={control}
-            render={({ field }) => (
-              <div className="flex flex-wrap gap-3">
-                {PATIENT_FITZ_OPTIONS.map((f) => {
-                  const active = field.value === f.value;
-                  return (
-                    <button
-                      key={f.value}
-                      type="button"
-                      title={f.hint}
-                      aria-label={`Fototipo ${f.value}`}
-                      onClick={() => field.onChange(active ? "" : f.value)}
-                      className={cn(
-                        "flex flex-col items-center gap-1.5 rounded-xl border p-2 transition-colors",
-                        active
-                          ? "border-primary bg-primary/5 ring-2 ring-primary/30"
-                          : "border-border hover:border-primary/30",
-                      )}
-                    >
-                      <span
-                        className="size-9 rounded-full border border-black/10 shadow-inner"
-                        style={{ backgroundColor: f.color }}
-                      />
-                      <span className="text-xs font-medium text-muted-foreground">{f.value}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          />
-        </FormField>
-
-        <FormField
-          label="Notas importantes"
-          id="importantNotes"
-          hint="Opcional. Máximo 500 caracteres."
-          error={errors.importantNotes?.message}
-        >
-          <textarea
-            id="importantNotes"
-            rows={3}
-            maxLength={500}
-            className={inputClass.replace("h-10", "min-h-24 py-2")}
-            {...register("importantNotes")}
-          />
-          <p className="text-right text-xs text-muted-foreground">
-            {importantNotesValue.length}/500
-          </p>
-        </FormField>
-      </ModuleCard>
+      <ConsultationSection control={control} />
+      <HealthBackgroundSection control={control} />
+      <LifestyleSection control={control} />
+      <ClinicalChecklistSection control={control} setValue={setValue} groups={groups} />
+      <ExpectationsConsentSection control={control} />
 
       {errors.root ? (
         <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">

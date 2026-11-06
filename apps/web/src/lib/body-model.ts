@@ -1,6 +1,7 @@
 import { useGLTF } from "@react-three/drei";
 import { useMemo } from "react";
 import * as THREE from "three";
+import { storePlacementData } from "@/lib/body-placement";
 import { normalizeMeshName } from "@/lib/body-regions";
 
 export const MODEL_PATHS = {
@@ -28,6 +29,7 @@ export function normalizeModel(scene: THREE.Object3D) {
 
   const box = new THREE.Box3().setFromObject(scene);
   const size = box.getSize(new THREE.Vector3());
+  const rawCenter = box.getCenter(new THREE.Vector3());
   const scale = 1.8 / size.y;
   scene.scale.setScalar(scale);
 
@@ -35,6 +37,7 @@ export function normalizeModel(scene: THREE.Object3D) {
   const center = scaledBox.getCenter(new THREE.Vector3());
   scene.position.sub(center);
   scene.position.y += 1.05;
+  storePlacementData(scene, rawCenter);
 }
 
 /**
@@ -56,11 +59,16 @@ export function useBodyModel(gender: Gender): THREE.Object3D {
   }, [scene]);
 }
 
-/** Mismo criterio que `ViewPatient3DHistory.php` (sistema viejo) para
- * decidir el modelo GLB inicial a partir del género del paciente. */
-export function genderFromPatient(gender: string | null | undefined): Gender {
-  const normalized = (gender ?? "").toLowerCase();
-  return ["female", "f", "femenino", "femenina"].includes(normalized)
-    ? "female"
-    : "male";
+/** Figura del paciente; null si su género no se conoce. Espejo de
+ * `bodyModelGenderFromPatient` del móvil: antes el web no reconocía «mujer» ni
+ * «hombre», y sin género abría la de hombre mientras el móvil marcaba en la
+ * de mujer, así que el punto se veía fuera de la figura. */
+export function genderFromPatient(gender: string | null | undefined): Gender | null {
+  const normalized = (gender ?? "").trim().toLowerCase();
+  if (["female", "f", "mujer", "femenino", "femenina"].includes(normalized)) return "female";
+  if (["male", "m", "hombre", "masculino", "masculina"].includes(normalized)) return "male";
+  return null;
 }
+
+/** Sin género conocido, la figura con la que abre el selector (igual que el móvil). */
+export const DEFAULT_BODY_GENDER: Gender = "female";

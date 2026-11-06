@@ -15,9 +15,9 @@ export default function AnalisisDetallePage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+        <div className="min-w-0 space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
             <h1>Análisis</h1>
             {analysis.data && (
               <Badge variant="outline">{analysisProviderLabel(analysis.data)}</Badge>
@@ -34,6 +34,7 @@ export default function AnalisisDetallePage() {
         </div>
         <Button
           variant="outline"
+          className="shrink-0"
           nativeButton={false}
           render={<Link href={`/doctor/pacientes/${patientId}`} />}
         >

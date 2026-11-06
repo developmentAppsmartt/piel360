@@ -554,6 +554,21 @@ mano** con `select id, name from plans where name ~* 'skiniver|youcam|perfect'`.
   El motor de fototipo (`fitzpatrick-rules.service.ts`) todavía usa el doctor
   del paciente.
 
+### Historia clínica del paciente
+
+- La llena el **profesional** en el formulario web del paciente y vive en
+  tablas propias (`patient_clinical_profiles`, `patient_consents`, catálogo
+  `clinical_history_groups/items` y respuestas
+  `patient_clinical_history_answers`). **No es** `patients.survey_responses`,
+  que es la encuesta que responde el propio paciente en la app.
+- En las preguntas Sí/No, **sin fila = sin responder**; `false` es un «No»
+  marcado. Agregar una pregunta es un `INSERT` en `clinical_history_items`.
+- Las opciones tienen `CHECK` en la base con los mismos valores de
+  `packages/shared/src/patient-clinical-history.ts`: si cambias uno, cambia el
+  otro con una migración.
+- El acceso es el de `GET /patients/:id` (reutiliza `PatientsService.findOne`)
+  y el rol paciente recibe 403. El móvil todavía no la muestra.
+
 ### Fechas de los reportes
 
 Los filtros «desde/hasta» son **días de Colombia**, no UTC:

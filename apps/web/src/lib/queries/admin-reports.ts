@@ -13,7 +13,7 @@ export interface ReportsFilters {
 
 export interface AdminReports {
   subscriptionStatus: { active: number; pending: number; expired: number };
-  diagnosisByClass: { label: string; count: number }[];
+  diagnosisByClass: { label: string; count: number; color: string }[];
   diagnosisByAge: { label: string; count: number }[];
   timeSeries: { period: string; count: number }[];
 }

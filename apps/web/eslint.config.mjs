@@ -7,9 +7,7 @@ import { reglaMaxLineas } from "../../packages/config/eslint.max-lines.mjs";
 const ARCHIVOS_LARGOS_HEREDADOS = [
   "src/app/admin/(panel)/configuracion/empresas-aliadas/page.tsx",
   "src/app/doctor/(panel)/configuracion/company-profile-section.tsx",
-  "src/app/doctor/(panel)/configuracion/doctor-profile-form.tsx",
   "src/app/doctor/(panel)/configuracion/personalizacion/identidad-corporativa/identidad-corporativa-view.tsx",
-  "src/app/doctor/(panel)/configuracion/personalizacion/rangos-puntuacion/rangos-puntuacion-view.tsx",
   "src/components/admin/labor-technician-profiles-manager.tsx",
   "src/components/admin/plan-wizard-form.tsx",
   "src/components/admin/plans-manager.tsx",
@@ -27,7 +25,6 @@ const ARCHIVOS_LARGOS_HEREDADOS = [
   "src/components/layout/sidebar-nav.tsx",
   "src/components/maps/address-location-picker.tsx",
   "src/components/patients/patient-comparison-view.tsx",
-  "src/components/patients/patient-form.tsx",
   "src/lib/mocks/admin-bolsa.ts",
 ];
 

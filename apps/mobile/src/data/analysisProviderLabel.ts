@@ -70,12 +70,34 @@ function looksLikeApiVendor(label: string): boolean {
 
 /** Sustituye nombres de proveedor/API en textos que ve el usuario (alertas, toasts). */
 export function maskVendorMessage(message: string): string {
-  return message
+  const marcas = message
     .replace(/\bPerfect\s*Corp\b/gi, 'Análisis Estético Piel 360')
     .replace(/\bPerfectCorp\b/gi, 'Análisis Estético Piel 360')
     .replace(/\bYouCam\b/gi, 'Análisis Estético Piel 360')
     .replace(/\bYoucam\b/gi, 'Análisis Estético Piel 360')
     .replace(/\bSkiniver\b/gi, 'Análisis Dermatológico Piel 360');
+  return mensajeSinProveedor(marcas);
+}
+
+/** La falla del análisis no puede decir «proveedor». Si el texto lo traía,
+ * se pide reintentar en unos minutos. */
+function mensajeSinProveedor(texto: string): string {
+  if (!/proveedor|\bprovider\b/i.test(texto)) return texto;
+  const sin = texto
+    .replace(
+      /[:,.]?\s*(por favor[:,.]?\s*)?(contacte|contacta|please contact)(\s+\w+){0,6}\s+(proveedores|proveedor|provider)\b[.!]*/gi,
+      '',
+    )
+    .replace(/\bproveedores\b|\bproveedor\b|\bprovider\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,.])/g, '$1')
+    .trim();
+  const base = sin.replace(/^[\s,.;:]+|[\s,.;:]+$/g, '');
+  const nucleo = base.length > 0 ? base : 'No se pudo completar el análisis';
+  if (/unos minutos/i.test(nucleo)) {
+    return nucleo.endsWith('.') ? nucleo : `${nucleo}.`;
+  }
+  return `${nucleo}. Intenta de nuevo en unos minutos.`;
 }
 
 export type AnalysisStatusKind =

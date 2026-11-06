@@ -100,23 +100,10 @@ export class SkinAgeRecommendationsService {
     }
 
     return this.buildCareRecommendations(
-      await this.catalogDoctorIdFor(analysis.patient.doctorId),
+      await this.orgContext.catalogDoctorIdFor(analysis.patient.doctorId),
       analysis.patient,
       analysis,
     );
-  }
-
-  /** Reglas y catálogo viven en el doctor dueño de la cuenta. Con el doctor del
-   * paciente a secas, los pacientes de un profesional de equipo no veían
-   * ninguna regla de la empresa ni su catálogo. */
-  private async catalogDoctorIdFor(patientDoctorId: bigint): Promise<bigint> {
-    const linkedDoctor = await this.prisma.doctor.findUnique({
-      where: { id: patientDoctorId },
-      select: { userId: true },
-    });
-    if (!linkedDoctor?.userId) return patientDoctorId;
-    const ctx = await this.orgContext.resolve(linkedDoctor.userId.toString());
-    return ctx.catalogDoctorId;
   }
 
   /**
@@ -164,7 +151,9 @@ export class SkinAgeRecommendationsService {
       };
     }
 
-    const doctorId = await this.catalogDoctorIdFor(analysis.patient.doctorId);
+    const doctorId = await this.orgContext.catalogDoctorIdFor(
+      analysis.patient.doctorId,
+    );
     const matched = await this.buildCareRecommendations(
       doctorId,
       analysis.patient,
@@ -270,7 +259,9 @@ export class SkinAgeRecommendationsService {
       });
     }
 
-    const rulesDoctorId = await this.catalogDoctorIdFor(patient.doctorId);
+    const rulesDoctorId = await this.orgContext.catalogDoctorIdFor(
+      patient.doctorId,
+    );
 
     // Preferir análisis compartidos (más reciente primero) hasta encontrar
     // uno con edad de piel. Evita que un fototipo/otro tipo posterior tape

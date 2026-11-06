@@ -40,11 +40,17 @@ export function useYoucamScoreConfig(): YoucamScoreConfig {
 }
 
 export type YoucamScorer = {
-  band: (type: string | null | undefined, score: number) => YoucamScoreBand;
+  /** `region`: zona de Arrugas o Poros, que puede tener rangos propios. */
+  band: (
+    type: string | null | undefined,
+    score: number,
+    region?: string | null,
+  ) => YoucamScoreBand;
   advice: (
     type: string | null | undefined,
     band: YoucamScoreBand,
     regionLabel?: string | null,
+    region?: string | null,
   ) => string;
 };
 
@@ -52,9 +58,10 @@ export function useYoucamScorer(): YoucamScorer {
   const config = useYoucamScoreConfig();
   return useMemo(
     () => ({
-      band: (type, score) => configuredYoucamScoreBand(score, type, config),
-      advice: (type, band, regionLabel) => {
-        const base = configuredYoucamAdvice(type, band, config);
+      band: (type, score, region) =>
+        configuredYoucamScoreBand(score, type, config, region),
+      advice: (type, band, regionLabel, region) => {
+        const base = configuredYoucamAdvice(type, band, config, region);
         if (!regionLabel || regionLabel === 'General') return base;
         return `${regionLabel}: ${base}`;
       },

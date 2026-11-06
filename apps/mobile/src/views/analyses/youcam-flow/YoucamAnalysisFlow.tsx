@@ -1,20 +1,20 @@
-import { useCallback, useMemo, useState } from 'react';
-import { Alert, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
-import { useBranding } from '../../../context/BrandingContext';
+import { useCallback, useMemo, useState } from "react";
+import { Alert, View } from "react-native";
+import { StatusBar } from "expo-status-bar";
+import { useBranding } from "../../../context/BrandingContext";
 import {
   ANALYSIS_PROVIDER_STATIC_LABELS,
   maskVendorMessage,
-} from '../../../data/analysisProviderLabel';
-import { ANALYSIS_CONSENT_COPY } from '../../../data/legal/documents';
-import { DoctorHeader } from '../../doctor/patients/components/DoctorHeader';
-import { createDoctorPatientsStyles } from '../../doctor/patients/styles/patients.styles';
-import { YoucamConsentStep } from './YoucamConsentStep';
-import { YoucamInstructionsStep } from './YoucamInstructionsStep';
-import { YoucamProcessingStep } from './YoucamProcessingStep';
-import { createYoucamFlowStyles } from './styles/youcamFlow.styles';
+} from "../../../data/analysisProviderLabel";
+import { ANALYSIS_CONSENT_COPY } from "../../../data/legal/documents";
+import { DoctorHeader } from "../../doctor/patients/components/DoctorHeader";
+import { createDoctorPatientsStyles } from "../../doctor/patients/styles/patients.styles";
+import { YoucamConsentStep } from "./YoucamConsentStep";
+import { YoucamInstructionsStep } from "./YoucamInstructionsStep";
+import { YoucamProcessingStep } from "./YoucamProcessingStep";
+import { createYoucamFlowStyles } from "./styles/youcamFlow.styles";
 
-type Step = 'consent' | 'instructions' | 'processing';
+type Step = "consent" | "instructions" | "processing";
 
 type YoucamAnalysisFlowProps = {
   patientId: string;
@@ -44,7 +44,7 @@ export function YoucamAnalysisFlow({
     () => createYoucamFlowStyles(branding.colors),
     [branding.colors],
   );
-  const [step, setStep] = useState<Step>('consent');
+  const [step, setStep] = useState<Step>("consent");
   const [imageUri, setImageUri] = useState<string | null>(null);
   const alertTitle = ANALYSIS_PROVIDER_STATIC_LABELS.youcam;
 
@@ -58,26 +58,25 @@ export function YoucamAnalysisFlow({
   const handleError = useCallback(
     (message: string) => {
       Alert.alert(alertTitle, maskVendorMessage(message));
-      setImageUri(null);
-      setStep('instructions');
+      onClose();
     },
-    [alertTitle],
+    [alertTitle, onClose],
   );
 
   return (
     <View style={styles.screen}>
       <StatusBar style="light" />
-      {step !== 'processing' ? (
+      {step !== "processing" ? (
         <DoctorHeader
           styles={headerStyles}
           title={
             patientName
               ? `Estético · ${patientName.length > 22 ? `${patientName.slice(0, 20)}…` : patientName}`
-              : 'Estético'
+              : "Estético"
           }
           showBack
           onBack={() => {
-            if (step === 'instructions') setStep('consent');
+            if (step === "instructions") setStep("consent");
             else onClose();
           }}
           onOpenMenu={onOpenMenu ?? (() => undefined)}
@@ -85,7 +84,7 @@ export function YoucamAnalysisFlow({
         />
       ) : null}
 
-      {step === 'consent' ? (
+      {step === "consent" ? (
         <YoucamConsentStep
           title={ANALYSIS_CONSENT_COPY.youcam.title}
           subtitle={ANALYSIS_CONSENT_COPY.youcam.subtitle}
@@ -94,22 +93,22 @@ export function YoucamAnalysisFlow({
           checkboxLabel={ANALYSIS_CONSENT_COPY.youcam.checkbox}
           ctaLabel={ANALYSIS_CONSENT_COPY.youcam.cta}
           privacyDocId={ANALYSIS_CONSENT_COPY.youcam.privacyDocId}
-          onNext={() => setStep('instructions')}
+          onNext={() => setStep("instructions")}
           onCancel={onClose}
         />
       ) : null}
 
-      {step === 'instructions' ? (
+      {step === "instructions" ? (
         <YoucamInstructionsStep
           onCancel={onClose}
           onCaptured={(uri) => {
             setImageUri(uri);
-            setStep('processing');
+            setStep("processing");
           }}
         />
       ) : null}
 
-      {step === 'processing' && imageUri ? (
+      {step === "processing" && imageUri ? (
         <YoucamProcessingStep
           patientId={patientId}
           imageUri={imageUri}

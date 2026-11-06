@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState, Suspense } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
   View,
+  type GestureResponderEvent,
 } from 'react-native';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber/native';
 import { OrbitControls, useGLTF } from '@react-three/drei/native';
@@ -41,11 +42,14 @@ function BodyModel({
   uri,
   onSelect,
   anchorPoint,
+  anchorRegion,
   onAnchored,
 }: {
   uri: string;
   onSelect?: (region: string, point: THREE.Vector3) => void;
   anchorPoint?: [number, number, number] | null;
+  /** Región guardada con el análisis: decide cómo corregir el punto. */
+  anchorRegion?: string | null;
   onAnchored?: (point: [number, number, number]) => void;
 }) {
   const { scene } = useGLTF(uri);
@@ -53,9 +57,15 @@ function BodyModel({
   useEffect(() => {
     normalizeModel(scene);
     if (!anchorPoint || !onAnchored) return;
-    const snapped = placeSavedPoint(scene, new THREE.Vector3(...anchorPoint));
+    const snapped = placeSavedPoint(
+      scene,
+      new THREE.Vector3(...anchorPoint),
+      anchorRegion
+        ? (point) => inferBodyPartFromPoint(point) === anchorRegion
+        : undefined,
+    );
     onAnchored([snapped.x, snapped.y, snapped.z]);
-  }, [scene, anchorPoint, onAnchored]);
+  }, [scene, anchorPoint, anchorRegion, onAnchored]);
 
   function handleClick(event: ThreeEvent<MouseEvent>) {
     if (!onSelect) return;
@@ -68,6 +78,14 @@ function BodyModel({
   }
 
   return <primitive object={scene} onClick={onSelect ? handleClick : undefined} />;
+}
+
+function pinchDistance(event: GestureResponderEvent): number {
+  const touches = event.nativeEvent.touches;
+  if (touches.length < 2) return 0;
+  const a = touches[0];
+  const b = touches[1];
+  return Math.hypot(a.pageX - b.pageX, a.pageY - b.pageY);
 }
 
 function FocusCamera({ point }: { point: [number, number, number] }) {
@@ -176,6 +194,28 @@ export function BodySelector3D({
     cameraFocus?.[2],
   ]);
   const readOnly = Boolean(focusPoint);
+  const controlsRef = useRef<{ dollyOut: (scale?: number) => void } | null>(null);
+  const pinchRef = useRef(0);
+
+  const zoomByPinch = useCallback((event: GestureResponderEvent) => {
+    const distance = pinchDistance(event);
+    const previous = pinchRef.current;
+    pinchRef.current = distance;
+    if (distance <= 0 || previous <= 0) return;
+    const ratio = distance / previous;
+    if (!Number.isFinite(ratio) || Math.abs(ratio - 1) < 0.001) return;
+    // Cada evento se mide contra el anterior, no contra el inicio del gesto:
+    // al tocar el tope, el sentido contrario sigue teniendo efecto.
+    controlsRef.current?.dollyOut(Math.pow(ratio, BODY_SELECTOR_ORBIT.zoomSpeed));
+  }, []);
+
+  const beginPinch = useCallback((event: GestureResponderEvent) => {
+    pinchRef.current = pinchDistance(event);
+  }, []);
+
+  const endPinch = useCallback(() => {
+    pinchRef.current = 0;
+  }, []);
 
   return (
     <View style={styles.wrap}>
@@ -208,7 +248,15 @@ export function BodySelector3D({
         </Text>
       )}
 
-      <View style={styles.canvas}>
+      <View
+        style={styles.canvas}
+        onStartShouldSetResponderCapture={(event) => event.nativeEvent.touches.length >= 2}
+        onMoveShouldSetResponderCapture={(event) => event.nativeEvent.touches.length >= 2}
+        onResponderGrant={beginPinch}
+        onResponderMove={zoomByPinch}
+        onResponderRelease={endPinch}
+        onResponderTerminate={endPinch}
+      >
         {loadError ? (
           <Text style={styles.error}>{loadError}</Text>
         ) : !modelUri ? (
@@ -231,6 +279,7 @@ export function BodySelector3D({
                 uri={modelUri}
                 onSelect={readOnly ? undefined : handleSelect}
                 anchorPoint={readOnly ? focusPoint : null}
+                anchorRegion={readOnly ? focusRegion : null}
                 onAnchored={readOnly ? handleAnchored : undefined}
               />
             </Suspense>
@@ -242,10 +291,12 @@ export function BodySelector3D({
               </mesh>
             ) : null}
             <OrbitControls
+              ref={controlsRef}
               makeDefault
               enablePan={false}
-              enableZoom
-              zoomSpeed={BODY_SELECTOR_ORBIT.zoomSpeed}
+              // El pinch lo aplica el contenedor. El de OrbitControls se traba
+              // en el mínimo y en el máximo, y a veces manda la cámara a NaN.
+              enableZoom={false}
               minDistance={BODY_SELECTOR_ORBIT.minDistance}
               maxDistance={BODY_SELECTOR_ORBIT.maxDistance}
               target={cameraView.target}

@@ -214,15 +214,9 @@ export function DoctorHomeView({
   const branding = useBranding();
   const { user, logout } = useAuth();
   const notifications = useNotificationsOptional();
-  const { isTablet, isLandscape } = useDeviceLayout();
+  const { isTablet } = useDeviceLayout();
   const welcomeLabelSize = isTablet ? 24 : undefined;
   const shareIconSize = isTablet ? 28 : 18;
-  // En tablet 10″ el logo de empresa se ve pequeño a 96×56.
-  const companyLogoSize = isTablet
-    ? isLandscape
-      ? { width: 148, height: 86 }
-      : { width: 168, height: 98 }
-    : undefined;
   const styles = useMemo(
     () => createDoctorHomeStyles(branding.colors),
     [branding.colors],
@@ -735,14 +729,6 @@ export function DoctorHomeView({
               </Pressable>
             </View>
           </View>
-          {branding.companyLogoImage ? (
-            <Image
-              source={branding.companyLogoImage}
-              style={[styles.companyLogo, companyLogoSize]}
-              resizeMode="contain"
-              accessibilityLabel="Logo de la empresa"
-            />
-          ) : null}
         </View>
         <View style={styles.welcomeInfo}>
           <Text style={styles.welcomeName} numberOfLines={1}>

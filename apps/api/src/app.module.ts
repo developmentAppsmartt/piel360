@@ -12,6 +12,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { DoctorsModule } from './doctors/doctors.module';
 import { PatientsModule } from './patients/patients.module';
+import { PatientClinicalHistoryModule } from './patient-clinical-history/patient-clinical-history.module';
 import { AnalysesModule } from './analyses/analyses.module';
 import { AnalisisPiel360Module } from './youcam/youcam.module';
 import { FitzpatrickModule } from './fitzpatrick/fitzpatrick.module';
@@ -78,6 +79,7 @@ import { BrandingModule } from './branding/branding.module';
     UsersModule,
     DoctorsModule,
     PatientsModule,
+    PatientClinicalHistoryModule,
     MessagesModule,
     NotificationsModule,
     AnalysesModule,

@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
-import { useBranding } from '../../../context/BrandingContext';
-import { useDeviceLayout } from '../../../styles/deviceLayout';
-import { analysesService } from '../../../services/analyses.service';
-import { ApiError } from '../../../services/api.client';
-import { youcamService } from '../../../services/youcam.service';
+import { useEffect, useRef, useState } from "react";
+import { Animated, Easing, StyleSheet, Text, View } from "react-native";
+import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
+import { useBranding } from "../../../context/BrandingContext";
+import { useDeviceLayout } from "../../../styles/deviceLayout";
+import { analysesService } from "../../../services/analyses.service";
+import { ApiError } from "../../../services/api.client";
+import { youcamService } from "../../../services/youcam.service";
 
 type YoucamProcessingStepProps = {
   patientId: string;
@@ -34,7 +34,8 @@ function startCreate(patientId: string, imageUri: string) {
       return value;
     },
     (err: unknown) => {
-      inflightCreates.delete(key);
+      // Sin éxito no se abre otra tarea: el mismo envío sigue bloqueado.
+      setTimeout(() => inflightCreates.delete(key), REUSE_MS);
       throw err;
     },
   );
@@ -62,7 +63,7 @@ export function YoucamProcessingStep({
   const dashOn = Math.max(6, Math.round(6 * scale));
   const dashOff = Math.max(10, Math.round(10 * scale));
   const spin = useRef(new Animated.Value(0)).current;
-  const [label, setLabel] = useState('Analizando tu piel…');
+  const [label, setLabel] = useState("Analizando tu piel…");
   const cancelled = useRef(false);
   const onDoneRef = useRef(onDone);
   const onErrorRef = useRef(onError);
@@ -88,11 +89,11 @@ export function YoucamProcessingStep({
 
     (async () => {
       try {
-        setLabel('Enviando captura…');
+        setLabel("Enviando captura…");
         const created = await startCreate(patientId, imageUri);
         if (cancelled.current) return;
 
-        setLabel('Procesando métricas faciales…');
+        setLabel("Procesando métricas faciales…");
         while (!cancelled.current && Date.now() - started < MAX_WAIT_MS) {
           const status = await analysesService.getProcessingStatus(
             created.analysisId,
@@ -102,7 +103,7 @@ export function YoucamProcessingStep({
             return;
           }
           if (status.isValid) {
-            setLabel('Listo');
+            setLabel("Listo");
             onDoneRef.current(created.analysisId);
             return;
           }
@@ -118,7 +119,7 @@ export function YoucamProcessingStep({
             ? e.message
             : e instanceof Error
               ? e.message
-              : 'No se pudo completar el análisis.',
+              : "No se pudo completar el análisis.",
         );
       }
     })();
@@ -130,7 +131,7 @@ export function YoucamProcessingStep({
 
   const rotate = spin.interpolate({
     inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
+    outputRange: ["0deg", "360deg"],
   });
 
   const r = (size - stroke) / 2;
@@ -218,45 +219,45 @@ export function YoucamProcessingStep({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#0a0a0a",
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 24,
   },
   stage: {
     width: 260,
     height: 260,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   dots: {
-    position: 'absolute',
+    position: "absolute",
     width: 56,
     height: 68,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 4,
   },
   dot: {
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     opacity: 0.9,
   },
   label: {
     marginTop: 28,
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: '700',
-    textAlign: 'center',
+    fontWeight: "700",
+    textAlign: "center",
   },
   powered: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 36,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });

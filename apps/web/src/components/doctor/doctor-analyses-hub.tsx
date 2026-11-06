@@ -130,9 +130,6 @@ export function DoctorAnalysesHub() {
               <FileSearch className="size-4 text-primary" aria-hidden />
               <h2 className="text-base font-semibold text-foreground">Historial de análisis</h2>
             </div>
-            <p className="text-sm text-muted-foreground">
-              {filtered.length} resultado{filtered.length === 1 ? "" : "s"}
-            </p>
           </div>
           <div className="p-5 pt-0">
             <AnalysesTable analyses={filtered} variant="modern" />

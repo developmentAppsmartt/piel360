@@ -136,6 +136,7 @@ function PanelLayoutInner({
   user,
   children,
   notificationsHref,
+  profileHref,
   hideHeaderLogout,
   sidebarUser,
 }: {
@@ -150,6 +151,7 @@ function PanelLayoutInner({
   };
   children: React.ReactNode;
   notificationsHref: string | null;
+  profileHref: string | null;
   hideHeaderLogout: boolean;
   sidebarUser?: SidebarUserProps;
 }) {
@@ -202,6 +204,7 @@ function PanelLayoutInner({
           email={user.email}
           role={user.role}
           notificationsHref={notificationsHref}
+          profileHref={profileHref}
           showLogout={!hideHeaderLogout && !sidebarUser}
           onMenuClick={() => setMobileOpen(true)}
           empresa={user.empresa}
@@ -231,6 +234,7 @@ export function PanelLayoutClient(props: {
   };
   children: React.ReactNode;
   notificationsHref?: string | null;
+  profileHref?: string | null;
   sidebarUser?: SidebarUserProps;
   hideHeaderLogout?: boolean;
 }) {
@@ -241,6 +245,7 @@ export function PanelLayoutClient(props: {
         isMonitor={props.isMonitor}
         user={props.user}
         notificationsHref={props.notificationsHref ?? null}
+        profileHref={props.profileHref ?? null}
         hideHeaderLogout={props.hideHeaderLogout ?? false}
         sidebarUser={props.sidebarUser}
       >

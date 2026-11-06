@@ -13,6 +13,8 @@ import type { CreateTreatmentDto } from './dto/create-treatment.dto';
 import type { UpdateTreatmentDto } from './dto/update-treatment.dto';
 import type { CreateTreatmentItemDto } from './dto/create-treatment-item.dto';
 import type { UpdateTreatmentItemDto } from './dto/update-treatment-item.dto';
+import { resolveItemImage, withResolvedItems } from './treatment-item-images';
+import { ensureProductNotInTreatment } from './treatment-item-uniqueness';
 
 @Injectable()
 export class TreatmentsService {
@@ -82,34 +84,6 @@ export class TreatmentsService {
     },
   };
 
-  /** Si imageUrl es un key de S3 (no empieza con http), genera URL firmada
-   *  (1h) — mismo criterio que ProductsService#resolveImageUrl. */
-  private async resolveItemImage<
-    T extends { product: { imageUrl: string | null } },
-  >(item: T): Promise<T> {
-    const { imageUrl } = item.product;
-    if (
-      !imageUrl ||
-      imageUrl.startsWith('http://') ||
-      imageUrl.startsWith('https://')
-    ) {
-      return item;
-    }
-    const signedUrl = await this.storage.getSignedUrl(imageUrl);
-    return { ...item, product: { ...item.product, imageUrl: signedUrl } };
-  }
-
-  private async withResolvedItems<
-    T extends { items: { product: { imageUrl: string | null } }[] },
-  >(treatment: T): Promise<T> {
-    return {
-      ...treatment,
-      items: await Promise.all(
-        treatment.items.map((i) => this.resolveItemImage(i)),
-      ),
-    };
-  }
-
   // ─── Categorías ─────────────────────────────────────────────────────────────
 
   async getCategories(userId: string) {
@@ -171,7 +145,9 @@ export class TreatmentsService {
       include: this.treatmentInclude,
       orderBy: { createdAt: 'asc' },
     });
-    return Promise.all(treatments.map((t) => this.withResolvedItems(t)));
+    return Promise.all(
+      treatments.map((t) => withResolvedItems(this.storage, t)),
+    );
   }
 
   async getTreatment(userId: string, treatmentId: string) {
@@ -181,7 +157,7 @@ export class TreatmentsService {
       where: { id: BigInt(treatmentId) },
       include: this.treatmentInclude,
     });
-    return this.withResolvedItems(treatment);
+    return withResolvedItems(this.storage, treatment);
   }
 
   async createTreatment(userId: string, dto: CreateTreatmentDto) {
@@ -214,7 +190,7 @@ export class TreatmentsService {
       },
       include: this.treatmentInclude,
     });
-    return this.withResolvedItems(treatment);
+    return withResolvedItems(this.storage, treatment);
   }
 
   async updateTreatment(
@@ -267,7 +243,7 @@ export class TreatmentsService {
       where: { id: BigInt(treatmentId) },
       include: this.treatmentInclude,
     });
-    return this.withResolvedItems(treatment);
+    return withResolvedItems(this.storage, treatment);
   }
 
   async deleteTreatment(userId: string, treatmentId: string) {
@@ -286,6 +262,11 @@ export class TreatmentsService {
     const doctorId = await this.catalogDoctorId(userId);
     await this.ensureTreatmentOwner(BigInt(treatmentId), doctorId);
     await this.ensureProductOwner(BigInt(dto.productId), doctorId);
+    await ensureProductNotInTreatment(
+      this.prisma,
+      BigInt(treatmentId),
+      BigInt(dto.productId),
+    );
     const item = await this.prisma.treatmentProduct.create({
       data: {
         treatmentId: BigInt(treatmentId),
@@ -295,7 +276,7 @@ export class TreatmentsService {
       },
       include: { product: { include: { category: true } } },
     });
-    return this.resolveItemImage(item);
+    return resolveItemImage(this.storage, item);
   }
 
   async updateItem(
@@ -312,6 +293,12 @@ export class TreatmentsService {
     }
     if (dto.productId !== undefined) {
       await this.ensureProductOwner(BigInt(dto.productId), doctorId);
+      await ensureProductNotInTreatment(
+        this.prisma,
+        item.treatmentId,
+        BigInt(dto.productId),
+        item.id,
+      );
     }
     const updated = await this.prisma.treatmentProduct.update({
       where: { id: BigInt(itemId) },
@@ -323,7 +310,7 @@ export class TreatmentsService {
       },
       include: { product: { include: { category: true } } },
     });
-    return this.resolveItemImage(updated);
+    return resolveItemImage(this.storage, updated);
   }
 
   async deleteItem(userId: string, treatmentId: string, itemId: string) {
@@ -388,7 +375,7 @@ export class TreatmentsService {
       .filter((t) => t.matchedConditions.length > 0);
 
     const resolved = await Promise.all(
-      matched.map((t) => this.withResolvedItems(t.treatment)),
+      matched.map((t) => withResolvedItems(this.storage, t.treatment)),
     );
     return resolved.map((treatment, i) => ({
       ...treatment,

@@ -26,10 +26,15 @@ export function TreatmentItemsEditor({
   itemsLabel?: string;
 }) {
   const { data: products, isLoading: productsLoading } = useProducts();
-  const productOptions = useMemo(
-    () => (products ?? []).map((product) => productCatalogOption(product)),
-    [products],
-  );
+  // Un producto va una sola vez: los que ya están no se ofrecen. El API
+  // también lo rechaza (409), por si dos pestañas agregan el mismo.
+  const productOptions = useMemo(() => {
+    const added = new Set(treatment.items.map((item) => item.product.id));
+    return (products ?? [])
+      .filter((product) => !added.has(product.id))
+      .map((product) => productCatalogOption(product));
+  }, [products, treatment.items]);
+  const allAdded = (products?.length ?? 0) > 0 && productOptions.length === 0;
   const createMutation = useCreateTreatmentItem(treatment.id);
   const deleteMutation = useDeleteTreatmentItem(treatment.id);
   const reorderMutation = useReorderTreatmentItems(treatment.id);
@@ -41,11 +46,15 @@ export function TreatmentItemsEditor({
 
   async function handleAdd() {
     if (!newProductId) return;
-    await createMutation.mutateAsync({
-      productId: newProductId,
-      order: items.length,
-      note: newNote || undefined,
-    });
+    try {
+      await createMutation.mutateAsync({
+        productId: newProductId,
+        order: items.length,
+        note: newNote || undefined,
+      });
+    } catch {
+      return; // el mensaje sale de createMutation.error
+    }
     setNewProductId("");
     setNewNote("");
   }
@@ -103,7 +112,11 @@ export function TreatmentItemsEditor({
           selectedIds={newProductId ? [newProductId] : []}
           // Uno a la vez: el último que se marca reemplaza al anterior.
           onChange={(ids) => setNewProductId(ids.at(-1) ?? "")}
-          emptyHint="No hay productos en el catálogo."
+          emptyHint={
+            allAdded
+              ? `Ya agregaste todos los productos del catálogo a este ${itemsLabel}.`
+              : "No hay productos en el catálogo."
+          }
           loading={productsLoading}
         />
         <div className="grid grid-cols-[1fr_auto] items-center gap-2">
@@ -122,6 +135,9 @@ export function TreatmentItemsEditor({
             {createMutation.isPending ? "Agregando..." : "Agregar"}
           </Button>
         </div>
+        {createMutation.error ? (
+          <p className="text-sm text-destructive">{createMutation.error.message}</p>
+        ) : null}
       </div>
     </div>
   );

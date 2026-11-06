@@ -8,7 +8,12 @@ import {
   IsString,
   Min,
 } from 'class-validator';
-import { FITZPATRICK_SCALES } from '@piel360/shared';
+import {
+  ANALISIS_PIEL360_SKIN_TYPE_VALUES,
+  FITZPATRICK_SCALES,
+} from '@piel360/shared';
+
+const BIOTIPO = { each: true, message: 'Biotipo no válido' };
 
 export const FITZPATRICK_RULE_PRIORITIES = [
   'low',
@@ -73,6 +78,12 @@ export class CreateFitzpatrickRuleDto {
   @IsArray()
   @IsString({ each: true })
   supplementGroupIds?: string[];
+
+  /** Biotipos a los que aplica; vacío = todos. */
+  @IsOptional()
+  @IsArray()
+  @IsIn([...ANALISIS_PIEL360_SKIN_TYPE_VALUES], BIOTIPO)
+  skinTypes?: string[];
 }
 
 export class UpdateFitzpatrickRuleDto {
@@ -125,9 +136,22 @@ export class UpdateFitzpatrickRuleDto {
   @IsArray()
   @IsString({ each: true })
   supplementGroupIds?: string[];
+
+  /** Biotipos a los que aplica; vacío = todos. */
+  @IsOptional()
+  @IsArray()
+  @IsIn([...ANALISIS_PIEL360_SKIN_TYPE_VALUES], BIOTIPO)
+  skinTypes?: string[];
 }
 
 export class SimulateFitzpatrickRuleDto {
   @IsIn([...FITZPATRICK_SCALES])
   fitzpatrickScale!: string;
+
+  /** Sin biotipo = paciente al que no se le conoce. */
+  @IsOptional()
+  @IsIn([...ANALISIS_PIEL360_SKIN_TYPE_VALUES], {
+    message: 'Biotipo no válido',
+  })
+  skinType?: string;
 }

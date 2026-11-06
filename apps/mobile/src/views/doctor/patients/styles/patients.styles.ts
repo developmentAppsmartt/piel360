@@ -34,6 +34,23 @@ export function createDoctorPatientsStyles(colors: AppBranding['colors']) {
       maxHeight: 48,
       maxWidth: 160,
     },
+    headerLogoDivider: {
+      width: 1,
+      height: 22,
+      backgroundColor: 'rgba(255,255,255,0.75)',
+      marginHorizontal: 2,
+    },
+    headerCompanyLogoChip: {
+      backgroundColor: '#FFFFFF',
+      borderRadius: 8,
+      paddingHorizontal: 6,
+      paddingVertical: 3,
+      flexShrink: 1,
+    },
+    headerCompanyLogo: {
+      width: 72,
+      height: 26,
+    },
     headerBack: {
       color: colors.textOnDark,
       fontSize: 26,

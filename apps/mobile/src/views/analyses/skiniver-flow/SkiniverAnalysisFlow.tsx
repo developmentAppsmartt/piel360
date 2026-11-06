@@ -109,7 +109,10 @@ export function SkiniverAnalysisFlow({
     if (picking || !patientId || !selection) return;
     setPicking(true);
     try {
-      const asset = await elegirImagen(source);
+      const asset = await elegirImagen(source, {
+        editar: true,
+        relacion: [1, 1],
+      });
       if (!asset) return;
       setImageUri(asset.uri);
       setStep('processing');
