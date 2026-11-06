@@ -64,6 +64,19 @@ export function formatAnalysisDate(iso: string): string {
   });
 }
 
+/** Con segundos: en la comparación dos análisis del mismo minuto se veían
+ * iguales en los selectores de fecha. */
+export function formatAnalysisDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("es-CO", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
 export function formatAnalysisDateShort(iso: string): string {
   return new Date(iso).toLocaleDateString("es-CO", {
     day: "2-digit",

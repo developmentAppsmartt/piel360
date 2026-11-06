@@ -34,7 +34,7 @@ import {
   buildComparisonCategories,
   defaultComparisonPair,
   filterAnalysesByMode,
-  formatAnalysisDate,
+  formatAnalysisDateTime,
   formatAnalysisDateShort,
   type ComparisonMode,
   analisisPiel360MetricMaskUrl,
@@ -343,14 +343,14 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
               value={initialId ?? ""}
               onChange={(e) => setInitialId(e.target.value || null)}
               disabled={filteredAnalyses.length === 0}
-              className="max-w-[11rem] border-0 bg-transparent text-sm font-medium outline-none"
+              className="max-w-[14rem] border-0 bg-transparent text-sm font-medium outline-none"
             >
               {filteredAnalyses.length === 0 ? (
                 <option value="">Sin análisis</option>
               ) : (
                 filteredAnalyses.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {formatAnalysisDate(a.createdAt)}
+                    {formatAnalysisDateTime(a.createdAt)}
                   </option>
                 ))
               )}
@@ -366,14 +366,14 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
               value={currentId ?? ""}
               onChange={(e) => setCurrentId(e.target.value || null)}
               disabled={filteredAnalyses.length === 0}
-              className="max-w-[11rem] border-0 bg-transparent text-sm font-medium outline-none"
+              className="max-w-[14rem] border-0 bg-transparent text-sm font-medium outline-none"
             >
               {filteredAnalyses.length === 0 ? (
                 <option value="">Sin análisis</option>
               ) : (
                 filteredAnalyses.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {formatAnalysisDate(a.createdAt)}
+                    {formatAnalysisDateTime(a.createdAt)}
                   </option>
                 ))
               )}

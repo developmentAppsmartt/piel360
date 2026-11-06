@@ -14,6 +14,12 @@ import { useImageZoomPan } from "./use-image-zoom-pan";
 /** Mientras la foto no carga (o si no hay foto), la caja de la app móvil. */
 const FALLBACK_ASPECT = 4 / 5;
 
+/** «Puntaje de la piel» pinta varias máscaras a la vez y, al 100 %, juntas
+ * tapaban la piel (el cliente lo veía como una capa opaca). La opacidad va en
+ * el grupo, no en cada capa: así no se suman al superponerse. Igual en la app
+ * móvil (YoucamResultsSection). */
+const OVERVIEW_LAYERS_OPACITY = 0.55;
+
 /** Foto del análisis con la máscara de la métrica (o las capas del puntaje
  * general) encima, con zoom, arrastre y la leyenda de la categoría. */
 export function AnalisisPiel360Viewer({
@@ -76,12 +82,19 @@ export function AnalisisPiel360Viewer({
                 className={imageClass}
                 onLoad={onBaseLoad}
               />
-              {overviewMaskUrls
-                ? overviewMaskUrls.map((url) => (
+              {overviewMaskUrls ? (
+                <div
+                  className="absolute inset-0"
+                  style={{ opacity: OVERVIEW_LAYERS_OPACITY }}
+                >
+                  {overviewMaskUrls.map((url) => (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img key={url} src={url} alt="" className={imageClass} />
-                  ))
-                : mask}
+                  ))}
+                </div>
+              ) : (
+                mask
+              )}
             </>
           ) : (
             (mask ?? (
