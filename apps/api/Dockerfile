@@ -47,6 +47,13 @@ ENV PUPPETEER_CACHE_DIR=/app/.cache/puppeteer
 # ignora el filtro e instala todo: aquí se instala con el linker por defecto.
 RUN pnpm install --frozen-lockfile --filter @piel360/api... --config.node-linker=isolated
 
+# pnpm 11 revisa las dependencias antes de cada `pnpm exec`/`pnpm run` y, al
+# ver el árbol filtrado de arriba, relanzaba un `pnpm install` de todo el
+# monorepo (incluida la app móvil). Esa reinstalación fallaba en el VPS con
+# «Broken lockfile» y anulaba el filtro. La imagen ya quedó instalada: aquí
+# no hace falta revisar. Aplica también al CMD (`pnpm run migrate:deploy`).
+ENV pnpm_config_verify_deps_before_run=false
+
 # Chromium se instala de forma explicita y no confiando en el postinstall de
 # puppeteer: ese script deja la carpeta creada pero sin el ejecutable cuando la
 # descarga no termina, y entonces puppeteer se niega a reinstalar ("An earlier
