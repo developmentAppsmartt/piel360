@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Param,
   Patch,
   Post,
@@ -11,6 +12,8 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { RequirePermission } from '../auth/permissions.decorator';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
 import type { JwtPayload } from '../auth/types';
 import { CreateCheckoutDto } from './dto/create-checkout.dto';
 import { CreateGatewayConfigDto } from './dto/create-gateway-config.dto';
@@ -33,6 +36,19 @@ export class PaymentsController {
   @RequirePermission('view_any_gateway_config')
   listGatewayConfigs() {
     return this.paymentsService.listGatewayConfigs();
+  }
+
+  /** Los secretos en claro, a petición y solo para el superadmin: sirven para
+   * comprobar contra el panel de Wompi qué cuenta está configurada. */
+  @Get('admin/gateway-configs/:id/secrets')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('superadmin')
+  @Header('Cache-Control', 'no-store')
+  revealGatewaySecrets(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.paymentsService.revealGatewaySecrets(id, user.sub);
   }
 
   @Patch('admin/gateway-configs/:id')

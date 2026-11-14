@@ -3,6 +3,7 @@
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { useMemo, useState } from "react";
+import * as THREE from "three";
 import {
   analisisDermaPiel360CategoryLabel,
   analisisDermaPiel360DiagnosisLabel,
@@ -17,14 +18,16 @@ import {
 import { RiskLegend } from "@/components/analyses/diagnosis-list";
 import { ImageCarousel } from "@/components/analyses/image-carousel";
 import { RiskGauge } from "@/components/analyses/risk-gauge";
-import { Button } from "@/components/ui/button";
+import { BodyGenderToggle } from "@/components/analyses/body-gender-toggle";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { type Gender, useBodyModel } from "@/lib/body-model";
+import { DEFAULT_BODY_GENDER, type Gender, useBodyModel } from "@/lib/body-model";
+import { placeSavedPoint } from "@/lib/body-placement";
+import { inferBodyPartFromPoint } from "@/lib/body-regions";
 import type { Analysis3D } from "@/lib/queries/patients";
 
 const DEFAULT_MARKER_COLOR = "#94a3b8";
@@ -33,8 +36,53 @@ type DermAnalysis3D = Analysis3D & {
   prediction: AnalisisDermaPiel360Prediction;
 };
 
-function BodyModel({ gender }: { gender: Gender }) {
-  return <primitive object={useBodyModel(gender)} />;
+/** La figura y sus marcadores: los puntos se colocan sobre la piel de esta
+ * figura (ver `placeSavedPoint`), así que van en el mismo componente. */
+function BodyWithMarkers({
+  gender,
+  analyses,
+  onSelect,
+}: {
+  gender: Gender;
+  analyses: DermAnalysis3D[];
+  onSelect: (analysis: DermAnalysis3D) => void;
+}) {
+  const model = useBodyModel(gender);
+  const markers = useMemo(
+    () =>
+      analyses.map((analysis) => ({
+        analysis,
+        position: placeSavedPoint(
+          model,
+          new THREE.Vector3(analysis.xCoord, analysis.yCoord, analysis.zCoord),
+          analysis.bodyRegion
+            ? (point) => inferBodyPartFromPoint(point) === analysis.bodyRegion
+            : undefined,
+        ),
+      })),
+    [model, analyses],
+  );
+
+  return (
+    <>
+      <primitive object={model} />
+      {markers.map(({ analysis, position }) => (
+        <mesh
+          key={analysis.id}
+          position={position}
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelect(analysis);
+          }}
+        >
+          <sphereGeometry args={[0.025, 16, 16]} />
+          <meshBasicMaterial
+            color={riskColor(analysis.prediction.topn?.[0]?.risk_level) ?? DEFAULT_MARKER_COLOR}
+          />
+        </mesh>
+      ))}
+    </>
+  );
 }
 
 /** El riesgo del diagnóstico principal, con el color de su nivel. */
@@ -68,9 +116,9 @@ export function PatientBodyHistory({
   initialGender,
 }: {
   analyses: Analysis3D[];
-  initialGender?: Gender;
+  initialGender?: Gender | null;
 }) {
-  const [gender, setGender] = useState<Gender>(initialGender ?? "female");
+  const [gender, setGender] = useState<Gender>(initialGender ?? DEFAULT_BODY_GENDER);
   const [selected, setSelected] = useState<DermAnalysis3D | null>(null);
 
   // Los estéticos también guardan ubicación, pero no tienen riesgo.
@@ -87,48 +135,18 @@ export function PatientBodyHistory({
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          variant={gender === "female" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setGender("female")}
-        >
-          Mujer
-        </Button>
-        <Button
-          type="button"
-          variant={gender === "male" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setGender("male")}
-        >
-          Hombre
-        </Button>
-      </div>
+      <BodyGenderToggle value={gender} onChange={setGender} />
 
       <div className="h-96 w-full overflow-hidden rounded-lg border border-border bg-muted">
         <Canvas camera={{ position: [0, 1.6, 3.2], fov: 40 }}>
           <ambientLight intensity={0.7} />
           <directionalLight position={[2, 3, 4]} intensity={1} />
-          <BodyModel key={gender} gender={gender} />
-          {dermAnalyses.map((analysis) => (
-            <mesh
-              key={analysis.id}
-              position={[analysis.xCoord, analysis.yCoord, analysis.zCoord]}
-              onClick={(event) => {
-                event.stopPropagation();
-                setSelected(analysis);
-              }}
-            >
-              <sphereGeometry args={[0.025, 16, 16]} />
-              <meshBasicMaterial
-                color={
-                  riskColor(analysis.prediction.topn?.[0]?.risk_level) ??
-                  DEFAULT_MARKER_COLOR
-                }
-              />
-            </mesh>
-          ))}
+          <BodyWithMarkers
+            key={gender}
+            gender={gender}
+            analyses={dermAnalyses}
+            onSelect={setSelected}
+          />
           <OrbitControls
             enablePan={false}
             minDistance={1}

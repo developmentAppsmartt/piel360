@@ -2,10 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Droplet, Sun } from "lucide-react";
-import {
-  ANALISIS_PIEL360_SKIN_TYPE_VALUES,
-  FITZPATRICK_SCALES,
-} from "@piel360/shared";
+import { FITZPATRICK_SCALES } from "@piel360/shared";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,15 +26,10 @@ import {
   type SkinAgeRuleFormState,
 } from "@/lib/skin-age-rule-range";
 import { SKIN_AGE_RULE_PRIORITY_OPTIONS } from "@/lib/skin-age-rules-ui";
+import { SKIN_TYPE_OPTIONS } from "@/lib/skin-type-options";
 import { cn } from "@/lib/utils";
-import { analisisPiel360SkinTypeLabel } from "@/lib/youcam-metric-labels";
 import { RuleScopePicker } from "./rule-scope-picker";
 import { SkinAgeRuleCatalogFields } from "./skin-age-rule-catalog-fields";
-
-const SKIN_TYPE_OPTIONS = ANALISIS_PIEL360_SKIN_TYPE_VALUES.map((value) => ({
-  value,
-  label: analisisPiel360SkinTypeLabel(value),
-}));
 
 const FITZPATRICK_OPTIONS = FITZPATRICK_SCALES.map((scale) => ({
   value: scale,

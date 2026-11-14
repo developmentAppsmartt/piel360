@@ -2,13 +2,22 @@
 // La protección de rol (equivalente a EnsurePanelRole, MIGRACION.md §6) vive en
 // src/proxy.ts, que intercepta /doctor/(panel)/* antes de llegar aquí.
 import { redirect } from "next/navigation";
-import { isDoctorVerificationActive, toPublicProviderPermissions } from "@piel360/shared";
+import {
+  isClinicalPanelRole,
+  isDoctorVerificationActive,
+  teamPermissionAllowsNavHref,
+  toPublicProviderPermissions,
+} from "@piel360/shared";
 import { DepletedCreditsNotice } from "@/components/doctor/depleted-credits-notice";
 import { NoActivePlanNotice } from "@/components/doctor/no-active-plan-notice";
 import { PanelShell } from "@/components/layout/panel-shell";
+import { clinicalRouteAllowed } from "@/lib/clinical-panel-permissions";
 import { fetchSessionStateFromCookies } from "@/lib/server-auth-permissions";
 import { getSession } from "@/lib/session";
 import { buildUnifiedPanelNav } from "@/lib/unified-panel-nav";
+
+/** Configuración elige sola el formulario: cuenta empresa o perfil profesional. */
+const PROFILE_HREF = "/doctor/configuracion";
 
 export default async function DoctorPanelLayout({
   children,
@@ -29,6 +38,19 @@ export default async function DoctorPanelLayout({
   const active = isDoctorVerificationActive(session.verificationStatus);
   const expiredPlans = account?.expiredPlans ?? [];
   const planRestricted = active && Boolean(account?.planRestricted);
+  // Las mismas reglas con que el proxy deja entrar a la ruta: si el chip de la
+  // cabecera enlazara sin permiso, el proxy lo devolvería al inicio. El
+  // superadmin también entra a este panel, pero no tiene perfil profesional:
+  // su Configuración solo dice que no pudo cargar la cuenta.
+  const profileAllowed =
+    isClinicalPanelRole(session.role) &&
+    ((Boolean(session.verificationStatus) && !active) ||
+      clinicalRouteAllowed(PROFILE_HREF, permissions));
+  const teamAllowed =
+    !session.isOrgMember ||
+    teamPermissionAllowsNavHref(session.teamPermissions ?? undefined, PROFILE_HREF, {
+      isOrgMember: true,
+    });
   const retainsAccess = active && !planRestricted && expiredPlans.length > 0;
   const subtitle = !active
     ? "Verificación pendiente"
@@ -62,6 +84,7 @@ export default async function DoctorPanelLayout({
         subtitle,
         enrichFromDoctorProfile: true,
       }}
+      profileHref={profileAllowed && teamAllowed ? PROFILE_HREF : null}
       hideHeaderLogout
     >
       {!active ? (

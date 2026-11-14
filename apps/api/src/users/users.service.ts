@@ -2,20 +2,14 @@ import {
   BadGatewayException,
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { PROFILE_PHOTO_TYPE_ERROR } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import type { UpdateMeDto } from './dto/update-me.dto';
 import type { UpdateUserAdminDto } from './dto/update-user-admin.dto';
-
-const AVATAR_MIME = new Set([
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-  'image/webp',
-  'application/octet-stream',
-]);
 
 function omitPassword<T extends { password: string }>(user: T) {
   const { password: _password, ...rest } = user;
@@ -23,17 +17,24 @@ function omitPassword<T extends { password: string }>(user: T) {
   return rest;
 }
 
-function guessExt(mimetype: string, originalname?: string): string {
-  const fromName = originalname?.toLowerCase().match(/\.(jpe?g|png|webp)$/)?.[1];
-  if (fromName === 'jpeg' || fromName === 'jpg') return 'jpg';
-  if (fromName === 'png' || fromName === 'webp') return fromName;
-  if (mimetype === 'image/png') return 'png';
-  if (mimetype === 'image/webp') return 'webp';
-  return 'jpg';
+/** Tipo real por la firma del archivo, no por el mimetype: la app móvil puede
+ * mandar `application/octet-stream` y el nombre no garantiza nada. */
+function photoTypeFromBytes(
+  buffer: Buffer,
+): { ext: 'png' | 'jpg'; mime: string } | null {
+  if (buffer.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]))) {
+    return { ext: 'png', mime: 'image/png' };
+  }
+  if (buffer.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))) {
+    return { ext: 'jpg', mime: 'image/jpeg' };
+  }
+  return null;
 }
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
@@ -100,26 +101,12 @@ export class UsersService {
     if (!file?.buffer?.length) {
       throw new BadRequestException('No se recibió la imagen (campo "avatar")');
     }
-    const mime = (file.mimetype || '').toLowerCase();
-    if (mime && !AVATAR_MIME.has(mime)) {
-      throw new BadRequestException(
-        'Formato no permitido. Usa JPG, PNG o WebP.',
-      );
-    }
-    const ext = guessExt(mime, file.originalname);
-    const key = `users/${userId}/avatar.${ext}`;
+    const type = photoTypeFromBytes(file.buffer);
+    if (!type) throw new BadRequestException(PROFILE_PHOTO_TYPE_ERROR);
+    const key = `users/${userId}/avatar.${type.ext}`;
+    const previousKey = await this.avatarKeyOf(userId);
     try {
-      await this.storage.upload(
-        key,
-        file.buffer,
-        mime && mime !== 'application/octet-stream'
-          ? mime
-          : ext === 'png'
-            ? 'image/png'
-            : ext === 'webp'
-              ? 'image/webp'
-              : 'image/jpeg',
-      );
+      await this.storage.upload(key, file.buffer, type.mime);
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       throw new BadGatewayException(
@@ -131,6 +118,8 @@ export class UsersService {
       where: { id: BigInt(userId) },
       data: { avatarKey: key },
     });
+    // De PNG a JPG (o al revés) la key cambia y la foto vieja quedaría huérfana.
+    if (previousKey && previousKey !== key) await this.deleteFile(previousKey);
     const avatarUrl = await this.signAvatar(key);
     return {
       ...omitPassword(user),
@@ -138,13 +127,41 @@ export class UsersService {
     };
   }
 
+  /** Idempotente: sin foto también responde bien. */
+  async removeAvatar(userId: string) {
+    const key = await this.avatarKeyOf(userId);
+    if (key) {
+      await this.prisma.user.update({
+        where: { id: BigInt(userId) },
+        data: { avatarKey: null },
+      });
+      await this.deleteFile(key);
+    }
+    return { avatarUrl: null };
+  }
+
   async getAvatarUrlForUserId(userId: string | bigint | null | undefined) {
     if (userId == null) return null;
+    return this.signAvatar(await this.avatarKeyOf(userId));
+  }
+
+  private async avatarKeyOf(userId: string | bigint) {
     const user = await this.prisma.user.findUnique({
       where: { id: BigInt(userId) },
       select: { avatarKey: true },
     });
-    return this.signAvatar(user?.avatarKey);
+    return user?.avatarKey ?? null;
+  }
+
+  /** Un archivo que no se pudo borrar no debe tumbar el cambio de foto. */
+  private async deleteFile(key: string) {
+    try {
+      await this.storage.delete(key);
+    } catch (err) {
+      this.logger.warn(
+        `No se pudo borrar la foto ${key}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   private async signAvatar(key: string | null | undefined) {
@@ -156,7 +173,9 @@ export class UsersService {
     }
   }
 
-  private async withAvatarUrl<T extends { avatarKey?: string | null }>(user: T) {
+  private async withAvatarUrl<T extends { avatarKey?: string | null }>(
+    user: T,
+  ) {
     const avatarUrl = await this.signAvatar(user.avatarKey);
     return { ...user, avatarUrl };
   }

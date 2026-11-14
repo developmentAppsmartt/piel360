@@ -19,6 +19,7 @@ import {
   SimulateFitzpatrickRuleDto,
   UpdateFitzpatrickRuleDto,
 } from './dto/fitzpatrick-rule.dto';
+import { FitzpatrickRecommendationsService } from './fitzpatrick-recommendations.service';
 import { FitzpatrickRulesService } from './fitzpatrick-rules.service';
 
 @Controller('fitzpatrick-rules')
@@ -27,6 +28,7 @@ import { FitzpatrickRulesService } from './fitzpatrick-rules.service';
 export class FitzpatrickRulesController {
   constructor(
     private readonly fitzpatrickRulesService: FitzpatrickRulesService,
+    private readonly recommendations: FitzpatrickRecommendationsService,
   ) {}
 
   @Get()
@@ -49,7 +51,7 @@ export class FitzpatrickRulesController {
     @CurrentUser() user: JwtPayload,
     @Param('analysisId') analysisId: string,
   ) {
-    return this.fitzpatrickRulesService.careRecommendationsForAnalysis(
+    return this.recommendations.careRecommendationsForAnalysis(
       user.sub,
       analysisId,
     );

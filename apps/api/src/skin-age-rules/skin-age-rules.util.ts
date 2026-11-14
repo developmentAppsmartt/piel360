@@ -117,7 +117,7 @@ type MatchableRule = {
 /** Lista vacía = aplica a todos. Con valores, solo si el dato se conoce y
  * está en ella: una regla para piel grasa no se recomienda a quien no se le
  * sabe el biotipo. */
-function scopeMatches(scope: string[], value: string | null): boolean {
+export function scopeMatches(scope: string[], value: string | null): boolean {
   if (scope.length === 0) return true;
   if (!value) return false;
   return scope.some((item) => item.toLowerCase() === value.toLowerCase());

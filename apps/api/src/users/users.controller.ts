@@ -1,15 +1,18 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
   Post,
   UploadedFile,
+  UseFilters,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { PROFILE_PHOTO_MAX_BYTES } from '@piel360/shared';
 import { memoryStorage } from 'multer';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -18,6 +21,7 @@ import { RequirePermission } from '../auth/permissions.decorator';
 import type { JwtPayload } from '../auth/types';
 import { UpdateMeDto } from './dto/update-me.dto';
 import { UpdateUserAdminDto } from './dto/update-user-admin.dto';
+import { ProfilePhotoSizeFilter } from './profile-photo-size.filter';
 import { UsersService } from './users.service';
 
 @Controller()
@@ -32,10 +36,11 @@ export class UsersController {
 
   @Post('me/avatar')
   @UseGuards(JwtAuthGuard)
+  @UseFilters(ProfilePhotoSizeFilter)
   @UseInterceptors(
     FileInterceptor('avatar', {
       storage: memoryStorage(),
-      limits: { fileSize: 5 * 1024 * 1024 },
+      limits: { fileSize: PROFILE_PHOTO_MAX_BYTES },
     }),
   )
   uploadAvatar(
@@ -43,6 +48,12 @@ export class UsersController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     return this.usersService.uploadAvatar(user.sub, file);
+  }
+
+  @Delete('me/avatar')
+  @UseGuards(JwtAuthGuard)
+  removeAvatar(@CurrentUser() user: JwtPayload) {
+    return this.usersService.removeAvatar(user.sub);
   }
 
   @Get('admin/users')

@@ -55,10 +55,8 @@ export default function AdminEditarPacientePage() {
         defaultValues={patient.data}
         submitLabel="Guardar cambios"
         onCancel={() => router.push(`/admin/pacientes/${id}`)}
-        onSubmit={async (input) => {
-          await updatePatient.mutateAsync(input);
-          router.push(`/admin/pacientes/${id}`);
-        }}
+        onSubmit={(input) => updatePatient.mutateAsync(input)}
+        onSaved={() => router.push(`/admin/pacientes/${id}`)}
       />
     </div>
   );

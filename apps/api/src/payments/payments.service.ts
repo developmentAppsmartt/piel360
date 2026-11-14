@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import type { GatewayConfig } from '@prisma/client';
 import type { JwtPayload } from '../auth/types';
@@ -26,7 +28,8 @@ import {
 
 const WOMPI_CURRENCY = 'COP';
 
-/** Nunca se devuelven los secretos en claro por API, ni siquiera a un admin. */
+/** El listado nunca lleva los secretos en claro: solo los da
+ * `revealGatewaySecrets`, a petición del superadmin. */
 function toSafeGatewayConfig(
   config: GatewayConfig,
   options?: { secretsReadable?: boolean },
@@ -66,6 +69,8 @@ function toSafeGatewayConfig(
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly encryption: EncryptionService,
@@ -149,6 +154,35 @@ export class PaymentsService {
     return toSafeGatewayConfig(config, {
       secretsReadable: this.canDecryptGatewaySecrets(config),
     });
+  }
+
+  /** Los secretos descifrados de una pasarela. Queda en el log quién los vio
+   * (nunca los valores). */
+  async revealGatewaySecrets(id: string, userId: string) {
+    const config = await this.prisma.gatewayConfig.findUnique({
+      where: { id: BigInt(id) },
+    });
+    if (!config) throw new NotFoundException('Pasarela no encontrada');
+    const decrypt = (value: string | null) =>
+      value ? this.encryption.decrypt(value) : null;
+    try {
+      const secrets = {
+        publicKey: config.publicKey,
+        privateKey: decrypt(config.privateKey),
+        integritySecret: decrypt(config.integritySecret),
+        webhookSecret: decrypt(config.webhookSecret),
+        payoutApiKey: decrypt(config.payoutApiKey),
+        payoutUserPrincipalId: decrypt(config.payoutUserPrincipalId),
+      };
+      this.logger.warn(
+        `Usuario ${userId} vio los secretos de la pasarela ${config.id}`,
+      );
+      return secrets;
+    } catch {
+      throw new BadRequestException(
+        'Los secretos de Wompi no se pueden leer con la ENCRYPTION_KEY actual. Vuelve a pegarlos y guarda.',
+      );
+    }
   }
 
   /** `POST /payments/wompi/checkout` — MIGRACION.md §2.4/§4 (Subscription.php). */

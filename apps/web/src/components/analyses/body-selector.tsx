@@ -4,8 +4,8 @@ import { Canvas, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { useMemo, useState } from "react";
 import type * as THREE from "three";
-import { Button } from "@/components/ui/button";
-import { type Gender, useBodyModel } from "@/lib/body-model";
+import { BodyGenderToggle } from "@/components/analyses/body-gender-toggle";
+import { DEFAULT_BODY_GENDER, type Gender, useBodyModel } from "@/lib/body-model";
 import { BODY_PARTS_INFO, inferBodyPartFromPoint, normalizeMeshName } from "@/lib/body-regions";
 
 function BodyModel({
@@ -29,10 +29,19 @@ function BodyModel({
 
 export function BodySelector({
   onSelect,
+  patientGender,
 }: {
-  onSelect: (selection: { bodyRegion: string; xCoord: number; yCoord: number; zCoord: number }) => void;
+  onSelect: (
+    selection: { bodyRegion: string; xCoord: number; yCoord: number; zCoord: number } | null,
+  ) => void;
+  /** Con el género del paciente conocido la figura queda fija, como en el
+   * móvil: abrir siempre la de mujer dejaba puntos de hombres sobre la figura
+   * equivocada, y en el historial se veían fuera del brazo. */
+  patientGender?: Gender | null;
 }) {
-  const [gender, setGender] = useState<Gender>("female");
+  const [chosenGender, setChosenGender] = useState<Gender>(DEFAULT_BODY_GENDER);
+  // Derivado: el paciente puede cargar después del primer render.
+  const gender = patientGender ?? chosenGender;
   const [marker, setMarker] = useState<THREE.Vector3 | null>(null);
   const [regionId, setRegionId] = useState<string | null>(null);
 
@@ -44,26 +53,17 @@ export function BodySelector({
     onSelect({ bodyRegion: region, xCoord: point.x, yCoord: point.y, zCoord: point.z });
   }
 
+  // Un punto marcado en una figura no vale en la otra: se borra al cambiar.
+  function changeGender(next: Gender) {
+    setChosenGender(next);
+    setMarker(null);
+    setRegionId(null);
+    onSelect(null);
+  }
+
   return (
     <div className="space-y-3">
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          variant={gender === "female" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setGender("female")}
-        >
-          Mujer
-        </Button>
-        <Button
-          type="button"
-          variant={gender === "male" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setGender("male")}
-        >
-          Hombre
-        </Button>
-      </div>
+      <BodyGenderToggle value={gender} onChange={changeGender} locked={!!patientGender} />
 
       <div className="h-96 w-full overflow-hidden rounded-lg border border-border bg-muted">
         {/* Cámara/target portados literalmente de human-body-selector.js:88-133

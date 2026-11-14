@@ -6,6 +6,7 @@ import { FITZPATRICK_TYPES } from "@/lib/fitzpatrick-labels";
 import { FITZPATRICK_RULE_COLOR_STYLES, fitzpatrickPriorityLabel } from "@/lib/fitzpatrick-rules-ui";
 import type { FitzpatrickRule } from "@/lib/queries/fitzpatrick-rules";
 import { cn } from "@/lib/utils";
+import { analisisPiel360SkinTypeLabel } from "@/lib/youcam-metric-labels";
 
 type CatalogMaps = {
   products: Map<string, string>;
@@ -49,6 +50,11 @@ export function FitzpatrickRuleCard({
               <p className={cn("text-base font-semibold", colors.text)}>
                 Fototipo {rule.fitzpatrickScale} · {type.label}
               </p>
+              {rule.skinTypes?.length ? (
+                <p className="text-sm font-medium text-foreground">
+                  Biotipo: {rule.skinTypes.map(analisisPiel360SkinTypeLabel).join(", ")}
+                </p>
+              ) : null}
               <p className="text-sm text-muted-foreground">
                 {rule.description ?? "Sin descripción clínica."}
               </p>

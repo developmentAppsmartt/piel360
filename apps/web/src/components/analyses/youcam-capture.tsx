@@ -1,6 +1,7 @@
 "use client";
 
 import { ANALISIS_PIEL360_HD_MIN_SHORT_SIDE_PX, ANALISIS_PIEL360_UPSCALE_MIN_SHORT_SIDE_PX } from "@piel360/shared";
+import Image from "next/image";
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
 
@@ -133,11 +134,36 @@ export function AnalisisPiel360Capture({
         </p>
       )}
 
-      <div
-        id="YMK-module"
-        ref={containerRef}
-        className="relative h-[480px] w-full overflow-hidden rounded-lg border border-border bg-muted"
-      />
+      <div className="overflow-hidden rounded-lg border border-border bg-black">
+        <div className="flex justify-center px-4 pt-3 pb-2">
+          <Image
+            src="/logo-piel360.png"
+            alt="Piel 360"
+            width={612}
+            height={408}
+            className="h-16 w-auto object-contain"
+          />
+        </div>
+        <div id="YMK-module" ref={containerRef} className="relative h-120 w-full overflow-hidden" />
+        <CapturePoweredBy />
+      </div>
+    </div>
+  );
+}
+
+/** Marca de Piel 360 bajo la cámara (lo pidió el cliente). Va fuera del área
+ * del SDK: su círculo de encuadre llega casi al borde inferior y lo taparía. */
+function CapturePoweredBy() {
+  return (
+    <div className="flex flex-col items-center gap-1 pt-3 pb-4">
+      <div className="flex items-center gap-3">
+        <span className="h-px w-16 bg-cyan-400" />
+        <span className="text-xs font-semibold tracking-[0.3em] text-cyan-300">POWERED</span>
+        <span className="h-px w-16 bg-cyan-400" />
+      </div>
+      <span className="bg-linear-to-r from-blue-700 to-cyan-400 bg-clip-text text-2xl font-bold text-transparent">
+        PIEL360
+      </span>
     </div>
   );
 }

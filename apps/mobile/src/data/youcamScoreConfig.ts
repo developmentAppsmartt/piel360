@@ -1,4 +1,5 @@
-/** Espejo de `youcam-score-config` en @piel360/shared (GET /auth/me/score-config). */
+/** Espejo de `youcam-score-config` en @piel360/shared (GET /auth/me/score-config).
+ * Si cambias la herencia allá, cámbiala aquí. */
 import { youcamMetricAdvice } from './youcamMetricCopy';
 import type { YoucamScoreBand } from '../types/analysis';
 
@@ -14,49 +15,38 @@ export type YoucamScoreConfig = {
 
 export const DEFAULT_YOUCAM_SCORE_CONFIG: YoucamScoreConfig = { metrics: {} };
 
-/** Igual que `DEFAULT_SCORE_RANGES` de shared: Regular hasta regularMax − 1. */
-export const RANGOS_POR_DEFECTO = { regularMax: 70, promedioMax: 90 } as const;
+/** Subcategorías con rangos y textos propios (`hd_wrinkle:forehead`); lo que
+ * no definan lo heredan de su métrica. */
+const SCORE_SUBCATEGORIES: Record<string, readonly string[]> = {
+  hd_wrinkle: ['forehead', 'glabellar', 'crowfeet', 'periocular', 'nasolabial', 'marionette'],
+  hd_pore: ['forehead', 'nose', 'cheek'],
+};
 
-export type RangosPuntaje = { regularMax: number; promedioMax: number };
-
-export function resolveYoucamScoreRanges(
+/** Lo configurado que aplica: la subcategoría y luego su métrica. */
+function configEntries(
   config: YoucamScoreConfig,
-  type?: string | null,
-): RangosPuntaje {
-  const metric = (type && config.metrics?.[type]) || {};
-  return {
-    regularMax: metric.regularMax ?? RANGOS_POR_DEFECTO.regularMax,
-    promedioMax: metric.promedioMax ?? RANGOS_POR_DEFECTO.promedioMax,
-  };
-}
-
-/** La puntuación general no es una métrica de la personalización. Si todas
- * las métricas que el profesional movió comparten los mismos cortes, la
- * barra general usa esos. Si cada una tiene cortes distintos, se quedan
- * los de PIEL 360. */
-export function rangosGenerales(config: YoucamScoreConfig): RangosPuntaje {
-  const cortes = Object.values(config.metrics)
-    .filter((m) => m.regularMax != null || m.promedioMax != null)
-    .map((m) => ({
-      regularMax: m.regularMax ?? RANGOS_POR_DEFECTO.regularMax,
-      promedioMax: m.promedioMax ?? RANGOS_POR_DEFECTO.promedioMax,
-    }));
-  if (cortes.length === 0) return { ...RANGOS_POR_DEFECTO };
-  const primero = cortes[0];
-  const iguales = cortes.every(
-    (c) =>
-      c.regularMax === primero.regularMax &&
-      c.promedioMax === primero.promedioMax,
+  type: string | null | undefined,
+  region?: string | null,
+): YoucamMetricScoreConfig[] {
+  if (!type) return [];
+  const sub =
+    region && SCORE_SUBCATEGORIES[type]?.includes(region)
+      ? config.metrics?.[`${type}:${region}`]
+      : undefined;
+  return [sub, config.metrics?.[type]].filter(
+    (entry): entry is YoucamMetricScoreConfig => !!entry,
   );
-  return iguales ? primero : { ...RANGOS_POR_DEFECTO };
 }
 
 export function configuredYoucamScoreBand(
   score: number,
   type: string | null | undefined,
   config: YoucamScoreConfig,
+  region?: string | null,
 ): YoucamScoreBand {
-  const { regularMax, promedioMax } = resolveYoucamScoreRanges(config, type);
+  const entries = configEntries(config, type, region);
+  const regularMax = entries.find((e) => e.regularMax != null)?.regularMax ?? 70;
+  const promedioMax = entries.find((e) => e.promedioMax != null)?.promedioMax ?? 90;
   if (score < regularMax) return 'regular';
   if (score < promedioMax) return 'promedio';
   return 'buena';
@@ -66,7 +56,10 @@ export function configuredYoucamAdvice(
   type: string | null | undefined,
   band: YoucamScoreBand,
   config: YoucamScoreConfig,
+  region?: string | null,
 ): string {
-  const custom = type ? config.metrics?.[type]?.texts?.[band] : null;
-  return custom?.trim() ? custom : youcamMetricAdvice(type, band);
+  const custom = configEntries(config, type, region)
+    .map((entry) => entry.texts?.[band])
+    .find((text) => text?.trim());
+  return custom ?? youcamMetricAdvice(type, band);
 }

@@ -9,6 +9,7 @@ export function PanelShell({
   user,
   children,
   sidebarUser,
+  profileHref = null,
   hideHeaderLogout = false,
 }: {
   nav: NavItem[];
@@ -30,6 +31,8 @@ export function PanelShell({
     enrichFromDoctorProfile?: boolean;
     monitorHint?: string;
   };
+  /** A dónde lleva el chip del perfil en la cabecera; `null` = no enlaza. */
+  profileHref?: string | null;
   hideHeaderLogout?: boolean;
 }) {
   const visibleNav = filterNavByFeatures(nav, {
@@ -86,6 +89,7 @@ export function PanelShell({
       notificationsHref={
         isClinicalPanelRole(user.role) ? "/doctor/notificaciones" : null
       }
+      profileHref={profileHref}
       sidebarUser={
         sidebarUser
           ? {

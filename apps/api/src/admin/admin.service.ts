@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
+  analisisDermaPiel360CategoryColor,
   analisisDermaPiel360ClassLabel,
   colombiaDateKey,
   colombiaDayStart,
@@ -14,8 +15,6 @@ import { DAY_MS } from '../doctor-reports/report-range';
 
 const AGE_BUCKET_LABELS = ['Menores', 'Adultos', 'Seniors'] as const;
 type AgeBucket = (typeof AGE_BUCKET_LABELS)[number];
-
-const TOP_DIAGNOSIS_CLASSES = 8;
 
 /** Rango semiabierto en días de Colombia, como el de los reportes del doctor. */
 type CreatedAtRange = { gte?: Date; lt?: Date };
@@ -138,17 +137,15 @@ export class AdminService {
       const label = analisisDermaPiel360ClassLabel(row.category, row.class_raw);
       if (label) totals.set(label, (totals.get(label) ?? 0) + row.count);
     }
-    const sorted = [...totals]
-      .map(([label, count]) => ({ label, count }))
+    // Todas las clases, sin «Otros» (lo pidió el cliente), con el mismo color
+    // que el donut del reporte dermatológico.
+    return [...totals]
+      .map(([label, count]) => ({
+        label,
+        count,
+        color: analisisDermaPiel360CategoryColor(label),
+      }))
       .sort((a, b) => b.count - a.count);
-
-    const top = sorted.slice(0, TOP_DIAGNOSIS_CLASSES);
-    const rest = sorted.slice(TOP_DIAGNOSIS_CLASSES);
-    const otherCount = rest.reduce((sum, g) => sum + g.count, 0);
-
-    return otherCount > 0
-      ? [...top, { label: 'Otros', count: otherCount }]
-      : top;
   }
 
   /** Agrega en SQL y calcula la edad **a la fecha del análisis**, no a hoy:

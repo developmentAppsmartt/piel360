@@ -33,11 +33,14 @@ export function PatientProfileShell({
   children,
   panel = "doctor",
   showNewAnalysis = true,
+  analysisFilter,
 }: {
   patient: Patient;
   children: React.ReactNode;
   panel?: PatientsPanel;
   showNewAnalysis?: boolean;
+  /** Filtro por tipo del historial; solo en la pestaña Resumen. */
+  analysisFilter?: React.ReactNode;
 }) {
   const fullName = `${patient.firstName} ${patient.lastName}`.trim();
   const listPath = patientsListPath(panel);
@@ -198,6 +201,7 @@ export function PatientProfileShell({
         <div className="mt-5">
           <PatientDetailTabs patientId={patient.id} panel={panel} />
         </div>
+        {analysisFilter ? <div className="mt-4">{analysisFilter}</div> : null}
       </ModuleCard>
 
       {children}

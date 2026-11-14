@@ -396,12 +396,12 @@ export function YoucamReportView({
         ),
         notes: analysis.doctorNotes?.trim() || null,
         metrics: reportRows.map((row) => {
-          const itemBand = scorer.band(row.type, row.score);
+          const itemBand = scorer.band(row.type, row.score, row.region);
           return {
             title: row.title,
             score: row.score,
             band: youcamScoreBandLabel(itemBand),
-            advice: scorer.advice(row.type, itemBand),
+            advice: scorer.advice(row.type, itemBand, null, row.region),
           };
         }),
         branding,
@@ -603,10 +603,9 @@ export function YoucamReportView({
 
           <View style={styles.metricList}>
             {reportRows.map((row) => {
-              const itemBand = scorer.band(row.type, row.score);
+              const itemBand = scorer.band(row.type, row.score, row.region);
               const color = BAND_COLOR[itemBand];
-              const advice = scorer.advice(row.type, itemBand);
-              const cortes = resolveYoucamScoreRanges(scorer.config, row.type);
+              const advice = scorer.advice(row.type, itemBand, null, row.region);
 
               return (
                 <View key={row.key} style={styles.metricRowCard}>

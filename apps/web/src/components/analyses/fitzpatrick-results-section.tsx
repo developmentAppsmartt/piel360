@@ -1,6 +1,7 @@
 "use client";
 
 import type { FitzpatrickResult, FitzpatrickScale } from "@piel360/shared";
+import { ImageWatermark } from "@/components/analyses/image-watermark";
 import { ModuleCard } from "@/components/ui/module-card";
 import { FITZPATRICK_TYPES } from "@/lib/fitzpatrick-labels";
 import type { AnalysisDetail } from "@/lib/queries/analyses";
@@ -51,7 +52,11 @@ export function FitzpatrickResultsSection({
     );
   }
 
-  return (
+  // Como en la app. En la variante compacta no: el visor estético que la
+  // incrusta ya muestra la foto.
+  const showPhoto = !compact && analysis.hasOriginalPhoto && !!analysis.imageUrl;
+
+  const card = (
     <ModuleCard
       className={cn(
         "space-y-4 text-center",
@@ -76,5 +81,22 @@ export function FitzpatrickResultsSection({
       </div>
       <p className="text-sm text-muted-foreground">{info.reaction}</p>
     </ModuleCard>
+  );
+
+  if (!showPhoto) return card;
+
+  return (
+    <div className="space-y-4">
+      <div className="relative mx-auto aspect-square w-full max-w-md overflow-hidden rounded-xl border-2 border-border bg-muted">
+        {/* eslint-disable-next-line @next/next/no-img-element -- URL firmada externa (S3), no apta para next/image */}
+        <img
+          src={analysis.imageUrl!}
+          alt="Foto del análisis"
+          className="size-full object-cover"
+        />
+        <ImageWatermark />
+      </div>
+      {card}
+    </div>
   );
 }

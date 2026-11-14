@@ -18,6 +18,12 @@ import {
   registrationProgressPercent,
 } from "./doctor-registration-progress";
 
+/** APK de Android en Drive (de momento no hay versión de iOS ni tienda). El
+ * QR de `/qr-descarga-android.svg` apunta a este mismo enlace: si cambia, hay
+ * que regenerarlo. */
+const ANDROID_APP_URL =
+  "https://drive.google.com/file/d/1ePpG3luHeF9e2x0ufiE1jKEUx8kfFJ3E/view?usp=sharing";
+
 function StepBadge({ n }: { n: number }) {
   return (
     <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
@@ -94,16 +100,30 @@ export function DoctorPendingOnboarding({
           </div>
 
           <div className="mt-5 flex flex-1 flex-nowrap items-center justify-center gap-3">
-            <img
-              src="/qrtemporal.png"
-              alt="Código QR temporal para descargar la app PIEL360 en Android"
-              className="h-32 w-auto shrink-0"
-            />
-            <img
-              src="/descarga-android.png"
-              alt="Descarga la app PIEL360 para Android"
-              className="h-11 w-auto max-w-[8.5rem] shrink object-contain"
-            />
+            <a
+              href={ANDROID_APP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0"
+            >
+              <img
+                src="/qr-descarga-android.svg"
+                alt="Código QR para descargar la app PIEL360 en Android"
+                className="size-32 rounded-lg bg-white"
+              />
+            </a>
+            <a
+              href={ANDROID_APP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink"
+            >
+              <img
+                src="/descarga-android.png"
+                alt="Descarga la app PIEL360 para Android"
+                className="h-11 w-auto max-w-[8.5rem] object-contain"
+              />
+            </a>
           </div>
 
           <div className="mt-5 rounded-xl border border-sky-100 bg-sky-50/80 px-4 py-3">

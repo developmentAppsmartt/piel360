@@ -1,12 +1,14 @@
 "use client";
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ModuleCard } from "@/components/ui/module-card";
 import { PatientAnalysesTable } from "@/components/patients/patient-analyses-table";
+import { PatientAnalysisTypeFilter } from "@/components/patients/patient-analysis-type-filter";
 import { PatientProfileShell } from "@/components/patients/patient-profile-shell";
 import { PatientQuickActions } from "@/components/patients/patient-quick-actions";
 import { ApiError } from "@/lib/api-error";
+import { filterAnalysesByType, type AnalysisTypeFilter } from "@/lib/patient-comparison";
 import { usePatient, usePatientAnalyses } from "@/lib/queries/patients";
 
 export default function PacienteDetallePage() {
@@ -16,6 +18,7 @@ export default function PacienteDetallePage() {
   const correoFallido = useSearchParams().get("correo") === "fallo";
   const patient = usePatient(id);
   const analyses = usePatientAnalyses(id);
+  const [typeFilter, setTypeFilter] = useState<AnalysisTypeFilter>("all");
 
   const authError =
     (patient.error instanceof ApiError && patient.error.status === 401) ||
@@ -36,7 +39,11 @@ export default function PacienteDetallePage() {
   const p = patient.data;
 
   return (
-    <PatientProfileShell patient={p} panel="doctor">
+    <PatientProfileShell
+      patient={p}
+      panel="doctor"
+      analysisFilter={<PatientAnalysisTypeFilter value={typeFilter} onChange={setTypeFilter} />}
+    >
       {correoFallido ? (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           El paciente quedó creado, pero no se pudo enviar el correo de
@@ -65,7 +72,7 @@ export default function PacienteDetallePage() {
 
       {analyses.data ? (
         <PatientAnalysesTable
-          analyses={analyses.data}
+          analyses={filterAnalysesByType(analyses.data, typeFilter)}
           getRowHref={(a) => `/doctor/pacientes/${id}/analisis/${a.id}`}
         />
       ) : null}

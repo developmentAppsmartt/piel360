@@ -115,7 +115,10 @@ export class OrgContextService {
     };
   }
 
-  assertTeamPermission(ctx: OrgContext, permission: TeamMemberPermission): void {
+  assertTeamPermission(
+    ctx: OrgContext,
+    permission: TeamMemberPermission,
+  ): void {
     if (!ctx.isOrgMember || ctx.isOrgOwner) return;
     if (!ctx.teamPermissions.includes(permission)) {
       throw new ForbiddenException(
@@ -183,6 +186,19 @@ export class OrgContextService {
       visibleDoctorIds: [ctx.doctorId],
       professionals: [],
     };
+  }
+
+  /** Reglas y catálogo viven en el doctor dueño de la cuenta. Con el doctor del
+   * paciente a secas, los pacientes de un profesional de equipo no veían
+   * ninguna regla de la empresa ni su catálogo. */
+  async catalogDoctorIdFor(patientDoctorId: bigint): Promise<bigint> {
+    const linkedDoctor = await this.prisma.doctor.findUnique({
+      where: { id: patientDoctorId },
+      select: { userId: true },
+    });
+    if (!linkedDoctor?.userId) return patientDoctorId;
+    const ctx = await this.resolve(linkedDoctor.userId.toString());
+    return ctx.catalogDoctorId;
   }
 
   async canAccessPatientDoctorId(

@@ -1,38 +1,33 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  CalendarDays,
-  FlaskConical,
-  Layers3,
-  Pill,
-} from "lucide-react";
+import { ArrowLeft, Droplet } from "lucide-react";
 import type { FitzpatrickScale } from "@piel360/shared";
 import { FITZPATRICK_SCALES } from "@piel360/shared";
-import { CatalogChecklist } from "@/components/shared/catalog-checklist";
+import { RuleScopePicker } from "@/components/skin-age-rules/rule-scope-picker";
+import { SkinAgeRuleCatalogFields } from "@/components/skin-age-rules/skin-age-rule-catalog-fields";
 import { Button } from "@/components/ui/button";
 import { ModuleCard, ModuleCardDescription, ModuleCardTitle } from "@/components/ui/module-card";
 import { ApiError } from "@/lib/api-error";
 import { FITZPATRICK_TYPES } from "@/lib/fitzpatrick-labels";
 import { FITZPATRICK_RULE_PRIORITY_OPTIONS } from "@/lib/fitzpatrick-rules-ui";
-import { useProducts } from "@/lib/queries/products";
-import { useRoutines } from "@/lib/queries/routines";
-import { useTreatments } from "@/lib/queries/treatments";
 import type {
   FitzpatrickRule,
   FitzpatrickRuleColorKey,
   FitzpatrickRuleInput,
   FitzpatrickRulePriority,
 } from "@/lib/queries/fitzpatrick-rules";
+import { SKIN_TYPE_OPTIONS } from "@/lib/skin-type-options";
 import { cn } from "@/lib/utils";
 
 type FormState = {
   label: string;
   description: string;
   fitzpatrickScale: FitzpatrickScale;
+  /** null = todos los biotipos; [] = «específicos» sin elegir todavía. */
+  skinTypes: string[] | null;
   priority: FitzpatrickRulePriority;
   colorKey: FitzpatrickRuleColorKey;
   isActive: boolean;
@@ -48,6 +43,7 @@ function defaultForm(rule?: FitzpatrickRule | null): FormState {
       label: "",
       description: "",
       fitzpatrickScale: "III",
+      skinTypes: null,
       priority: "medium",
       colorKey: "blue",
       isActive: true,
@@ -61,6 +57,7 @@ function defaultForm(rule?: FitzpatrickRule | null): FormState {
     label: rule.label,
     description: rule.description ?? "",
     fitzpatrickScale: rule.fitzpatrickScale,
+    skinTypes: rule.skinTypes?.length ? rule.skinTypes : null,
     priority: rule.priority,
     colorKey: rule.colorKey,
     isActive: rule.isActive,
@@ -84,63 +81,16 @@ export function FitzpatrickRuleForm({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const routines = useRoutines(true);
-  const treatments = useTreatments({ kind: "treatment" });
-  const catalogProducts = useProducts(undefined, "product");
-  const catalogSupplements = useProducts(undefined, "supplement");
-
-  useEffect(() => {
-    setForm(defaultForm(rule));
-  }, [rule]);
-
   const selectedType = FITZPATRICK_TYPES[form.fitzpatrickScale];
-
-  const productOptions = useMemo(
-    () =>
-      (catalogProducts.data ?? []).map((product) => ({
-        id: product.id,
-        label: product.productName,
-        hint: product.category?.categoryName ?? "Producto",
-        imageUrl: product.imageUrl,
-      })),
-    [catalogProducts.data],
-  );
-
-  const supplementOptions = useMemo(
-    () =>
-      (catalogSupplements.data ?? []).map((product) => ({
-        id: product.id,
-        label: product.productName,
-        hint: product.category?.categoryName ?? "Suplemento",
-        imageUrl: product.imageUrl,
-      })),
-    [catalogSupplements.data],
-  );
-
-  const routineOptions = useMemo(
-    () =>
-      (routines.data ?? []).map((routine) => ({
-        id: routine.id,
-        label: routine.name,
-        hint: `${routine.steps.length} paso${routine.steps.length === 1 ? "" : "s"}`,
-      })),
-    [routines.data],
-  );
-
-  const treatmentOptions = useMemo(
-    () =>
-      (treatments.data ?? []).map((treatment) => ({
-        id: treatment.id,
-        label: treatment.name,
-        hint: treatment.category?.categoryName ?? "Tratamiento",
-      })),
-    [treatments.data],
-  );
 
   async function handleSave() {
     setError(null);
     if (!form.label.trim()) {
       setError("El nombre de la regla es obligatorio.");
+      return;
+    }
+    if (form.skinTypes?.length === 0) {
+      setError("Elige al menos un biotipo o aplica a todos.");
       return;
     }
 
@@ -150,6 +100,7 @@ export function FitzpatrickRuleForm({
         label: form.label.trim(),
         description: form.description.trim() || undefined,
         fitzpatrickScale: form.fitzpatrickScale,
+        skinTypes: form.skinTypes ?? [],
         priority: form.priority,
         colorKey: form.colorKey,
         isActive: form.isActive,
@@ -261,7 +212,7 @@ export function FitzpatrickRuleForm({
           </ModuleCard>
 
           <ModuleCard className="space-y-3 p-5">
-            <ModuleCardTitle className="text-base">2. Condición: fototipo de piel</ModuleCardTitle>
+            <ModuleCardTitle className="text-base">2. Condición: fototipo y biotipo</ModuleCardTitle>
             <ModuleCardDescription>
               Se recomienda esto cuando el fototipo (Fitzpatrick) del paciente sea:
             </ModuleCardDescription>
@@ -299,54 +250,28 @@ export function FitzpatrickRuleForm({
             <p className="rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
               {selectedType.reaction}
             </p>
+            <RuleScopePicker
+              name="alcance-biotipo"
+              icon={Droplet}
+              title="Alcance por biotipo"
+              hint="Aplica a todos los biotipos o solo a los que elijas."
+              allLabel="Aplicar a todos los biotipos"
+              specificLabel="Aplicar a biotipos específicos"
+              options={SKIN_TYPE_OPTIONS}
+              value={form.skinTypes}
+              onChange={(skinTypes) => setForm((current) => ({ ...current, skinTypes }))}
+            />
           </ModuleCard>
 
           <ModuleCard className="space-y-3 p-5">
             <ModuleCardTitle className="text-base">
               3. Acción recomendada (selecciona lo ya creado)
             </ModuleCardTitle>
-            <div className="grid gap-3 lg:grid-cols-2">
-              <CatalogChecklist
-                title="Productos"
-                icon={FlaskConical}
-                options={productOptions}
-                selectedIds={form.productGroupIds}
-                onChange={(ids) =>
-                  setForm((current) => ({ ...current, productGroupIds: ids }))
-                }
-                emptyHint="Crea productos en el módulo Productos."
-                loading={catalogProducts.isLoading}
-              />
-              <CatalogChecklist
-                title="Rutinas"
-                icon={CalendarDays}
-                options={routineOptions}
-                selectedIds={form.routineIds}
-                onChange={(ids) => setForm((current) => ({ ...current, routineIds: ids }))}
-                emptyHint="Crea rutinas en Rutinas y tratamientos."
-                loading={routines.isLoading}
-              />
-              <CatalogChecklist
-                title="Tratamientos"
-                icon={Layers3}
-                options={treatmentOptions}
-                selectedIds={form.treatmentIds}
-                onChange={(ids) => setForm((current) => ({ ...current, treatmentIds: ids }))}
-                emptyHint="Crea tratamientos en Rutinas y tratamientos."
-                loading={treatments.isLoading}
-              />
-              <CatalogChecklist
-                title="Suplementos"
-                icon={Pill}
-                options={supplementOptions}
-                selectedIds={form.supplementGroupIds}
-                onChange={(ids) =>
-                  setForm((current) => ({ ...current, supplementGroupIds: ids }))
-                }
-                emptyHint="Crea suplementos en el módulo Productos."
-                loading={catalogSupplements.isLoading}
-              />
-            </div>
+            <SkinAgeRuleCatalogFields
+              enabled
+              value={form}
+              onChange={(patch) => setForm((current) => ({ ...current, ...patch }))}
+            />
           </ModuleCard>
 
           {error ? <p className="text-sm text-destructive">{error}</p> : null}

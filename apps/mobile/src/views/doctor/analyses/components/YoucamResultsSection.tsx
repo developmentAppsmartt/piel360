@@ -3,6 +3,7 @@ import {
   PanResponder,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   View,
   type NativeScrollEvent,
@@ -171,6 +172,11 @@ function clampImagePan(
     y: Math.min(maxY, Math.max(-maxY, pan.y)),
   };
 }
+
+/** «Puntaje de la piel» pinta varias máscaras a la vez y, al 100 %, juntas
+ * tapaban la piel. La opacidad va en el grupo, no en cada capa: así no se
+ * suman al superponerse. Igual en el web (analisis-piel360-viewer.tsx). */
+const OVERVIEW_LAYERS_OPACITY = 0.55;
 
 const OVERVIEW_LAYER_TYPES = [
   'hd_dark_circle',
@@ -598,6 +604,11 @@ export function YoucamResultsSection({
             : ''
         }`
       : `${baseCopy}${skinTypeHint}`;
+  // Zona de Arrugas o Poros: puede tener rangos y textos propios.
+  const subRegion =
+    activeRegion && activeRegion.region !== DEFAULT_REGION
+      ? activeRegion.region
+      : null;
   const adviceText =
     !isFototipo &&
     !isSkinAge &&
@@ -607,10 +618,9 @@ export function YoucamResultsSection({
     copyType !== 'all'
       ? scorer.advice(
           copyType,
-          scorer.band(copyType, activeScore),
-          activeRegion && activeRegion.region !== DEFAULT_REGION
-            ? activeRegion.label
-            : null,
+          scorer.band(copyType, activeScore, subRegion),
+          subRegion ? activeRegion?.label : null,
+          subRegion,
         )
       : null;
 
@@ -711,8 +721,12 @@ export function YoucamResultsSection({
                 style={styles.viewerImage}
                 contentFit="cover"
               />
-              {isOverview
-                ? overviewMaskUrls.map((url) => (
+              {isOverview ? (
+                <View
+                  pointerEvents="none"
+                  style={[StyleSheet.absoluteFill, { opacity: OVERVIEW_LAYERS_OPACITY }]}
+                >
+                  {overviewMaskUrls.map((url) => (
                     <Image
                       key={url}
                       source={cachedImageSource(url)}
@@ -720,8 +734,9 @@ export function YoucamResultsSection({
                       style={styles.viewerOverlay}
                       contentFit="cover"
                     />
-                  ))
-                : maskUrl ? (
+                  ))}
+                </View>
+              ) : maskUrl ? (
                     <Image
                       source={cachedImageSource(maskUrl)}
                       cachePolicy="memory-disk"

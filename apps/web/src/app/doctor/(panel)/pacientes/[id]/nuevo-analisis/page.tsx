@@ -8,8 +8,11 @@ import { PhotoCapture } from "@/components/analyses/photo-capture";
 import { Button } from "@/components/ui/button";
 import { ANALYSIS_PROVIDER_STATIC_LABELS } from "@/lib/analysis-provider-label";
 import { ApiError } from "@/lib/api-error";
+import { genderFromPatient } from "@/lib/body-model";
 import { cn } from "@/lib/utils";
 import { useCreateAnalysis } from "@/lib/queries/analyses";
+import { usePatient } from "@/lib/queries/patients";
+import { useWizardStep } from "@/lib/use-wizard-step";
 
 type Step = "region" | "captura" | "enviar" | "resultados";
 
@@ -34,9 +37,11 @@ function progressLabel(progress: number) {
 
 export default function NuevoAnalisisPage() {
   const { id: patientId } = useParams<{ id: string }>();
+  // Solo para fijar la figura 3D al género del paciente.
+  const { data: patient } = usePatient(patientId);
   const router = useRouter();
 
-  const [step, setStep] = useState<Step>("region");
+  const [step, goTo] = useWizardStep<Step>("region");
   const [photo, setPhoto] = useState<{ file: File; previewUrl: string } | null>(null);
   const [bodySelection, setBodySelection] = useState<BodySelection | null>(null);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
@@ -67,7 +72,7 @@ export default function NuevoAnalisisPage() {
       });
       setProgress(100);
       setAnalysisId(created.id);
-      setStep("resultados");
+      goTo("resultados");
     } catch {
       // El error queda expuesto vía createAnalysis.error, renderizado más abajo.
     } finally {
@@ -97,11 +102,14 @@ export default function NuevoAnalisisPage() {
             />
             <p className="text-xs text-muted-foreground">{importantNotes.length}/500</p>
           </div>
-          <BodySelector onSelect={setBodySelection} />
+          <BodySelector
+            onSelect={setBodySelection}
+            patientGender={genderFromPatient(patient?.gender)}
+          />
           <div className="flex gap-2">
             <Button
               type="button"
-              onClick={() => setStep("captura")}
+              onClick={() => goTo("captura")}
             >
               {bodySelection ? "Continuar" : "Omitir"}
             </Button>
@@ -113,10 +121,10 @@ export default function NuevoAnalisisPage() {
         <div className="space-y-4">
           <PhotoCapture onCapture={(file, previewUrl) => setPhoto({ file, previewUrl })} />
           <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={() => setStep("region")}>
+            <Button type="button" variant="outline" onClick={() => goTo("region")}>
               Atrás — Cambiar zona
             </Button>
-            <Button type="button" disabled={!photo} onClick={() => setStep("enviar")}>
+            <Button type="button" disabled={!photo} onClick={() => goTo("enviar")}>
               Continuar
             </Button>
           </div>
@@ -163,7 +171,7 @@ export default function NuevoAnalisisPage() {
             </p>
           )}
           <div className="flex gap-2">
-            <Button type="button" variant="outline" disabled={createAnalysis.isPending} onClick={() => setStep("captura")}>
+            <Button type="button" variant="outline" disabled={createAnalysis.isPending} onClick={() => goTo("captura")}>
               Atrás
             </Button>
             <Button type="button" disabled={createAnalysis.isPending} onClick={handleSubmit}>

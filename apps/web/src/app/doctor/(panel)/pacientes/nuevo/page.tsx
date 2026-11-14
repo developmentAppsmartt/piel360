@@ -28,16 +28,21 @@ export default function NuevoPacientePage() {
       <PatientForm
         submitLabel="Crear paciente"
         onCancel={() => router.push("/doctor/pacientes")}
-        onSubmit={async (input) => {
-          const patient = await createPatient.mutateAsync(input);
+        onSubmit={(input) => createPatient.mutateAsync(input)}
+        onSaved={(patient) =>
           // Esta pantalla desaparece al redirigir, así que el aviso de que el
           // correo no salió viaja en la URL y lo pinta el detalle.
           router.push(
             `/doctor/pacientes/${patient.id}${
               patient.welcomeEmailSent === false ? "?correo=fallo" : ""
             }`,
-          );
-        }}
+          )
+        }
+        // El paciente ya existe: se edita para reintentar la historia, no se
+        // vuelve a crear.
+        onHistoryFailed={(patient) =>
+          router.push(`/doctor/pacientes/${patient.id}/editar?historia=fallo`)
+        }
       />
     </div>
   );

@@ -1,8 +1,13 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { createColumnHelper } from "@tanstack/react-table";
+import { AnalysisDateFilterButton } from "@/components/analyses/analysis-date-filter";
 import { DataTable } from "@/components/ui/data-table";
+import {
+  matchesAnalysisDate,
+  type AnalysisDateFilter,
+} from "@/lib/analysis-date-filter";
 import { analysisProviderLabel } from "@/lib/analysis-provider-label";
 import type { AnalysisListItem } from "@/lib/queries/analyses";
 import { cn } from "@/lib/utils";
@@ -116,11 +121,19 @@ export function AnalysesTable({
   variant?: "default" | "modern";
 }) {
   const modern = variant === "modern";
+  const [dateFilter, setDateFilter] = useState<AnalysisDateFilter | null>(null);
+  const visible = useMemo(
+    () => analyses.filter((a) => matchesAnalysisDate(a.createdAt, dateFilter)),
+    [analyses, dateFilter],
+  );
 
   return (
     <DataTable
       columns={buildColumns(modern)}
-      data={analyses}
+      data={visible}
+      searchAside={
+        <AnalysisDateFilterButton value={dateFilter} onChange={setDateFilter} />
+      }
       searchPlaceholder="Buscar por paciente o diagnóstico..."
       emptyMessage="Sin análisis."
       getRowHref={getHref}

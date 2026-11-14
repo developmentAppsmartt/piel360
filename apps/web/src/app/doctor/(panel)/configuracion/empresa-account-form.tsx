@@ -2,12 +2,14 @@
 
 import { useRef, useState } from "react";
 import { AccountSecuritySection } from "@/components/auth/account-security-section";
+import { ProfilePhotoField } from "@/components/profile/profile-photo-field";
 import { Button } from "@/components/ui/button";
 import { useMyDoctorProfile } from "@/lib/queries/doctors";
 import {
   CompanyProfileSection,
   type CompanyProfileHandle,
 } from "./company-profile-section";
+import { VerificationNoteBanner } from "./verification-note-banner";
 
 export function EmpresaAccountForm() {
   const companyRef = useRef<CompanyProfileHandle>(null);
@@ -68,26 +70,15 @@ export function EmpresaAccountForm() {
         </p>
       </div>
 
-      {account.verificationNote &&
-      (account.verificationStatus === "in_review" ||
-        account.verificationStatus === "rejected" ||
-        account.verificationStatus === "pending") ? (
-        <div
-          className={
-            account.verificationStatus === "rejected"
-              ? "rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
-              : "rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
-          }
-          role="status"
-        >
-          <p className="font-semibold">
-            {account.verificationStatus === "rejected"
-              ? "Tu solicitud fue rechazada"
-              : "El equipo de verificación solicitó ajustes"}
-          </p>
-          <p className="mt-1 whitespace-pre-wrap">{account.verificationNote}</p>
-        </div>
-      ) : null}
+      <ProfilePhotoField
+        avatarUrl={account.avatarUrl}
+        email={account.user?.email ?? ""}
+      />
+
+      <VerificationNoteBanner
+        status={account.verificationStatus}
+        note={account.verificationNote}
+      />
 
       <div className="rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm">
         <p>

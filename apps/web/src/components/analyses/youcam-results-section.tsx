@@ -132,16 +132,17 @@ export function AnalisisPiel360ResultsSection({
   // textos de Rangos de puntuación. Antes el web solo mostraba la descripción
   // fija de la métrica y lo configurado no aparecía en ninguna parte.
   const activeScore = activeRegion?.score ?? selected?.score ?? null;
+  // La zona (Arrugas › Frente, Poros › Nariz…) puede tener sus propios rangos
+  // y textos; lo que no defina lo toma de la métrica.
+  const subRegion =
+    activeRegion && activeRegion.region !== DEFAULT_REGION ? activeRegion.region : null;
   const adviceText =
     selected && !isOverview && !isSkinAge && !isFitzpatrick && activeScore != null
-      ? `${
-          activeRegion && activeRegion.region !== DEFAULT_REGION
-            ? `${activeRegion.label}: `
-            : ""
-        }${configuredAnalisisPiel360Advice(
+      ? `${subRegion ? `${activeRegion?.label}: ` : ""}${configuredAnalisisPiel360Advice(
           selected.type,
-          configuredAnalisisPiel360ScoreBand(activeScore, selected.type, scoreConfig),
+          configuredAnalisisPiel360ScoreBand(activeScore, selected.type, scoreConfig, subRegion),
           scoreConfig,
+          subRegion,
         )}`
       : null;
 
@@ -161,6 +162,7 @@ export function AnalisisPiel360ResultsSection({
         overviewMaskUrls={isOverview ? overviewMaskUrls : null}
         maskUrl={maskUrl}
         badgeLabel={badgeLabel}
+        metricType={selected?.type ?? null}
       />
 
       <div className="flex flex-wrap gap-2">
