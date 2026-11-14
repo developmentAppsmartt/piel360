@@ -18,6 +18,7 @@ import { analysesService } from '../../../services/analyses.service';
 import type { ConfirmAnalysisInput } from '../../../services/analyses.service';
 import { patientsService } from '../../../services/patients.service';
 import { confirmAction } from '../../../utils/confirm';
+import { resolveMediaUrl } from '../../../utils/mediaUrl';
 import type {
   AnalysisDetail,
   FitzpatrickRawResponse,
@@ -35,6 +36,7 @@ import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
 import { ConfirmAnalysisForm } from './components/ConfirmAnalysisForm';
 import { FitzpatrickResultsSection } from './components/FitzpatrickResultsSection';
 import { SkiniverResultsSection } from './components/SkiniverResultsSection';
+import { AnalysisResultHero } from './components/AnalysisResultHero';
 import { YoucamResultsSection } from './components/YoucamResultsSection';
 import { createAnalysisDetailStyles } from './styles/analysisDetail.styles';
 import { YoucamProgressView } from './YoucamProgressView';
@@ -67,15 +69,17 @@ function formatStamp(iso: string): string {
 }
 
 /** Completa skinType/fitzpatrickType: prioridad al último Fitzpatrick confirmado. */
-async function enrichAnalysisPatient(
-  detail: AnalysisDetail,
-): Promise<AnalysisDetail> {
+async function enrichAnalysisPatient(detail: AnalysisDetail): Promise<{
+  detail: AnalysisDetail;
+  avatarUrl: string | null;
+}> {
   let fitzpatrickType: string | null = null;
   let skinType = detail.patient?.skinType ?? null;
   let firstName = detail.patient?.firstName ?? '';
   let lastName = detail.patient?.lastName ?? '';
   let birthDate = detail.patient?.birthDate ?? null;
   let gender = detail.patient?.gender ?? null;
+  let avatarUrl: string | null = null;
 
   const [profileResult, historyResult] = await Promise.allSettled([
     patientsService.getById(detail.patientId),
@@ -91,6 +95,7 @@ async function enrichAnalysisPatient(
     // Perfil solo como respaldo; el confirmado manda.
     fitzpatrickType = profile.fitzpatrickType ?? null;
     birthDate = profile.birthDate ?? birthDate;
+    avatarUrl = profile.avatarUrl ?? null;
   }
 
   if (historyResult.status === 'fulfilled') {
@@ -117,16 +122,19 @@ async function enrichAnalysisPatient(
   }
 
   return {
-    ...detail,
-    patient: {
-      id: detail.patientId,
-      firstName,
-      lastName,
-      birthDate,
-      gender,
-      skinType,
-      fitzpatrickType,
+    detail: {
+      ...detail,
+      patient: {
+        id: detail.patientId,
+        firstName,
+        lastName,
+        birthDate,
+        gender,
+        skinType,
+        fitzpatrickType,
+      },
     },
+    avatarUrl,
   };
 }
 
@@ -168,6 +176,7 @@ export function AnalysisDetailView({
   const showShare = canManage;
 
   const [analysis, setAnalysis] = useState<AnalysisDetail | null>(null);
+  const [patientAvatarUrl, setPatientAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [sharing, setSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -211,9 +220,10 @@ export function AnalysisDetailView({
         setLoading(false);
         const enriched = await enrichAnalysisPatient(detail);
         if (!cancelled) {
+          setPatientAvatarUrl(resolveMediaUrl(enriched.avatarUrl));
           setAnalysis((current) =>
-            current && current.id === enriched.id
-              ? { ...current, patient: enriched.patient }
+            current && current.id === enriched.detail.id
+              ? { ...current, patient: enriched.detail.patient }
               : current,
           );
         }
@@ -259,12 +269,19 @@ export function AnalysisDetailView({
       ? `${analysis.patient.firstName} ${analysis.patient.lastName}`.trim()
       : 'Paciente');
 
+  async function applyEnriched(detail: AnalysisDetail) {
+    const enriched = await enrichAnalysisPatient(detail);
+    setPatientAvatarUrl(resolveMediaUrl(enriched.avatarUrl));
+    setAnalysis(enriched.detail);
+    return enriched.detail;
+  }
+
   async function handleShare() {
     if (!analysis || analysis.sharedWithPatient || sharing) return;
     setSharing(true);
     try {
       const updated = await analysesService.shareWithPatient(analysis.id);
-      setAnalysis(await enrichAnalysisPatient(updated));
+      await applyEnriched(updated);
       Alert.alert(
         'Análisis compartido',
         'El paciente ya puede verlo en el histórico de su inicio.',
@@ -294,7 +311,7 @@ export function AnalysisDetailView({
     setSharing(true);
     try {
       const updated = await analysesService.unshareWithPatient(analysis.id);
-      setAnalysis(await enrichAnalysisPatient(updated));
+      await applyEnriched(updated);
     } catch (err) {
       Alert.alert(
         'No se pudo dejar de compartir',
@@ -314,11 +331,11 @@ export function AnalysisDetailView({
   }) {
     if (!analysis) return;
     const updated = await analysesService.confirm(analysis.id, input);
-    setAnalysis(await enrichAnalysisPatient(updated));
+    const next = await applyEnriched(updated);
     Alert.alert(
       input.isCorrected ? 'Análisis corregido' : 'Análisis confirmado',
       input.isCorrected
-        ? `El diagnóstico quedó como: ${input.finalDiagnosis ?? updated.finalDiagnosis ?? '—'}.`
+        ? `El diagnóstico quedó como: ${input.finalDiagnosis ?? next.finalDiagnosis ?? '—'}.`
         : 'El resultado quedó confirmado.',
     );
   }
@@ -453,7 +470,7 @@ export function AnalysisDetailView({
         patientName={displayName}
         canShare={showShare}
         onShared={async (next) => {
-          setAnalysis(await enrichAnalysisPatient(next));
+          await applyEnriched(next);
         }}
         onBack={() => setSubView('detail')}
         onOpenMenu={onOpenMenu}
@@ -484,11 +501,15 @@ export function AnalysisDetailView({
               color={branding.colors.iconMuted}
             />
           </Pressable>
-          <Text style={styles.cardTitle}>
-            {isFitzpatrick
-              ? ANALYSIS_PROVIDER_STATIC_LABELS.fitzpatrick
-              : 'Resultado del análisis'}
-          </Text>
+          {!isYoucam ? (
+            <Text style={styles.cardTitle}>
+              {isFitzpatrick
+                ? ANALYSIS_PROVIDER_STATIC_LABELS.fitzpatrick
+                : 'Resultado del análisis'}
+            </Text>
+          ) : (
+            <View style={styles.cardHeaderSpacer} />
+          )}
           <Pressable
             style={styles.roundBtn}
             onPress={onBack}
@@ -517,8 +538,22 @@ export function AnalysisDetailView({
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
           >
-            <Text style={styles.patientName}>{displayName}</Text>
-            <Text style={styles.stamp}>{formatStamp(analysis.createdAt)}</Text>
+            {isYoucam ? (
+              <AnalysisResultHero
+                title="Resultado del análisis"
+                patientName={displayName}
+                stamp={formatStamp(analysis.createdAt)}
+                avatarUrl={patientAvatarUrl}
+                primaryColor={branding.colors.primary}
+              />
+            ) : (
+              <>
+                <Text style={styles.patientName}>{displayName}</Text>
+                <Text style={styles.stamp}>
+                  {formatStamp(analysis.createdAt)}
+                </Text>
+              </>
+            )}
 
             {showShare ? (
               <Pressable

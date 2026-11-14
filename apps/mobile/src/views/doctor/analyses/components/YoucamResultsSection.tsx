@@ -26,10 +26,8 @@ import { useYoucamScorer } from '../../../../lib/youcam-scoring';
 import { ImagePreloader, cachedImageSource } from '../../../../lib/image-cache';
 import { youcamMetricConvention, youcamViewerBadgeLabel } from '../../../../data/youcamMetricConventions';
 import {
-  formatSignedYears,
   chronologicalAgeYears,
   skinAgeDifference,
-  skinAgeDifferenceMessage,
 } from '../../../../data/skinAge';
 import {
   YOUCAM_METRIC_LABELS,
@@ -55,6 +53,7 @@ import { YoucamCatalogSection } from './YoucamCatalogSection';
 import { YoucamAcneConventionBar } from './YoucamAcneConventionBar';
 import { YoucamMetricConventionBar } from './YoucamMetricConventionBar';
 import { YoucamSkinTypeConventionBar } from './YoucamSkinTypeConventionBar';
+import { YoucamScoreSummary } from './YoucamScoreSummary';
 
 /** Colores de respaldo si no hay fototipo Fitzpatrick. */
 const SKIN_TYPE_SWATCH: Record<string, string> = {
@@ -599,7 +598,11 @@ export function YoucamResultsSection({
           chronologicalAge != null
             ? ` · Edad cronológica: ${chronologicalAge} años`
             : ''
-        }.${ageDiff != null ? ` Diferencia ${formatSignedYears(ageDiff)}.` : ''}`
+        }.${
+          ageDiff != null
+            ? ` Diferencia ${ageDiff > 0 ? `+${ageDiff}` : ageDiff} años.`
+            : ''
+        }`
       : `${baseCopy}${skinTypeHint}`;
   // Zona de Arrugas o Poros: puede tener rangos y textos propios.
   const subRegion =
@@ -657,83 +660,34 @@ export function YoucamResultsSection({
     setSelectedRegion(DEFAULT_REGION);
     setPanelOpen(collapsible);
   }
-  const scorePct =
-    overall != null ? Math.max(0, Math.min(100, overall)) : 0;
-  const diffTone =
-    ageDiff == null
-      ? styles.summaryMuted
-      : ageDiff < 0
-        ? styles.summaryPositive
-        : ageDiff > 0
-          ? styles.summaryAged
-          : styles.summaryNeutral;
   return (
     <View style={styles.block}>
-      <View style={styles.summaryRow}>
-        <Text style={styles.summaryLine}>
-          Salud de la piel (años):{' '}
-          <Text style={styles.summaryAccent}>
-            {skinAge != null ? `${Math.round(skinAge)} años` : '—'}
-          </Text>
-          <Text style={styles.summaryMuted}>
-            {'  '}(Edad cronológica):{' '}
-            {chronologicalAge != null ? `${chronologicalAge} años` : '—'}
-          </Text>
-        </Text>
-        <Text style={styles.summaryLine}>
-          Puntaje de la piel:{' '}
-          <Text style={styles.summaryMuted}>
-            {overall != null ? `${Math.round(overall)} / 100` : '—'}
-          </Text>
-        </Text>
-        {overall != null ? (
-          <View style={styles.scoreBarBlock}>
-            <View style={styles.scoreBarLabels}>
-              {scorePct < 96 ? (
-                <Text
-                  style={[
-                    styles.scoreBarValue,
-                    { left: `${scorePct}%` },
-                  ]}
-                >
-                  {Math.round(overall)}
-                </Text>
-              ) : null}
-              <Text style={styles.scoreBarMax}>100</Text>
-            </View>
-            <View style={styles.scoreBarTrack}>
-              <View
-                style={[
-                  styles.scoreBarFill,
-                  { width: `${scorePct}%` },
-                ]}
-              />
-            </View>
-          </View>
-        ) : null}
-        {ageDiff != null ? (
-          <>
-            <Text style={[styles.summaryLine, diffTone]}>
-              Diferencia: {formatSignedYears(ageDiff)}
+      <YoucamScoreSummary
+        overall={overall}
+        skinAge={skinAge}
+        chronologicalAge={chronologicalAge}
+        ageDiff={ageDiff}
+        scoreConfig={scorer.config}
+        primaryColor={branding.colors.primaryText}
+      />
+      {skinType || skinTypeChip?.detail ? (
+        <View style={styles.summaryRow}>
+          {skinType ? (
+            <Text style={styles.summaryLine}>
+              Tipo de piel:{' '}
+              <Text style={styles.summaryMuted}>
+                {youcamSkinTypeLabel(skinType)}
+              </Text>
             </Text>
-            <Text style={[styles.summaryMessage, diffTone]}>
-              {skinAgeDifferenceMessage(ageDiff)}
+          ) : null}
+          {skinTypeChip?.detail ? (
+            <Text style={styles.summaryLine}>
+              Fototipo:{' '}
+              <Text style={styles.summaryMuted}>{skinTypeChip.detail}</Text>
             </Text>
-          </>
-        ) : null}
-        <Text style={styles.summaryLine}>
-          Tipo de piel:{' '}
-          <Text style={styles.summaryMuted}>
-            {skinType ? youcamSkinTypeLabel(skinType) : '—'}
-          </Text>
-        </Text>
-        {skinTypeChip?.detail ? (
-          <Text style={styles.summaryLine}>
-            Fototipo:{' '}
-            <Text style={styles.summaryMuted}>{skinTypeChip.detail}</Text>
-          </Text>
-        ) : null}
-      </View>
+          ) : null}
+        </View>
+      ) : null}
 
       <View
         style={styles.viewer}

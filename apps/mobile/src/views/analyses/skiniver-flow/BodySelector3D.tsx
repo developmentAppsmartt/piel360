@@ -1,11 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  Suspense,
+} from 'react';
 import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
   View,
-  type GestureResponderEvent,
 } from 'react-native';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber/native';
 import { OrbitControls, useGLTF } from '@react-three/drei/native';
@@ -20,6 +25,7 @@ import {
   type BodySelection,
 } from '../../../data/bodyRegions';
 import { normalizeModel, placeSavedPoint } from './bodyModelPlacement';
+import { useControlFigura, type VistaFigura } from './useControlFigura';
 import { useBranding } from '../../../context/BrandingContext';
 
 const femaleModule = require('../../../../assets/models/female/realistic_female_character_new.glb');
@@ -80,12 +86,29 @@ function BodyModel({
   return <primitive object={scene} onClick={onSelect ? handleClick : undefined} />;
 }
 
-function pinchDistance(event: GestureResponderEvent): number {
-  const touches = event.nativeEvent.touches;
-  if (touches.length < 2) return 0;
-  const a = touches[0];
-  const b = touches[1];
-  return Math.hypot(a.pageX - b.pageX, a.pageY - b.pageY);
+function VistaPuente({ vistaRef }: { vistaRef: VistaFigura }) {
+  const camera = useThree((state) => state.camera);
+  const scene = useThree((state) => state.scene);
+  useEffect(() => {
+    vistaRef.current = { camera, scene };
+    return () => {
+      vistaRef.current = null;
+    };
+  }, [camera, scene, vistaRef]);
+  return null;
+}
+
+function FijarObjetivo({ target }: { target: [number, number, number] }) {
+  const controls = useThree((state) => state.controls) as {
+    target: THREE.Vector3;
+  } | null;
+  const key = `${target[0].toFixed(4)}|${target[1].toFixed(4)}|${target[2].toFixed(4)}`;
+  useEffect(() => {
+    controls?.target.set(target[0], target[1], target[2]);
+    // key es el valor; el array puede cambiar de referencia sin moverse.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al cambiar el foco
+  }, [controls, key]);
+  return null;
 }
 
 function FocusCamera({ point }: { point: [number, number, number] }) {
@@ -194,28 +217,7 @@ export function BodySelector3D({
     cameraFocus?.[2],
   ]);
   const readOnly = Boolean(focusPoint);
-  const controlsRef = useRef<{ dollyOut: (scale?: number) => void } | null>(null);
-  const pinchRef = useRef(0);
-
-  const zoomByPinch = useCallback((event: GestureResponderEvent) => {
-    const distance = pinchDistance(event);
-    const previous = pinchRef.current;
-    pinchRef.current = distance;
-    if (distance <= 0 || previous <= 0) return;
-    const ratio = distance / previous;
-    if (!Number.isFinite(ratio) || Math.abs(ratio - 1) < 0.001) return;
-    // Cada evento se mide contra el anterior, no contra el inicio del gesto:
-    // al tocar el tope, el sentido contrario sigue teniendo efecto.
-    controlsRef.current?.dollyOut(Math.pow(ratio, BODY_SELECTOR_ORBIT.zoomSpeed));
-  }, []);
-
-  const beginPinch = useCallback((event: GestureResponderEvent) => {
-    pinchRef.current = pinchDistance(event);
-  }, []);
-
-  const endPinch = useCallback(() => {
-    pinchRef.current = 0;
-  }, []);
+  const control = useControlFigura(readOnly, handleSelect);
 
   return (
     <View style={styles.wrap}>
@@ -250,12 +252,16 @@ export function BodySelector3D({
 
       <View
         style={styles.canvas}
-        onStartShouldSetResponderCapture={(event) => event.nativeEvent.touches.length >= 2}
-        onMoveShouldSetResponderCapture={(event) => event.nativeEvent.touches.length >= 2}
-        onResponderGrant={beginPinch}
-        onResponderMove={zoomByPinch}
-        onResponderRelease={endPinch}
-        onResponderTerminate={endPinch}
+        onLayout={control.alMedir}
+        onStartShouldSetResponder={() => true}
+        onMoveShouldSetResponder={() => true}
+        onStartShouldSetResponderCapture={() => true}
+        onMoveShouldSetResponderCapture={() => true}
+        onResponderTerminationRequest={() => false}
+        onResponderGrant={control.alTocar}
+        onResponderMove={control.alMover}
+        onResponderRelease={control.alSoltar}
+        onResponderTerminate={control.alCancelar}
       >
         {loadError ? (
           <Text style={styles.error}>{loadError}</Text>
@@ -283,6 +289,7 @@ export function BodySelector3D({
                 onAnchored={readOnly ? handleAnchored : undefined}
               />
             </Suspense>
+            <VistaPuente vistaRef={control.vistaRef} />
             {cameraFocus ? <FocusCamera point={cameraFocus} /> : null}
             {marker ? (
               <mesh position={marker}>
@@ -291,16 +298,20 @@ export function BodySelector3D({
               </mesh>
             ) : null}
             <OrbitControls
-              ref={controlsRef}
+              ref={(node) => {
+                control.controlsRef.current = node;
+              }}
               makeDefault
               enablePan={false}
-              // El pinch lo aplica el contenedor. El de OrbitControls se traba
-              // en el mínimo y en el máximo, y a veces manda la cámara a NaN.
+              enableRotate={false}
+              // El giro y el pinch los aplica el contenedor. El de
+              // OrbitControls en el teléfono no recibe el dedo, y su
+              // pinch se traba en los topes.
               enableZoom={false}
               minDistance={BODY_SELECTOR_ORBIT.minDistance}
               maxDistance={BODY_SELECTOR_ORBIT.maxDistance}
-              target={cameraView.target}
             />
+            <FijarObjetivo target={cameraView.target} />
           </Canvas>
         )}
       </View>
@@ -313,8 +324,8 @@ export function BodySelector3D({
       ) : (
         <Text style={styles.hint}>
           {readOnly
-            ? 'Ubicación registrada en la figura'
-            : 'Gira el modelo y toca la zona a analizar'}
+            ? 'Un dedo gira. Con dos, pellizca para acercar y arrástralos para moverte.'
+            : 'Un dedo gira, dos mueven el acercamiento. Toca la zona a analizar.'}
         </Text>
       )}
     </View>
