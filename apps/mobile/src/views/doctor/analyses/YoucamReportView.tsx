@@ -13,6 +13,11 @@ import Svg, { Circle, Line, Polygon, Text as SvgText } from 'react-native-svg';
 import { AppIcon } from '../../../components/AppIcon';
 import { Icons } from '../../../components/icons';
 import { useBranding } from '../../../context/BrandingContext';
+import {
+  rangosGenerales,
+  resolveYoucamScoreRanges,
+  type YoucamScoreConfig,
+} from '../../../data/youcamScoreConfig';
 import { useYoucamScorer } from '../../../lib/youcam-scoring';
 import { cachedImageSource } from '../../../lib/image-cache';
 import {
@@ -38,7 +43,6 @@ import {
   YOUCAM_MAIN_METRIC_TYPES,
   youcamMetricValue,
   youcamOverallScore,
-  youcamScoreBand,
   youcamScoreBandLabel,
   youcamScoresByType,
   youcamSkinAge,
@@ -48,6 +52,7 @@ import { DoctorHeader } from '../patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
 import { FitzpatrickResultsSection } from './components/FitzpatrickResultsSection';
 import { exportYoucamReportPdf } from './exportYoucamReportPdf';
+import { ScoreRangeBar } from './ScoreRangeBar';
 import { createYoucamResultsStyles } from './styles/youcamResults.styles';
 
 const RADAR_TYPES = [
@@ -62,9 +67,9 @@ const RADAR_TYPES = [
 ] as const;
 
 const BAND_COLOR = {
-  regular: '#F59E0B',
-  promedio: '#3B82F6',
-  buena: '#22C55E',
+  regular: '#E11D48',
+  promedio: '#D97706',
+  buena: '#059669',
 } as const;
 
 function formatStamp(iso: string): string {
@@ -82,9 +87,13 @@ function buildSummary(
   scores: Record<string, number>,
   overall: number | null,
   skinTypeLabel: string | null,
+  cortes: { regularMax: number; promedioMax: number },
+  config: YoucamScoreConfig,
 ): string {
   const lows = Object.entries(scores)
-    .filter(([, v]) => v < 70)
+    .filter(
+      ([type, v]) => v < resolveYoucamScoreRanges(config, type).regularMax,
+    )
     .sort((a, b) => a[1] - b[1])
     .slice(0, 3)
     .map(([type]) => YOUCAM_METRIC_LABELS[type] ?? type);
@@ -93,10 +102,10 @@ function buildSummary(
     ? ` Tu tipo de piel es ${skinTypeLabel.toLowerCase()}.`
     : '';
 
-  if (overall != null && overall >= 90) {
+  if (overall != null && overall >= cortes.promedioMax) {
     return `Ya vas camino a una gran piel.${typeHint} Mantén tu rutina y protección solar diaria. Revisa el detalle de cada métrica abajo.`;
   }
-  if (overall != null && overall >= 70) {
+  if (overall != null && overall >= cortes.regularMax) {
     return `Vas en el promedio.${typeHint}${
       lows.length
         ? ` Un poco más de cuidado en ${lows.join(', ')} puede marcar la diferencia.`
@@ -251,6 +260,7 @@ export function YoucamReportView({
     [metrics],
   );
   const overall = youcamOverallScore(metrics);
+  const cortesGenerales = rangosGenerales(scorer.config);
   const skinAge = analysis.skinAgeYears ?? youcamSkinAge(metrics);
   const chronologicalAge =
     analysis.chronologicalAgeYears ??
@@ -260,7 +270,14 @@ export function YoucamReportView({
     skinAgeDifference(skinAge, chronologicalAge);
   const skinType = youcamSkinType(metrics);
   const skinTypeLabel = skinType ? youcamSkinTypeLabel(skinType) : null;
-  const band = overall != null ? youcamScoreBand(overall) : null;
+  const band =
+    overall == null
+      ? null
+      : overall < cortesGenerales.regularMax
+        ? 'regular'
+        : overall < cortesGenerales.promedioMax
+          ? 'promedio'
+          : 'buena';
   const name =
     patientName ??
     (analysis.patient
@@ -370,7 +387,13 @@ export function YoucamReportView({
         ageDiffMessage:
           ageDiff != null ? skinAgeDifferenceMessage(ageDiff) : null,
         bandLabel: band ? youcamScoreBandLabel(band) : null,
-        summary: buildSummary(scores, overall, skinTypeLabel),
+        summary: buildSummary(
+          scores,
+          overall,
+          skinTypeLabel,
+          cortesGenerales,
+          scorer.config,
+        ),
         notes: analysis.doctorNotes?.trim() || null,
         metrics: reportRows.map((row) => {
           const itemBand = scorer.band(row.type, row.score);
@@ -547,48 +570,19 @@ export function YoucamReportView({
           ) : null}
 
           {overall != null ? (
-            <>
-              <View style={styles.rangeTrack}>
-                <View
-                  style={[styles.rangeSeg, { flex: 70, backgroundColor: '#F59E0B' }]}
-                />
-                <View
-                  style={[styles.rangeSeg, { flex: 20, backgroundColor: '#3B82F6' }]}
-                />
-                <View
-                  style={[styles.rangeSeg, { flex: 10, backgroundColor: '#22C55E' }]}
-                />
-              </View>
-              <View style={styles.rangeMarkerWrap}>
-                <View
-                  style={[
-                    styles.rangeMarker,
-                    { left: `${Math.max(0, Math.min(100, overall))}%` },
-                  ]}
-                >
-                  <Text style={styles.rangeMarkerText}>
-                    {Math.round(overall)}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.rangeLabels}>
-                <Text style={[styles.rangeLabel, { color: '#F59E0B' }]}>
-                  Regular
-                </Text>
-                <Text style={[styles.rangeLabel, { color: '#3B82F6' }]}>
-                  Promedio
-                </Text>
-                <Text style={[styles.rangeLabel, { color: '#22C55E' }]}>
-                  Buena
-                </Text>
-              </View>
-            </>
+            <ScoreRangeBar score={overall} ranges={cortesGenerales} />
           ) : null}
 
           <View style={styles.summaryBox}>
             <Text style={styles.summaryTitle}>RESUMEN</Text>
             <Text style={styles.summaryBody}>
-              {buildSummary(scores, overall, skinTypeLabel)}
+              {buildSummary(
+                scores,
+                overall,
+                skinTypeLabel,
+                cortesGenerales,
+                scorer.config,
+              )}
             </Text>
           </View>
 
@@ -612,6 +606,7 @@ export function YoucamReportView({
               const itemBand = scorer.band(row.type, row.score);
               const color = BAND_COLOR[itemBand];
               const advice = scorer.advice(row.type, itemBand);
+              const cortes = resolveYoucamScoreRanges(scorer.config, row.type);
 
               return (
                 <View key={row.key} style={styles.metricRowCard}>
@@ -654,33 +649,11 @@ export function YoucamReportView({
                         </Text>
                       </View>
 
-                      <View style={styles.metricRowScoreRow}>
-                        <View
-                          style={[styles.metricRowPin, { backgroundColor: color }]}
-                        >
-                          <Text style={styles.metricRowPinText}>
-                            {Math.round(row.score)}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.metricCardTrack}>
-                        <View
-                          style={[
-                            styles.metricCardFill,
-                            {
-                              width: `${Math.max(0, Math.min(100, row.score))}%`,
-                              backgroundColor: color,
-                            },
-                          ]}
-                        />
-                      </View>
-                      <View style={styles.metricRowScale}>
-                        <Text style={styles.metricRowScaleText}>0</Text>
-                        <Text style={styles.metricRowScaleText}>70</Text>
-                        <Text style={styles.metricRowScaleText}>90</Text>
-                        <Text style={styles.metricRowScaleText}>100</Text>
-                      </View>
+                      <ScoreRangeBar
+                        compact
+                        score={row.score}
+                        ranges={cortes}
+                      />
                     </View>
                   </View>
 

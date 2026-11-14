@@ -40,6 +40,7 @@ export function useYoucamScoreConfig(): YoucamScoreConfig {
 }
 
 export type YoucamScorer = {
+  config: YoucamScoreConfig;
   band: (type: string | null | undefined, score: number) => YoucamScoreBand;
   advice: (
     type: string | null | undefined,
@@ -52,6 +53,7 @@ export function useYoucamScorer(): YoucamScorer {
   const config = useYoucamScoreConfig();
   return useMemo(
     () => ({
+      config,
       band: (type, score) => configuredYoucamScoreBand(score, type, config),
       advice: (type, band, regionLabel) => {
         const base = configuredYoucamAdvice(type, band, config);

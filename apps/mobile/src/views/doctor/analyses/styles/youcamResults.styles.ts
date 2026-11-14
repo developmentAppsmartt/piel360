@@ -1364,8 +1364,8 @@ export function createYoucamResultsStyles(
       fontSize: 13,
     },
     metricRowScale: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
+      height: 14,
+      position: 'relative',
     },
     metricRowScaleText: {
       fontSize: 10,

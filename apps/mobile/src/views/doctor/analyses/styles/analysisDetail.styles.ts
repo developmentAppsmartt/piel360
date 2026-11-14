@@ -28,6 +28,9 @@ export function createAnalysisDetailStyles(colors: AppBranding['colors']) {
       paddingTop: 14,
       paddingBottom: 8,
     },
+    cardHeaderSpacer: {
+      flex: 1,
+    },
     roundBtn: {
       width: 36,
       height: 36,
