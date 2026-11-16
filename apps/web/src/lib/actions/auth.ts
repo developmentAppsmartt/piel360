@@ -145,7 +145,7 @@ export async function logoutAction() {
     }).catch(() => undefined);
   }
   await clearSessionCookies();
-  redirect("/");
+  redirect("/ingresar");
 }
 
 /**

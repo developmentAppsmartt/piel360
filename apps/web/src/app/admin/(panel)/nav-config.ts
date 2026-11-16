@@ -9,6 +9,7 @@ import {
   Globe2,
   HelpCircle,
   Home,
+  Inbox,
   Layers,
   Mail,
   Map,
@@ -112,6 +113,12 @@ export const adminNav: NavItem[] = [
     href: "/admin/compras",
     icon: ShoppingCart,
     permissionsAny: adminNavPermission("admin.purchases"),
+  },
+  {
+    label: "Leads de la landing",
+    href: "/admin/leads",
+    icon: Inbox,
+    permissionsAny: adminNavPermission("admin.leads"),
   },
   {
     label: "Reportes",

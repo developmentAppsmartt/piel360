@@ -26,6 +26,7 @@ import { StorageModule } from './storage/storage.module';
 import { AdminModule } from './admin/admin.module';
 import { RolesModule } from './roles/roles.module';
 import { HealthModule } from './health/health.module';
+import { LeadsModule } from './leads/leads.module';
 import { MailModule } from './mail/mail.module';
 import { SmsModule } from './sms/sms.module';
 import { CommonModule } from './common/common.module';
@@ -95,6 +96,7 @@ import { BrandingModule } from './branding/branding.module';
     AdminModule,
     RolesModule,
     HealthModule,
+    LeadsModule,
     ProductsModule,
     RoutinesModule,
     TreatmentsModule,

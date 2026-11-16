@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { applyEmailTemplateVariables } from '@piel360/shared';
+import { escapeHtml } from '../common/escape-html.util';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EMAIL_TEMPLATE_DEFAULTS } from '../email-templates/email-templates.defaults';
@@ -105,19 +106,9 @@ export class VerificationEmailService {
   private supportEmail(): string {
     const explicit = this.config.get<string>('SUPPORT_EMAIL')?.trim();
     if (explicit) return explicit;
-    const from =
-      this.config.get<string>('MAIL_FROM') ?? 'no-reply@piel360.com';
+    const from = this.config.get<string>('MAIL_FROM') ?? 'no-reply@piel360.com';
     return from.match(/<([^>]+)>/)?.[1] ?? from.trim();
   }
-}
-
-/** La observación la escribe una persona en un textarea y acaba dentro del
- * HTML del correo: sin escapar, un `<` parte la maqueta. */
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
 }
 
 function formatReviewDate(date: Date): string {
