@@ -8,7 +8,7 @@ export default function EmpresaLoginPage() {
     <LoginPageShell
       legal
       title="Soy Empresa"
-      description="Accede al panel de tu organización, equipo y planes empresariales."
+      description="Ingresa para gestionar tu organización, tu equipo y tus planes, y medir los resultados de tus pacientes con apoyo de inteligencia artificial."
       icon={Building2}
       accountPrompt={
         <>

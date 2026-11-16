@@ -8,7 +8,7 @@ export default function DoctorLoginPage() {
     <LoginPageShell
       legal
       title="Soy Usuario"
-      description="Accede a la plataforma para realizar análisis y gestionar pacientes."
+      description="Ingresa para analizar la piel de tus pacientes y seguir su evolución con apoyo de inteligencia artificial."
       icon={UserRound}
       accountPrompt={
         <>
