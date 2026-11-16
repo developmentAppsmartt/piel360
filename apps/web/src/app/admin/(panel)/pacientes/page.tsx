@@ -1,5 +1,6 @@
 "use client";
 
+import { exportPatientsCsv } from "@/lib/patients-export";
 import { usePatients } from "@/lib/queries/patients";
 import {
   PatientsListHeader,
@@ -8,10 +9,12 @@ import {
 
 export default function AdminPacientesPage() {
   const patients = usePatients();
+  const list = patients.data;
 
   return (
     <div className="space-y-6">
       <PatientsListHeader
+        onExport={list ? () => exportPatientsCsv(list, true) : undefined}
         description="Consulta el listado global de pacientes registrados en la plataforma. Haz clic en una fila para ver el detalle y comparaciones."
       />
 

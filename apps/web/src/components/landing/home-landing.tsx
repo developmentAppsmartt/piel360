@@ -1,33 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, ShieldCheck, Star, UserRound } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ShieldCheck, Star, UserRound } from "lucide-react";
 
 const ACCESS_ROLES = [
-  {
-    id: "usuario",
-    title: "Soy Usuario",
-    description:
-      "Accede a la plataforma para realizar análisis y gestionar pacientes.",
-    href: "/doctor/login",
-    icon: UserRound,
-  },
-  {
-    id: "admin",
-    title: "Soy Administrador",
-    description:
-      "Gestiona usuarios, planes, configuraciones y permisos de la plataforma.",
-    href: "/admin/login",
-    icon: ShieldCheck,
-  },
-  {
-    id: "moderador",
-    title: "Soy Moderador",
-    description:
-      "Revisa, modera y supervisa contenido y análisis dentro de la plataforma.",
-    href: "/moderador/login",
-    icon: Star,
-  },
+  { id: "usuario", title: "Soy Usuario", href: "/doctor/login", icon: UserRound },
+  { id: "admin", title: "Soy Administrador", href: "/admin/login", icon: ShieldCheck },
+  { id: "moderador", title: "Soy Moderador", href: "/moderador/login", icon: Star },
 ] as const;
 
 const HERO_IMAGE = {
@@ -36,30 +14,19 @@ const HERO_IMAGE = {
   height: 1606,
 } as const;
 
-function AccessCard({
-  title,
-  description,
-  href,
-  icon: Icon,
-}: (typeof ACCESS_ROLES)[number]) {
+/** Toda la tarjeta es el enlace: ícono y título, como en la referencia del
+ * cliente. */
+function AccessCard({ title, href, icon: Icon }: (typeof ACCESS_ROLES)[number]) {
   return (
-    <article className="mx-auto flex h-full w-full max-w-[300px] flex-col items-center rounded-2xl border border-slate-100 bg-white px-6 py-7 text-center shadow-[0_10px_40px_rgba(15,23,42,0.08)]">
-      <div className="mb-5 flex size-[72px] items-center justify-center rounded-full border-2 border-[#1e5a9e] text-[#1e5a9e]">
+    <Link
+      href={href}
+      className="group flex h-full w-full flex-col items-center gap-4 rounded-3xl border border-slate-100 bg-white/90 px-6 py-8 text-center shadow-[0_12px_40px_rgba(15,23,42,0.08)] backdrop-blur transition-[transform,box-shadow] hover:-translate-y-1 hover:shadow-[0_20px_50px_-12px_rgba(30,90,158,0.35)] focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#1e5a9e]"
+    >
+      <span className="flex size-[76px] items-center justify-center rounded-full border-2 border-[#1e5a9e] text-[#1e5a9e] transition-colors group-hover:bg-[#1e5a9e] group-hover:text-white">
         <Icon className="size-8" strokeWidth={1.5} aria-hidden />
-      </div>
-      <h2 className="text-lg font-bold text-[#0f3d73]">{title}</h2>
-      <p className="mt-3 flex-1 text-sm leading-relaxed text-slate-500">{description}</p>
-      <Link
-        href={href}
-        className={cn(
-          "mt-7 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border-2 border-[#1e5a9e] bg-white text-sm font-semibold text-[#1e5a9e] transition-colors",
-          "hover:bg-[#1e5a9e] hover:text-white",
-        )}
-      >
-        Ingresar
-        <ArrowRight className="size-4" aria-hidden />
-      </Link>
-    </article>
+      </span>
+      <span className="text-lg font-bold text-[#1e5a9e]">{title}</span>
+    </Link>
   );
 }
 
@@ -96,29 +63,29 @@ export function HomeLanding() {
         </header>
 
         <main className="flex w-full flex-1 flex-col items-center text-center">
-          <h1 className="mt-10 text-3xl font-bold tracking-tight text-[#0f3d73] sm:text-[2rem] lg:mt-12">
-            Bienvenido
+          <p className="mt-6 text-2xl font-bold text-[#0f3d73] sm:text-3xl">Bienvenido</p>
+          <h1 className="mt-2 text-4xl leading-[1.05] font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
+            <span className="block text-[#0f3d73]">Lo que no se mide</span>
+            <span className="block bg-gradient-to-r from-[#0fb5ba] to-[#1d8fe0] bg-clip-text text-transparent">
+              no se mejora.
+            </span>
           </h1>
-          <p className="mt-3 max-w-xl text-base text-slate-600">
-            Plataforma de Análisis Estético, Biotipo, Fototipo y Diagnostico de apoyo Dermatológico asistido con Inteligencia Artificial{" "}
-            <span className="font-semibold text-[#1e5a9e]">IA</span>.
+          <p className="mt-5 max-w-2xl text-base text-pretty text-slate-700 sm:text-lg">
+            Mide cada procedimiento, sigue a tus pacientes a distancia, reduce la incertidumbre
+            clínica y demuestra resultados, con apoyo asistido por inteligencia artificial.
           </p>
-          <p className="mt-8 text-sm font-medium text-slate-400">
+          <p className="mt-6 text-sm font-medium text-[#5b8fd1]">
             Selecciona el tipo de acceso para continuar
           </p>
 
-          <div className="mt-6 flex w-full max-w-[980px] flex-wrap justify-center gap-5 lg:gap-6">
+          <nav aria-label="Tipo de acceso" className="mt-5 grid w-full max-w-[980px] gap-5 sm:grid-cols-3 lg:gap-6">
             {ACCESS_ROLES.map((role) => (
-              <div key={role.id} className="w-full sm:w-[calc(50%-0.625rem)] lg:w-[calc(33.333%-1rem)]">
-                <AccessCard {...role} />
-              </div>
+              <AccessCard key={role.id} {...role} />
             ))}
-          </div>
+          </nav>
         </main>
         <footer className="mt-10 space-y-2 pb-4 text-center text-xs text-slate-400">
-          <p className="inline-flex items-center justify-center gap-2">
-            Tu información está protegida con los más altos estándares de seguridad.
-          </p>
+          <p>Tu información está protegida con los más altos estándares de seguridad.</p>
           <p>© {year} PIEL360. Todos los derechos reservados.</p>
         </footer>
       </div>
