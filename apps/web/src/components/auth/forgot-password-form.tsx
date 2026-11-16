@@ -102,7 +102,7 @@ export function ForgotPasswordForm({
           Tu contraseña se actualizó correctamente. Ya puedes iniciar sesión con
           tu nueva contraseña.
         </p>
-        <Link href="/" className={buttonClass}>
+        <Link href="/ingresar" className={buttonClass}>
           Ir al inicio
         </Link>
       </div>

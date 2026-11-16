@@ -3,14 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createColumnHelper, type ColumnDef } from "@tanstack/react-table";
-import { Mail, Plus, Users } from "lucide-react";
+import { Camera, Download, Mail, Plus, TrendingUp, UserPlus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
-import { ModuleCard, ModuleMetric } from "@/components/ui/module-card";
+import { PageBanner } from "@/components/ui/page-banner";
+import { StatTile } from "@/components/ui/stat-tile";
 import { ApiError } from "@/lib/api-error";
 import type { OrgTeamMember } from "@/lib/queries/organizations";
 import { useInvitePatient, type Patient } from "@/lib/queries/patients";
 import { patientsListPath, type PatientsPanel } from "@/lib/patients-panel";
+import { PatientAvatar } from "./patient-avatar";
 
 function InvitePatientButton({ patient }: { patient: Patient }) {
   const invite = useInvitePatient();
@@ -50,14 +52,19 @@ function InvitePatientButton({ patient }: { patient: Patient }) {
   );
 }
 
-function initials(first: string, last: string) {
-  return `${first[0] ?? ""}${last[0] ?? ""}`.toUpperCase() || "?";
+/** Altas del mes en curso (hora local del navegador). */
+function countNewThisMonth(patients: Patient[]): number {
+  const now = new Date();
+  return patients.filter((p) => {
+    const d = new Date(p.createdAt);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }).length;
 }
 
 function buildColumns(basePath: string, showProfessionalColumn = false) {
   const columnHelper = createColumnHelper<Patient>();
 
-  const columns: ColumnDef<Patient, any>[] = [
+  const columns: ColumnDef<Patient, unknown>[] = [
     columnHelper.accessor((row) => `${row.firstName} ${row.lastName}`, {
       id: "name",
       header: "Paciente",
@@ -66,9 +73,12 @@ function buildColumns(basePath: string, showProfessionalColumn = false) {
         const href = `${basePath}/${row.id}`;
         return (
           <Link href={href} className="flex items-center gap-3 hover:opacity-90">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-              {initials(row.firstName, row.lastName)}
-            </div>
+            <PatientAvatar
+              firstName={row.firstName}
+              lastName={row.lastName}
+              thumbUrl={row.avatarThumbUrl}
+              className="size-10 text-xs"
+            />
             <div className="min-w-0">
               <p className="truncate font-medium text-foreground">
                 {row.firstName} {row.lastName}
@@ -80,7 +90,7 @@ function buildColumns(basePath: string, showProfessionalColumn = false) {
           </Link>
         );
       },
-    }),
+    }) as ColumnDef<Patient, unknown>,
     columnHelper.accessor("docNumber", {
       header: "Documento",
       cell: (info) => {
@@ -88,7 +98,7 @@ function buildColumns(basePath: string, showProfessionalColumn = false) {
         if (!row.docNumber) return "—";
         return row.docType ? `${row.docType} ${row.docNumber}` : row.docNumber;
       },
-    }),
+    }) as ColumnDef<Patient, unknown>,
   ];
 
   if (showProfessionalColumn) {
@@ -96,7 +106,7 @@ function buildColumns(basePath: string, showProfessionalColumn = false) {
       columnHelper.accessor("professionalName", {
         header: "Profesional",
         cell: (info) => info.getValue() ?? "—",
-      }),
+      }) as ColumnDef<Patient, unknown>,
     );
   }
 
@@ -104,20 +114,20 @@ function buildColumns(basePath: string, showProfessionalColumn = false) {
     columnHelper.accessor("phone", {
       header: "Teléfono",
       cell: (info) => info.getValue() ?? "—",
-    }),
+    }) as ColumnDef<Patient, unknown>,
     columnHelper.accessor("fitzpatrickType", {
       header: "Fototipo",
       cell: (info) => {
         const v = info.getValue();
         return v ? (
-          <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+          <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-800 dark:bg-sky-950 dark:text-sky-200">
             Tipo {v}
           </span>
         ) : (
           <span className="text-muted-foreground">—</span>
         );
       },
-    }),
+    }) as ColumnDef<Patient, unknown>,
     columnHelper.accessor("createdAt", {
       header: "Registro",
       cell: (info) => (
@@ -129,12 +139,13 @@ function buildColumns(basePath: string, showProfessionalColumn = false) {
           })}
         </span>
       ),
-    }),
+    }) as ColumnDef<Patient, unknown>,
     columnHelper.display({
       id: "status",
       header: "Estado",
       cell: () => (
-        <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+          <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
           Activo
         </span>
       ),
@@ -164,47 +175,38 @@ export function PatientsTable({
   const resolvedBase = patientsListPath(panel);
 
   const withFitzpatrick = patients.filter((p) => p.fitzpatrickType).length;
+  const fitzpatrickPct = patients.length ? Math.round((withFitzpatrick / patients.length) * 100) : 0;
+  const newThisMonth = countNewThisMonth(patients);
   const columns = buildColumns(resolvedBase, showProfessionalColumn);
 
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-3">
-        <ModuleCard className="p-4">
-          <div className="flex items-center gap-3">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Users className="size-5" />
+        <StatTile icon={Users} label="Total de pacientes" value={patients.length} />
+        <StatTile
+          icon={Camera}
+          tone="violet"
+          label="Con fototipo registrado"
+          value={
+            <span className="flex items-center gap-2">
+              {withFitzpatrick}
+              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                {fitzpatrickPct} %
+              </span>
             </span>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">
-                Total pacientes
-              </p>
-              <ModuleMetric className="mt-1 text-2xl">{patients.length}</ModuleMetric>
-            </div>
-          </div>
-        </ModuleCard>
-        <ModuleCard className="p-4">
-          <p className="text-xs font-medium text-muted-foreground">
-            Con fototipo registrado
-          </p>
-          <ModuleMetric className="mt-2 text-2xl">{withFitzpatrick}</ModuleMetric>
-        </ModuleCard>
-        <ModuleCard className="p-4">
-          <p className="text-xs font-medium text-muted-foreground">
-            Nuevos este mes
-          </p>
-          <ModuleMetric className="mt-2 text-2xl">
-            {
-              patients.filter((p) => {
-                const d = new Date(p.createdAt);
-                const now = new Date();
-                return (
-                  d.getMonth() === now.getMonth() &&
-                  d.getFullYear() === now.getFullYear()
-                );
-              }).length
-            }
-          </ModuleMetric>
-        </ModuleCard>
+          }
+        />
+        <StatTile
+          icon={UserPlus}
+          tone="emerald"
+          label="Nuevos este mes"
+          value={
+            <span className="flex items-center gap-2">
+              {newThisMonth}
+              <TrendingUp className="size-4 text-emerald-600" aria-hidden />
+            </span>
+          }
+        />
       </div>
 
       <DataTable
@@ -212,6 +214,8 @@ export function PatientsTable({
         data={patients}
         variant="modern"
         title="Listado de pacientes"
+        subtitle="Consulta, filtra y gestiona la información de tus pacientes"
+        titleIcon={Users}
         searchPlaceholder="Buscar por nombre, correo o documento..."
         emptyMessage="Aún no hay pacientes registrados."
         getRowHref={(row) => `${resolvedBase}/${row.id}`}
@@ -254,26 +258,36 @@ export function PatientsProfessionalFilter({
 
 export function PatientsListHeader({
   onNew,
+  onExport,
   description,
 }: {
   onNew?: () => void;
+  /** Descarga en CSV la lista que se está viendo. */
+  onExport?: () => void;
   description?: string;
 }) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div>
-        <h1>Pacientes</h1>
-        <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
-          {description ??
-            "Gestiona tu cartera de pacientes, consulta su historial y compara la evolución de sus análisis de piel."}
-        </p>
-      </div>
-      {onNew ? (
-        <Button onClick={onNew} className="shrink-0 gap-1.5">
-          <Plus className="size-4" />
-          Nuevo paciente
-        </Button>
-      ) : null}
-    </div>
+    <PageBanner
+      image
+      icon={Users}
+      title="Pacientes"
+      subtitle={description ?? "Gestiona el historial clínico y consulta la información de tus pacientes."}
+      actions={
+        <>
+          {onNew ? (
+            <Button onClick={onNew} className="gap-1.5">
+              <Plus className="size-4" />
+              Nuevo paciente
+            </Button>
+          ) : null}
+          {onExport ? (
+            <Button variant="outline" onClick={onExport} className="gap-1.5 bg-card">
+              <Download className="size-4" />
+              Exportar lista
+            </Button>
+          ) : null}
+        </>
+      }
+    />
   );
 }

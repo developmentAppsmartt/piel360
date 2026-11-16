@@ -16,10 +16,20 @@ import { RequirePermission } from '../auth/permissions.decorator';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { PlansService } from './plans.service';
+import { PublicPlansService } from './public-plans.service';
 
 @Controller()
 export class PlansController {
-  constructor(private readonly plansService: PlansService) {}
+  constructor(
+    private readonly plansService: PlansService,
+    private readonly publicPlans: PublicPlansService,
+  ) {}
+
+  /** Sin auth: la sección de precios de la landing. */
+  @Get('public/plans')
+  findPublicCatalog() {
+    return this.publicPlans.findCatalog();
+  }
 
   @Get('plans')
   @UseGuards(JwtAuthGuard)

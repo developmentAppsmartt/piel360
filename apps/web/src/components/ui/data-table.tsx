@@ -11,7 +11,7 @@ import {
   type PaginationState,
   type SortingState,
 } from "@tanstack/react-table";
-import { ChevronRight, Search } from "lucide-react";
+import { ChevronRight, Search, type LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,8 @@ export function DataTable<TData>({
   initialSorting = [],
   variant = "default",
   title,
+  subtitle,
+  titleIcon: TitleIcon,
   searchAside,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -47,6 +49,9 @@ export function DataTable<TData>({
   initialSorting?: SortingState;
   variant?: "default" | "modern";
   title?: string;
+  /** Solo en `modern`: línea bajo el título y su ícono. */
+  subtitle?: string;
+  titleIcon?: LucideIcon;
   /** Algo junto al buscador, a su derecha (p. ej. el botón de ayuda). */
   searchAside?: ReactNode;
 }) {
@@ -260,7 +265,17 @@ export function DataTable<TData>({
         {(title || searchPlaceholder) && (
           <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
             {title ? (
-              <h2 className="text-base font-semibold text-foreground">{title}</h2>
+              <div className="flex items-center gap-3">
+                {TitleIcon ? (
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <TitleIcon className="size-5" aria-hidden />
+                  </span>
+                ) : null}
+                <div>
+                  <h2 className="text-base font-semibold text-foreground">{title}</h2>
+                  {subtitle ? <p className="text-xs text-muted-foreground">{subtitle}</p> : null}
+                </div>
+              </div>
             ) : (
               <span />
             )}

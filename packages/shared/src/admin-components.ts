@@ -99,6 +99,13 @@ export const ADMIN_COMPONENTS: readonly AdminComponentDef[] = [
     sortOrder: 90,
   },
   {
+    slug: "admin.leads",
+    label: "Leads de la landing",
+    href: "/admin/leads",
+    sortOrder: 95,
+    description: "Contactos que llegan por el formulario de la página pública.",
+  },
+  {
     slug: "admin.reports",
     label: "Reportes",
     href: "/admin/reportes",

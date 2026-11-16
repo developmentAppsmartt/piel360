@@ -8,6 +8,7 @@ import {
   PatientsTable,
 } from "@/components/patients/patients-table";
 import { ApiError } from "@/lib/api-error";
+import { exportPatientsCsv } from "@/lib/patients-export";
 import { useOrganizationTeam } from "@/lib/queries/organizations";
 import { usePatients } from "@/lib/queries/patients";
 
@@ -27,6 +28,7 @@ export default function PacientesPage() {
     professionalUserId === "all" ? undefined : professionalUserId;
 
   const { data, isLoading, error } = usePatients(true, selectedProfessional);
+  const showProfessionalColumn = isOrgOwner && professionalUserId === "all";
 
   useEffect(() => {
     if (error instanceof ApiError && error.status === 401) {
@@ -36,23 +38,22 @@ export default function PacientesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <PatientsListHeader
-          onNew={() => router.push("/doctor/pacientes/nuevo")}
-          description={
-            isOrgOwner
-              ? "Consulta los pacientes de tu equipo. Cada profesional invitado solo ve los suyos; tú puedes verlos todos y filtrar por persona."
-              : undefined
-          }
+      <PatientsListHeader
+        onNew={() => router.push("/doctor/pacientes/nuevo")}
+        onExport={data ? () => exportPatientsCsv(data, showProfessionalColumn) : undefined}
+        description={
+          isOrgOwner
+            ? "Consulta los pacientes de tu equipo. Cada profesional invitado solo ve los suyos; tú puedes verlos todos y filtrar por persona."
+            : undefined
+        }
+      />
+      {isOrgOwner && filterMembers.length > 0 ? (
+        <PatientsProfessionalFilter
+          members={filterMembers}
+          value={professionalUserId}
+          onChange={setProfessionalUserId}
         />
-        {isOrgOwner && filterMembers.length > 0 ? (
-          <PatientsProfessionalFilter
-            members={filterMembers}
-            value={professionalUserId}
-            onChange={setProfessionalUserId}
-          />
-        ) : null}
-      </div>
+      ) : null}
 
       {isOrgOwner && teamMembers.length === 0 ? (
         <p className="text-sm text-muted-foreground">
@@ -74,7 +75,7 @@ export default function PacientesPage() {
         <PatientsTable
           patients={data}
           panel="doctor"
-          showProfessionalColumn={isOrgOwner && professionalUserId === "all"}
+          showProfessionalColumn={showProfessionalColumn}
         />
       ) : null}
     </div>

@@ -8,7 +8,7 @@ export default function DoctorLoginPage() {
     <LoginPageShell
       legal
       title="Soy Usuario"
-      description="Accede a la plataforma para realizar análisis y gestionar pacientes."
+      description="Ingresa para analizar la piel de tus pacientes y seguir su evolución con apoyo de inteligencia artificial."
       icon={UserRound}
       accountPrompt={
         <>
@@ -26,7 +26,7 @@ export default function DoctorLoginPage() {
               Inicio de sesión empresarial
             </Link>
           </p>
-          <Link href="/" className="text-sm text-slate-500 underline-offset-2 hover:text-primary hover:underline">
+          <Link href="/ingresar" className="text-sm text-slate-500 underline-offset-2 hover:text-primary hover:underline">
             Volver al inicio
           </Link>
         </div>

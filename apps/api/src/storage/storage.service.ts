@@ -8,7 +8,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { createReadStream, existsSync } from 'fs';
-import { mkdir, unlink, writeFile } from 'fs/promises';
+import { mkdir, readFile, unlink, writeFile } from 'fs/promises';
 import { dirname, join, normalize, resolve } from 'path';
 
 const SIGNED_URL_TTL_SECONDS = 3600;
@@ -48,9 +48,7 @@ export class StorageService {
 
     if (this.forceLocal) {
       this.client = null;
-      this.logger.warn(
-        `STORAGE_DRIVER=local — archivos en ${this.localRoot}`,
-      );
+      this.logger.warn(`STORAGE_DRIVER=local — archivos en ${this.localRoot}`);
       return;
     }
 
@@ -94,7 +92,8 @@ export class StorageService {
         code === 'ENOTFOUND' ||
         code === 'EAI_AGAIN' ||
         code === 'NetworkingError' ||
-        (err instanceof Error && /ENOTFOUND|EAI_AGAIN|getaddrinfo/i.test(err.message))
+        (err instanceof Error &&
+          /ENOTFOUND|EAI_AGAIN|getaddrinfo/i.test(err.message))
       ) {
         this.logger.warn(
           `S3 no alcanzable (${code || err}); guardando localmente: ${key}`,
@@ -175,6 +174,12 @@ export class StorageService {
     } catch {
       return false;
     }
+  }
+
+  /** Contenido de un archivo nuestro, esté en disco o en el bucket. */
+  async read(key: string): Promise<Buffer> {
+    if (this.localExists(key)) return readFile(this.localPath(key));
+    return this.downloadToBuffer(await this.getSignedUrl(key, 300));
   }
 
   /** Copia una URL temporal de Skiniver/YouCam (expiran) a un Buffer para

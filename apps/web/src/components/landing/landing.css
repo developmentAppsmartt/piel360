@@ -1,0 +1,200 @@
+/*
+ * Estilos de la landing pública. Viven aparte de globals.css: solo los carga
+ * la página de inicio. Todo lo que se mueve usa transform/opacity (no tumba el
+ * CLS ni el INP) y se apaga con `prefers-reduced-motion`.
+ */
+.landing {
+  --landing-electric: #1d6bff;
+  --landing-medical: #1e5a9e;
+  --landing-navy: #0b2a52;
+  --landing-ink: #0f172a;
+  --landing-muted: #475569;
+  --landing-turquoise: #0fb5ba;
+  --landing-turquoise-ink: #0b7f83;
+  --landing-mist: #f1f6fc;
+  --landing-line: #dbe5f1;
+  --landing-holo: linear-gradient(110deg, #1d6bff 0%, #0fb5ba 35%, #8b5cf6 65%, #1d6bff 100%);
+  color: var(--landing-ink);
+  background: #fff;
+  overflow-x: clip;
+}
+
+.landing :focus-visible {
+  outline: 3px solid var(--landing-electric);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+.landing-holo-text {
+  background: var(--landing-holo);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: landing-holo-shift 8s linear infinite;
+}
+
+.landing-holo-border {
+  position: relative;
+}
+.landing-holo-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1.5px;
+  border-radius: inherit;
+  background: var(--landing-holo);
+  background-size: 200% 100%;
+  animation: landing-holo-shift 8s linear infinite;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Entrada al hacer scroll (ver reveal.tsx). Solo se oculta si hay JS: sin él
+ * nadie lo volvería a mostrar. */
+@media (scripting: enabled) {
+  .landing-reveal {
+    opacity: 0;
+    transform: translateY(32px) scale(0.98);
+    transition:
+      opacity 0.8s cubic-bezier(0.2, 0.7, 0.2, 1),
+      transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+    transition-delay: var(--landing-delay, 0ms);
+  }
+  .landing-reveal[data-visible="true"] {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.landing-float {
+  animation: landing-float 7s ease-in-out infinite;
+}
+.landing-float-slow {
+  animation: landing-float 9s ease-in-out infinite reverse;
+}
+
+/* Línea de escaneo sobre el rostro. */
+.landing-scan {
+  position: absolute;
+  inset-inline: 0;
+  height: 22%;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(15, 181, 186, 0.18) 70%,
+    rgba(255, 255, 255, 0.45) 100%
+  );
+  animation: landing-scan 4.5s cubic-bezier(0.6, 0, 0.4, 1) infinite;
+  pointer-events: none;
+}
+
+.landing-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: landing-pulse 2.4s ease-out infinite;
+}
+
+.landing-spin-slow {
+  animation: landing-spin 40s linear infinite;
+}
+
+/* Línea de tiempo de «Cómo funciona»: se llena al entrar en pantalla. */
+.landing-timeline-fill {
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 1.6s cubic-bezier(0.2, 0.7, 0.2, 1) 0.2s;
+}
+[data-visible="true"] .landing-timeline-fill {
+  transform: scaleX(1);
+}
+@media (max-width: 767px) {
+  .landing-timeline-fill {
+    transform: scaleY(0);
+    transform-origin: top;
+  }
+  [data-visible="true"] .landing-timeline-fill {
+    transform: scaleY(1);
+  }
+}
+
+.landing-body-3d {
+  transform-style: preserve-3d;
+  animation: landing-turn 10s ease-in-out infinite;
+}
+
+@keyframes landing-holo-shift {
+  to {
+    background-position: 200% 0;
+  }
+}
+@keyframes landing-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
+}
+@keyframes landing-scan {
+  0% {
+    transform: translateY(-30%);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(480%);
+    opacity: 0;
+  }
+}
+@keyframes landing-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+@keyframes landing-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes landing-turn {
+  0%,
+  100% {
+    transform: perspective(900px) rotateY(-14deg);
+  }
+  50% {
+    transform: perspective(900px) rotateY(14deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing *,
+  .landing *::before,
+  .landing *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .landing-reveal {
+    opacity: 1;
+    transform: none;
+  }
+  .landing-timeline-fill {
+    transform: none;
+  }
+  .landing-scan {
+    display: none;
+  }
+}

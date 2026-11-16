@@ -114,7 +114,7 @@ export class PlansService {
     private readonly planPool: PlanPoolAvailabilityService,
   ) {}
 
-  private async getIvaPercentDefault(): Promise<number> {
+  async getIvaPercentDefault(): Promise<number> {
     const row = await this.prisma.appConfig.findUnique({
       where: { key: BILLING_CONFIG_KEYS.ivaPercentDefault },
     });

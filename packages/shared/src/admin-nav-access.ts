@@ -68,6 +68,7 @@ export const ADMIN_MODULE_LEGACY_ACTIONS: Record<string, readonly string[]> = {
   "admin.maps.patients": ["view_any_patient", "view_patient"],
   "admin.purchases": ["view_any_subscription", "view_subscription"],
   "admin.billing": ["view_any_subscription", "view_subscription"],
+  "admin.leads": [],
   "admin.reports": ["view_any_analysis", "view_analysis"],
   "admin.unit_wallet": [],
   "admin.audit": [],

@@ -39,6 +39,10 @@ export interface Patient {
   lastChronologicalAgeYears?: number | null;
   lastSkinAgeDifference?: number | null;
   lastSkinAgeAt?: string | null;
+  /** Foto que el paciente configura en la app (URL firmada, original). */
+  avatarUrl?: string | null;
+  /** Miniatura de 160 px de esa foto: la que se usa en listas y cabeceras. */
+  avatarThumbUrl?: string | null;
   lat?: number | string | null;
   lng?: number | string | null;
   createdAt: string;

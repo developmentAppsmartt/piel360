@@ -23,6 +23,11 @@ async function bootstrap() {
   app.useBodyParser('json', { limit: '5mb' });
   app.useBodyParser('urlencoded', { limit: '5mb', extended: true });
 
+  // En el VPS todo llega por el Nginx de CloudPanel (el puerto solo escucha en
+  // 127.0.0.1): sin esto `req.ip` era la IP del proxy para todos, y los
+  // límites de `@Throttle` se repartían entre todos los visitantes a la vez.
+  app.set('trust proxy', 1);
+
   app.use(cookieParser());
   // Bridge del captcha móvil (fuera de /api): Google exige un origen HTTP real.
   // process.cwd() = apps/api tanto en start:dev como en el contenedor.

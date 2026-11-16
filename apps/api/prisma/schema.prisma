@@ -36,6 +36,9 @@ model User {
   longitude          Decimal?  @db.Decimal(10, 7)
   /** Key S3 de la foto de perfil (URL firmada al leer). */
   avatarKey          String?   @map("avatar_key")
+  /** Miniatura de 160 px de la foto (listas de pacientes): la original pesa
+   * 1,5–3 MB y una página de la tabla pintaba decenas. */
+  avatarThumbKey     String?   @map("avatar_thumb_key")
   /**
    * Cuenta deshabilitada por un administrador (profesional o empresa). Puede
    * iniciar sesión, pero solo ve la pantalla con `disabledReason`. Si es el
@@ -1526,4 +1529,34 @@ model SalesGoal {
 
   @@unique([month, planType])
   @@map("sales_goals")
+}
+
+/**
+ * Contactos que llegan por el formulario de la landing (`POST /public/leads`).
+ * Los valores de `interest`, `intent` y `status` los fija un CHECK en la base
+ * con los mismos de `packages/shared/src/leads.ts`.
+ */
+model Lead {
+  id          BigInt   @id @default(autoincrement())
+  name        String
+  business    String
+  email       String
+  phone       String
+  /** aesthetic | derm | both */
+  interest    String
+  /** demo | meeting | custom_plan */
+  intent      String
+  /** Plan de la tarjeta desde la que escribió, si vino de Planes. */
+  planId      BigInt?  @map("plan_id")
+  utmSource   String?  @map("utm_source")
+  utmMedium   String?  @map("utm_medium")
+  utmCampaign String?  @map("utm_campaign")
+  /** new | contacted | qualified | won | lost */
+  status      String   @default("new")
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@map("leads")
 }

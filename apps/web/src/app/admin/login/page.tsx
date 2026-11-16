@@ -17,7 +17,7 @@ export default function AdminLoginPage() {
         </span>
       }
       footer={
-        <Link href="/" className="text-sm text-slate-500 underline-offset-2 hover:text-primary hover:underline">
+        <Link href="/ingresar" className="text-sm text-slate-500 underline-offset-2 hover:text-primary hover:underline">
           Volver al inicio
         </Link>
       }

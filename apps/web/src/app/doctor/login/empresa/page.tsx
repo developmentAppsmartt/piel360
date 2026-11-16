@@ -8,7 +8,7 @@ export default function EmpresaLoginPage() {
     <LoginPageShell
       legal
       title="Soy Empresa"
-      description="Accede al panel de tu organización, equipo y planes empresariales."
+      description="Ingresa para gestionar tu organización, tu equipo y tus planes, y medir los resultados de tus pacientes con apoyo de inteligencia artificial."
       icon={Building2}
       accountPrompt={
         <>
@@ -26,7 +26,7 @@ export default function EmpresaLoginPage() {
               Inicio de sesión profesional
             </Link>
           </p>
-          <Link href="/" className="text-sm text-slate-500 underline-offset-2 hover:text-primary hover:underline">
+          <Link href="/ingresar" className="text-sm text-slate-500 underline-offset-2 hover:text-primary hover:underline">
             Volver al inicio
           </Link>
         </div>

@@ -8,6 +8,7 @@ import {
 import { PROFILE_PHOTO_TYPE_ERROR } from '@piel360/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { avatarThumbKeyFor, uploadAvatarThumb } from './avatar-thumb';
 import type { UpdateMeDto } from './dto/update-me.dto';
 import type { UpdateUserAdminDto } from './dto/update-user-admin.dto';
 
@@ -114,12 +115,28 @@ export class UsersService {
       );
     }
 
+    // Sin miniatura la foto se sube igual: las listas caen a las iniciales y
+    // el relleno del arranque la vuelve a intentar.
+    const thumbKey = await uploadAvatarThumb(
+      this.storage,
+      key,
+      file.buffer,
+    ).catch((err: unknown) => {
+      this.logger.warn(
+        `Miniatura de ${key} no generada: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return null;
+    });
+
     const user = await this.prisma.user.update({
       where: { id: BigInt(userId) },
-      data: { avatarKey: key },
+      data: { avatarKey: key, avatarThumbKey: thumbKey },
     });
     // De PNG a JPG (o al revés) la key cambia y la foto vieja quedaría huérfana.
-    if (previousKey && previousKey !== key) await this.deleteFile(previousKey);
+    if (previousKey && previousKey !== key) {
+      await this.deleteFile(previousKey);
+      await this.deleteFile(avatarThumbKeyFor(previousKey));
+    }
     const avatarUrl = await this.signAvatar(key);
     return {
       ...omitPassword(user),
@@ -133,9 +150,10 @@ export class UsersService {
     if (key) {
       await this.prisma.user.update({
         where: { id: BigInt(userId) },
-        data: { avatarKey: null },
+        data: { avatarKey: null, avatarThumbKey: null },
       });
       await this.deleteFile(key);
+      await this.deleteFile(avatarThumbKeyFor(key));
     }
     return { avatarUrl: null };
   }

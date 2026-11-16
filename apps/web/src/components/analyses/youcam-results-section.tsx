@@ -155,6 +155,7 @@ export function AnalisisPiel360ResultsSection({
         ageDiff={ageDiff}
         skinType={skinType}
         fitzpatrickDetail={fitzpatrickDetail}
+        scoreConfig={scoreConfig}
       />
 
       <AnalisisPiel360Viewer
