@@ -7,7 +7,9 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { SkinAgeRulesModule } from '../skin-age-rules/skin-age-rules.module';
 import { StorageModule } from '../storage/storage.module';
+import { PatientAnalysisRequestsService } from './patient-analysis-requests.service';
 import { PatientInviteService } from './patient-invite.service';
+import { PatientWriteService } from './patient-write.service';
 import { PatientsService } from './patients.service';
 import { PatientsController } from './patients.controller';
 
@@ -21,7 +23,13 @@ import { PatientsController } from './patients.controller';
     EmailTemplatesModule,
     NotificationsModule,
   ],
-  providers: [PatientsService, AnalysisImageUrlsService, PatientInviteService],
+  providers: [
+    PatientsService,
+    PatientWriteService,
+    PatientAnalysisRequestsService,
+    AnalysisImageUrlsService,
+    PatientInviteService,
+  ],
   controllers: [PatientsController],
   exports: [PatientsService],
 })

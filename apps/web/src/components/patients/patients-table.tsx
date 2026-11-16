@@ -12,6 +12,7 @@ import { ApiError } from "@/lib/api-error";
 import type { OrgTeamMember } from "@/lib/queries/organizations";
 import { useInvitePatient, type Patient } from "@/lib/queries/patients";
 import { patientsListPath, type PatientsPanel } from "@/lib/patients-panel";
+import { PatientAvatar } from "./patient-avatar";
 
 function InvitePatientButton({ patient }: { patient: Patient }) {
   const invite = useInvitePatient();
@@ -51,10 +52,6 @@ function InvitePatientButton({ patient }: { patient: Patient }) {
   );
 }
 
-function initials(first: string, last: string) {
-  return `${first[0] ?? ""}${last[0] ?? ""}`.toUpperCase() || "?";
-}
-
 /** Altas del mes en curso (hora local del navegador). */
 function countNewThisMonth(patients: Patient[]): number {
   const now = new Date();
@@ -76,9 +73,12 @@ function buildColumns(basePath: string, showProfessionalColumn = false) {
         const href = `${basePath}/${row.id}`;
         return (
           <Link href={href} className="flex items-center gap-3 hover:opacity-90">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-100 to-blue-200 text-xs font-bold text-[#1e5a9e] dark:from-sky-900 dark:to-blue-900 dark:text-sky-200">
-              {initials(row.firstName, row.lastName)}
-            </div>
+            <PatientAvatar
+              firstName={row.firstName}
+              lastName={row.lastName}
+              thumbUrl={row.avatarThumbUrl}
+              className="size-10 text-xs"
+            />
             <div className="min-w-0">
               <p className="truncate font-medium text-foreground">
                 {row.firstName} {row.lastName}

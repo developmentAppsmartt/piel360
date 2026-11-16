@@ -6,11 +6,8 @@ import type { Patient } from "@/lib/queries/patients";
 import { patientEditPath, patientsListPath, type PatientsPanel } from "@/lib/patients-panel";
 import { AssignPatientDoctorButton } from "../assign-patient-doctor-button";
 import { NewAnalysisDialog } from "../new-analysis-dialog";
+import { PatientAvatar } from "../patient-avatar";
 import { formatProfileDate } from "./profile-format";
-
-function initials(first: string, last: string) {
-  return `${first[0] ?? ""}${last[0] ?? ""}`.toUpperCase() || "?";
-}
 
 /** Cabecera de la ficha: ruta, avatar, nombre, contacto, acciones y el rostro
  * del banner a la derecha (como la maqueta del cliente). */
@@ -54,9 +51,12 @@ export function ProfileHero({
       <div className="mt-4 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between lg:pr-[30%]">
         <div className="flex min-w-0 items-center gap-4">
           <div className="relative shrink-0">
-            <div className="flex size-20 items-center justify-center rounded-full bg-gradient-to-br from-sky-100 to-blue-200 text-2xl font-bold text-[#1e5a9e] ring-4 ring-sky-50 dark:from-sky-900 dark:to-blue-900 dark:text-sky-200 dark:ring-sky-950">
-              {initials(patient.firstName, patient.lastName)}
-            </div>
+            <PatientAvatar
+              firstName={patient.firstName}
+              lastName={patient.lastName}
+              thumbUrl={patient.avatarThumbUrl}
+              className="size-20 text-2xl ring-4 ring-sky-50 dark:ring-sky-950"
+            />
             <span className="absolute right-0 bottom-0 flex size-6 items-center justify-center rounded-full bg-emerald-500 text-white ring-2 ring-card">
               <Check className="size-3.5" aria-hidden />
             </span>

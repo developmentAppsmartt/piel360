@@ -18,7 +18,9 @@ import { CreateAnalysisRequestDto } from './dto/create-analysis-request.dto';
 import { AssignPatientDoctorDto } from './dto/assign-patient-doctor.dto';
 import { SurveyDto } from './dto/survey.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
+import { PatientAnalysisRequestsService } from './patient-analysis-requests.service';
 import { PatientInviteService } from './patient-invite.service';
+import { PatientWriteService } from './patient-write.service';
 import { PatientsService } from './patients.service';
 
 @Controller()
@@ -26,6 +28,8 @@ import { PatientsService } from './patients.service';
 export class PatientsController {
   constructor(
     private readonly patientsService: PatientsService,
+    private readonly patientWrite: PatientWriteService,
+    private readonly analysisRequests: PatientAnalysisRequestsService,
     private readonly skinAgeRecommendations: SkinAgeRecommendationsService,
     private readonly patientInviteService: PatientInviteService,
   ) {}
@@ -48,7 +52,7 @@ export class PatientsController {
 
   @Get('me/analysis-requests/pending')
   getMyPendingAnalysisRequests(@CurrentUser() user: JwtPayload) {
-    return this.patientsService.getMyPendingAnalysisRequests(user.sub);
+    return this.analysisRequests.findMyPending(user.sub);
   }
 
   @Patch('me/analysis-requests/:id/complete')
@@ -56,12 +60,12 @@ export class PatientsController {
     @Param('id') id: string,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.patientsService.completeMyAnalysisRequest(id, user.sub);
+    return this.analysisRequests.completeMine(id, user.sub);
   }
 
   @Post('patients')
   create(@Body() dto: CreatePatientDto, @CurrentUser() user: JwtPayload) {
-    return this.patientsService.create(dto, user);
+    return this.patientWrite.create(dto, user);
   }
 
   @Get('patients/me')
@@ -83,7 +87,7 @@ export class PatientsController {
     @Body() dto: CreateAnalysisRequestDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.patientsService.createAnalysisRequest(id, dto, user);
+    return this.analysisRequests.create(id, dto, user);
   }
 
   @Get('patients/:id/analysis-requests/pending')
@@ -91,7 +95,7 @@ export class PatientsController {
     @Param('id') id: string,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.patientsService.listPendingAnalysisRequests(id, user);
+    return this.analysisRequests.findPending(id, user);
   }
 
   @Delete('patients/:id/analysis-requests/:requestId')
@@ -100,7 +104,7 @@ export class PatientsController {
     @Param('requestId') requestId: string,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.patientsService.cancelAnalysisRequest(id, requestId, user);
+    return this.analysisRequests.cancel(id, requestId, user);
   }
 
   @Get('patients/:id')
@@ -119,7 +123,7 @@ export class PatientsController {
     @Body() dto: AssignPatientDoctorDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.patientsService.assignDoctor(id, dto.doctor_id, user);
+    return this.patientWrite.assignDoctor(id, dto.doctor_id, user);
   }
 
   @Patch('patients/:id')
@@ -128,7 +132,7 @@ export class PatientsController {
     @Body() dto: UpdatePatientDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.patientsService.update(id, dto, user);
+    return this.patientWrite.update(id, dto, user);
   }
 
   @Get('patients/:id/analyses')

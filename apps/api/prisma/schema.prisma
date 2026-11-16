@@ -36,6 +36,9 @@ model User {
   longitude          Decimal?  @db.Decimal(10, 7)
   /** Key S3 de la foto de perfil (URL firmada al leer). */
   avatarKey          String?   @map("avatar_key")
+  /** Miniatura de 160 px de la foto (listas de pacientes): la original pesa
+   * 1,5–3 MB y una página de la tabla pintaba decenas. */
+  avatarThumbKey     String?   @map("avatar_thumb_key")
   /**
    * Cuenta deshabilitada por un administrador (profesional o empresa). Puede
    * iniciar sesión, pero solo ve la pantalla con `disabledReason`. Si es el
