@@ -13,6 +13,7 @@ import {
   toConditionFormValues,
   toConditionInput,
 } from "@/components/conditions/condition-schema";
+import { AddConditionButton } from "@/components/conditions/add-condition-button";
 import { ConditionsFormFooter } from "@/components/conditions/conditions-form-footer";
 import { useTreatmentCategories } from "@/lib/queries/treatments";
 import type { CreateTreatmentInput, Treatment } from "@/lib/queries/treatments";
@@ -71,6 +72,9 @@ export function TreatmentForm({
   const watchedConditions = watch("conditions");
   const conditionKeys = watchedConditions.map(conditionKey);
   const nextMetric = firstFreeMetric(conditionKeys, excludedMetrics);
+  const addCondition = () => {
+    if (nextMetric) append(defaultConditionRow(nextMetric));
+  };
 
   const subjectPhrase = forceCategoryPicker ? "este tratamiento" : "este producto sugerido";
 
@@ -134,11 +138,14 @@ export function TreatmentForm({
         </div>
       )}
 
-      <div className="flex items-center gap-2">
-        <input id="isActive" type="checkbox" {...register("isActive")} />
-        <label htmlFor="isActive" className="text-sm text-foreground">
-          Activo (se tiene en cuenta para recomendaciones)
-        </label>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <input id="isActive" type="checkbox" {...register("isActive")} />
+          <label htmlFor="isActive" className="text-sm text-foreground">
+            Activo (se tiene en cuenta para recomendaciones)
+          </label>
+        </div>
+        <AddConditionButton onClick={addCondition} disabled={nextMetric == null} />
       </div>
 
       <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4">
@@ -177,7 +184,7 @@ export function TreatmentForm({
       {errors.root && <p className="text-sm text-destructive">{errors.root.message}</p>}
 
       <ConditionsFormFooter
-        onAddCondition={() => nextMetric && append(defaultConditionRow(nextMetric))}
+        onAddCondition={addCondition}
         canAddCondition={nextMetric != null}
         isSubmitting={isSubmitting}
         submitLabel={submitLabel}

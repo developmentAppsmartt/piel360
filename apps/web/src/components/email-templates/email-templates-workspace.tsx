@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EmailEditor } from "@/components/email-templates/email-editor";
-import { EmailIntegrations } from "@/components/email-templates/email-integrations";
 import { EmailPreview } from "@/components/email-templates/email-preview";
 import { TemplateFields } from "@/components/email-templates/template-fields";
 import { TemplatePicker } from "@/components/email-templates/template-picker";
@@ -254,11 +253,6 @@ export function EmailTemplatesWorkspace({
         showCreate={mode === "custom"}
         onCreate={() => void handleCreate()}
         creating={createMutation.isPending}
-      />
-
-      <EmailIntegrations
-        googleMessage={meta?.integrations.google.message}
-        providerMessage={meta?.integrations.mailProvider.message}
       />
 
       <TemplatePicker
