@@ -4,12 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { EmailEditor } from "@/components/email-templates/email-editor";
 import { EmailPreview } from "@/components/email-templates/email-preview";
 import { TemplateFields } from "@/components/email-templates/template-fields";
-import { TemplatePicker } from "@/components/email-templates/template-picker";
 import { TemplateEditorHeader, type EditorTab } from "@/components/email-templates/template-editor-header";
 import { TemplateSaveBar } from "@/components/email-templates/template-save-bar";
+import { TemplatesList } from "@/components/email-templates/templates-list";
 import { TemplatesPageHeader } from "@/components/email-templates/templates-page-header";
 import { VariableManager } from "@/components/email-templates/variable-manager";
 import { ModuleCard } from "@/components/ui/module-card";
+import { buildTemplateRows, type TemplateRow } from "@/lib/email-template-catalog";
 import {
   useCreateEmailTemplate,
   useDeleteEmailTemplate,
@@ -45,8 +46,11 @@ export const DOCTOR_EVENT_KIND_IDS = [
 
 export function EmailTemplatesWorkspace({
   eventKinds,
+  audience = "pacientes",
 }: {
   eventKinds: readonly string[];
+  /** A quién le llegan los correos: el admin escribe a los profesionales. */
+  audience?: "pacientes" | "profesionales";
 }) {
   const { data: templates, isLoading } = useEmailTemplates();
   const { data: meta } = useEmailTemplateMeta();
@@ -54,6 +58,7 @@ export function EmailTemplatesWorkspace({
   const updateMutation = useUpdateEmailTemplate();
   const deleteMutation = useDeleteEmailTemplate();
 
+  const [view, setView] = useState<"list" | "edit">("list");
   const [mode, setMode] = useState<"event" | "custom">("event");
   const [activeKind, setActiveKind] = useState<string>(eventKinds[0]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -72,6 +77,15 @@ export function EmailTemplatesWorkspace({
   const hydratedKeyRef = useRef<string | null>(null);
 
   const variables = meta?.variables ?? [];
+  const rows = useMemo(
+    () =>
+      buildTemplateRows({
+        eventKinds,
+        templates: templates ?? [],
+        kindLabel: (kind) => meta?.kinds.find((k) => k.id === kind)?.label ?? kind,
+      }),
+    [eventKinds, templates, meta],
+  );
 
   const byKindQuery = useEmailTemplateByKind(mode === "event" ? activeKind : null);
 
@@ -154,6 +168,7 @@ export function EmailTemplatesWorkspace({
       setMode("custom");
       setSelectedId(created.id);
       setTab("edit");
+      setView("edit");
       setSaveMsg("Plantilla creada. Personalízala y guarda los cambios.");
     } catch (error) {
       setSaveMsg(
@@ -164,28 +179,58 @@ export function EmailTemplatesWorkspace({
     }
   }
 
+  /** Abre una fila del listado en el editor (o en su vista previa). */
+  function openRow(row: TemplateRow, nextTab: EditorTab) {
+    if (row.eventKind) {
+      setMode("event");
+      setActiveKind(row.eventKind);
+    } else {
+      setMode("custom");
+      setSelectedId(row.templateId);
+    }
+    // Al volver a abrir la misma plantilla hay que recargarla: lo que no se
+    // guardó la vez anterior se descartó.
+    hydratedKeyRef.current = null;
+    setSaveMsg(null);
+    setTab(nextTab);
+    setView("edit");
+  }
+
+  function handleBack() {
+    if (dirty && !window.confirm("Hay cambios sin guardar. ¿Salir sin guardarlos?")) return;
+    setDirty(false);
+    setSaveMsg(null);
+    setView("list");
+  }
+
   async function handleDelete() {
     if (!selected?.id) return;
-    const confirmMsg =
-      mode === "event"
-        ? `¿Volver «${selected.name}» a su contenido por defecto? Se borra la personalización guardada.`
-        : `¿Eliminar la plantilla «${selected.name}»? Esta acción no se puede deshacer.`;
-    if (!window.confirm(confirmMsg)) return;
+    const removed = await removeTemplate({ id: selected.id, name: selected.name, isEvent: mode === "event" });
+    // Una personalizada borrada ya no tiene nada que editar.
+    if (removed && mode === "custom") setView("list");
+  }
+
+  /** Borra una personalizada o devuelve un evento a su contenido por defecto. */
+  async function removeTemplate(target: { id: string; name: string; isEvent: boolean }): Promise<boolean> {
+    const confirmMsg = target.isEvent
+      ? `¿Volver «${target.name}» a su contenido por defecto? Se borra la personalización guardada.`
+      : `¿Eliminar la plantilla «${target.name}»? Esta acción no se puede deshacer.`;
+    if (!window.confirm(confirmMsg)) return false;
     try {
-      await deleteMutation.mutateAsync(selected.id);
+      await deleteMutation.mutateAsync(target.id);
       // Sin esto el editor seguía mostrando la personalización borrada: en
       // modo evento `editingKey` no cambia, así que el efecto de hidratación
       // salía por su `return` temprano y nunca cargaba el default.
       hydratedKeyRef.current = null;
       setSelectedId(null);
       setDirty(false);
-      setSaveMsg(mode === "event" ? "Se volvió al contenido por defecto." : "Plantilla eliminada.");
+      setSaveMsg(target.isEvent ? "Se volvió al contenido por defecto." : "Plantilla eliminada.");
+      return true;
     } catch (error) {
-      setSaveMsg(
-        error instanceof Error
-          ? error.message
-          : "No se pudo eliminar la plantilla.",
-      );
+      const message = error instanceof Error ? error.message : "No se pudo eliminar la plantilla.";
+      if (view === "list") window.alert(message);
+      else setSaveMsg(message);
+      return false;
     }
   }
 
@@ -244,59 +289,41 @@ export function EmailTemplatesWorkspace({
   return (
     <div className="space-y-6">
       <TemplatesPageHeader
-        selectedName={selected?.name ?? null}
-        isActive={isActive}
-        onActiveChange={(activa) => {
-          setIsActive(activa);
-          markDirty();
-        }}
-        showCreate={mode === "custom"}
+        audience={audience}
         onCreate={() => void handleCreate()}
         creating={createMutation.isPending}
       />
 
-      <TemplatePicker
-        eventKinds={eventKinds}
-        kindLabel={(kindId) =>
-          meta?.kinds.find((k) => k.id === kindId)?.label ?? kindId
-        }
-        mode={mode}
-        activeKind={activeKind}
-        onPickKind={(kindId) => {
-          setMode("event");
-          setActiveKind(kindId);
-          setTab("edit");
-        }}
-        onShowCustom={() => {
-          setMode("custom");
-          setSelectedId(null);
-          setTab("edit");
-        }}
-        customTemplates={(templates ?? []).filter(
-          (tpl) => !eventKinds.includes(tpl.kind),
-        )}
-        isLoading={isLoading}
-        selectedId={mode === "custom" ? (selected?.id ?? null) : null}
-        onPickCustom={setSelectedId}
-        onCreate={() => void handleCreate()}
-        creating={createMutation.isPending}
-      />
-
-      {!selected ? (
-        (templates ?? []).length ? (
-          <ModuleCard className="p-6 text-sm text-muted-foreground">
-            Selecciona una plantilla para editarla.
-          </ModuleCard>
-        ) : null
+      {view === "list" ? (
+        <TemplatesList
+          rows={rows}
+          isLoading={isLoading}
+          busy={deleteMutation.isPending}
+          onView={(row) => openRow(row, "preview")}
+          onEdit={(row) => openRow(row, "edit")}
+          onRemove={(row) =>
+            row.templateId
+              ? void removeTemplate({ id: row.templateId, name: row.name, isEvent: row.eventKind != null })
+              : undefined
+          }
+        />
+      ) : !selected ? (
+        <ModuleCard className="p-6 text-sm text-muted-foreground">Cargando plantilla…</ModuleCard>
       ) : (
         <div className="space-y-5">
           <TemplateEditorHeader
             name={selected.name}
             isDefault={"isDefault" in selected && selected.isDefault}
+            isEvent={mode === "event"}
             canDelete={selected.id != null}
-            deleteLabel={mode === "event" ? "Volver al default" : "Eliminar"}
             deleting={deleteMutation.isPending}
             onDelete={() => void handleDelete()}
+            isActive={isActive}
+            onActiveChange={(activa) => {
+              setIsActive(activa);
+              markDirty();
+            }}
+            onBack={handleBack}
             tab={tab}
             onTab={setTab}
           />

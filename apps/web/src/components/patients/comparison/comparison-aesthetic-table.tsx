@@ -35,8 +35,18 @@ export function ComparisonAestheticTable({
     );
   }
 
-  const filters = [{ id: "all", label: "Todas" }, ...categories.map((c) => ({ id: c.id, label: c.label }))];
-  const rows = category === "all" ? categories : categories.filter((c) => c.id === category);
+  // Los chips son solo las categorías; al elegir Arrugas o Poros salen también sus zonas.
+  const filters = [
+    { id: "all", label: "Todas" },
+    ...categories.filter((c) => !c.parentId).map((c) => ({ id: c.id, label: c.label })),
+  ];
+  // «Arrugas — Frente» en el modal y en las notas: «Frente» solo no dice de qué.
+  const fullLabel = (row: ComparisonCategoryRow) => {
+    const parent = row.parentId ? categories.find((c) => c.id === row.parentId) : null;
+    return parent ? `${parent.label} — ${row.label}` : row.label;
+  };
+  const rows =
+    category === "all" ? categories : categories.filter((c) => c.id === category || c.parentId === category);
 
   return (
     <>
@@ -71,14 +81,26 @@ export function ComparisonAestheticTable({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} className="border-t border-border hover:bg-muted/20">
+              <tr
+                key={row.id}
+                className={cn("border-t border-border hover:bg-muted/20", row.parentId && "bg-muted/10")}
+              >
                 <td className="px-4 py-4">
-                  <div className="flex items-center gap-2.5">
-                    <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
-                      <MetricIcon metricType={row.id} />
-                    </span>
-                    <span className="font-medium">{row.label}</span>
-                  </div>
+                  {row.parentId ? (
+                    <div className="flex items-center gap-2 pl-10 text-muted-foreground">
+                      <span className="text-border" aria-hidden>
+                        └
+                      </span>
+                      <span className="font-medium text-foreground">{row.label}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
+                        <MetricIcon metricType={row.id} />
+                      </span>
+                      <span className="font-medium">{row.label}</span>
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-4">
                   <div className="flex items-center gap-3">
@@ -87,7 +109,7 @@ export function ComparisonAestheticTable({
                       label="Captura inicial"
                       photoUrl={initialPhotoUrl}
                       maskUrl={maskUrl("initial", row.id)}
-                      onClick={() => onOpenMetric(row.id, row.label)}
+                      onClick={() => onOpenMetric(row.id, fullLabel(row))}
                     />
                   </div>
                 </td>
@@ -98,7 +120,7 @@ export function ComparisonAestheticTable({
                       label="Captura actual"
                       photoUrl={currentPhotoUrl}
                       maskUrl={maskUrl("current", row.id)}
-                      onClick={() => onOpenMetric(row.id, row.label)}
+                      onClick={() => onOpenMetric(row.id, fullLabel(row))}
                     />
                   </div>
                 </td>
@@ -131,7 +153,7 @@ export function ComparisonAestheticTable({
                     value={notes[row.id] ?? ""}
                     onChange={(e) => onNoteChange(row.id, e.target.value)}
                     rows={2}
-                    placeholder={`Notas de ${row.label.toLowerCase()}…`}
+                    placeholder={`Notas de ${fullLabel(row).toLowerCase()}…`}
                     className="w-full min-w-[11rem] resize-y rounded-lg border border-border bg-background px-2.5 py-2 text-xs leading-relaxed outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
                   />
                 </td>

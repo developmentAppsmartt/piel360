@@ -9,5 +9,5 @@ const MODERATION_EVENT_KINDS = [
 ] as const;
 
 export default function AdminEmailTemplatesPage() {
-  return <EmailTemplatesWorkspace eventKinds={MODERATION_EVENT_KINDS} />;
+  return <EmailTemplatesWorkspace eventKinds={MODERATION_EVENT_KINDS} audience="profesionales" />;
 }

@@ -187,7 +187,7 @@ export function PatientBodyHistory({
               <ImageCarousel
                 images={[
                   { label: "Original", url: selected.imageUrl },
-                  { label: "Coloreada", url: selected.coloredUrl },
+                  { label: "Mapa de Calor", url: selected.coloredUrl },
                   { label: "Máscara", url: selected.maskedUrl },
                   ...selected.masks.map((m) => ({ label: m.type, url: m.url })),
                 ]}
