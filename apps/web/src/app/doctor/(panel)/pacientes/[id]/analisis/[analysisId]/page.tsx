@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, CalendarDays, ScanFace, Stethoscope } from "lucide-react";
+import { ArrowLeft, CalendarDays, ScanFace, Stethoscope, UserRound } from "lucide-react";
 import { AnalysisResultsView } from "@/components/analyses/analysis-results-view";
 import { Button } from "@/components/ui/button";
 import { BannerChip, PageBanner } from "@/components/ui/page-banner";
@@ -17,10 +17,11 @@ export default function AnalisisDetallePage() {
   const data = analysis.data;
   const derm = data ? isDermatologicalAnalysis(data) : false;
   const dateLabel = data
-    ? `${new Date(data.createdAt).toLocaleDateString("es-CO", { dateStyle: "long" })}${
+    ? `${new Date(data.createdAt).toLocaleString("es-CO", { dateStyle: "long", timeStyle: "medium" })}${
         data.bodyRegion ? ` · ${bodyRegionLabel(data.bodyRegion)}` : ""
       }`
     : null;
+  const patientName = data?.patient ? `${data.patient.firstName} ${data.patient.lastName}`.trim() : null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -29,7 +30,14 @@ export default function AnalisisDetallePage() {
         icon={derm ? Stethoscope : ScanFace}
         title="Análisis de piel"
         subtitle={data ? analysisProviderLabel(data) : "Cargando…"}
-        aside={dateLabel ? <BannerChip icon={CalendarDays}>{dateLabel}</BannerChip> : null}
+        aside={
+          data ? (
+            <div className="flex flex-col items-start gap-1.5">
+              {patientName ? <BannerChip icon={UserRound}>{patientName}</BannerChip> : null}
+              {dateLabel ? <BannerChip icon={CalendarDays}>{dateLabel}</BannerChip> : null}
+            </div>
+          ) : null
+        }
         actions={
           <Button
             variant="outline"

@@ -1,18 +1,27 @@
 import type { AnalysisDetail } from "@/lib/queries/analyses";
 import type { Analysis } from "@/lib/queries/patients";
-import { ANALISIS_PIEL360_METRIC_LABELS } from "@/lib/youcam-metric-labels";
 import {
+  ANALISIS_PIEL360_METRIC_LABELS,
+  ANALISIS_PIEL360_REGION_LABELS,
+  analisisPiel360RegionLabel,
+} from "@/lib/youcam-metric-labels";
+import {
+  analisisPiel360MetricValue,
   parseAnalisisPiel360Metrics,
   ANALISIS_PIEL360_MAIN_METRIC_TYPES,
   analisisPiel360OverallScore,
   analisisPiel360ScoresByType,
+  type AnalisisPiel360Metric,
   type AnalisisPiel360RawResponse,
 } from "@/lib/youcam-metrics";
 
 export type ComparisonMode = "aesthetic" | "derm";
 
 export type ComparisonCategoryRow = {
+  /** `hd_wrinkle`, o `hd_wrinkle:forehead` en las filas de zona. */
   id: string;
+  /** Solo en las filas de zona: la categoría a la que pertenecen. */
+  parentId?: string;
   label: string;
   initialScore: number;
   currentScore: number;
@@ -135,32 +144,76 @@ export function improvementLabel(delta: number): string {
   return "Empeoró";
 }
 
+/** Las métricas que el análisis estético mide además por zona de la cara. */
+const METRICS_WITH_ZONES = new Set(["hd_wrinkle", "hd_pore"]);
+const REGION_ORDER = Object.keys(ANALISIS_PIEL360_REGION_LABELS);
+
+/** Puntaje de cada zona (sin `whole`) de una métrica. */
+function scoresByRegion(metrics: AnalisisPiel360Metric[], type: string): Record<string, number> {
+  const map: Record<string, number> = {};
+  for (const m of metrics) {
+    if (m.type !== type || !m.region || m.region === DEFAULT_REGION) continue;
+    const value = analisisPiel360MetricValue(m);
+    if (value != null) map[m.region] = value;
+  }
+  return map;
+}
+
+function comparisonRow(
+  base: Pick<ComparisonCategoryRow, "id" | "label" | "parentId">,
+  initial: number | undefined,
+  current: number | undefined,
+): ComparisonCategoryRow {
+  const initialScore = Math.round(initial ?? 0);
+  const currentScore = Math.round(current ?? 0);
+  const improvement = currentScore - initialScore;
+  return { ...base, initialScore, currentScore, improvement, improvementLabel: improvementLabel(improvement) };
+}
+
+function metricsOf(analysis: Analysis | undefined) {
+  return parseAnalisisPiel360Metrics(analysis?.aiRawResponse as AnalisisPiel360RawResponse | undefined);
+}
+
+/** Una fila por categoría y, debajo de Arrugas y Poros, una por zona. */
 export function buildComparisonCategories(
   initial: Analysis | undefined,
   current: Analysis | undefined,
 ): ComparisonCategoryRow[] {
-  const initialScores = analisisPiel360ScoresByType(
-    parseAnalisisPiel360Metrics(initial?.aiRawResponse as AnalisisPiel360RawResponse | undefined),
-  );
-  const currentScores = analisisPiel360ScoresByType(
-    parseAnalisisPiel360Metrics(current?.aiRawResponse as AnalisisPiel360RawResponse | undefined),
-  );
+  const initialMetrics = metricsOf(initial);
+  const currentMetrics = metricsOf(current);
+  const initialScores = analisisPiel360ScoresByType(initialMetrics);
+  const currentScores = analisisPiel360ScoresByType(currentMetrics);
 
   return ANALISIS_PIEL360_MAIN_METRIC_TYPES.filter(
     (type) => initialScores[type] != null || currentScores[type] != null,
-  ).map((type) => {
-    const initialScore = Math.round(initialScores[type] ?? 0);
-    const currentScore = Math.round(currentScores[type] ?? 0);
-    const improvement = currentScore - initialScore;
-    return {
-      id: type,
-      label: ANALISIS_PIEL360_METRIC_LABELS[type] ?? type,
-      initialScore,
-      currentScore,
-      improvement,
-      improvementLabel: improvementLabel(improvement),
-    };
+  ).flatMap((type) => {
+    const row = comparisonRow(
+      { id: type, label: ANALISIS_PIEL360_METRIC_LABELS[type] ?? type },
+      initialScores[type],
+      currentScores[type],
+    );
+    if (!METRICS_WITH_ZONES.has(type)) return [row];
+
+    const initialZones = scoresByRegion(initialMetrics, type);
+    const currentZones = scoresByRegion(currentMetrics, type);
+    const regions = REGION_ORDER.filter((r) => initialZones[r] != null || currentZones[r] != null);
+    return [
+      row,
+      ...regions.map((region) =>
+        comparisonRow(
+          { id: `${type}:${region}`, label: analisisPiel360RegionLabel(region), parentId: type },
+          initialZones[region],
+          currentZones[region],
+        ),
+      ),
+    ];
   });
+}
+
+/** `hd_wrinkle:forehead` → tipo y zona. */
+export function splitComparisonRowId(id: string): { type: string; region: string | null } {
+  const [type, region] = id.split(":");
+  return { type, region: region ?? null };
 }
 
 export function analisisPiel360OverallFromAnalysis(
@@ -229,12 +282,20 @@ function maskUrlFromRaw(
   return typeof url === "string" && url.length > 0 ? url : null;
 }
 
-/** Imagen de la métrica priorizando la región general (`whole`). */
+/** Imagen de la métrica priorizando la región general (`whole`), o la de
+ * `zone` si se pide una. */
 export function analisisPiel360MetricMaskUrl(
   detail: AnalysisDetail | undefined,
   metricType: string,
+  zone?: string | null,
 ): string | null {
   if (!detail) return null;
+  if (zone) {
+    return (
+      (detail.masks?.length ? findAnalisisPiel360MaskUrl(detail.masks, metricType, zone) : null) ??
+      maskUrlFromRaw(detail, metricType, zone)
+    );
+  }
 
   const metrics = parseAnalisisPiel360Metrics(
     detail.aiRawResponse as AnalisisPiel360RawResponse | undefined,

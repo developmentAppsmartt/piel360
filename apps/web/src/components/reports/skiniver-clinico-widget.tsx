@@ -175,7 +175,7 @@ export function AnalisisDermaPiel360ClinicoWidget({
             <ImageCarousel
               images={[
                 { label: "Original", url: selected.data.imageUrl },
-                { label: "Coloreada", url: selected.data.coloredUrl },
+                { label: "Mapa de Calor", url: selected.data.coloredUrl },
                 { label: "Máscara", url: selected.data.maskedUrl },
               ]}
             />

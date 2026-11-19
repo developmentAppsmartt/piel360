@@ -160,7 +160,7 @@ export function AnalisisPiel360ReportView({
         </div>
       </ModuleCard>
 
-      <h3 className="text-base font-semibold">Detalle por métrica</h3>
+      <h3 className="text-base font-semibold">Tu piel en detalle: qué medimos y cómo cuidarla</h3>
       <div className="grid gap-3 lg:grid-cols-2">
         {rows.map((row) => (
           <ReportMetricCard key={row.key} row={row} photoUrl={photoUrl} scoreConfig={scoreConfig} />

@@ -13,6 +13,7 @@ import { usePatientAnalyses } from "@/lib/queries/patients";
 import {
   analysisPhotoUrl,
   buildComparisonCategories,
+  splitComparisonRowId,
   defaultComparisonPair,
   filterAnalysesByMode,
   formatAnalysisDateTime,
@@ -77,9 +78,14 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
 
   const initialPhotoUrl = analysisPhotoUrl(initialDetail.data) ?? null;
   const currentPhotoUrl = analysisPhotoUrl(currentDetail.data) ?? null;
-  const maskUrl = (side: "initial" | "current", metricType: string) =>
-    analisisPiel360MetricMaskUrl(side === "initial" ? initialDetail.data : currentDetail.data, metricType) ??
-    null;
+  // `rowId` puede ser una zona (`hd_wrinkle:forehead`): su máscara es la de esa zona.
+  const maskUrl = (side: "initial" | "current", rowId: string) => {
+    const { type, region } = splitComparisonRowId(rowId);
+    return (
+      analisisPiel360MetricMaskUrl(side === "initial" ? initialDetail.data : currentDetail.data, type, region) ??
+      null
+    );
+  };
   const visualMetricType = category === "all" ? null : category;
   const categoryLabel = categories.find((c) => c.id === category)?.label ?? null;
 
