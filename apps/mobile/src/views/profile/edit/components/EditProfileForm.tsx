@@ -10,13 +10,15 @@ import { AppIcon } from '../../../../components/AppIcon';
 import { LocationPicker } from '../../../../components/maps/LocationPicker';
 import { useBranding } from '../../../../context/BrandingContext';
 import { resolveLatestFitzpatrickType } from '../../../../data/fitzpatrickLabels';
+import { OptionsSelect } from '../../../../components/OptionsSelect';
 import {
-  PATIENT_DOC_TYPES,
-  PATIENT_FITZ_OPTIONS,
+  PATIENT_DOC_TYPE_OPTIONS,
   PATIENT_GENDER_OPTIONS,
   PATIENT_MASCOT_OPTIONS,
   PATIENT_SKIN_OPTIONS,
+  normalizePatientDocType,
 } from '../../../../data/patientFormOptions';
+import { FitzpatrickTypePicker } from '../../../doctor/create-patient/components/FitzpatrickTypePicker';
 import { ApiError } from '../../../../services/api.client';
 import {
   patientsService,
@@ -92,7 +94,9 @@ export function EditProfileForm({
   const [phoneNational, setPhoneNational] = useState(initialSplit.national);
   const [originalPhoneDigits, setOriginalPhoneDigits] = useState(initialPhone);
   const [phoneTicket, setPhoneTicket] = useState<string | null>(null);
-  const [docType, setDocType] = useState(patient.docType ?? 'CC');
+  const [docType, setDocType] = useState(
+    normalizePatientDocType(patient.docType),
+  );
   const [docNumber, setDocNumber] = useState(patient.docNumber ?? '');
   const [birthDate, setBirthDate] = useState(toDateInput(patient.birthDate));
   const [gender, setGender] = useState(patient.gender ?? '');
@@ -109,8 +113,8 @@ export function EditProfileForm({
     patient.exerciseSessionDuration ?? '',
   );
   const [skinType, setSkinType] = useState(patient.skinType ?? '');
-  const [fitzpatrickType, setFitzpatrickType] = useState(() =>
-    resolveLatestFitzpatrickType(patient, analyses ?? []),
+  const [fitzpatrickType, setFitzpatrickType] = useState<string>(
+    () => resolveLatestFitzpatrickType(patient, analyses ?? []) ?? '',
   );
   const [importantNotes, setImportantNotes] = useState(
     patient.importantNotes ?? '',
@@ -144,9 +148,6 @@ export function EditProfileForm({
   const primary = branding.colors.primary;
   const onDark = branding.colors.textOnDark;
   const text = branding.colors.text;
-  const fitzHint = PATIENT_FITZ_OPTIONS.find(
-    (f) => f.value === fitzpatrickType,
-  )?.hint;
 
   async function handleSave() {
     setError(null);
@@ -237,25 +238,14 @@ export function EditProfileForm({
 
         <View style={styles.field}>
           <Text style={styles.label}>Tipo identificación</Text>
-          <View style={styles.chips}>
-            {PATIENT_DOC_TYPES.map((d) => {
-              const active = docType === d;
-              return (
-                <Pressable
-                  key={d}
-                  style={[styles.chip, active && styles.chipActive]}
-                  onPress={() => setDocType(d)}
-                  disabled={submitting}
-                >
-                  <Text
-                    style={[styles.chipText, active && styles.chipTextActive]}
-                  >
-                    {d}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <OptionsSelect
+            value={docType}
+            options={PATIENT_DOC_TYPE_OPTIONS}
+            onChange={setDocType}
+            placeholder="Seleccionar documento"
+            textColor={branding.colors.text}
+            accentColor={branding.colors.buttonHover}
+          />
         </View>
 
         <View style={styles.field}>
@@ -464,25 +454,13 @@ export function EditProfileForm({
 
         <View style={styles.field}>
           <Text style={styles.label}>Fototipo</Text>
-          <View style={styles.fitzRow}>
-            {PATIENT_FITZ_OPTIONS.map((f) => {
-              const active = fitzpatrickType === f.value;
-              return (
-                <Pressable
-                  key={f.value}
-                  onPress={() => setFitzpatrickType(f.value)}
-                  disabled={submitting}
-                  style={[
-                    styles.fitzDot,
-                    { backgroundColor: f.color },
-                    active && styles.fitzDotActive,
-                  ]}
-                  accessibilityLabel={`Fototipo ${f.value}`}
-                />
-              );
-            })}
-          </View>
-          {fitzHint ? <Text style={styles.hint}>{fitzHint}</Text> : null}
+          <FitzpatrickTypePicker
+            value={fitzpatrickType}
+            onChange={setFitzpatrickType}
+            accentColor={branding.colors.buttonHover}
+            mutedColor={branding.colors.muted}
+            disabled={submitting}
+          />
         </View>
 
         <View style={styles.field}>

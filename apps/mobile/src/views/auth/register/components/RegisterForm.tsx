@@ -20,7 +20,12 @@ import {
   PASSWORD_STRENGTH_HINT,
   PASSWORD_STRENGTH_MESSAGE,
 } from '../../../../lib/password';
-import { PATIENT_DOC_TYPES, PATIENT_FITZ_OPTIONS } from '../../../../data/patientFormOptions';
+import { OptionsSelect } from '../../../../components/OptionsSelect';
+import {
+  DEFAULT_PATIENT_DOC_TYPE,
+  PATIENT_DOC_TYPE_OPTIONS,
+  PATIENT_FITZ_OPTIONS,
+} from '../../../../data/patientFormOptions';
 import {
   FITZPATRICK_DESCRIPTIONS,
   SURVEY_QUESTIONS,
@@ -84,7 +89,7 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
   const [terms, setTerms] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [docType, setDocType] = useState<string>('CC');
+  const [docType, setDocType] = useState<string>(DEFAULT_PATIENT_DOC_TYPE);
   const [docNumber, setDocNumber] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [gender, setGender] = useState<string>('male');
@@ -442,28 +447,14 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
 
         <View style={styles.field}>
           <Text style={styles.labelDark}>Tipo Doc</Text>
-          <View style={styles.chips}>
-            {PATIENT_DOC_TYPES.map((d) => {
-              const active = docType === d;
-              return (
-                <Pressable
-                  key={d}
-                  style={[styles.chipDark, active && styles.chipActive]}
-                  onPress={() => setDocType(d)}
-                  disabled={submitting}
-                >
-                  <Text
-                    style={[
-                      styles.chipTextDark,
-                      active && styles.chipTextActive,
-                    ]}
-                  >
-                    {d}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <OptionsSelect
+            value={docType}
+            options={PATIENT_DOC_TYPE_OPTIONS}
+            onChange={setDocType}
+            placeholder="Seleccionar documento"
+            textColor={branding.colors.text}
+            accentColor={branding.colors.buttonHover}
+          />
         </View>
 
         <View style={styles.field}>

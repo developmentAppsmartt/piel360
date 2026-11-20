@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   PanResponder,
   Pressable,
@@ -396,6 +396,12 @@ export function YoucamResultsSection({
   );
 
   const scorer = useYoucamScorer();
+  const { reload: reloadScoreConfig } = scorer;
+  // Al abrir un análisis se pide de nuevo la personalización: si el doctor
+  // cambió textos en el CRM (Frente, Entrecejo…), no debe quedar el cache viejo.
+  useEffect(() => {
+    reloadScoreConfig();
+  }, [analysis.id, reloadScoreConfig]);
   const metrics = useMemo(
     () =>
       parseYoucamMetrics(analysis.aiRawResponse as YoucamRawResponse | null),

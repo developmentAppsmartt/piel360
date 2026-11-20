@@ -6,7 +6,11 @@ import type { PatientClinicalHistory } from "@piel360/shared";
 import { AddressLocationPicker } from "@/components/maps";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-error";
-import { PATIENT_BIRTH_TYPE_OPTIONS, PATIENT_DOC_TYPES, PATIENT_GENDER_OPTIONS } from "@/lib/patient-form-options";
+import {
+  PATIENT_BIRTH_TYPE_OPTIONS,
+  PATIENT_DOC_TYPE_OPTIONS,
+  PATIENT_GENDER_OPTIONS,
+} from "@/lib/patient-form-options";
 import {
   useClinicalHistoryCatalog,
   usePatientClinicalHistory,
@@ -153,12 +157,18 @@ function PatientFormBody({
             name="docType"
             control={control}
             render={({ field }) => (
-              <ChipGroup
-                options={PATIENT_DOC_TYPES.map((d) => ({ value: d, label: d }))}
+              <select
+                id="docType"
+                className={inputClass}
                 value={field.value}
-                onChange={field.onChange}
-                allowClear={false}
-              />
+                onChange={(e) => field.onChange(e.target.value)}
+              >
+                {PATIENT_DOC_TYPE_OPTIONS.map((d) => (
+                  <option key={d.value} value={d.value}>
+                    {d.label}
+                  </option>
+                ))}
+              </select>
             )}
           />
         </FormField>

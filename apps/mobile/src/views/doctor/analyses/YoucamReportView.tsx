@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -249,6 +249,10 @@ export function YoucamReportView({
   const [exporting, setExporting] = useState(false);
 
   const scorer = useYoucamScorer();
+  const { reload: reloadScoreConfig } = scorer;
+  useEffect(() => {
+    reloadScoreConfig();
+  }, [analysis.id, reloadScoreConfig]);
   const metrics = useMemo(
     () =>
       parseYoucamMetrics(analysis.aiRawResponse as YoucamRawResponse | null),
@@ -651,7 +655,11 @@ export function YoucamReportView({
                       <ScoreRangeBar
                         compact
                         score={row.score}
-                        ranges={cortes}
+                        ranges={resolveYoucamScoreRanges(
+                          scorer.config,
+                          row.type,
+                          row.region,
+                        )}
                       />
                     </View>
                   </View>

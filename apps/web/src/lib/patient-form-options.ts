@@ -1,6 +1,47 @@
 /** Opciones del alta de paciente — espejo de apps/mobile/.../patientFormOptions.ts */
 
-export const PATIENT_DOC_TYPES = ["CC", "CE", "TI", "PA"] as const;
+/** Tipos de documento (lista DIAN) para el alta y edición de pacientes. */
+export const PATIENT_DOC_TYPE_OPTIONS = [
+  { value: "11-Registro civil", label: "11-Registro civil" },
+  { value: "12-Tarjeta de Identidad", label: "12-Tarjeta de Identidad" },
+  { value: "13-Cédula de Ciudadanía", label: "13-Cédula de Ciudadanía" },
+  { value: "21-Tarjeta de extranjería", label: "21-Tarjeta de extranjería" },
+  { value: "22-Cédula de Extranjería", label: "22-Cédula de Extranjería" },
+  { value: "31-Nit", label: "31-Nit" },
+  { value: "41-Pasaporte", label: "41-Pasaporte" },
+  {
+    value: "42-Documento de identificación extranjero",
+    label: "42-Documento de identificación extranjero",
+  },
+  { value: "47-PEP", label: "47-PEP" },
+] as const;
+
+export const DEFAULT_PATIENT_DOC_TYPE = "13-Cédula de Ciudadanía" as const;
+
+const PATIENT_DOC_TYPE_LEGACY: Record<string, string> = {
+  CC: "13-Cédula de Ciudadanía",
+  CE: "22-Cédula de Extranjería",
+  TI: "12-Tarjeta de Identidad",
+  PA: "41-Pasaporte",
+  NIT: "31-Nit",
+  RC: "11-Registro civil",
+  TE: "21-Tarjeta de extranjería",
+  DIE: "42-Documento de identificación extranjero",
+  PEP: "47-PEP",
+};
+
+export function normalizePatientDocType(
+  raw: string | null | undefined,
+): string {
+  if (!raw?.trim()) return DEFAULT_PATIENT_DOC_TYPE;
+  const value = raw.trim();
+  if (PATIENT_DOC_TYPE_LEGACY[value]) return PATIENT_DOC_TYPE_LEGACY[value];
+  if (PATIENT_DOC_TYPE_OPTIONS.some((o) => o.value === value)) return value;
+  return value;
+}
+
+/** @deprecated Preferir PATIENT_DOC_TYPE_OPTIONS. */
+export const PATIENT_DOC_TYPES = PATIENT_DOC_TYPE_OPTIONS.map((o) => o.value);
 
 export const PATIENT_GENDER_OPTIONS = [
   { value: "female", label: "Femenino" },

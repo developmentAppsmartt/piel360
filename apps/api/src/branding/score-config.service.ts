@@ -56,7 +56,31 @@ export class ScoreConfigService {
     try {
       return sanitizeAnalisisPiel360ScoreConfig({ metrics: row.metrics });
     } catch {
-      return DEFAULT_ANALISIS_PIEL360_SCORE_CONFIG;
+      // Un rango inválido en una sola métrica no debe borrar textos
+      // personalizados del resto (Arrugas › Frente, etc.).
+      return this.readSalvaging(row.metrics);
     }
+  }
+
+  /** Intenta recuperar métrica a métrica si el sanitize completo falla. */
+  private readSalvaging(raw: unknown): AnalisisPiel360ScoreConfig {
+    const metricsIn =
+      raw && typeof raw === 'object' && !Array.isArray(raw)
+        ? (raw as Record<string, unknown>)
+        : {};
+    const metrics: AnalisisPiel360ScoreConfig['metrics'] = {};
+    for (const [key, value] of Object.entries(metricsIn)) {
+      try {
+        const one = sanitizeAnalisisPiel360ScoreConfig({
+          metrics: { [key]: value },
+        });
+        Object.assign(metrics, one.metrics);
+      } catch {
+        // Se omite solo la clave rota.
+      }
+    }
+    return Object.keys(metrics).length
+      ? { metrics }
+      : DEFAULT_ANALISIS_PIEL360_SCORE_CONFIG;
   }
 }

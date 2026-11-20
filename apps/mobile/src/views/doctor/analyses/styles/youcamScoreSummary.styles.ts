@@ -1,140 +1,130 @@
 import { StyleSheet } from 'react-native';
 
 export const youcamScoreSummaryStyles = StyleSheet.create({
+  wrap: {
+    gap: 12,
+  },
+  tilesRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  tile: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E8EEF5',
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+    gap: 6,
+    alignItems: 'flex-start',
+  },
+  tileIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tileLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  tileValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  tileFooter: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#94A3B8',
+  },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E8EEF5',
-    padding: 12,
-    gap: 12,
+    padding: 16,
+    gap: 16,
   },
-  metricsRow: {
+  ringRow: {
     flexDirection: 'row',
-    gap: 8,
-  },
-  metricCard: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 10,
     alignItems: 'center',
-    gap: 4,
-    minHeight: 118,
-    justifyContent: 'flex-start',
+    gap: 16,
   },
-  iconChip: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  ringWrap: {
+    width: 112,
+    height: 112,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 2,
   },
-  metricLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#64748B',
-    textAlign: 'center',
-  },
-  metricValue: {
-    fontSize: 16,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  metricHint: {
-    fontSize: 9,
-    fontWeight: '500',
-    color: '#94A3B8',
-    textAlign: 'center',
-    lineHeight: 12,
-  },
-  gaugeWrap: {
+  ringCenter: {
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    height: 42,
-    marginBottom: 2,
+    justifyContent: 'center',
   },
-  gaugeValue: {
-    position: 'absolute',
-    bottom: 0,
+  ringScore: {
+    fontSize: 34,
+    fontWeight: '800',
+    color: '#0F172A',
+    lineHeight: 38,
+  },
+  ringDenom: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  diffCol: {
+    flex: 1,
+    gap: 8,
+    borderLeftWidth: 1,
+    borderLeftColor: '#E8EEF5',
+    paddingLeft: 14,
+  },
+  diffPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  diffPillAged: {
+    backgroundColor: '#FEF2F2',
+  },
+  diffPillYoung: {
+    backgroundColor: '#ECFDF5',
+  },
+  diffPillNeutral: {
+    backgroundColor: '#F1F5F9',
+  },
+  diffPillText: {
     fontSize: 13,
     fontWeight: '800',
   },
-  diffMessage: {
-    fontSize: 9,
-    lineHeight: 12,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginTop: 2,
+  diffAged: {
+    color: '#B91C1C',
   },
-  aged: {
-    color: '#DC2626',
+  diffYoung: {
+    color: '#047857',
   },
-  young: {
-    color: '#059669',
-  },
-  neutral: {
+  diffNeutral: {
     color: '#64748B',
   },
-  barBlock: {
-    gap: 6,
-  },
-  markerRow: {
-    height: 26,
-    position: 'relative',
-  },
-  marker: {
-    position: 'absolute',
-    top: 0,
-    marginLeft: -16,
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  markerText: {
-    minWidth: 32,
-    textAlign: 'center',
-    backgroundColor: '#0F172A',
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  markerTip: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 5,
-    borderRightWidth: 5,
-    borderTopWidth: 5,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: '#0F172A',
-  },
-  barMax: {
-    position: 'absolute',
-    right: 0,
-    top: 4,
-    fontSize: 11,
+  diffMessage: {
+    fontSize: 15,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: '#0F172A',
+    lineHeight: 20,
   },
-  barTrack: {
-    height: 12,
-    borderRadius: 999,
-    flexDirection: 'row',
-    overflow: 'hidden',
-  },
-  barLabels: {
-    flexDirection: 'row',
-  },
-  barLabel: {
-    fontSize: 11,
+  bandFallback: {
+    fontSize: 15,
     fontWeight: '700',
-    textAlign: 'center',
+    color: '#0F172A',
+    lineHeight: 20,
   },
   insight: {
     flexDirection: 'row',
@@ -143,15 +133,15 @@ export const youcamScoreSummaryStyles = StyleSheet.create({
     backgroundColor: '#EAF3FB',
     borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   insightIcon: {
-    marginTop: 2,
+    marginTop: 1,
   },
   insightText: {
     flex: 1,
     fontSize: 13,
-    lineHeight: 18,
+    lineHeight: 19,
     color: '#334155',
     fontWeight: '500',
   },

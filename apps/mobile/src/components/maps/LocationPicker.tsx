@@ -41,8 +41,8 @@ type LocationPickerProps = {
 
 /**
  * Mismo concepto que el CRM web (`AddressLocationPicker`):
- * búsqueda Nominatim + GPS + mapa + reverse geocode.
- * El mapa nativo vive en `LocationMap.native` (no se carga en web).
+ * Google Places + GPS + mapa Google + reverse geocode.
+ * El mapa nativo vive en `LocationMap.native`.
  */
 export function LocationPicker({
   value,
@@ -182,7 +182,7 @@ export function LocationPicker({
     }
   }
 
-  function selectSuggestion(item: PlaceSuggestion) {
+  async function selectSuggestion(item: PlaceSuggestion) {
     if (blurCloseTimerRef.current) {
       clearTimeout(blurCloseTimerRef.current);
       blurCloseTimerRef.current = null;
@@ -192,14 +192,28 @@ export function LocationPicker({
     setSuggestions([]);
     setSearchOpen(false);
     setError(null);
-    onChange({
-      address: item.description,
-      lat: item.lat,
-      lng: item.lng,
-      city: item.city ?? '',
-      country: item.country ?? 'CO',
-      zip: item.zip ?? '',
-    });
+    setGeoLoading(true);
+    try {
+      const resolved = await geocodeService.resolveSuggestion(item);
+      suppressSearch.current = true;
+      setQuery(resolved.address);
+      onChange({
+        address: resolved.address,
+        lat: resolved.lat,
+        lng: resolved.lng,
+        city: resolved.city ?? '',
+        country: resolved.country ?? 'CO',
+        zip: resolved.zip ?? '',
+      });
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'No se pudo obtener el lugar seleccionado',
+      );
+    } finally {
+      setGeoLoading(false);
+    }
   }
 
   async function useCurrentLocation() {
@@ -302,7 +316,6 @@ export function LocationPicker({
             // Evita que el ScrollView padre robe el scroll (web)
             {...(Platform.OS === 'web'
               ? ({
-                  // @ts-expect-error prop DOM en RN-web
                   onWheel: (e: { stopPropagation: () => void }) =>
                     e.stopPropagation(),
                 } as object)
@@ -312,7 +325,7 @@ export function LocationPicker({
               <Pressable
                 key={s.id}
                 style={styles.suggestionRow}
-                onPress={() => selectSuggestion(s)}
+                onPress={() => void selectSuggestion(s)}
                 disabled={disabled}
               >
                 <AppIcon

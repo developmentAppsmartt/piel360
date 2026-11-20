@@ -54,16 +54,35 @@ export function createAgendaStyles(colors: AppBranding['colors']) {
     weeklySlotsGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: 4,
-      justifyContent: 'space-between',
+      columnGap: 16,
+      rowGap: 6,
     },
     weeklySlotItem: {
-      width: '48%',
+      width: '47%',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    /** Ancho fijo para que Lun / Mié / Vie dejen las horas en la misma columna. */
+    weeklySlotDay: {
+      width: 34,
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.text,
+      lineHeight: 18,
+    },
+    weeklySlotTime: {
+      flex: 1,
+      fontSize: 13,
+      color: colors.secondaryTextOverride ?? colors.muted,
+      lineHeight: 18,
+      fontVariant: ['tabular-nums'],
     },
     weeklySlotText: {
       fontSize: 13,
       color: colors.secondaryTextOverride ?? colors.muted,
       lineHeight: 18,
+      fontVariant: ['tabular-nums'],
     },
     input: {
       borderWidth: 1,

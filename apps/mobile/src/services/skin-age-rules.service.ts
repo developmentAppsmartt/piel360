@@ -49,6 +49,10 @@ export type SkinAgeRule = {
   description: string | null;
   minDifference: number;
   maxDifference: number;
+  /** Biotipos a los que aplica; vacío = todos. */
+  skinTypes: string[];
+  /** Fototipos a los que aplica; vacío = todos. */
+  fitzpatrickScales: string[];
   priority: SkinAgeRulePriority;
   colorKey: SkinAgeRuleColorKey;
   sortOrder: number;
@@ -67,6 +71,8 @@ export type SkinAgeMatchedRule = {
   description: string | null;
   minDifference: number;
   maxDifference: number;
+  skinTypes?: string[];
+  fitzpatrickScales?: string[];
   priority: string;
   colorKey: string;
 };
@@ -76,6 +82,8 @@ export type SkinAgeRecommended = {
     skinAgeYears: number | null;
     chronologicalAgeYears: number | null;
     skinAgeDifference: number | null;
+    skinType?: string | null;
+    fitzpatrickScale?: string | null;
     message: string | null;
   };
   matchedRule: SkinAgeMatchedRule | null;
@@ -92,14 +100,22 @@ export const skinAgeRulesService = {
     return apiRequest<SkinAgeRule[]>('/skin-age-rules', { auth: true });
   },
 
+  /** `skinType` / `fitzpatrickScale` vacíos = Sin dato (como en el CRM). */
   async simulate(input: {
     birthDate: string;
     skinAgeYears: number;
+    skinType?: string;
+    fitzpatrickScale?: string;
   }): Promise<SkinAgeRecommended> {
+    const { skinType, fitzpatrickScale, ...rest } = input;
     return apiRequest<SkinAgeRecommended>('/skin-age-rules/simulate', {
       method: 'POST',
       auth: true,
-      body: input,
+      body: {
+        ...rest,
+        ...(skinType ? { skinType } : {}),
+        ...(fitzpatrickScale ? { fitzpatrickScale } : {}),
+      },
     });
   },
 

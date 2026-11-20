@@ -41,8 +41,10 @@ export const ANALISIS_PIEL360_SCORE_SUBCATEGORIES: Readonly<Record<string, reado
 /** Clave en `metrics`: `hd_wrinkle:forehead` para una subcategoría
  * configurable; la métrica sola para cualquier otra región. */
 export function scoreConfigKey(type: string, region?: string | null): string {
-  return region && ANALISIS_PIEL360_SCORE_SUBCATEGORIES[type]?.includes(region)
-    ? reportableCategoryKey(type, region)
+  const normalized = region?.trim().toLowerCase() || null;
+  return normalized &&
+    ANALISIS_PIEL360_SCORE_SUBCATEGORIES[type]?.includes(normalized)
+    ? reportableCategoryKey(type, normalized)
     : type;
 }
 

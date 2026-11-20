@@ -48,9 +48,20 @@ export function DoctorHeader({
 }: DoctorHeaderProps) {
   const insets = useSafeAreaInsets();
   const branding = useBranding();
-  const { isTablet } = useDeviceLayout();
-  const logoHeight = isTablet ? 68 : 44;
+  const { isTablet, isTablet10 } = useDeviceLayout();
+  const logoHeight = isTablet10 ? 76 : isTablet ? 68 : 44;
   const companyLogo = branding.companyLogoImage;
+  // Logo personalizado: en 10″+ debe leerse a distancia (en teléfono 72×26).
+  const companyLogoSize = isTablet10
+    ? { width: 168, height: 60 }
+    : isTablet
+      ? { width: 120, height: 44 }
+      : { width: 72, height: 26 };
+  const companyChipPad = isTablet10
+    ? { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12 }
+    : isTablet
+      ? { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 }
+      : null;
   const onDark = styles.headerIcon.color as string;
   const notifications = useNotificationsOptional();
   const badgeCount =
@@ -76,18 +87,28 @@ export function DoctorHeader({
           height={logoHeight}
           style={[
             styles.headerLogo,
-            isTablet && { maxHeight: 72, maxWidth: 240 },
-            companyLogo && { maxWidth: isTablet ? 160 : 108 },
+            isTablet && { maxHeight: isTablet10 ? 80 : 72, maxWidth: 240 },
+            companyLogo && {
+              maxWidth: isTablet10 ? 200 : isTablet ? 160 : 108,
+            },
             { tintColor: branding.colors.iconOnHeader },
           ]}
         />
         {companyLogo ? (
           <>
-            <View style={styles.headerLogoDivider} />
-            <View style={styles.headerCompanyLogoChip}>
+            <View
+              style={[
+                styles.headerLogoDivider,
+                isTablet10 && { height: 44 },
+                isTablet && !isTablet10 && { height: 32 },
+              ]}
+            />
+            <View
+              style={[styles.headerCompanyLogoChip, companyChipPad]}
+            >
               <Image
                 source={companyLogo}
-                style={styles.headerCompanyLogo}
+                style={[styles.headerCompanyLogo, companyLogoSize]}
                 resizeMode="contain"
                 accessibilityLabel="Logo de la empresa"
               />

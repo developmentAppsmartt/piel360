@@ -20,8 +20,13 @@ import {
   FITZPATRICK_SCALES,
   FITZPATRICK_TYPES,
 } from '../../../data/fitzpatrickLabels';
+import {
+  YOUCAM_SKIN_TYPE_OPTIONS,
+  youcamSkinTypeLabel,
+} from '../../../data/youcamMetricLabels';
 import { DoctorHeader } from '../patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
+import { SimulatorFilterChips } from './SimulatorFilterChips';
 import {
   RULE_COLOR_HEX,
   createClinicalRulesStyles,
@@ -70,6 +75,8 @@ export function FitzpatrickRulesView({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [scale, setScale] = useState<string>('III');
+  /** "" = sin biotipo, igual que el CRM. */
+  const [skinType, setSkinType] = useState('');
   const [simulating, setSimulating] = useState(false);
   const [simulation, setSimulation] = useState<FitzpatrickRecommended | null>(
     null,
@@ -105,7 +112,10 @@ export function FitzpatrickRulesView({
   async function handleSimulate() {
     setSimulating(true);
     try {
-      const result = await fitzpatrickRulesService.simulate(scale);
+      const result = await fitzpatrickRulesService.simulate(
+        scale,
+        skinType || undefined,
+      );
       setSimulation(result);
     } catch (err) {
       Alert.alert(
@@ -179,8 +189,10 @@ export function FitzpatrickRulesView({
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Simulador</Text>
             <Text style={styles.cardBody}>
-              Elige un fototipo y prueba qué regla y recomendaciones aplica.
+              Elige un fototipo y un biotipo de ejemplo para ver qué regla
+              aplica (igual que en el CRM).
             </Text>
+            <Text style={styles.fieldLabel}>Fototipo</Text>
             <View style={styles.fotoGrid}>
               {FITZPATRICK_SCALES.map((s) => {
                 const active = scale === s;
@@ -212,6 +224,14 @@ export function FitzpatrickRulesView({
                 );
               })}
             </View>
+            <SimulatorFilterChips
+              label="Biotipo"
+              value={skinType}
+              onChange={setSkinType}
+              emptyLabel="Sin biotipo"
+              options={YOUCAM_SKIN_TYPE_OPTIONS}
+              styles={styles}
+            />
             <Pressable
               onPress={() => void handleSimulate()}
               style={({ pressed }) => [styles.primaryBtn, pressed && { backgroundColor: branding.colors.buttonHover }]}
@@ -286,6 +306,12 @@ export function FitzpatrickRulesView({
                   Fototipo {rule.fitzpatrickScale} · Prioridad{' '}
                   {priorityLabel(rule.priority)}
                   {rule.isActive ? '' : ' · Inactiva'}
+                </Text>
+                <Text style={styles.ruleMeta}>
+                  Biotipo:{' '}
+                  {rule.skinTypes?.length
+                    ? rule.skinTypes.map(youcamSkinTypeLabel).join(', ')
+                    : 'Todos'}
                 </Text>
                 {rule.description ? (
                   <Text style={styles.cardBody}>{rule.description}</Text>
