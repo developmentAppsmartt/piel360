@@ -46,7 +46,20 @@ export function youcamMetricLabel(type: string, region?: string): string {
   return `${base} — ${youcamRegionLabel(region)}`;
 }
 
-/** Los 8 valores posibles de skin_type según la doc de YouCam. */
+/** Los 8 valores posibles de skin_type (espejo de ANALISIS_PIEL360_SKIN_TYPE_VALUES). */
+export const YOUCAM_SKIN_TYPE_VALUES = [
+  'normal',
+  'oily',
+  'dry',
+  'combination',
+  'redness',
+  'dry & redness',
+  'oily & redness',
+  'combination & redness',
+] as const;
+
+export type YoucamSkinTypeValue = (typeof YOUCAM_SKIN_TYPE_VALUES)[number];
+
 export const YOUCAM_SKIN_TYPE_LABELS: Record<string, string> = {
   normal: 'Normal',
   oily: 'Grasa',
@@ -61,3 +74,9 @@ export const YOUCAM_SKIN_TYPE_LABELS: Record<string, string> = {
 export function youcamSkinTypeLabel(value: string): string {
   return YOUCAM_SKIN_TYPE_LABELS[value.toLowerCase()] ?? value;
 }
+
+/** Opciones del simulador / formularios: Sin biotipo + los 8 del análisis. */
+export const YOUCAM_SKIN_TYPE_OPTIONS = YOUCAM_SKIN_TYPE_VALUES.map((value) => ({
+  value,
+  label: youcamSkinTypeLabel(value),
+}));

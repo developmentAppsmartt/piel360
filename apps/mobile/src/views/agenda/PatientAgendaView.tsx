@@ -337,13 +337,22 @@ export function PatientAgendaView({
                 <View style={{ marginTop: 12, gap: 6 }}>
                   <Text style={styles.dayPanelTitle}>Horarios de atención</Text>
                   <View style={styles.weeklySlotsGrid}>
-                    {calendar!.weeklySlots.map((s) => (
-                      <View key={s.id} style={styles.weeklySlotItem}>
-                        <Text style={styles.weeklySlotText}>
-                          {DAY_LABELS[s.dayOfWeek]} · {s.startTime}–{s.endTime}
-                        </Text>
-                      </View>
-                    ))}
+                    {[...calendar!.weeklySlots]
+                      .sort(
+                        (a, b) =>
+                          a.dayOfWeek - b.dayOfWeek ||
+                          a.startTime.localeCompare(b.startTime),
+                      )
+                      .map((s) => (
+                        <View key={s.id} style={styles.weeklySlotItem}>
+                          <Text style={styles.weeklySlotDay}>
+                            {DAY_LABELS[s.dayOfWeek]}
+                          </Text>
+                          <Text style={styles.weeklySlotTime}>
+                            {s.startTime}–{s.endTime}
+                          </Text>
+                        </View>
+                      ))}
                   </View>
                 </View>
               ) : (

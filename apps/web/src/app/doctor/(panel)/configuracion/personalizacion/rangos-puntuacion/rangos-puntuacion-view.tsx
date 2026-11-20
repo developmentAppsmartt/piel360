@@ -71,6 +71,9 @@ export function RangosPuntuacionView() {
   const metric = draft.metrics[selected] ?? {};
   const ranges = resolveScoreRanges(draft, type, region);
   const inheritedFrom = region ? metricLabel(type) : "PIEL 360";
+  // Herencia de la zona: el texto de la métrica padre (sin mirar esta
+  // subcategoría). Si se pasara `region`, el textarea mostraría su propio
+  // texto guardado como «heredado» y al guardar sanitize lo borraría.
   const inheritedText = (band: AnalisisPiel360ScoreBand) =>
     region
       ? configuredAnalisisPiel360Advice(type, band, draft)

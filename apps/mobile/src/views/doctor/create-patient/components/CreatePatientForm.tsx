@@ -10,27 +10,35 @@ import { KeyboardAwareScrollView } from '../../../../components/KeyboardAwareScr
 import { BirthDateField } from '../../../../components/BirthDateField';
 import { LocationPicker } from '../../../../components/maps/LocationPicker';
 import { useBranding } from '../../../../context/BrandingContext';
+import { OptionsSelect } from '../../../../components/OptionsSelect';
+import { PhoneSplitInputs } from '../../../../components/auth/PhoneSplitInputs';
 import {
-  isStrongPassword,
-  PASSWORD_STRENGTH_HINT,
-  PASSWORD_STRENGTH_MESSAGE,
-} from '../../../../lib/password';
-import {
-  PATIENT_DOC_TYPES,
-  PATIENT_FITZ_OPTIONS,
+  DEFAULT_PATIENT_DOC_TYPE,
+  PATIENT_DOC_TYPE_OPTIONS,
   PATIENT_GENDER_OPTIONS,
   PATIENT_MASCOT_OPTIONS,
   PATIENT_SKIN_OPTIONS,
 } from '../../../../data/patientFormOptions';
-import type { CreatePatientInput } from '../../../../services/patients.service';
-import { createCreatePatientStyles } from '../styles/createPatient.styles';
+import {
+  EMPTY_CLINICAL_PROFILE,
+  type ClinicalProfileDraft,
+} from '../../../../data/clinicalHistoryOptions';
 import { chronologicalAgeYears } from '../../../../data/skinAge';
+import {
+  resolveCreatePatientSubmit,
+  type CreatePatientSubmitValues,
+} from '../createPatientSubmit';
+import { useClinicalCatalog } from '../useClinicalCatalog';
+import { createCreatePatientStyles } from '../styles/createPatient.styles';
+import { FitzpatrickTypePicker } from './FitzpatrickTypePicker';
+import { PatientAppAccessSection } from './PatientAppAccessSection';
+import { PatientClinicalSections } from './PatientClinicalSections';
 import {
   PatientActivityFields,
   PatientBirthTypeField,
 } from './PatientLifestyleFields';
 
-export type CreatePatientFormValues = CreatePatientInput;
+export type CreatePatientFormValues = CreatePatientSubmitValues;
 
 type CreatePatientFormProps = {
   onNext: (values: CreatePatientFormValues) => void;
@@ -47,13 +55,14 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [docType, setDocType] = useState('CC');
+  const [createAppAccess, setCreateAppAccess] = useState(false);
+  const [docType, setDocType] = useState<string>(DEFAULT_PATIENT_DOC_TYPE);
   const [docNumber, setDocNumber] = useState('');
   const [gender, setGender] = useState('');
   const [address, setAddress] = useState('');
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
-  const [areaCode, setAreaCode] = useState('+57');
+  const [areaCode, setAreaCode] = useState('57');
   const [phone, setPhone] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [mascotType, setMascotType] = useState('');
@@ -64,70 +73,47 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
   const [skinType, setSkinType] = useState('');
   const [fitzpatrickType, setFitz] = useState('');
   const [importantNotes, setImportantNotes] = useState('');
+  const [clinical, setClinical] = useState<ClinicalProfileDraft>(
+    EMPTY_CLINICAL_PROFILE,
+  );
+  const catalogGroups = useClinicalCatalog(setClinical);
   const [error, setError] = useState<string | null>(null);
 
   const onDark = branding.colors.textOnDark;
   const text = branding.colors.text;
-  const fitzHint = PATIENT_FITZ_OPTIONS.find(
-    (f) => f.value === fitzpatrickType,
-  )?.hint;
 
   function submit() {
     setError(null);
-    if (!firstName.trim() || !lastName.trim()) {
-      setError('Nombre y apellidos son obligatorios.');
-      return;
-    }
-    const emailTrim = email.trim();
-    const passwordTrim = password.trim();
-    if (!emailTrim) {
-      setError('El correo es obligatorio para que el paciente pueda acceder.');
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
-      setError('Correo inválido.');
-      return;
-    }
-    if (!isStrongPassword(passwordTrim)) {
-      setError(PASSWORD_STRENGTH_MESSAGE);
-      return;
-    }
-    if (!docNumber.trim()) {
-      setError('El número de cédula / documento es obligatorio.');
-      return;
-    }
-    if (docNumber.trim().length < 4) {
-      setError('El número de documento debe tener al menos 4 caracteres.');
-      return;
-    }
-    if (birthDate && !/^\d{4}-\d{2}-\d{2}$/.test(birthDate.trim())) {
-      setError('Fecha inválida. Usa AAAA-MM-DD.');
-      return;
-    }
-    const opt = (v: string) => (v.trim() ? v.trim() : undefined);
-    onNext({
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      email: emailTrim,
-      password: passwordTrim,
-      createAppAccess: true,
-      docType: docType.trim() || 'CC',
-      docNumber: docNumber.trim(),
-      gender: opt(gender),
-      address: opt(address),
-      ...(lat != null && lng != null ? { lat, lng } : {}),
-      areaCode: opt(areaCode),
-      phone: opt(phone),
-      birthDate: opt(birthDate),
-      birthType: opt(birthType),
-      mascotType: opt(mascotType),
-      exerciseHabit: opt(exerciseHabit),
-      exerciseDaysPerWeek: opt(exerciseDaysPerWeek),
-      exerciseSessionDuration: opt(exerciseSessionDuration),
-      skinType: opt(skinType),
-      fitzpatrickType: opt(fitzpatrickType),
-      importantNotes: opt(importantNotes),
+    const result = resolveCreatePatientSubmit({
+      firstName,
+      lastName,
+      email,
+      password,
+      createAppAccess,
+      docType,
+      docNumber,
+      gender,
+      address,
+      lat,
+      lng,
+      areaCode,
+      phone,
+      birthDate,
+      birthType,
+      mascotType,
+      exerciseHabit,
+      exerciseDaysPerWeek,
+      exerciseSessionDuration,
+      skinType,
+      fitzpatrickType,
+      importantNotes,
+      clinical,
     });
+    if ('error' in result) {
+      setError(result.error);
+      return;
+    }
+    onNext(result.values);
   }
 
   return (
@@ -164,44 +150,22 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
             autoCapitalize="none"
             autoCorrect={false}
           />
-        </View>
-
-        <View style={styles.field}>
-          <Text style={styles.label}>Contraseña de acceso</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-            textContentType="newPassword"
-            placeholder={PASSWORD_STRENGTH_HINT}
-            placeholderTextColor="#9CA3AF"
-          />
-          <Text style={styles.hint}>{PASSWORD_STRENGTH_HINT}</Text>
+          <Text style={styles.hint}>
+            Correo de contacto. Si activas «Crear cuenta» más abajo, se usará
+            para iniciar sesión.
+          </Text>
         </View>
 
         <View style={styles.field}>
           <Text style={styles.label}>Tipo identificación</Text>
-          <View style={styles.chips}>
-            {PATIENT_DOC_TYPES.map((d) => {
-              const active = docType === d;
-              return (
-                <Pressable
-                  key={d}
-                  style={[styles.chip, active && styles.chipActive]}
-                  onPress={() => setDocType(d)}
-                >
-                  <Text
-                    style={[styles.chipText, active && styles.chipTextActive]}
-                  >
-                    {d}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <OptionsSelect
+            value={docType}
+            options={PATIENT_DOC_TYPE_OPTIONS}
+            onChange={setDocType}
+            placeholder="Seleccionar documento"
+            textColor={text}
+            accentColor={branding.colors.buttonHover}
+          />
         </View>
 
         <View style={styles.field}>
@@ -250,25 +214,26 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
           />
         </View>
 
-        <View style={styles.row}>
-          <View style={[styles.field, { width: 90 }]}>
-            <Text style={styles.label}>Cód. área</Text>
-            <TextInput
-              style={styles.input}
-              value={areaCode}
-              onChangeText={setAreaCode}
-            />
-          </View>
-          <View style={[styles.field, styles.half]}>
-            <Text style={styles.label}>Teléfono</Text>
-            <TextInput
-              style={styles.input}
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-            />
-          </View>
+        <View style={styles.field}>
+          <Text style={styles.label}>Teléfono</Text>
+          <PhoneSplitInputs
+            prefix={areaCode}
+            national={phone}
+            onPrefixChange={setAreaCode}
+            onNationalChange={setPhone}
+            textColor={text}
+          />
         </View>
+
+        <PatientAppAccessSection
+          createAppAccess={createAppAccess}
+          onCreateAppAccessChange={setCreateAppAccess}
+          password={password}
+          onPasswordChange={setPassword}
+          accentColor={branding.colors.primary}
+          textColor={text}
+          mutedColor={branding.colors.muted}
+        />
 
         <BirthDateField
           value={birthDate}
@@ -373,24 +338,12 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
 
         <View style={styles.field}>
           <Text style={styles.label}>Fototipo</Text>
-          <View style={styles.fitzRow}>
-            {PATIENT_FITZ_OPTIONS.map((f) => {
-              const active = fitzpatrickType === f.value;
-              return (
-                <Pressable
-                  key={f.value}
-                  onPress={() => setFitz(f.value)}
-                  style={[
-                    styles.fitzDot,
-                    { backgroundColor: f.color },
-                    active && styles.fitzDotActive,
-                  ]}
-                  accessibilityLabel={`Fototipo ${f.value}`}
-                />
-              );
-            })}
-          </View>
-          {fitzHint ? <Text style={styles.hint}>{fitzHint}</Text> : null}
+          <FitzpatrickTypePicker
+            value={fitzpatrickType}
+            onChange={setFitz}
+            accentColor={branding.colors.buttonHover}
+            mutedColor={branding.colors.muted}
+          />
         </View>
 
         <View style={styles.field}>
@@ -405,6 +358,16 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
           />
           <Text style={styles.hint}>{importantNotes.length}/500</Text>
         </View>
+
+        <PatientClinicalSections
+          value={clinical}
+          onChange={setClinical}
+          groups={catalogGroups}
+          accentColor={branding.colors.buttonHover}
+          textColor={text}
+          mutedColor={branding.colors.muted}
+          textOnAccent={onDark}
+        />
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 

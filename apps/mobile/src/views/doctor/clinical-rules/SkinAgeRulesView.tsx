@@ -14,18 +14,47 @@ import { CalendarDateField } from '../../../components/CalendarDateField';
 import { useBranding } from '../../../context/BrandingContext';
 import { ApiError } from '../../../services/api.client';
 import {
+  FITZPATRICK_SCALES,
+  FITZPATRICK_TYPES,
+} from '../../../data/fitzpatrickLabels';
+import {
+  YOUCAM_SKIN_TYPE_OPTIONS,
+  youcamSkinTypeLabel,
+} from '../../../data/youcamMetricLabels';
+import {
   skinAgeRulesService,
   type SkinAgeRecommended,
   type SkinAgeRule,
 } from '../../../services/skin-age-rules.service';
 import { DoctorHeader } from '../patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
+import { SimulatorFilterChips } from './SimulatorFilterChips';
 import {
   RULE_COLOR_HEX,
   createClinicalRulesStyles,
   formatSkinAgeDifferenceRange,
   priorityLabel,
 } from './styles/clinicalRules.styles';
+
+const FITZPATRICK_OPTIONS = FITZPATRICK_SCALES.map((scale) => ({
+  value: scale,
+  label: `${scale} · ${FITZPATRICK_TYPES[scale].label}`,
+}));
+
+function skinAgeRuleScopeText(rule: SkinAgeRule): string {
+  const skins = rule.skinTypes ?? [];
+  const scales = rule.fitzpatrickScales ?? [];
+  if (!skins.length && !scales.length) {
+    return 'Todos los biotipos y fototipos';
+  }
+  const biotipo = skins.length
+    ? `Biotipo: ${skins.map(youcamSkinTypeLabel).join(', ')}`
+    : 'Todos los biotipos';
+  const fototipo = scales.length
+    ? `Fototipo: ${scales.join(', ')}`
+    : 'todos los fototipos';
+  return `${biotipo} · ${fototipo}`;
+}
 
 type SkinAgeRulesViewProps = {
   onBack: () => void;
@@ -70,6 +99,9 @@ export function SkinAgeRulesView({
   const [error, setError] = useState<string | null>(null);
   const [birthDate, setBirthDate] = useState('1987-03-15');
   const [skinAgeYears, setSkinAgeYears] = useState('46');
+  /** "" = Sin dato, igual que el CRM. */
+  const [skinType, setSkinType] = useState('');
+  const [fitzpatrickScale, setFitzpatrickScale] = useState('');
   const [simulating, setSimulating] = useState(false);
   const [simulation, setSimulation] = useState<SkinAgeRecommended | null>(
     null,
@@ -113,6 +145,8 @@ export function SkinAgeRulesView({
       const result = await skinAgeRulesService.simulate({
         birthDate: birthDate.trim(),
         skinAgeYears: age,
+        skinType: skinType || undefined,
+        fitzpatrickScale: fitzpatrickScale || undefined,
       });
       setSimulation(result);
     } catch (err) {
@@ -188,7 +222,8 @@ export function SkinAgeRulesView({
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Simulador</Text>
             <Text style={styles.cardBody}>
-              Fecha de nacimiento y edad de piel estimada.
+              Fecha de nacimiento, edad de piel, biotipo y fototipo (igual que
+              en el CRM).
             </Text>
             <CalendarDateField
               value={birthDate || null}
@@ -210,6 +245,22 @@ export function SkinAgeRulesView({
               placeholderTextColor="#9CA3AF"
               style={styles.input}
               keyboardType="number-pad"
+            />
+            <SimulatorFilterChips
+              label="Biotipo"
+              value={skinType}
+              onChange={setSkinType}
+              emptyLabel="Sin dato"
+              options={YOUCAM_SKIN_TYPE_OPTIONS}
+              styles={styles}
+            />
+            <SimulatorFilterChips
+              label="Fototipo"
+              value={fitzpatrickScale}
+              onChange={setFitzpatrickScale}
+              emptyLabel="Sin dato"
+              options={FITZPATRICK_OPTIONS}
+              styles={styles}
             />
             <Pressable
               onPress={() => void handleSimulate()}
@@ -294,6 +345,9 @@ export function SkinAgeRulesView({
                   )}{' '}
                   · Prioridad {priorityLabel(rule.priority)}
                   {rule.isActive ? '' : ' · Inactiva'}
+                </Text>
+                <Text style={styles.ruleMeta}>
+                  {skinAgeRuleScopeText(rule)}
                 </Text>
                 {rule.description ? (
                   <Text style={styles.cardBody}>{rule.description}</Text>

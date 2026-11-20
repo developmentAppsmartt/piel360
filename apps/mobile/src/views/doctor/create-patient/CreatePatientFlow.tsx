@@ -3,18 +3,20 @@ import { Alert, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useBranding } from '../../../context/BrandingContext';
 import type { AnalysisProviderSlug } from '../../../data/analysisProviderLabel';
+import { clinicalProfileHasData } from '../../../data/clinicalHistoryOptions';
 import { ApiError } from '../../../services/api.client';
-import {
-  patientsService,
-  type CreatePatientInput,
-} from '../../../services/patients.service';
+import { clinicalHistoryService } from '../../../services/clinical-history.service';
+import { patientsService } from '../../../services/patients.service';
 import { FitzpatrickAnalysisFlow } from '../../analyses/fitzpatrick-flow/FitzpatrickAnalysisFlow';
 import { SkiniverAnalysisFlow } from '../../analyses/skiniver-flow/SkiniverAnalysisFlow';
 import { YoucamAnalysisFlow } from '../../analyses/youcam-flow/YoucamAnalysisFlow';
 import { DoctorHeader } from '../patients/components/DoctorHeader';
 import { createDoctorPatientsStyles } from '../patients/styles/patients.styles';
 import { ConsentStep } from './components/ConsentStep';
-import { CreatePatientForm } from './components/CreatePatientForm';
+import {
+  CreatePatientForm,
+  type CreatePatientFormValues,
+} from './components/CreatePatientForm';
 import { CreatePatientSuccess } from './components/CreatePatientSuccess';
 import { createCreatePatientStyles } from './styles/createPatient.styles';
 
@@ -42,7 +44,7 @@ export function CreatePatientFlow({
   );
 
   const [step, setStep] = useState<Step>('form');
-  const [draft, setDraft] = useState<CreatePatientInput | null>(null);
+  const [draft, setDraft] = useState<CreatePatientFormValues | null>(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [activeProvider, setActiveProvider] =
@@ -52,7 +54,19 @@ export function CreatePatientFlow({
     if (!draft) return;
     setSubmitting(true);
     try {
-      const created = await patientsService.create(draft);
+      const created = await patientsService.create(draft.patient);
+      if (clinicalProfileHasData(draft.clinical)) {
+        try {
+          await clinicalHistoryService.save(created.id, draft.clinical);
+        } catch (err) {
+          Alert.alert(
+            'Paciente creado',
+            err instanceof ApiError
+              ? `El paciente se creó, pero no se pudo guardar la historia clínica: ${err.message}`
+              : 'El paciente se creó, pero no se pudo guardar la historia clínica.',
+          );
+        }
+      }
       setCreatedId(created.id);
       setStep('success');
       onCreated?.();
@@ -86,7 +100,7 @@ export function CreatePatientFlow({
     return (
       <SkiniverAnalysisFlow
         patientId={createdId}
-        patientGender={draft?.gender}
+        patientGender={draft?.patient.gender}
         onClose={() => setActiveProvider(null)}
         onAnalysisCreated={() => {
           setActiveProvider(null);

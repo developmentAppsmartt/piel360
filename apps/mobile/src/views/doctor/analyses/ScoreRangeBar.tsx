@@ -1,122 +1,108 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, type DimensionValue } from 'react-native';
 import type { RangosPuntaje } from '../../../data/youcamScoreConfig';
+import type { YoucamScoreBand } from '../../../types/analysis';
 
-/** Mismos tonos que la personalización del panel (rosa, ámbar, verde). */
-const COLOR = {
-  regular: '#FB7185',
-  promedio: '#FBBF24',
-  buena: '#10B981',
-} as const;
+/** Mismos tonos que el CRM (`report-score-bar`). */
+export const SCORE_BAND_COLOR: Record<YoucamScoreBand, string> = {
+  regular: '#F59E0B',
+  promedio: '#3B82F6',
+  buena: '#22C55E',
+};
 
-const MARCAS = [0, 20, 40, 60, 80, 100];
+const TICKS = [0, 20, 40, 60, 80, 100];
 
 type ScoreRangeBarProps = {
   score: number;
   ranges: RangosPuntaje;
-  /** Sin leyenda: cabe en la tarjeta de cada métrica. */
+  /** Sin rótulos de nivel: cabe en la tarjeta de cada métrica. */
   compact?: boolean;
 };
 
-/** Barra 0–100 de la puntuación general. Los cortes salen de la
- * personalización; las marcas de arriba son fijas para leer el puntaje. */
-export function ScoreRangeBar({ score, ranges, compact = false }: ScoreRangeBarProps) {
-  const value = Math.max(0, Math.min(100, score));
-  const { regularMax, promedioMax } = ranges;
-  const promedioAncho = Math.max(0, promedioMax - regularMax);
-  const buenaAncho = Math.max(0, 100 - promedioMax);
-  const color =
-    value < regularMax
-      ? COLOR.regular
-      : value < promedioMax
-        ? COLOR.promedio
-        : COLOR.buena;
+function clamp(n: number) {
+  return Math.max(0, Math.min(100, n));
+}
 
-  const leyenda = [
-    { color: COLOR.regular, rango: `0-${regularMax - 1}`, label: 'Regular' },
-    {
-      color: COLOR.promedio,
-      rango: `${regularMax}-${promedioMax - 1}`,
-      label: 'Promedio',
-    },
-    { color: COLOR.buena, rango: `${promedioMax}-100`, label: 'Buena' },
+/**
+ * Barra Regular / Promedio / Buena con límites de personalización,
+ * marca del puntaje arriba y numeración 0–100 abajo (como el CRM).
+ */
+export function ScoreRangeBar({
+  score,
+  ranges,
+  compact = false,
+}: ScoreRangeBarProps) {
+  const value = clamp(score);
+  const regular = clamp(ranges.regularMax);
+  const promedio = Math.max(0, clamp(ranges.promedioMax) - regular);
+  const buena = Math.max(0, 100 - regular - promedio);
+  const segments: { band: YoucamScoreBand; width: number; label: string }[] = [
+    { band: 'regular', width: regular, label: 'Regular' },
+    { band: 'promedio', width: promedio, label: 'Promedio' },
+    { band: 'buena', width: buena, label: 'Buena' },
   ];
+  const markerLeft = `${value}%` as DimensionValue;
 
   return (
-    <View style={[styles.block, compact ? styles.blockCompact : null]}>
-      <View style={[styles.marcas, compact ? styles.marcasCompact : null]}>
-        {MARCAS.map((marca) => (
+    <View style={styles.block}>
+      <View style={styles.markerRow}>
+        <View style={[styles.marker, { left: markerLeft }]}>
+          <Text style={styles.markerText}>{Math.round(value)}</Text>
+          <View style={styles.markerTip} />
+        </View>
+      </View>
+
+      <View style={[styles.track, compact && styles.trackCompact]}>
+        {segments.map((s) =>
+          s.width > 0 ? (
+            <View
+              key={s.band}
+              style={{
+                flex: s.width,
+                backgroundColor: SCORE_BAND_COLOR[s.band],
+              }}
+            />
+          ) : null,
+        )}
+      </View>
+
+      <View style={styles.ticks}>
+        {TICKS.map((tick) => (
           <Text
-            key={marca}
+            key={tick}
             style={[
-              styles.marca,
-              {
-                left: `${marca}%`,
-                transform: [
-                  { translateX: marca === 0 ? 0 : marca === 100 ? -18 : -8 },
-                ],
-              },
+              styles.tick,
+              tick === 0
+                ? styles.tickStart
+                : tick === 100
+                  ? styles.tickEnd
+                  : { left: `${tick}%` as DimensionValue },
             ]}
           >
-            {marca}
+            {tick}
           </Text>
         ))}
-      </View>
-
-      <View style={[styles.pistaWrap, compact ? styles.pistaWrapCompact : null]}>
-        <View style={[styles.pista, compact ? styles.pistaCompact : null]}>
-          <View style={{ flex: regularMax, backgroundColor: COLOR.regular }} />
-          <View style={{ flex: promedioAncho, backgroundColor: COLOR.promedio }} />
-          <View style={{ flex: buenaAncho, backgroundColor: COLOR.buena }} />
-        </View>
-        <View
-          style={[
-            styles.pin,
-            compact ? styles.pinCompact : null,
-            { left: `${value}%`, backgroundColor: color },
-          ]}
-        >
-          <Text
-            style={[
-              styles.pinText,
-              color === COLOR.promedio ? styles.pinTextDark : null,
-            ]}
-          >
-            {Math.round(value)}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.cortes}>
-        <Text
-          style={[
-            styles.corte,
-            { left: `${regularMax}%`, color: COLOR.promedio },
-          ]}
-        >
-          {regularMax}
-        </Text>
-        <Text
-          style={[
-            styles.corte,
-            { left: `${promedioMax}%`, color: COLOR.buena },
-          ]}
-        >
-          {promedioMax}
-        </Text>
       </View>
 
       {compact ? null : (
-      <View style={styles.leyenda}>
-        {leyenda.map((item) => (
-          <View key={item.label} style={styles.leyendaFila}>
-            <View style={[styles.muestra, { backgroundColor: item.color }]} />
-            <Text style={[styles.leyendaRango, { color: item.color }]}>
-              {item.rango}
-            </Text>
-            <Text style={styles.leyendaLabel}>{item.label}</Text>
-          </View>
-        ))}
-      </View>
+        <View style={styles.labels}>
+          {segments.map((s) =>
+            s.width > 0 ? (
+              <Text
+                key={s.band}
+                style={[
+                  styles.label,
+                  {
+                    flex: s.width,
+                    color: SCORE_BAND_COLOR[s.band],
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                {s.label}
+              </Text>
+            ) : null,
+          )}
+        </View>
       )}
     </View>
   );
@@ -124,107 +110,78 @@ export function ScoreRangeBar({ score, ranges, compact = false }: ScoreRangeBarP
 
 const styles = StyleSheet.create({
   block: {
-    marginTop: 8,
-    marginBottom: 14,
-    paddingHorizontal: 4,
+    gap: 4,
   },
-  blockCompact: {
-    marginTop: 2,
-    marginBottom: 0,
-    paddingHorizontal: 0,
-  },
-  marcasCompact: {
-    height: 14,
-  },
-  pistaWrapCompact: {
-    height: 24,
-  },
-  pistaCompact: {
-    height: 10,
-  },
-  pinCompact: {
-    top: 1,
-    width: 22,
-    height: 22,
-    marginLeft: -11,
-    borderRadius: 11,
-  },
-  marcas: {
-    height: 16,
+  markerRow: {
+    height: 26,
     position: 'relative',
-    marginBottom: 2,
   },
-  marca: {
+  marker: {
     position: 'absolute',
     top: 0,
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#9CA3AF',
-  },
-  pistaWrap: {
-    height: 28,
-    justifyContent: 'center',
-  },
-  pista: {
-    height: 12,
-    borderRadius: 6,
-    flexDirection: 'row',
-    overflow: 'hidden',
-  },
-  pin: {
-    position: 'absolute',
-    top: 1,
-    width: 26,
-    height: 26,
-    marginLeft: -13,
-    borderRadius: 13,
+    marginLeft: -14,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
+    zIndex: 1,
   },
-  pinText: {
+  markerText: {
+    minWidth: 28,
+    textAlign: 'center',
+    backgroundColor: '#0F172A',
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '800',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: 'hidden',
   },
-  pinTextDark: {
-    color: '#78350F',
+  markerTip: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderTopWidth: 5,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: '#0F172A',
   },
-  cortes: {
+  track: {
+    height: 12,
+    borderRadius: 999,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  trackCompact: {
+    height: 8,
+  },
+  ticks: {
     height: 16,
     position: 'relative',
-    marginTop: 2,
   },
-  corte: {
+  tick: {
     position: 'absolute',
     top: 0,
-    marginLeft: -8,
     fontSize: 10,
-    fontWeight: '700',
-  },
-  leyenda: {
-    marginTop: 6,
-    gap: 4,
-  },
-  leyendaFila: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  muestra: {
-    width: 12,
-    height: 12,
-    borderRadius: 3,
-  },
-  leyendaRango: {
-    width: 52,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  leyendaLabel: {
-    fontSize: 12,
     fontWeight: '600',
-    color: '#4B5563',
+    color: '#94A3B8',
+    marginLeft: -8,
+  },
+  tickStart: {
+    left: 0,
+    marginLeft: 0,
+  },
+  tickEnd: {
+    right: 0,
+    left: undefined,
+    marginLeft: 0,
+  },
+  labels: {
+    flexDirection: 'row',
+    marginTop: 2,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });

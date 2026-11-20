@@ -51,6 +51,12 @@ export function createClinicalRulesStyles(colors: AppBranding['colors']) {
       lineHeight: 19,
       color: colors.secondaryTextOverride ?? colors.muted,
     },
+    fieldLabel: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.text,
+      marginTop: 4,
+    },
     statsRow: {
       flexDirection: 'row',
       gap: 10,

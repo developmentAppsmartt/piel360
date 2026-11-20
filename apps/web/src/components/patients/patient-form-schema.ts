@@ -9,6 +9,7 @@ import {
   type PatientClinicalHistoryInput,
   type PatientClinicalProfile,
 } from "@piel360/shared";
+import { normalizePatientDocType } from "@/lib/patient-form-options";
 import type { ClinicalHistoryGroups } from "@/lib/queries/patient-clinical-history";
 import type { Patient, PatientInput } from "@/lib/queries/patients";
 
@@ -113,7 +114,7 @@ export function patientFormDefaults(
     email: patient?.email ?? "",
     password: "",
     createAppAccess: false,
-    docType: patient?.docType ?? "CC",
+    docType: normalizePatientDocType(patient?.docType),
     docNumber: patient?.docNumber ?? "",
     gender: patient?.gender ?? "",
     address: patient?.address ?? "",

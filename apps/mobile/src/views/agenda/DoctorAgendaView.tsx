@@ -538,14 +538,27 @@ export function DoctorAgendaView({
                   <View style={styles.weeklySlotsGrid}>
                     {(selectedDate
                       ? selectedDaySlots
-                      : overview!.weeklySlots
+                      : [...overview!.weeklySlots].sort(
+                          (a, b) =>
+                            a.dayOfWeek - b.dayOfWeek ||
+                            a.startTime.localeCompare(b.startTime),
+                        )
                     ).map((s) => (
                       <View key={s.id} style={styles.weeklySlotItem}>
-                        <Text style={styles.weeklySlotText}>
-                          {selectedDate
-                            ? `${s.startTime}–${s.endTime}`
-                            : `${DAY_LABELS[s.dayOfWeek]} · ${s.startTime}–${s.endTime}`}
-                        </Text>
+                        {selectedDate ? (
+                          <Text style={styles.weeklySlotText}>
+                            {s.startTime}–{s.endTime}
+                          </Text>
+                        ) : (
+                          <>
+                            <Text style={styles.weeklySlotDay}>
+                              {DAY_LABELS[s.dayOfWeek]}
+                            </Text>
+                            <Text style={styles.weeklySlotTime}>
+                              {s.startTime}–{s.endTime}
+                            </Text>
+                          </>
+                        )}
                       </View>
                     ))}
                   </View>

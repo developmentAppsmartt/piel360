@@ -592,7 +592,7 @@ export function SkiniverResultsSection({
         <AnalysisImageCarousel
           images={[
             { label: 'Original', url: analysis.imageUrl },
-            { label: 'Coloreada', url: analysis.coloredUrl },
+            { label: 'Mapa de Calor', url: analysis.coloredUrl },
             { label: 'Máscara', url: analysis.maskedUrl },
           ]}
         />

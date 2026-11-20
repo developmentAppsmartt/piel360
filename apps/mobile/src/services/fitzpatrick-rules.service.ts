@@ -15,6 +15,8 @@ export type FitzpatrickRule = {
   label: string;
   description: string | null;
   fitzpatrickScale: string;
+  /** Biotipos a los que aplica; vacío = todos. */
+  skinTypes: string[];
   priority: FitzpatrickRulePriority;
   colorKey: FitzpatrickRuleColorKey;
   sortOrder: number;
@@ -32,6 +34,7 @@ export type FitzpatrickMatchedRule = {
   label: string;
   description: string | null;
   fitzpatrickScale: string;
+  skinTypes?: string[];
   priority: string;
   colorKey?: string;
 };
@@ -39,6 +42,8 @@ export type FitzpatrickMatchedRule = {
 export type FitzpatrickRecommended = {
   snapshot: {
     fitzpatrickScale: string | null;
+    /** Biotipo con el que se simuló; null si no se eligió. */
+    skinType?: string | null;
     message: string | null;
   };
   matchedRule: FitzpatrickMatchedRule | null;
@@ -55,11 +60,18 @@ export const fitzpatrickRulesService = {
     return apiRequest<FitzpatrickRule[]>('/fitzpatrick-rules', { auth: true });
   },
 
-  async simulate(fitzpatrickScale: string): Promise<FitzpatrickRecommended> {
+  /** `skinType` vacío/omitido = sin biotipo (como en el CRM). */
+  async simulate(
+    fitzpatrickScale: string,
+    skinType?: string,
+  ): Promise<FitzpatrickRecommended> {
     return apiRequest<FitzpatrickRecommended>('/fitzpatrick-rules/simulate', {
       method: 'POST',
       auth: true,
-      body: { fitzpatrickScale },
+      body: {
+        fitzpatrickScale,
+        ...(skinType ? { skinType } : {}),
+      },
     });
   },
 

@@ -1,4 +1,4 @@
-import { Text, View, type DimensionValue } from 'react-native';
+import { Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { AppIcon } from '../../../../components/AppIcon';
 import { Icons } from '../../../../components/icons';
@@ -7,23 +7,15 @@ import {
   skinAgeDifferenceMessage,
 } from '../../../../data/skinAge';
 import {
+  configuredYoucamAdvice,
+  configuredYoucamScoreBand,
   rangosGenerales,
+  YOUCAM_OVERALL_TYPE,
   type YoucamScoreConfig,
 } from '../../../../data/youcamScoreConfig';
-import type { YoucamScoreBand } from '../../../../types/analysis';
 import { youcamScoreBandLabel } from '../../../../types/analysis';
+import { ScoreRangeBar, SCORE_BAND_COLOR } from '../ScoreRangeBar';
 import { youcamScoreSummaryStyles as styles } from '../styles/youcamScoreSummary.styles';
-
-const BAND_COLOR = {
-  regular: '#F59E0B',
-  promedio: '#3B82F6',
-  buena: '#22C55E',
-} as const;
-
-const GAUGE = 64;
-const GAUGE_STROKE = 7;
-const GAUGE_R = (GAUGE - GAUGE_STROKE) / 2;
-const GAUGE_CIRC = Math.PI * GAUGE_R;
 
 type YoucamScoreSummaryProps = {
   overall: number | null;
@@ -34,158 +26,83 @@ type YoucamScoreSummaryProps = {
   primaryColor: string;
 };
 
-function bandFromScore(
-  score: number,
-  regularMax: number,
-  promedioMax: number,
-): YoucamScoreBand {
-  if (score < regularMax) return 'regular';
-  if (score < promedioMax) return 'promedio';
-  return 'buena';
-}
+const RING = 112;
+const RING_R = 42;
+const RING_STROKE = 9;
+const RING_CIRC = 2 * Math.PI * RING_R;
 
-function InsightText({
-  score,
-  band,
-  ageDiff,
-}: {
-  score: number;
-  band: YoucamScoreBand;
-  ageDiff: number | null;
-}) {
-  const nivel = youcamScoreBandLabel(band).toLowerCase();
-  const envejecimiento =
-    ageDiff == null
-      ? ''
-      : ageDiff > 0
-        ? ', con signos de envejecimiento moderado'
-        : ageDiff < 0
-          ? ', con un aspecto más juvenil'
-          : '';
+function ScoreRing({ score, color }: { score: number; color: string }) {
+  const pct = Math.max(0, Math.min(100, score)) / 100;
   return (
-    <Text style={styles.insightText}>
-      Tu piel tiene un puntaje de{' '}
-      <Text style={styles.insightBold}>{Math.round(score)}/100</Text>, lo que
-      indica un nivel <Text style={styles.insightBold}>{nivel}</Text> de salud
-      {envejecimiento}.
-    </Text>
-  );
-}
-
-function TargetIcon({ color }: { color: string }) {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24">
-      <Circle cx={12} cy={12} r={9} stroke={color} strokeWidth={1.8} fill="none" />
-      <Circle cx={12} cy={12} r={5} stroke={color} strokeWidth={1.8} fill="none" />
-      <Circle cx={12} cy={12} r={1.6} fill={color} />
-      <Path d="M12 3v3M21 12h-3" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
-    </Svg>
-  );
-}
-
-function DiffGauge({
-  ageDiff,
-  color,
-}: {
-  ageDiff: number;
-  color: string;
-}) {
-  const tone = ageDiff > 0 ? '#DC2626' : ageDiff < 0 ? '#059669' : color;
-  const pct = Math.min(1, Math.abs(ageDiff) / 20);
-  const filled = GAUGE_CIRC * pct;
-  return (
-    <View style={styles.gaugeWrap}>
-      <Svg width={GAUGE} height={GAUGE / 2 + 4}>
-        <Path
-          d={`M ${GAUGE_STROKE / 2} ${GAUGE / 2} A ${GAUGE_R} ${GAUGE_R} 0 0 1 ${GAUGE - GAUGE_STROKE / 2} ${GAUGE / 2}`}
+    <View style={styles.ringWrap}>
+      <Svg width={RING} height={RING} viewBox="0 0 100 100">
+        <Circle
+          cx={50}
+          cy={50}
+          r={RING_R}
           stroke="#E2E8F0"
-          strokeWidth={GAUGE_STROKE}
+          strokeWidth={RING_STROKE}
           fill="none"
-          strokeLinecap="round"
         />
-        <Path
-          d={`M ${GAUGE_STROKE / 2} ${GAUGE / 2} A ${GAUGE_R} ${GAUGE_R} 0 0 1 ${GAUGE - GAUGE_STROKE / 2} ${GAUGE / 2}`}
-          stroke={tone}
-          strokeWidth={GAUGE_STROKE}
+        <Circle
+          cx={50}
+          cy={50}
+          r={RING_R}
+          stroke={color}
+          strokeWidth={RING_STROKE}
           fill="none"
           strokeLinecap="round"
-          strokeDasharray={`${filled} ${GAUGE_CIRC}`}
+          strokeDasharray={`${RING_CIRC}`}
+          strokeDashoffset={RING_CIRC * (1 - pct)}
+          rotation={-90}
+          origin="50, 50"
         />
       </Svg>
-      <Text style={[styles.gaugeValue, { color: tone }]}>
-        {formatSignedYears(ageDiff)}
+      <View style={styles.ringCenter}>
+        <Text style={styles.ringScore}>{Math.round(score)}</Text>
+        <Text style={styles.ringDenom}>/100</Text>
+      </View>
+    </View>
+  );
+}
+
+function DiffBlock({ ageDiff }: { ageDiff: number }) {
+  const aged = ageDiff > 0;
+  const young = ageDiff < 0;
+  return (
+    <View style={styles.diffCol}>
+      <View
+        style={[
+          styles.diffPill,
+          aged
+            ? styles.diffPillAged
+            : young
+              ? styles.diffPillYoung
+              : styles.diffPillNeutral,
+        ]}
+      >
+        <Text
+          style={[
+            styles.diffPillText,
+            aged
+              ? styles.diffAged
+              : young
+                ? styles.diffYoung
+                : styles.diffNeutral,
+          ]}
+        >
+          {aged ? '↑ ' : young ? '↓ ' : ''}
+          Diferencia: {formatSignedYears(ageDiff)}
+        </Text>
+      </View>
+      <Text style={styles.diffMessage}>
+        {skinAgeDifferenceMessage(ageDiff)}
       </Text>
     </View>
   );
 }
 
-function SummaryBar({
-  score,
-  regularMax,
-  promedioMax,
-}: {
-  score: number;
-  regularMax: number;
-  promedioMax: number;
-}) {
-  const value = Math.max(0, Math.min(100, score));
-  const left = `${value}%` as DimensionValue;
-  return (
-    <View style={styles.barBlock}>
-      <View style={styles.markerRow}>
-        <View style={[styles.marker, { left }]}>
-          <Text style={styles.markerText}>{Math.round(value)}</Text>
-          <View style={styles.markerTip} />
-        </View>
-        <Text style={styles.barMax}>100</Text>
-      </View>
-      <View style={styles.barTrack}>
-        <View style={{ flex: regularMax, backgroundColor: BAND_COLOR.regular }} />
-        <View
-          style={{
-            flex: Math.max(0, promedioMax - regularMax),
-            backgroundColor: BAND_COLOR.promedio,
-          }}
-        />
-        <View
-          style={{
-            flex: Math.max(0, 100 - promedioMax),
-            backgroundColor: BAND_COLOR.buena,
-          }}
-        />
-      </View>
-      <View style={styles.barLabels}>
-        <Text style={[styles.barLabel, { color: BAND_COLOR.regular, flex: regularMax }]}>
-          Regular
-        </Text>
-        <Text
-          style={[
-            styles.barLabel,
-            {
-              color: BAND_COLOR.promedio,
-              flex: Math.max(0, promedioMax - regularMax),
-            },
-          ]}
-        >
-          Promedio
-        </Text>
-        <Text
-          style={[
-            styles.barLabel,
-            {
-              color: BAND_COLOR.buena,
-              flex: Math.max(0, 100 - promedioMax),
-            },
-          ]}
-        >
-          Buena
-        </Text>
-      </View>
-    </View>
-  );
-}
-
-/** Tres tarjetas + barra + insight, como en el diseño de resultado. */
+/** Resumen estético alineado al CRM: 3 tiles + anillo + barra numerada + consejo. */
 export function YoucamScoreSummary({
   overall,
   skinAge,
@@ -195,84 +112,100 @@ export function YoucamScoreSummary({
   primaryColor,
 }: YoucamScoreSummaryProps) {
   if (overall == null && skinAge == null && ageDiff == null) return null;
+
   const ranges = rangosGenerales(scoreConfig);
   const band =
     overall != null
-      ? bandFromScore(overall, ranges.regularMax, ranges.promedioMax)
+      ? configuredYoucamScoreBand(overall, YOUCAM_OVERALL_TYPE, scoreConfig)
       : null;
+  const advice =
+    band != null
+      ? configuredYoucamAdvice(YOUCAM_OVERALL_TYPE, band, scoreConfig)
+      : null;
+  const ringColor = band ? SCORE_BAND_COLOR[band] : primaryColor;
 
   return (
-    <View style={styles.card}>
-      <View style={styles.metricsRow}>
-        <View style={styles.metricCard}>
-          <View style={[styles.iconChip, { backgroundColor: `${primaryColor}18` }]}>
-            <AppIcon icon={Icons.heartPulse} size={16} color={primaryColor} />
+    <View style={styles.wrap}>
+      <View style={styles.tilesRow}>
+        <View style={styles.tile}>
+          <View style={[styles.tileIcon, { backgroundColor: '#DBEAFE' }]}>
+            <AppIcon icon={Icons.heartPulse} size={18} color="#2563EB" />
           </View>
-          <Text style={styles.metricLabel}>Salud de la piel</Text>
-          <Text style={[styles.metricValue, { color: primaryColor }]}>
+          <Text style={styles.tileLabel}>Salud de la piel</Text>
+          <Text style={[styles.tileValue, { color: '#2563EB' }]}>
+            {overall != null ? `${Math.round(overall)} / 100` : '—'}
+          </Text>
+          <Text style={styles.tileFooter}>Puntaje general</Text>
+        </View>
+
+        <View style={styles.tile}>
+          <View style={[styles.tileIcon, { backgroundColor: '#EDE9FE' }]}>
+            <AppIcon icon={Icons.calendarDay} size={18} color="#7C3AED" />
+          </View>
+          <Text style={styles.tileLabel}>Edad de la piel</Text>
+          <Text style={[styles.tileValue, { color: primaryColor }]}>
             {skinAge != null ? `${Math.round(skinAge)} años` : '—'}
           </Text>
-          <Text style={styles.metricHint}>
-            Edad cronológica:{' '}
+          <Text style={styles.tileFooter}>(Edad actual)</Text>
+        </View>
+
+        <View style={styles.tile}>
+          <View style={[styles.tileIcon, { backgroundColor: '#FEF3C7' }]}>
+            <AppIcon icon={Icons.star} size={18} color="#D97706" />
+          </View>
+          <Text style={styles.tileLabel}>Edad cronológica</Text>
+          <Text style={styles.tileValue}>
             {chronologicalAge != null ? `${chronologicalAge} años` : '—'}
           </Text>
         </View>
-
-        <View style={styles.metricCard}>
-          <View style={[styles.iconChip, { backgroundColor: `${primaryColor}18` }]}>
-            <TargetIcon color={primaryColor} />
-          </View>
-          <Text style={styles.metricLabel}>Puntaje de la piel</Text>
-          <Text style={[styles.metricValue, { color: primaryColor }]}>
-            {overall != null ? `${Math.round(overall)}/100` : '—'}
-          </Text>
-        </View>
-
-        <View style={styles.metricCard}>
-          {ageDiff != null ? (
-            <DiffGauge ageDiff={ageDiff} color={primaryColor} />
-          ) : (
-            <Text style={[styles.metricValue, { color: primaryColor }]}>—</Text>
-          )}
-          <Text style={styles.metricLabel}>Diferencia</Text>
-          {ageDiff != null ? (
-            <Text
-              style={[
-                styles.diffMessage,
-                ageDiff > 0
-                  ? styles.aged
-                  : ageDiff < 0
-                    ? styles.young
-                    : styles.neutral,
-              ]}
-            >
-              {skinAgeDifferenceMessage(ageDiff)}
-            </Text>
-          ) : null}
-        </View>
       </View>
 
-      {overall != null ? (
-        <SummaryBar
-          score={overall}
-          regularMax={ranges.regularMax}
-          promedioMax={ranges.promedioMax}
-        />
-      ) : null}
-
       {overall != null && band ? (
-        <View style={styles.insight}>
-          <Svg width={18} height={18} viewBox="0 0 24 24" style={styles.insightIcon}>
-            <Path
-              d="M9 21h6M12 3a7 7 0 0 0-4 12.7V18h8v-2.3A7 7 0 0 0 12 3z"
-              stroke={primaryColor}
-              strokeWidth={1.8}
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </Svg>
-          <InsightText score={overall} band={band} ageDiff={ageDiff} />
+        <View style={styles.card}>
+          <View style={styles.ringRow}>
+            <ScoreRing score={overall} color={ringColor} />
+            {ageDiff != null ? (
+              <DiffBlock ageDiff={ageDiff} />
+            ) : (
+              <View style={styles.diffCol}>
+                <Text style={styles.bandFallback}>
+                  Su piel está en el nivel{' '}
+                  {youcamScoreBandLabel(band).toLowerCase()}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <ScoreRangeBar score={overall} ranges={ranges} />
+
+          <View style={styles.insight}>
+            <Svg
+              width={18}
+              height={18}
+              viewBox="0 0 24 24"
+              style={styles.insightIcon}
+            >
+              <Path
+                d="M9 21h6M12 3a7 7 0 0 0-4 12.7V18h8v-2.3A7 7 0 0 0 12 3z"
+                stroke="#0284C7"
+                strokeWidth={1.8}
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
+            <Text style={styles.insightText}>
+              Tu piel tiene un puntaje de{' '}
+              <Text style={styles.insightBold}>
+                {Math.round(overall)}/100
+              </Text>
+              , un nivel{' '}
+              <Text style={styles.insightBold}>
+                {youcamScoreBandLabel(band).toLowerCase()}
+              </Text>
+              .{advice ? ` ${advice}` : ''}
+            </Text>
+          </View>
         </View>
       ) : null}
     </View>
