@@ -7,6 +7,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { SkinAgeRulesModule } from '../skin-age-rules/skin-age-rules.module';
 import { StorageModule } from '../storage/storage.module';
+import { ComparisonReportService } from './comparison-report/comparison-report.service';
 import { PatientAnalysisRequestsService } from './patient-analysis-requests.service';
 import { PatientInviteService } from './patient-invite.service';
 import { PatientWriteService } from './patient-write.service';
@@ -29,6 +30,7 @@ import { PatientsController } from './patients.controller';
     PatientAnalysisRequestsService,
     AnalysisImageUrlsService,
     PatientInviteService,
+    ComparisonReportService,
   ],
   controllers: [PatientsController],
   exports: [PatientsService],

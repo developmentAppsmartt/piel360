@@ -11,7 +11,8 @@ export function ProfessionalOutcomeCard({
   notes,
   icd,
 }: {
-  kind: "selected" | "corrected";
+  /** `pending`: el profesional aún no confirma y `title` es lo que sugiere la IA. */
+  kind: "selected" | "corrected" | "pending";
   title: string;
   notes?: string | null;
   icd?: string | null;
@@ -28,7 +29,9 @@ export function ProfessionalOutcomeCard({
         <p className="text-sm font-semibold text-primary">
           {kind === "corrected"
             ? "Diagnóstico corregido por el profesional"
-            : "Diagnóstico seleccionado por el profesional"}
+            : kind === "pending"
+              ? "Sin diagnóstico del profesional · la IA sugiere"
+              : "Diagnóstico seleccionado por el profesional"}
         </p>
         <p className="text-base font-semibold text-foreground">{title}</p>
         {notes?.trim() ? (

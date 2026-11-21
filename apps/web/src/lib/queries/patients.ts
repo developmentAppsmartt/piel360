@@ -218,3 +218,23 @@ export function useUpdatePatient(id: string) {
     },
   });
 }
+
+export interface ComparisonReportInput {
+  mode: "aesthetic" | "derm";
+  initialId: string;
+  currentId: string;
+  /** Las notas de Comparaciones viven en el navegador: viajan con la descarga. */
+  generalNote?: string;
+  categoryNotes?: Record<string, string>;
+}
+
+/** PDF comparativo entre dos análisis del paciente; devuelve su URL firmada. */
+export function useComparisonReport(patientId: string) {
+  return useMutation({
+    mutationFn: (input: ComparisonReportInput) =>
+      apiClientFetch<{ url: string }>(`/patients/${patientId}/comparison-report`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+  });
+}

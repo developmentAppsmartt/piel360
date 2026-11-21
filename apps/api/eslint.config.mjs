@@ -15,7 +15,6 @@ const ARCHIVOS_LARGOS_HEREDADOS = [
   "src/doctors/doctors.service.ts",
   "src/messages/messages.service.ts",
   "src/organizations/organizations.service.ts",
-  "src/reports/report-pdf.service.ts",
   "src/routines/routines.service.ts",
 ];
 

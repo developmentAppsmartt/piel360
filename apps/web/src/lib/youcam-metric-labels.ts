@@ -1,3 +1,10 @@
+import { analisisPiel360RegionLabel } from "@piel360/shared";
+
+// Algunas métricas (hd_pore, hd_wrinkle, hd_skin_type) traen varias regiones
+// bajo el mismo `type`: las zonas viven en shared porque el PDF comparativo
+// del API también las nombra.
+export { ANALISIS_PIEL360_REGION_LABELS, analisisPiel360RegionLabel } from "@piel360/shared";
+
 export const ANALISIS_PIEL360_METRIC_LABELS: Record<string, string> = {
   hd_redness: "Eritema",
   hd_oiliness: "Grasa",
@@ -20,27 +27,6 @@ export const ANALISIS_PIEL360_METRIC_LABELS: Record<string, string> = {
   patient_age: "Edad del paciente",
   resize_image: "Imagen redimensionada",
 };
-
-// Algunas métricas (hd_pore, hd_wrinkle, hd_skin_type) traen varias regiones
-// bajo el mismo `type` — se usa para distinguirlas en el carrusel y en el
-// selector de subcategorías de AnalisisPiel360ResultsSection.
-export const ANALISIS_PIEL360_REGION_LABELS: Record<string, string> = {
-  whole: "Cara completa",
-  forehead: "Frente",
-  nose: "Nariz",
-  cheek: "Mejillas",
-  glabellar: "Entrecejo",
-  crowfeet: "Patas de gallo",
-  periocular: "Contorno de ojos",
-  nasolabial: "Nasolabial",
-  marionette: "Marioneta",
-  t_zone: "Zona T",
-  u_zone: "Zona U",
-};
-
-export function analisisPiel360RegionLabel(region: string): string {
-  return ANALISIS_PIEL360_REGION_LABELS[region] ?? region;
-}
 
 export function analisisPiel360MaskLabel(type: string, region?: string): string {
   const base = ANALISIS_PIEL360_METRIC_LABELS[type] ?? type;

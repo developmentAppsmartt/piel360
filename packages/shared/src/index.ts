@@ -35,3 +35,5 @@ export * from "./youcam-score-config.js";
 export * from "./profile-photo.js";
 export * from "./patient-clinical-history.js";
 export * from "./leads.js";
+export * from "./derma-outcome.js";
+export * from "./analysis-comparison.js";
