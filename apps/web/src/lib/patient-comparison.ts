@@ -41,6 +41,16 @@ export function isAestheticAnalysis(a: AnalysisKindRow): boolean {
   return !!a.analisisPiel360TaskId && a.isValid !== false;
 }
 
+export type AnalysisKind = "aesthetic" | "derm" | "fitzpatrick";
+
+/** El tipo de un análisis, también cuando salió inválido (el filtro del
+ * historial los cuenta en su tipo). */
+export function analysisKind(a: AnalysisKindRow): AnalysisKind {
+  if (a.fitzpatrickTaskId) return "fitzpatrick";
+  if (a.analisisPiel360TaskId) return "aesthetic";
+  return "derm";
+}
+
 export function isDermatologicalAnalysis(a: AnalysisKindRow): boolean {
   return !a.analisisPiel360TaskId && !a.fitzpatrickTaskId;
 }

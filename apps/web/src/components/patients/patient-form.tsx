@@ -153,12 +153,25 @@ function PatientFormBody({
             name="docType"
             control={control}
             render={({ field }) => (
-              <ChipGroup
-                options={PATIENT_DOC_TYPES.map((d) => ({ value: d, label: d }))}
-                value={field.value}
-                onChange={field.onChange}
-                allowClear={false}
-              />
+              <select
+                id="docType"
+                className={inputClass}
+                value={field.value ?? ""}
+                onChange={(e) => field.onChange(e.target.value)}
+              >
+                <option value="" disabled>
+                  Selecciona el tipo de documento
+                </option>
+                {PATIENT_DOC_TYPES.map((d) => (
+                  <option key={d.value} value={d.value}>
+                    {d.label}
+                  </option>
+                ))}
+                {/* Un tipo que ya no se ofrece (TI) se conserva hasta que lo cambien. */}
+                {field.value && !PATIENT_DOC_TYPES.some((d) => d.value === field.value) ? (
+                  <option value={field.value}>{field.value}</option>
+                ) : null}
+              </select>
             )}
           />
         </FormField>

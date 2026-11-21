@@ -18,7 +18,7 @@ import {
   VenusAndMars,
 } from "lucide-react";
 import { StatTile } from "@/components/ui/stat-tile";
-import { patientSkinTypeLabel } from "@/lib/patient-form-options";
+import { docTypeLabel, patientSkinTypeLabel } from "@/lib/patient-form-options";
 import { usePatientAnalyses, type Patient } from "@/lib/queries/patients";
 import { chronologicalAgeYears, formatSignedYears } from "@/lib/skin-age";
 import { birthTypeLabel, exerciseLabel, formatProfileDate, genderLabel } from "./profile-format";
@@ -62,7 +62,7 @@ export function ProfileDetailsGrid({ patient }: { patient: Patient }) {
       value:
         patient.professionalName?.trim() || (patient.doctorId ? `Doctor #${patient.doctorId}` : "Sin asignar"),
     },
-    { icon: IdCard, label: "Tipo de documento", value: patient.docType ?? "—" },
+    { icon: IdCard, label: "Tipo de documento", value: docTypeLabel(patient.docType) ?? "—" },
     { icon: Phone, label: "Teléfono", value: patient.phone ?? "—" },
     { icon: CalendarDays, label: "Fecha de nacimiento", value: formatProfileDate(patient.birthDate) },
     { icon: Droplet, label: "Tipo de piel", value: patientSkinTypeLabel(patient.skinType) },

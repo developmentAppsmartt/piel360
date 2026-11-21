@@ -10,6 +10,9 @@ interface SendMailInput {
   to: string;
   subject: string;
   html: string;
+  /** A quién se responde (p. ej. el profesional que pidió soporte). */
+  replyTo?: string;
+  attachments?: { name: string; content: Buffer }[];
 }
 
 interface EmailAddress {
@@ -39,7 +42,13 @@ export class MailService {
   /** `false` = no salió (sin API key o Brevo rechazó). Lo necesita quien tiene
    * que avisar al usuario, como la invitación a un miembro del equipo, que
    * lleva la clave temporal: si no llega, el dueño tiene que pasarla a mano. */
-  async send({ to, subject, html }: SendMailInput): Promise<boolean> {
+  async send({
+    to,
+    subject,
+    html,
+    replyTo,
+    attachments,
+  }: SendMailInput): Promise<boolean> {
     const apiKey = this.config.get<string>('BREVO_API_KEY');
     const from = parseFromAddress(
       this.config.get<string>('MAIL_FROM') ?? 'Piel360 <no-reply@piel360.com>',
@@ -72,6 +81,15 @@ export class MailService {
         to: [{ email: to }],
         subject,
         htmlContent,
+        ...(replyTo ? { replyTo: { email: replyTo } } : {}),
+        ...(attachments?.length
+          ? {
+              attachment: attachments.map((a) => ({
+                name: a.name,
+                content: a.content.toString('base64'),
+              })),
+            }
+          : {}),
       }),
     });
 

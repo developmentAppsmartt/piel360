@@ -16,12 +16,12 @@ import {
   PASSWORD_STRENGTH_MESSAGE,
 } from '../../../../lib/password';
 import {
-  PATIENT_DOC_TYPES,
   PATIENT_FITZ_OPTIONS,
   PATIENT_GENDER_OPTIONS,
   PATIENT_MASCOT_OPTIONS,
   PATIENT_SKIN_OPTIONS,
 } from '../../../../data/patientFormOptions';
+import { DocTypeSelect } from '../../../../components/DocTypeSelect';
 import type { CreatePatientInput } from '../../../../services/patients.service';
 import { createCreatePatientStyles } from '../styles/createPatient.styles';
 import { chronologicalAgeYears } from '../../../../data/skinAge';
@@ -184,24 +184,11 @@ export function CreatePatientForm({ onNext }: CreatePatientFormProps) {
 
         <View style={styles.field}>
           <Text style={styles.label}>Tipo identificación</Text>
-          <View style={styles.chips}>
-            {PATIENT_DOC_TYPES.map((d) => {
-              const active = docType === d;
-              return (
-                <Pressable
-                  key={d}
-                  style={[styles.chip, active && styles.chipActive]}
-                  onPress={() => setDocType(d)}
-                >
-                  <Text
-                    style={[styles.chipText, active && styles.chipTextActive]}
-                  >
-                    {d}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <DocTypeSelect
+            value={docType}
+            onChange={setDocType}
+            triggerStyle={styles.input}
+          />
         </View>
 
         <View style={styles.field}>
