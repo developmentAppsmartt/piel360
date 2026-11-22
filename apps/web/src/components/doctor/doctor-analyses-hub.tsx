@@ -1,123 +1,110 @@
 "use client";
 
-import type { ComponentType } from "react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  CheckCircle2,
-  ClipboardList,
-  Clock3,
-  FileSearch,
-  XCircle,
-} from "lucide-react";
+import { CheckCircle2, ClipboardList, Clock3, FileSearch, XCircle } from "lucide-react";
 import { AnalysesTable } from "@/components/analyses/analyses-table";
 import { ModuleCard } from "@/components/ui/module-card";
-import { useAnalyses } from "@/lib/queries/analyses";
-import { cn } from "@/lib/utils";
+import { PageBanner } from "@/components/ui/page-banner";
+import { StatTile } from "@/components/ui/stat-tile";
+import { useAnalyses, type AnalysisListItem } from "@/lib/queries/analyses";
+import { usePatients } from "@/lib/queries/patients";
+import {
+  AnalysesHubFilters,
+  matchesKind,
+  matchesStatus,
+  type KindFilter,
+  type StatusFilter,
+} from "./analyses-hub/analyses-hub-filters";
 
-type FilterTab = "all" | "pending" | "confirmed" | "invalid";
+function isThisMonth(iso: string, now: Date): boolean {
+  const d = new Date(iso);
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+}
 
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  tone,
-}: {
-  label: string;
-  value: number;
-  icon: ComponentType<{ className?: string }>;
-  tone: "primary" | "amber" | "emerald" | "rose";
-}) {
-  const tones = {
-    primary: "bg-primary/10 text-primary",
-    amber: "bg-amber-50 text-amber-700",
-    emerald: "bg-emerald-50 text-emerald-700",
-    rose: "bg-rose-50 text-rose-600",
+/** Total y cuántos de este mes, por estado. */
+function countStats(rows: AnalysisListItem[]) {
+  const now = new Date();
+  const stat = (status: StatusFilter) => {
+    const matching = rows.filter((a) => matchesStatus(a, status));
+    return {
+      total: matching.length,
+      month: matching.filter((a) => isThisMonth(a.createdAt, now)).length,
+    };
   };
+  return {
+    all: stat("all"),
+    pending: stat("pending"),
+    confirmed: stat("confirmed"),
+    invalid: stat("invalid"),
+  };
+}
 
-  return (
-    <ModuleCard className="flex items-center gap-4 p-4">
-      <span
-        className={cn(
-          "flex size-11 shrink-0 items-center justify-center rounded-xl",
-          tones[tone],
-        )}
-      >
-        <Icon className="size-5" aria-hidden />
-      </span>
-      <div>
-        <p className="text-xs font-medium text-muted-foreground">{label}</p>
-        <p className="text-2xl font-bold tabular-nums text-foreground">{value}</p>
-      </div>
-    </ModuleCard>
-  );
+function monthFooter(n: number) {
+  return n > 0 ? `+${n} este mes` : "Sin nuevos este mes";
 }
 
 export function DoctorAnalysesHub() {
   const analyses = useAnalyses();
-  const [filter, setFilter] = useState<FilterTab>("all");
+  const patients = usePatients();
+  const [status, setStatus] = useState<StatusFilter>("all");
+  const [kind, setKind] = useState<KindFilter>("all");
 
-  const stats = useMemo(() => {
-    const rows = analyses.data ?? [];
-    return {
-      total: rows.length,
-      pending: rows.filter((a) => a.isValid && !a.isConfirmed).length,
-      confirmed: rows.filter((a) => a.isConfirmed).length,
-      invalid: rows.filter((a) => !a.isValid).length,
-    };
-  }, [analyses.data]);
+  const stats = useMemo(() => countStats(analyses.data ?? []), [analyses.data]);
+  const filtered = useMemo(
+    () => (analyses.data ?? []).filter((a) => matchesStatus(a, status) && matchesKind(a, kind)),
+    [analyses.data, status, kind],
+  );
 
-  const filtered = useMemo(() => {
-    const rows = analyses.data ?? [];
-    if (filter === "pending") return rows.filter((a) => a.isValid && !a.isConfirmed);
-    if (filter === "confirmed") return rows.filter((a) => a.isConfirmed);
-    if (filter === "invalid") return rows.filter((a) => !a.isValid);
-    return rows;
-  }, [analyses.data, filter]);
-
-  const tabs: { id: FilterTab; label: string }[] = [
-    { id: "all", label: "Todos" },
-    { id: "pending", label: "Pendientes" },
-    { id: "confirmed", label: "Confirmados" },
-    { id: "invalid", label: "Inválidos" },
-  ];
+  // La foto ya viene en la lista de pacientes: se cruza aquí y no se toca el
+  // endpoint de análisis.
+  const avatars = useMemo(
+    () => new Map((patients.data ?? []).map((p) => [p.id, p.avatarThumbUrl ?? null])),
+    [patients.data],
+  );
+  const avatarFor = useCallback((patientId: string) => avatars.get(patientId) ?? null, [avatars]);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Análisis y resultados
-        </h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Historial global de análisis IA realizados a tus pacientes. Revisa diagnósticos,
-          confirma resultados y accede al detalle de cada estudio.
-        </p>
+      <PageBanner
+        icon={ClipboardList}
+        image
+        title="Análisis y resultados"
+        subtitle="Historial global de análisis IA realizados a tus pacientes. Revisa diagnósticos, confirma resultados y accede al detalle de cada estudio."
+      />
+
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <StatTile
+          icon={ClipboardList}
+          tone="blue"
+          label="Total análisis"
+          value={stats.all.total}
+          footer={monthFooter(stats.all.month)}
+        />
+        <StatTile
+          icon={Clock3}
+          tone="orange"
+          label="Pendientes de confirmar"
+          value={stats.pending.total}
+          footer={monthFooter(stats.pending.month)}
+        />
+        <StatTile
+          icon={CheckCircle2}
+          tone="emerald"
+          label="Confirmados"
+          value={stats.confirmed.total}
+          footer={monthFooter(stats.confirmed.month)}
+        />
+        <StatTile
+          icon={XCircle}
+          tone="pink"
+          label="Inválidos"
+          value={stats.invalid.total}
+          footer={monthFooter(stats.invalid.month)}
+        />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total análisis" value={stats.total} icon={ClipboardList} tone="primary" />
-        <StatCard label="Pendientes de confirmar" value={stats.pending} icon={Clock3} tone="amber" />
-        <StatCard label="Confirmados" value={stats.confirmed} icon={CheckCircle2} tone="emerald" />
-        <StatCard label="Inválidos" value={stats.invalid} icon={XCircle} tone="rose" />
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            className={cn(
-              "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
-              filter === tab.id
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:text-foreground",
-            )}
-            onClick={() => setFilter(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <AnalysesHubFilters status={status} onStatus={setStatus} kind={kind} onKind={setKind} />
 
       {analyses.isLoading ? (
         <p className="text-sm text-muted-foreground">Cargando análisis…</p>
@@ -132,14 +119,14 @@ export function DoctorAnalysesHub() {
             </div>
           </div>
           <div className="p-5 pt-0">
-            <AnalysesTable analyses={filtered} variant="modern" />
+            <AnalysesTable analyses={filtered} variant="modern" avatarFor={avatarFor} showActions />
           </div>
         </ModuleCard>
       )}
 
-      {stats.pending > 0 ? (
+      {stats.pending.total > 0 ? (
         <ModuleCard className="border-amber-200 bg-amber-50/50 p-4 text-sm text-amber-900">
-          Tienes <strong>{stats.pending}</strong> análisis pendientes de confirmación. Abre cada
+          Tienes <strong>{stats.pending.total}</strong> análisis pendientes de confirmación. Abre cada
           registro para validar o corregir el diagnóstico antes de compartirlo con el paciente.
         </ModuleCard>
       ) : null}

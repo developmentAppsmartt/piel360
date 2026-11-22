@@ -11,12 +11,12 @@ import { LocationPicker } from '../../../../components/maps/LocationPicker';
 import { useBranding } from '../../../../context/BrandingContext';
 import { resolveLatestFitzpatrickType } from '../../../../data/fitzpatrickLabels';
 import {
-  PATIENT_DOC_TYPES,
   PATIENT_FITZ_OPTIONS,
   PATIENT_GENDER_OPTIONS,
   PATIENT_MASCOT_OPTIONS,
   PATIENT_SKIN_OPTIONS,
 } from '../../../../data/patientFormOptions';
+import { DocTypeSelect } from '../../../../components/DocTypeSelect';
 import { ApiError } from '../../../../services/api.client';
 import {
   patientsService,
@@ -237,25 +237,12 @@ export function EditProfileForm({
 
         <View style={styles.field}>
           <Text style={styles.label}>Tipo identificación</Text>
-          <View style={styles.chips}>
-            {PATIENT_DOC_TYPES.map((d) => {
-              const active = docType === d;
-              return (
-                <Pressable
-                  key={d}
-                  style={[styles.chip, active && styles.chipActive]}
-                  onPress={() => setDocType(d)}
-                  disabled={submitting}
-                >
-                  <Text
-                    style={[styles.chipText, active && styles.chipTextActive]}
-                  >
-                    {d}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <DocTypeSelect
+            value={docType}
+            onChange={setDocType}
+            disabled={submitting}
+            triggerStyle={styles.input}
+          />
         </View>
 
         <View style={styles.field}>

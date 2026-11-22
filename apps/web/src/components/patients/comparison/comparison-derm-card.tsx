@@ -1,52 +1,92 @@
 "use client";
 
+import { dermaOutcome } from "@piel360/shared";
+import { ProfessionalOutcomeCard } from "@/components/analyses/professional-outcome-card";
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
+import type { AnalysisDetail } from "@/lib/queries/analyses";
 import { ComparisonImage } from "./comparison-pieces";
 
-/** Comparación dermatológica: las dos capturas y el diagnóstico de cada una. */
+/** Las tres imágenes que deja un análisis dermatológico. */
+export const DERM_LAYERS = [
+  { id: "original", label: "Original" },
+  { id: "heatmap", label: "Mapa de Calor" },
+  { id: "mask", label: "Máscara" },
+] as const;
+
+export type DermLayer = (typeof DERM_LAYERS)[number]["id"];
+
+export function dermLayerUrl(detail: AnalysisDetail | undefined, layer: DermLayer): string | null {
+  if (!detail) return null;
+  if (layer === "heatmap") return detail.coloredUrl;
+  if (layer === "mask") return detail.maskedUrl;
+  return detail.imageUrl;
+}
+
+function DermColumn({
+  label,
+  date,
+  detail,
+  onOpenLayer,
+}: {
+  label: string;
+  date?: string;
+  detail: AnalysisDetail | undefined;
+  onOpenLayer: (layer: DermLayer) => void;
+}) {
+  const outcome = detail ? dermaOutcome(detail) : null;
+  return (
+    <section className="space-y-4" aria-label={`Análisis ${label.toLowerCase()}`}>
+      <div className="flex items-baseline justify-between gap-2 border-b border-border pb-2">
+        <p className="text-sm font-semibold">{label}</p>
+        {date ? <p className="text-xs text-muted-foreground">{date}</p> : null}
+      </div>
+      {outcome ? (
+        <ProfessionalOutcomeCard {...outcome} />
+      ) : (
+        <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+          {detail ? "Sin diagnóstico registrado." : "Cargando análisis…"}
+        </p>
+      )}
+      <div className="grid grid-cols-3 gap-2">
+        {DERM_LAYERS.map((layer) => (
+          <ComparisonImage
+            key={layer.id}
+            label={layer.label}
+            photoUrl={dermLayerUrl(detail, layer.id)}
+            onClick={() => onOpenLayer(layer.id)}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Comparación dermatológica: por cada fecha, el diagnóstico del profesional
+ * (o lo que sugiere la IA si no ha confirmado) y el análisis completo por
+ * imagen. Cada imagen abre el modal con esa misma capa de las dos fechas. */
 export function ComparisonDermCard({
-  initialPhotoUrl,
-  currentPhotoUrl,
+  initial,
+  current,
   initialDate,
   currentDate,
-  initialDiagnosis,
-  currentDiagnosis,
-  onOpen,
+  onOpenLayer,
 }: {
-  initialPhotoUrl: string | null;
-  currentPhotoUrl: string | null;
+  initial: AnalysisDetail | undefined;
+  current: AnalysisDetail | undefined;
   initialDate?: string;
   currentDate?: string;
-  initialDiagnosis: string | null;
-  currentDiagnosis: string | null;
-  onOpen: () => void;
+  onOpenLayer: (layer: DermLayer) => void;
 }) {
   return (
     <ModuleCard className="p-5">
       <ModuleCardTitle className="text-sm">Comparación dermatológica</ModuleCardTitle>
       <p className="mt-1 text-xs text-muted-foreground">
-        Comparación visual entre las dos capturas seleccionadas.
+        Diagnóstico del profesional y análisis completo de las dos capturas seleccionadas.
       </p>
-      <div className="mt-5 grid gap-6 sm:grid-cols-2">
-        <ComparisonImage label="Inicial" photoUrl={initialPhotoUrl} date={initialDate} onClick={onOpen} />
-        <ComparisonImage label="Actual" photoUrl={currentPhotoUrl} date={currentDate} onClick={onOpen} />
+      <div className="mt-5 grid gap-6 md:grid-cols-2">
+        <DermColumn label="Inicial" date={initialDate} detail={initial} onOpenLayer={onOpenLayer} />
+        <DermColumn label="Actual" date={currentDate} detail={current} onOpenLayer={onOpenLayer} />
       </div>
-      {initialDiagnosis || currentDiagnosis ? (
-        <div className="mt-6 grid gap-4 border-t border-border pt-4 sm:grid-cols-2">
-          <div>
-            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              Diagnóstico inicial
-            </p>
-            <p className="mt-1 text-sm">{initialDiagnosis ?? "—"}</p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              Diagnóstico actual
-            </p>
-            <p className="mt-1 text-sm">{currentDiagnosis ?? "—"}</p>
-          </div>
-        </div>
-      ) : null}
     </ModuleCard>
   );
 }

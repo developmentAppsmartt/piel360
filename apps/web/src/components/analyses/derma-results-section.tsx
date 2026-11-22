@@ -5,6 +5,7 @@ import {
   analisisDermaPiel360CategoryLabel,
   analisisDermaPiel360DiagnosisLabel,
   analisisDermaPiel360RiskLabel,
+  dermaConfirmedOutcome,
   type AnalisisDermaPiel360DiagnosisCandidate,
   type AnalisisDermaPiel360Prediction,
 } from "@piel360/shared";
@@ -45,19 +46,9 @@ function professionalOutcome(
   selected: Candidate | null,
   prediction: AnalisisDermaPiel360Prediction | undefined,
 ) {
+  const confirmed = dermaConfirmedOutcome(analysis);
+  if (confirmed) return confirmed;
   const topn = prediction?.topn ?? [];
-  if (analysis.isConfirmed && analysis.finalDiagnosis?.trim()) {
-    const code = analysis.finalDiagnosisCode;
-    const icd = code
-      ? topn.find((item) => item.class_raw === code)?.lesion_code
-      : prediction?.lesion_code;
-    return {
-      kind: analysis.isCorrected ? ("corrected" as const) : ("selected" as const),
-      title: analysis.finalDiagnosis.trim(),
-      notes: analysis.doctorNotes,
-      icd: icd?.trim() || null,
-    };
-  }
   if (!selected) return null;
   const isTop = selected === topn[0];
   return {

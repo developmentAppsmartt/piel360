@@ -7,7 +7,22 @@ export const PATIENT_GENDER_OPTIONS = [
   { value: 'other', label: 'Otro' },
 ] as const;
 
-export const PATIENT_DOC_TYPES = ['CC', 'CE', 'TI', 'PA'] as const;
+/** Tipos de documento con su código de la DIAN — espejo de
+ * apps/web/src/lib/patient-form-options.ts. Se guarda el código corto; TI
+ * dejó de ofrecerse pero quien ya la tiene la sigue viendo. */
+export const PATIENT_DOC_TYPES = [
+  { value: 'CC', label: '13 - Cédula de ciudadanía' },
+  { value: 'TE', label: '21 - Tarjeta de extranjería' },
+  { value: 'CE', label: '22 - Cédula de extranjería' },
+  { value: 'PA', label: '41 - Pasaporte' },
+  { value: 'DIE', label: '42 - Documento de identificación extranjero' },
+  { value: 'PEP', label: '47 - PEP' },
+] as const;
+
+export function docTypeLabel(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return PATIENT_DOC_TYPES.find((d) => d.value === value)?.label ?? value;
+}
 
 export const PATIENT_MASCOT_OPTIONS: {
   value: string;

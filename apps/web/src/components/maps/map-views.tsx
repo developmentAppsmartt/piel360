@@ -9,6 +9,8 @@ import {
   useMapEvents,
 } from "react-leaflet";
 import L from "leaflet";
+import { GoogleLocationPickerMap } from "./google-location-picker-map";
+import { mapsApiKey } from "./google-registry-map";
 import type { LatLng } from "./types";
 
 import "leaflet/dist/leaflet.css";
@@ -39,16 +41,25 @@ function ClickPicker({ onPick }: { onPick: (pos: LatLng) => void }) {
   return null;
 }
 
-/** Selector de ubicación (perfil / registro). Sigue en Leaflet + OSM. */
-export function LocationPickerMap({
-  value,
-  onChange,
-  className,
-}: {
+type PickerProps = {
   value: LatLng | null;
   onChange: (pos: LatLng) => void;
   className?: string;
-}) {
+};
+
+/** Selector de ubicación (paciente, perfil, registro): Google Maps si hay
+ * clave; si no, o si Google falla, Leaflet + OSM. */
+export function LocationPickerMap(props: PickerProps) {
+  const apiKey = mapsApiKey();
+  const leaflet = <LeafletLocationPickerMap {...props} />;
+  return apiKey ? <GoogleLocationPickerMap apiKey={apiKey} {...props} fallback={leaflet} /> : leaflet;
+}
+
+function LeafletLocationPickerMap({
+  value,
+  onChange,
+  className,
+}: PickerProps) {
   const center = value ?? DEFAULT_CENTER;
 
   return (

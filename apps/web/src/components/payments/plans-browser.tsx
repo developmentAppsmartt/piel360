@@ -302,9 +302,10 @@ export function PlansBrowser({
       <section className="space-y-4">
         <div className="space-y-3 text-center">
           <div>
-            <h2 className="text-lg font-semibold">Catálogo de planes</h2>
+            <h2 className="text-lg font-semibold">Elige tu plan</h2>
             <p className="text-sm text-muted-foreground">
-              Elige el plan que mejor se adapte a tu práctica.
+              Más análisis, menor costo por análisis: escoge el volumen que necesitas para medir a
+              todos tus pacientes.
             </p>
           </div>
           {providerOptions.length > 1 ? (

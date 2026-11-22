@@ -20,7 +20,8 @@ import {
   PASSWORD_STRENGTH_HINT,
   PASSWORD_STRENGTH_MESSAGE,
 } from '../../../../lib/password';
-import { PATIENT_DOC_TYPES, PATIENT_FITZ_OPTIONS } from '../../../../data/patientFormOptions';
+import { PATIENT_FITZ_OPTIONS } from '../../../../data/patientFormOptions';
+import { DocTypeSelect } from '../../../../components/DocTypeSelect';
 import {
   FITZPATRICK_DESCRIPTIONS,
   SURVEY_QUESTIONS,
@@ -442,28 +443,12 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
 
         <View style={styles.field}>
           <Text style={styles.labelDark}>Tipo Doc</Text>
-          <View style={styles.chips}>
-            {PATIENT_DOC_TYPES.map((d) => {
-              const active = docType === d;
-              return (
-                <Pressable
-                  key={d}
-                  style={[styles.chipDark, active && styles.chipActive]}
-                  onPress={() => setDocType(d)}
-                  disabled={submitting}
-                >
-                  <Text
-                    style={[
-                      styles.chipTextDark,
-                      active && styles.chipTextActive,
-                    ]}
-                  >
-                    {d}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <DocTypeSelect
+            value={docType}
+            onChange={setDocType}
+            disabled={submitting}
+            triggerStyle={styles.inputCard}
+          />
         </View>
 
         <View style={styles.field}>

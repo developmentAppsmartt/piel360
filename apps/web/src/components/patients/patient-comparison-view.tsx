@@ -1,12 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowDownUp, ArrowUpRight, CalendarDays, Download, Sparkles, Stethoscope } from "lucide-react";
+import { ArrowDownUp, ArrowUpRight, CalendarDays, Sparkles, Stethoscope } from "lucide-react";
 import {
   ComparisonImageModal,
   type ComparisonImageModalState,
 } from "@/components/patients/comparison-image-modal";
-import { Button } from "@/components/ui/button";
 import { ModuleCard, ModuleCardTitle } from "@/components/ui/module-card";
 import { useAnalysis } from "@/lib/queries/analyses";
 import { usePatientAnalyses } from "@/lib/queries/patients";
@@ -25,7 +24,9 @@ import {
 import { useComparisonNotes } from "@/lib/use-comparison-notes";
 import { cn } from "@/lib/utils";
 import { ComparisonAestheticTable } from "./comparison/comparison-aesthetic-table";
-import { ComparisonDermCard } from "./comparison/comparison-derm-card";
+import { ComparisonDermCard, DERM_LAYERS, dermLayerUrl, type DermLayer } from "./comparison/comparison-derm-card";
+import { ComparisonExportButton } from "./comparison/comparison-export-button";
+import { ComparisonNotesCard } from "./comparison/comparison-notes-card";
 import { ScoreMini } from "./comparison/comparison-pieces";
 import { ComparisonVisualPanel, type VisualMode } from "./comparison/comparison-visual-panel";
 
@@ -116,6 +117,22 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
     });
   }
 
+  // Mapa de calor inicial frente a mapa de calor actual, etc.
+  function openDermLayer(layer: DermLayer) {
+    openImageModal({
+      initialPhotoUrl: dermLayerUrl(initialDetail.data, layer),
+      initialMaskUrl: null,
+      currentPhotoUrl: dermLayerUrl(currentDetail.data, layer),
+      currentMaskUrl: null,
+      subtitle: DERM_LAYERS.find((l) => l.id === layer)?.label,
+    });
+  }
+
+  const exportInput =
+    initialId && currentId && initialId !== currentId
+      ? { mode, initialId, currentId, generalNote: notes.general, categoryNotes: notes.categories }
+      : null;
+
   // Cambiar de tipo vuelve al par por defecto y a «Todas», en el propio clic.
   function handleModeChange(next: ComparisonMode) {
     setMode(next);
@@ -192,10 +209,7 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
           {dateSelect("Fecha inicial", initialId, (id) => setSelection({ initialId: id, currentId }))}
           <ArrowDownUp className="size-4 text-muted-foreground" />
           {dateSelect("Fecha final", currentId, (id) => setSelection({ initialId, currentId: id }))}
-          <Button type="button" variant="outline" size="sm" className="gap-1.5" disabled>
-            <Download className="size-4" />
-            Exportar reporte
-          </Button>
+          <ComparisonExportButton patientId={patientId} input={exportInput} />
         </div>
       </div>
 
@@ -212,23 +226,20 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
       ) : null}
 
       {mode === "derm" ? (
-        <ComparisonDermCard
-          initialPhotoUrl={initialPhotoUrl}
-          currentPhotoUrl={currentPhotoUrl}
-          initialDate={initialDateLabel}
-          currentDate={currentDateLabel}
-          initialDiagnosis={initialDetail.data?.finalDiagnosis ?? initialDetail.data?.aiDiagnosis ?? null}
-          currentDiagnosis={currentDetail.data?.finalDiagnosis ?? currentDetail.data?.aiDiagnosis ?? null}
-          onOpen={() =>
-            openImageModal({
-              initialPhotoUrl,
-              initialMaskUrl: null,
-              currentPhotoUrl,
-              currentMaskUrl: null,
-              subtitle: "Comparación dermatológica",
-            })
-          }
-        />
+        <div className="grid gap-5 xl:grid-cols-[1fr_300px]">
+          <ComparisonDermCard
+            initial={initialDetail.data}
+            current={currentDetail.data}
+            initialDate={initialDateLabel}
+            currentDate={currentDateLabel}
+            onOpenLayer={openDermLayer}
+          />
+          <ComparisonNotesCard
+            description="Comentarios del dermatólogo sobre esta comparación. Salen en el reporte en PDF."
+            generalNote={notes.general}
+            onGeneralNoteChange={setGeneralNote}
+          />
+        </div>
       ) : (
         <div className="grid gap-5 xl:grid-cols-[280px_1fr_300px]">
           <aside className="space-y-4">

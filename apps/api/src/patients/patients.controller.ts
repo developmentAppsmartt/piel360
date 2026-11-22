@@ -13,6 +13,8 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { JwtPayload } from '../auth/types';
 import { SkinAgeRecommendationsService } from '../skin-age-rules/skin-age-recommendations.service';
+import { ComparisonReportService } from './comparison-report/comparison-report.service';
+import { ComparisonReportDto } from './dto/comparison-report.dto';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { CreateAnalysisRequestDto } from './dto/create-analysis-request.dto';
 import { AssignPatientDoctorDto } from './dto/assign-patient-doctor.dto';
@@ -32,6 +34,7 @@ export class PatientsController {
     private readonly analysisRequests: PatientAnalysisRequestsService,
     private readonly skinAgeRecommendations: SkinAgeRecommendationsService,
     private readonly patientInviteService: PatientInviteService,
+    private readonly comparisonReport: ComparisonReportService,
   ) {}
 
   @Get('me/survey')
@@ -110,6 +113,16 @@ export class PatientsController {
   @Get('patients/:id')
   findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.patientsService.findOne(id, user);
+  }
+
+  /** PDF comparativo entre dos análisis (pestaña Comparaciones). */
+  @Post('patients/:id/comparison-report')
+  comparisonReportPdf(
+    @Param('id') id: string,
+    @Body() dto: ComparisonReportDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.comparisonReport.generate(id, dto, user);
   }
 
   @Post('patients/:id/invite')

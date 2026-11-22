@@ -12,7 +12,7 @@ const mapContainerStyle = { width: "100%", height: "100%" };
 const MAP_PLACEHOLDER_CLASS =
   "flex h-[70vh] w-full items-center justify-center rounded-xl border border-border bg-muted text-sm text-muted-foreground";
 
-function mapsApiKey() {
+export function mapsApiKey() {
   return (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "").trim();
 }
 

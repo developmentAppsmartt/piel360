@@ -17,7 +17,8 @@ export function DoctorPlansHub() {
             Planes y suscripciones
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Contrata planes de análisis IA por especialidad según el tipo de práctica.
+            Elige el plan de análisis con inteligencia artificial que se ajusta a tu consultorio o
+            clínica y mide la evolución de cada paciente.
           </p>
         </div>
         <Link

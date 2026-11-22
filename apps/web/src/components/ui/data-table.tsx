@@ -39,6 +39,7 @@ export function DataTable<TData>({
   subtitle,
   titleIcon: TitleIcon,
   searchAside,
+  rowChevron = true,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columns: ColumnDef<TData, any>[];
@@ -54,9 +55,13 @@ export function DataTable<TData>({
   titleIcon?: LucideIcon;
   /** Algo junto al buscador, a su derecha (p. ej. el botón de ayuda). */
   searchAside?: ReactNode;
+  /** `false` cuando la tabla ya trae su columna de acciones: la flecha
+   * sobraba y empujaba las acciones fuera del recuadro. */
+  rowChevron?: boolean;
 }) {
   const router = useRouter();
   const modern = variant === "modern";
+  const chevron = modern && !!getRowHref && rowChevron;
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>(initialSorting);
   const [pagination, setPagination] = useState<PaginationState>({
@@ -138,7 +143,7 @@ export function DataTable<TData>({
                   null}
               </TableHead>
             ))}
-            {modern && getRowHref ? (
+            {chevron ? (
               <TableHead className="w-10 bg-muted/40" />
             ) : null}
           </TableRow>
@@ -148,7 +153,7 @@ export function DataTable<TData>({
         {table.getRowModel().rows.length === 0 ? (
           <TableRow className={modern ? "hover:bg-transparent" : undefined}>
             <TableCell
-              colSpan={columns.length + (modern && getRowHref ? 1 : 0)}
+              colSpan={columns.length + (chevron ? 1 : 0)}
               className={cn(
                 "text-center text-muted-foreground",
                 modern && "px-4 py-10",
@@ -178,7 +183,7 @@ export function DataTable<TData>({
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}
-                {modern && getRowHref ? (
+                {chevron ? (
                   <TableCell className="px-4 py-3 text-right">
                     {href ? (
                       <ChevronRight className="ml-auto size-4 text-muted-foreground" />
