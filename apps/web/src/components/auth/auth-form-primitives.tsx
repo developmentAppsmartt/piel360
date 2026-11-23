@@ -1,5 +1,5 @@
 import { Eye, EyeOff } from "lucide-react";
-import { CountryPhoneSelect } from "@/components/auth/country-phone-select";
+import { SplitPhoneField } from "@/components/ui/phone-field";
 
 export function digitsOnly(value: string) {
   return value.replace(/\D/g, "");
@@ -78,17 +78,17 @@ export function Field({
 export const inputClass =
   "h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-sky-500 disabled:bg-zinc-50";
 
-/** Prefijo (+57) + número, mismo estilo de inputs de registro. */
+/** Celular con bandera e indicativo (`react-phone-number-input`) que guarda
+ * el indicativo y el número por separado, como esperan los registros y el
+ * perfil. `prefixId`, `inputClass` y `showSubLabels` se aceptan por
+ * compatibilidad con las llamadas anteriores. */
 export function PhoneSplitInputs({
   prefix,
   nationalNumber,
   disabled,
   onPrefixChange,
   onNationalChange,
-  prefixId = "phonePrefix",
   nationalId = "phoneNational",
-  inputClass: fieldInputClass = inputClass,
-  showSubLabels = false,
   className = "",
 }: {
   prefix: string;
@@ -102,59 +102,16 @@ export function PhoneSplitInputs({
   showSubLabels?: boolean;
   className?: string;
 }) {
-  const prefixControl = (
-    <div className="w-36 shrink-0">
-      <CountryPhoneSelect
-        id={prefixId}
-        className={`${fieldInputClass} w-full`}
-        callingCode={prefix}
-        disabled={disabled}
-        onChange={onPrefixChange}
-      />
-    </div>
-  );
-
-  const nationalControl = (
-    <input
-      id={nationalId}
-      className={`${fieldInputClass} min-w-0 flex-1`}
-      type="tel"
-      inputMode="numeric"
-      autoComplete="tel-national"
-      placeholder="3000000000"
-      value={nationalNumber}
-      disabled={disabled}
-      aria-label="Número de celular"
-      onChange={(e) =>
-        onNationalChange(digitsOnly(e.target.value).slice(0, 12))
-      }
-    />
-  );
-
-  if (showSubLabels) {
-    return (
-      <div className={`flex w-full items-end gap-2 ${className}`}>
-        <div className="flex w-36 shrink-0 flex-col gap-1">
-          <span className="text-[11px] font-normal leading-none text-muted-foreground">
-            Indicativo
-          </span>
-          {prefixControl}
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="text-[11px] font-normal leading-none text-muted-foreground">
-            Número
-          </span>
-          {nationalControl}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className={`flex w-full max-w-sm items-center gap-2 ${className}`}>
-      {prefixControl}
-      {nationalControl}
-    </div>
+    <SplitPhoneField
+      id={nationalId}
+      prefix={prefix}
+      nationalNumber={nationalNumber}
+      onPrefixChange={onPrefixChange}
+      onNationalChange={(value) => onNationalChange(digitsOnly(value).slice(0, 12))}
+      disabled={disabled}
+      className={`h-11 max-w-sm ${className}`}
+    />
   );
 }
 

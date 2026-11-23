@@ -42,6 +42,7 @@ import type { GoogleProfile } from './google.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { parseOAuthState } from './oauth-state';
 import type { JwtPayload } from './types';
+import { LegalService } from '../legal/legal.service';
 
 function authClient(header?: string): 'mobile' | 'web' {
   return header?.toLowerCase() === 'mobile' ? 'mobile' : 'web';
@@ -55,14 +56,20 @@ export class AuthController {
     private readonly config: ConfigService,
     private readonly emailOtp: EmailOtpService,
     private readonly phoneOtp: PhoneOtpService,
+    private readonly legal: LegalService,
   ) {}
 
   @Post('register/doctor')
-  registerDoctor(
+  async registerDoctor(
     @Body() dto: RegisterDoctorDto,
     @Headers('x-client') clientHeader?: string,
   ) {
-    return this.authService.registerDoctor(dto, authClient(clientHeader));
+    const result = await this.authService.registerDoctor(
+      dto,
+      authClient(clientHeader),
+    );
+    await this.legal.acceptByEmail(dto.email);
+    return result;
   }
 
   @Get('referral/:code')
@@ -71,19 +78,31 @@ export class AuthController {
   }
 
   @Post('register/empresa')
-  registerEmpresa(
+  async registerEmpresa(
     @Body() dto: RegisterEmpresaDto,
     @Headers('x-client') clientHeader?: string,
   ) {
-    return this.authService.registerEmpresa(dto, authClient(clientHeader));
+    const result = await this.authService.registerEmpresa(
+      dto,
+      authClient(clientHeader),
+    );
+    await this.legal.acceptByEmail(dto.email);
+    return result;
   }
 
   @Post('register/patient')
-  registerPatient(
+  async registerPatient(
     @Body() dto: RegisterPatientDto,
     @Headers('x-client') clientHeader?: string,
   ) {
-    return this.authService.registerPatient(dto, authClient(clientHeader));
+    const result = await this.authService.registerPatient(
+      dto,
+      authClient(clientHeader),
+    );
+    // Sin las casillas (app vieja) verá la pantalla de aceptación al entrar.
+    if (dto.acceptTerms && dto.acceptPrivacy)
+      await this.legal.acceptByEmail(dto.email);
+    return result;
   }
 
   @Post('login')
@@ -93,7 +112,11 @@ export class AuthController {
     @Headers('x-client') clientHeader?: string,
     @Headers('x-device-platform') devicePlatform?: string,
   ) {
-    return this.authService.login(dto, authClient(clientHeader), devicePlatform);
+    return this.authService.login(
+      dto,
+      authClient(clientHeader),
+      devicePlatform,
+    );
   }
 
   /** Canjea el refresh token por un access token nuevo. Sin JwtAuthGuard a
@@ -110,7 +133,10 @@ export class AuthController {
     if (!refreshToken) {
       throw new UnauthorizedException('Falta el refresh token');
     }
-    return this.authService.refreshTokens(refreshToken, authClient(clientHeader));
+    return this.authService.refreshTokens(
+      refreshToken,
+      authClient(clientHeader),
+    );
   }
 
   /** Cierra la sesión actual del lado del servidor (libera su cupo y deja

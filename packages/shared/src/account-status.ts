@@ -48,6 +48,10 @@ export type AccountStatus = {
   expiredPlans: ExpiredPlanInfo[];
   /** Planes sin créditos o vencidos con otro plan aún vigente (vacío si `planRestricted`). */
   depletedPlans: DepletedPlanInfo[];
+  /** `false`: debe aceptar términos y política de datos (`LEGAL_VERSION`)
+   * antes de usar el panel o la app. Los administradores siempre `true`.
+   * Opcional: las apps instaladas antes del cambio no lo conocen. */
+  termsAccepted?: boolean;
 };
 
 /** Módulos del CRM que siguen disponibles sin plan activo. */

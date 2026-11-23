@@ -28,6 +28,7 @@ import { RolesModule } from './roles/roles.module';
 import { HealthModule } from './health/health.module';
 import { LeadsModule } from './leads/leads.module';
 import { SupportModule } from './support/support.module';
+import { LegalModule } from './legal/legal.module';
 import { MailModule } from './mail/mail.module';
 import { SmsModule } from './sms/sms.module';
 import { CommonModule } from './common/common.module';
@@ -99,6 +100,7 @@ import { BrandingModule } from './branding/branding.module';
     HealthModule,
     LeadsModule,
     SupportModule,
+    LegalModule,
     ProductsModule,
     RoutinesModule,
     TreatmentsModule,

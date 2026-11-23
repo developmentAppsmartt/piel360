@@ -28,7 +28,12 @@ function startCreate(patientId: string, imageUri: string) {
   const key = `${patientId}|${imageUri}`;
   const existing = inflightCreates.get(key);
   if (existing) return existing;
-  const pending = youcamService.createAnalysis({ patientId, imageUri }).then(
+  const pending = youcamService.createAnalysis({
+    patientId,
+    imageUri,
+    // Solo se llega aquí después del paso de consentimiento del flujo.
+    consentAccepted: true,
+  }).then(
     (value) => {
       setTimeout(() => inflightCreates.delete(key), REUSE_MS);
       return value;

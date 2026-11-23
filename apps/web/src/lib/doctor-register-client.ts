@@ -35,6 +35,9 @@ export interface DoctorRegisterPayload {
   lng?: number;
   /** Código de empresa aliada (registro vía URL/QR). */
   referralCode?: string;
+  /** Casillas de términos y política de datos (el API exige `true`). */
+  acceptTerms: true;
+  acceptPrivacy: true;
 }
 
 export interface AuthTokensResponse {

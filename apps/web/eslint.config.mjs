@@ -6,7 +6,6 @@ import { reglaMaxLineas } from "../../packages/config/eslint.max-lines.mjs";
 /** Deuda del día que entró `max-lines`: esta lista solo puede encoger. */
 const ARCHIVOS_LARGOS_HEREDADOS = [
   "src/app/admin/(panel)/configuracion/empresas-aliadas/page.tsx",
-  "src/app/doctor/(panel)/configuracion/company-profile-section.tsx",
   "src/app/doctor/(panel)/configuracion/personalizacion/identidad-corporativa/identidad-corporativa-view.tsx",
   "src/components/admin/labor-technician-profiles-manager.tsx",
   "src/components/admin/plan-wizard-form.tsx",
@@ -18,10 +17,7 @@ const ARCHIVOS_LARGOS_HEREDADOS = [
   "src/components/agenda/agenda-workspace.tsx",
   "src/components/agenda/patient-agenda-workspace.tsx",
   "src/components/analyses/analysis-consumption-view.tsx",
-  "src/components/auth/doctor-register-form.tsx",
-  "src/components/auth/empresa-register-form.tsx",
   "src/components/doctor/doctor-billing-hub.tsx",
-  "src/components/layout/sidebar-nav.tsx",
   "src/components/maps/address-location-picker.tsx",
   "src/lib/mocks/admin-bolsa.ts",
 ];

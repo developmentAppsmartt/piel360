@@ -2,6 +2,7 @@
 
 import { ArrowUpRight } from "lucide-react";
 import type { ComparisonCategoryRow } from "@/lib/patient-comparison";
+import { TopScrollbar } from "@/components/ui/top-scrollbar";
 import { cn } from "@/lib/utils";
 import { MetricIcon, ScoreMini, SkinThumb } from "./comparison-pieces";
 
@@ -68,7 +69,8 @@ export function ComparisonAestheticTable({
         ))}
       </div>
 
-      <div className="overflow-x-auto">
+      {/* Con «Todas» la tabla es larga y la barra de abajo queda fuera de la vista. */}
+      <TopScrollbar enabled={category === "all"}>
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="bg-muted/40 text-xs tracking-wide text-muted-foreground uppercase">
             <tr>
@@ -161,7 +163,7 @@ export function ComparisonAestheticTable({
             ))}
           </tbody>
         </table>
-      </div>
+      </TopScrollbar>
     </>
   );
 }

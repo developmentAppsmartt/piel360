@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { registerAction, type AuthActionState } from "@/lib/actions/auth";
 import { sendPhoneOtpAction, verifyPhoneOtpAction } from "@/lib/actions/phone-otp";
+import { PhoneField } from "@/components/ui/phone-field";
 import { TextField } from "./text-field";
 import { GoogleContinueButton } from "./google-continue-button";
 
@@ -122,18 +123,18 @@ export function RegisterForm({
       </div>
 
       <div className="space-y-2">
-        <TextField
-          label="Teléfono"
+        <label htmlFor="phone" className="block text-sm font-medium">
+          Teléfono
+        </label>
+        {/* El API espera los dígitos con indicativo (ej. 573001234567). */}
+        <input type="hidden" name="phone" value={phone} />
+        <PhoneField
           id="phone"
-          name="phone"
-          type="tel"
+          value={phone}
           required
           disabled={ticket != null}
-          autoComplete="tel"
-          placeholder="Incluye el indicativo de país, ej: 573001234567"
-          value={phone}
-          onChange={(e) => {
-            setPhone(e.target.value);
+          onChange={(e164) => {
+            setPhone(e164.replace(/\D/g, ""));
             if (otpSent) resetPhoneVerification();
           }}
         />

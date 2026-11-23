@@ -107,6 +107,19 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
     });
   }
 
+  /** Puntajes de una fila (categoría o zona) para el modal ampliado. */
+  function scoresOf(rowId: string | null) {
+    const row = rowId ? categories.find((c) => c.id === rowId) : undefined;
+    return row
+      ? {
+          initial: row.initialScore,
+          current: row.currentScore,
+          improvement: row.improvement,
+          improvementLabel: row.improvementLabel,
+        }
+      : undefined;
+  }
+
   function openMetricModal(metricType: string, metricLabel: string) {
     openImageModal({
       initialPhotoUrl,
@@ -114,6 +127,7 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
       currentPhotoUrl,
       currentMaskUrl: maskUrl("current", metricType),
       subtitle: metricLabel,
+      scores: scoresOf(metricType),
     });
   }
 
@@ -198,6 +212,7 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
         initialDate={imageModal?.initialDate}
         currentDate={imageModal?.currentDate}
         defaultView={imageModal?.defaultView}
+        scores={imageModal?.scores}
       />
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <h2 className="text-lg font-semibold">Comparación de análisis</h2>
@@ -302,6 +317,7 @@ export function PatientComparisonView({ patientId }: { patientId: string }) {
                 currentPhotoUrl,
                 currentMaskUrl: visualMetricType ? maskUrl("current", visualMetricType) : null,
                 subtitle: categoryLabel ?? "Comparación visual",
+                scores: scoresOf(visualMetricType),
               })
             }
             generalNote={notes.general}

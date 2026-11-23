@@ -223,6 +223,8 @@ export function SkiniverProcessingStep({
             yCoord: selection.yCoord,
             zCoord: selection.zCoord,
             doctorNotes,
+            // Solo se llega aquí después del paso de consentimiento del flujo.
+            consentAccepted: true,
           });
           inflightCreates.set(key, pending);
         }

@@ -1,4 +1,5 @@
 import {
+  Equals,
   IsEmail,
   IsIn,
   IsNumber,
@@ -155,4 +156,13 @@ export class RegisterEmpresaDto {
   @IsString()
   @MaxLength(64)
   referralCode?: string;
+
+  /** Casillas de términos y política de datos del registro. */
+  @Equals(true, { message: 'Debes aceptar los Términos y Condiciones' })
+  acceptTerms!: boolean;
+
+  @Equals(true, {
+    message: 'Debes aceptar la Política de Tratamiento de Datos Personales',
+  })
+  acceptPrivacy!: boolean;
 }

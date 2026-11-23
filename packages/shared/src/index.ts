@@ -38,3 +38,4 @@ export * from "./leads.js";
 export * from "./derma-outcome.js";
 export * from "./analysis-comparison.js";
 export * from "./support.js";
+export * from "./legal.js";

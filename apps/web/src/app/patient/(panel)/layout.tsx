@@ -19,7 +19,6 @@ export default async function PatientPanelLayout({
       nav={patientNav}
       user={{ email: session.email, role: session.role }}
       sidebarUser={{ name: "Paciente", subtitle: session.email }}
-      hideHeaderLogout
     >
       {children}
     </PanelShell>

@@ -13,6 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import { BeforeAfterSlider } from "@/components/patients/before-after-slider";
 import { LayeredAnalysisImage } from "@/components/patients/layered-analysis-image";
+import { ComparisonScoresBar, type ComparisonScores } from "./comparison/comparison-scores-bar";
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 3;
@@ -128,9 +129,12 @@ function ZoomablePane({
   zoom,
   pan,
   onPanChange,
+  score,
 }: {
   label: string;
   date?: string;
+  /** Puntaje de la categoría en esta fecha (sin él, no se pinta). */
+  score?: number;
   photoUrl: string | null;
   maskUrl: string | null;
   zoom: number;
@@ -142,6 +146,9 @@ function ZoomablePane({
       <div className="text-center">
         <p className="text-sm font-semibold">{label}</p>
         {date ? <p className="text-xs text-muted-foreground">{date}</p> : null}
+        {score != null ? (
+          <p className="text-xs font-semibold text-foreground tabular-nums">{score}/100</p>
+        ) : null}
         {zoom > 1 ? (
           <p className="text-[10px] text-muted-foreground">Arrastra para mover</p>
         ) : null}
@@ -174,6 +181,7 @@ type ModalImages = {
   initialDate?: string;
   currentDate?: string;
   defaultView: "side" | "overlay";
+  scores?: ComparisonScores;
 };
 
 /** El cuerpo del modal: vive dentro de `DialogContent`, que se monta al
@@ -189,6 +197,7 @@ function ComparisonImageBody({
   initialDate,
   currentDate,
   defaultView,
+  scores,
 }: ModalImages) {
   const [zoom, setZoom] = useState(1);
   const [view, setView] = useState<"side" | "overlay">(defaultView);
@@ -256,6 +265,7 @@ function ComparisonImageBody({
           <ZoomablePane
             label={initialLabel}
             date={initialDate}
+            score={scores?.initial}
             photoUrl={initialPhotoUrl}
             maskUrl={initialMaskUrl}
             zoom={zoom}
@@ -265,6 +275,7 @@ function ComparisonImageBody({
           <ZoomablePane
             label={currentLabel}
             date={currentDate}
+            score={scores?.current}
             photoUrl={currentPhotoUrl}
             maskUrl={currentMaskUrl}
             zoom={zoom}
@@ -311,6 +322,7 @@ export function ComparisonImageModal({
   initialDate,
   currentDate,
   defaultView = "side",
+  scores,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -325,6 +337,8 @@ export function ComparisonImageModal({
   initialDate?: string;
   currentDate?: string;
   defaultView?: "side" | "overlay";
+  /** Puntajes de la categoría ampliada (las capas del dermatológico no tienen). */
+  scores?: ComparisonScores;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -333,6 +347,7 @@ export function ComparisonImageModal({
           <DialogTitle>{title}</DialogTitle>
           {subtitle ? <DialogDescription>{subtitle}</DialogDescription> : null}
         </DialogHeader>
+        {scores ? <ComparisonScoresBar scores={scores} /> : null}
         <ComparisonImageBody
           initialPhotoUrl={initialPhotoUrl}
           initialMaskUrl={initialMaskUrl}
@@ -343,6 +358,7 @@ export function ComparisonImageModal({
           initialDate={initialDate}
           currentDate={currentDate}
           defaultView={defaultView}
+          scores={scores}
         />
       </DialogContent>
     </Dialog>
@@ -360,4 +376,5 @@ export type ComparisonImageModalState = {
   currentDate?: string;
   subtitle?: string;
   defaultView?: "side" | "overlay";
+  scores?: ComparisonScores;
 };

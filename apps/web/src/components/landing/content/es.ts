@@ -258,8 +258,8 @@ export const landingEs: LandingContent = {
       { label: "YouTube", href: "#", pending: true },
     ],
     legal: [
-      { label: "Política de privacidad", href: "#", pending: true },
-      { label: "Términos y condiciones", href: "#", pending: true },
+      { label: "Política de privacidad", href: "/privacidad" },
+      { label: "Términos y condiciones", href: "/terminos" },
     ],
     pending: "Próximamente",
     rights: (year) => `© ${year} PIEL 360. Todos los derechos reservados.`,

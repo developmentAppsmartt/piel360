@@ -23,6 +23,7 @@ export function useCreateAnalisisPiel360Analysis() {
       if (fields.xCoord !== undefined) form.append("xCoord", String(fields.xCoord));
       if (fields.yCoord !== undefined) form.append("yCoord", String(fields.yCoord));
       if (fields.zCoord !== undefined) form.append("zCoord", String(fields.zCoord));
+      if (fields.consentAccepted) form.append("consentAccepted", "true");
 
       return apiClientFetch<CreateAnalisisPiel360AnalysisResponse>("/analisispiel360/analyses", {
         method: "POST",

@@ -2,6 +2,8 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { DERM_ANALYSIS_CONSENT } from "@piel360/shared";
+import { AnalysisConsentStep } from "@/components/analyses/analysis-consent-step";
 import { AnalysisResultsView } from "@/components/analyses/analysis-results-view";
 import { BodySelector } from "@/components/analyses/body-selector";
 import { PhotoCapture } from "@/components/analyses/photo-capture";
@@ -14,7 +16,7 @@ import { useCreateAnalysis } from "@/lib/queries/analyses";
 import { usePatient } from "@/lib/queries/patients";
 import { useWizardStep } from "@/lib/use-wizard-step";
 
-type Step = "region" | "captura" | "enviar" | "resultados";
+type Step = "consentimiento" | "region" | "captura" | "enviar" | "resultados";
 
 interface BodySelection {
   bodyRegion: string;
@@ -41,7 +43,8 @@ export default function NuevoAnalisisPage() {
   const { data: patient } = usePatient(patientId);
   const router = useRouter();
 
-  const [step, goTo] = useWizardStep<Step>("region");
+  const [step, goTo] = useWizardStep<Step>("consentimiento");
+  const [consented, setConsented] = useState(false);
   const [photo, setPhoto] = useState<{ file: File; previewUrl: string } | null>(null);
   const [bodySelection, setBodySelection] = useState<BodySelection | null>(null);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
@@ -69,6 +72,7 @@ export default function NuevoAnalisisPage() {
         image: photo.file,
         ...bodySelection,
         doctorNotes: importantNotes.trim() || undefined,
+        consentAccepted: consented,
       });
       setProgress(100);
       setAnalysisId(created.id);
@@ -84,6 +88,15 @@ export default function NuevoAnalisisPage() {
   return (
     <div className="max-w-2xl space-y-6">
       <h1 className="text-2xl font-semibold">Nuevo análisis - Dermatológico</h1>
+
+      {step === "consentimiento" && (
+        <AnalysisConsentStep
+          text={DERM_ANALYSIS_CONSENT}
+          accepted={consented}
+          onAcceptedChange={setConsented}
+          onContinue={() => goTo("region")}
+        />
+      )}
 
       {step === "region" && (
         <div className="space-y-4">

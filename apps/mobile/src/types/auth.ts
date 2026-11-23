@@ -57,6 +57,8 @@ export type AccountStatus = {
   expiredPlans: ExpiredPlanInfo[];
   /** Planes vigentes que consumieron todos sus análisis. */
   depletedPlans?: DepletedPlanInfo[];
+  /** `false`: debe aceptar términos y política de datos antes de usar la app. */
+  termsAccepted?: boolean;
 };
 
 export type DepletedPlanInfo = {
@@ -106,6 +108,9 @@ export type RegisterPatientPayload = {
   skinType?: string;
   fitzpatrickType?: string;
   mascotType?: string;
+  /** Casillas de términos y política de datos del registro. */
+  acceptTerms?: boolean;
+  acceptPrivacy?: boolean;
 };
 
 export type MeUserDetails = {

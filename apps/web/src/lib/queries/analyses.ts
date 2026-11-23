@@ -87,6 +87,8 @@ export interface CreateAnalysisInput {
   yCoord?: number;
   zCoord?: number;
   doctorNotes?: string;
+  /** Se aceptó el consentimiento previo al análisis. */
+  consentAccepted?: boolean;
 }
 
 export interface ConfirmAnalysisInput {
@@ -188,6 +190,7 @@ export function useCreateAnalysis() {
       if (fields.doctorNotes?.trim()) {
         form.append("doctorNotes", fields.doctorNotes.trim());
       }
+      if (fields.consentAccepted) form.append("consentAccepted", "true");
 
       return apiClientFetch<AnalysisDetail>("/analyses", { method: "POST", body: form });
     },

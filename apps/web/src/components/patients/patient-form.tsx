@@ -5,6 +5,7 @@ import { useForm, useWatch, Controller } from "react-hook-form";
 import type { PatientClinicalHistory } from "@piel360/shared";
 import { AddressLocationPicker } from "@/components/maps";
 import { Button } from "@/components/ui/button";
+import { SplitPhoneField } from "@/components/ui/phone-field";
 import { ApiError } from "@/lib/api-error";
 import { PATIENT_BIRTH_TYPE_OPTIONS, PATIENT_DOC_TYPES, PATIENT_GENDER_OPTIONS } from "@/lib/patient-form-options";
 import {
@@ -106,9 +107,9 @@ function PatientFormBody({
     defaultValues: patientFormDefaults(defaultValues, history, groups),
   });
 
-  const [birthDateValue, addressValue, latValue, lngValue] = useWatch({
+  const [birthDateValue, addressValue, latValue, lngValue, areaCodeValue] = useWatch({
     control,
-    name: ["birthDate", "address", "lat", "lng"],
+    name: ["birthDate", "address", "lat", "lng", "areaCode"],
   });
   const chronologicalAge = chronologicalAgeYears(birthDateValue || null, new Date());
 
@@ -241,14 +242,22 @@ function PatientFormBody({
           <p className="text-xs text-destructive">{errors.address.message}</p>
         ) : null}
 
-        <div className="grid gap-4 sm:grid-cols-[110px_1fr]">
-          <FormField label="Indicativo" id="areaCode" required error={errors.areaCode?.message}>
-            <input id="areaCode" className={inputClass} {...register("areaCode")} />
-          </FormField>
-          <FormField label="Teléfono" id="phone" required error={errors.phone?.message}>
-            <input id="phone" type="tel" className={inputClass} {...register("phone")} />
-          </FormField>
-        </div>
+        {/* El paciente guarda indicativo («+57») y número por separado. */}
+        <FormField label="Teléfono" id="phone" required error={errors.phone?.message ?? errors.areaCode?.message}>
+          <Controller
+            name="phone"
+            control={control}
+            render={({ field }) => (
+              <SplitPhoneField
+                id="phone"
+                prefix={areaCodeValue ?? ""}
+                nationalNumber={field.value ?? ""}
+                onPrefixChange={(code) => setValue("areaCode", `+${code}`, { shouldDirty: true })}
+                onNationalChange={field.onChange}
+              />
+            )}
+          />
+        </FormField>
       </FormSection>
 
       {isCreate ? (

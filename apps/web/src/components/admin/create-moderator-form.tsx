@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { PhoneField } from "@/components/ui/phone-field";
 import {
   createModeratorAction,
   type CreateModeratorState,
@@ -36,6 +37,7 @@ export function CreateModeratorForm() {
     createModeratorAction,
     initialState,
   );
+  const [phone, setPhone] = useState("");
 
   return (
     <form action={formAction} className="space-y-4">
@@ -69,13 +71,9 @@ export function CreateModeratorForm() {
           <input className={inputClass} name="docNumber" autoComplete="off" />
         </Field>
         <Field label="Teléfono">
-          <input
-            className={inputClass}
-            name="phone"
-            type="tel"
-            placeholder="573001112233"
-            autoComplete="off"
-          />
+          {/* La acción del servidor lee `phone`: dígitos con indicativo. */}
+          <input type="hidden" name="phone" value={phone.replace(/\D/g, "")} />
+          <PhoneField value={phone} onChange={setPhone} />
         </Field>
         <Field label="Correo">
           <input

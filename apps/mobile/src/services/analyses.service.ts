@@ -17,6 +17,8 @@ export type CreateSkiniverAnalysisInput = {
   yCoord?: number;
   zCoord?: number;
   doctorNotes?: string;
+  /** Se aceptó el consentimiento previo (el API guarda la fecha). */
+  consentAccepted?: boolean;
 };
 
 export const analysesService = {
@@ -50,6 +52,7 @@ export const analysesService = {
     if (input.doctorNotes?.trim()) {
       form.append('doctorNotes', input.doctorNotes.trim());
     }
+    if (input.consentAccepted) form.append('consentAccepted', 'true');
 
     const created = await apiRequest<AnalysisDetail>('/analyses', {
       method: 'POST',

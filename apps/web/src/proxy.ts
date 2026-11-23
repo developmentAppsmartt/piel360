@@ -27,6 +27,7 @@ type Panel = (typeof PANELS)[number];
 const PATIENT_APP_PATH = "/patient";
 
 const ACCOUNT_DISABLED_PATH = "/doctor/cuenta-deshabilitada";
+const ACCEPT_TERMS_PATH = "/doctor/aceptar-terminos";
 
 const PUBLIC_PATHS: Record<Panel, string[]> = {
   doctor: [
@@ -208,6 +209,15 @@ export async function proxy(request: NextRequest) {
   );
 
   if (panel === "doctor") {
+    // Términos y política de datos: quien no aceptó la versión vigente no
+    // pasa del panel (la cuenta deshabilitada manda antes, por eso va abajo).
+    const onTermsPage = pathname === ACCEPT_TERMS_PATH;
+    if (fresh.account?.termsAccepted === false && !onTermsPage && !fresh.account.disabled) {
+      const url = new URL(ACCEPT_TERMS_PATH, request.url);
+      url.searchParams.set("next", pathname);
+      return NextResponse.redirect(url);
+    }
+    if (onTermsPage) return NextResponse.next();
     const onDisabledPage = pathname === ACCOUNT_DISABLED_PATH;
     if (fresh.account?.disabled && !onDisabledPage) {
       return NextResponse.redirect(new URL(ACCOUNT_DISABLED_PATH, request.url));
