@@ -8,6 +8,7 @@ import {
   type ExpiredPlanInfo,
   type Role,
 } from '@piel360/shared';
+import { LegalService } from '../legal/legal.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveSubscriptionEndsAt } from '../subscriptions/subscription-ends.util';
 
@@ -33,7 +34,10 @@ const NO_PLAN_STATE: PlanState = {
 
 @Injectable()
 export class AccountStatusService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly legal: LegalService,
+  ) {}
 
   /** Deshabilitado directo, o miembro de una empresa cuyo dueño está deshabilitado. */
   async resolveDisabled(userId: bigint): Promise<DisabledInfo | null> {
@@ -75,10 +79,11 @@ export class AccountStatusService {
   }
 
   async getStatus(userId: bigint, role: Role): Promise<AccountStatus> {
-    const disabled = await this.resolveDisabled(userId);
-    const plan = isClinicalPanelRole(role)
-      ? await this.resolvePlanState(userId)
-      : NO_PLAN_STATE;
+    const [disabled, plan, termsAccepted] = await Promise.all([
+      this.resolveDisabled(userId),
+      isClinicalPanelRole(role) ? this.resolvePlanState(userId) : NO_PLAN_STATE,
+      this.legal.termsAccepted(userId, role),
+    ]);
 
     return {
       disabled: Boolean(disabled),
@@ -86,6 +91,7 @@ export class AccountStatusService {
       disabledAt: disabled?.disabledAt.toISOString() ?? null,
       disabledScope: disabled?.scope ?? null,
       ...plan,
+      termsAccepted,
     };
   }
 

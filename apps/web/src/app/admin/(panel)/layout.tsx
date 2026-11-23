@@ -46,7 +46,6 @@ export default async function AdminPanelLayout({
           ? "Validar profesionales mantiene la confianza de la plataforma."
           : undefined,
       }}
-      hideHeaderLogout
     >
       {children}
     </PanelShell>

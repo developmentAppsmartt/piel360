@@ -12,6 +12,7 @@ import { ForgotPasswordView } from '../views/auth/forgot-password/ForgotPassword
 import { MainTabNavigator } from './MainTabNavigator';
 import { PhoneVerificationView } from '../views/auth/phone-verification/PhoneVerificationView';
 import { AccountDisabledView } from '../views/account/AccountDisabledView';
+import { TermsAcceptanceView } from '../views/legal/TermsAcceptanceView';
 
 export type AuthStackParamList = {
   Login: undefined;
@@ -84,6 +85,12 @@ export function RootNavigator() {
 
   if (user && accountStatus?.disabled) {
     return <AccountDisabledView />;
+  }
+
+  // Sin aceptar la versión vigente de términos y política de datos no entra.
+  // `undefined` (API anterior) no bloquea.
+  if (user && accountStatus?.termsAccepted === false && !needsPhoneVerification) {
+    return <TermsAcceptanceView />;
   }
 
   return (

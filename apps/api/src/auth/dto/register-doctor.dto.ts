@@ -1,4 +1,5 @@
 import {
+  Equals,
   IsDateString,
   IsEmail,
   IsIn,
@@ -156,4 +157,13 @@ export class RegisterDoctorDto {
   @IsOptional()
   @IsString()
   referralCode?: string;
+
+  /** Casillas de términos y política de datos del registro. */
+  @Equals(true, { message: 'Debes aceptar los Términos y Condiciones' })
+  acceptTerms!: boolean;
+
+  @Equals(true, {
+    message: 'Debes aceptar la Política de Tratamiento de Datos Personales',
+  })
+  acceptPrivacy!: boolean;
 }

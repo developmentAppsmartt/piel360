@@ -21,7 +21,7 @@ export type LegalDocument = {
   sections: LegalSection[];
 };
 
-const UPDATED = '7 de septiembre de 2026';
+const UPDATED = '23 de noviembre de 2026';
 
 export const LEGAL_TERMS: LegalDocument = {
   id: 'terms',

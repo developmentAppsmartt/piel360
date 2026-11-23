@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsIn,
   IsNumber,
   IsNumberString,
   IsOptional,
@@ -35,4 +36,10 @@ export class CreateAnalysisDto {
   @IsString()
   @MaxLength(500)
   doctorNotes?: string;
+
+  /** "true" si se aceptó el consentimiento previo al análisis. Opcional: la
+   * app instalada antes del cambio no lo manda. Llega por multipart (texto). */
+  @IsOptional()
+  @IsIn(['true'])
+  consentAccepted?: 'true';
 }

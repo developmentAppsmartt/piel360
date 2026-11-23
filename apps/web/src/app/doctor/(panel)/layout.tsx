@@ -85,7 +85,6 @@ export default async function DoctorPanelLayout({
         enrichFromDoctorProfile: true,
       }}
       profileHref={profileAllowed && teamAllowed ? PROFILE_HREF : null}
-      hideHeaderLogout
     >
       {!active ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

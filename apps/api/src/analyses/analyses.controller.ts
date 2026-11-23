@@ -27,6 +27,7 @@ import { AnalysesService } from './analyses.service';
 import { AnalysisConsumptionService } from './analysis-consumption.service';
 import { ConfirmAnalysisDto } from './dto/confirm-analysis.dto';
 import { CreateAnalysisDto } from './dto/create-analysis.dto';
+import { LegalService } from '../legal/legal.service';
 
 interface UploadedImage {
   buffer: Buffer;
@@ -42,11 +43,12 @@ export class AnalysesController {
     private readonly fitzpatrickRecommendationsService: FitzpatrickRecommendationsService,
     private readonly routinesService: RoutinesService,
     private readonly treatmentsService: TreatmentsService,
+    private readonly legal: LegalService,
   ) {}
 
   @Post()
   @UseInterceptors(FileInterceptor('image'))
-  create(
+  async create(
     @Body() dto: CreateAnalysisDto,
     @UploadedFile() image: UploadedImage | undefined,
     @CurrentUser() user: JwtPayload,
@@ -56,7 +58,14 @@ export class AnalysesController {
         'Falta la imagen (campo "image") o llegó vacía',
       );
     }
-    return this.analysesService.performAnalysis(dto, image.buffer, user);
+    const analysis = await this.analysesService.performAnalysis(
+      dto,
+      image.buffer,
+      user,
+    );
+    if (dto.consentAccepted === 'true')
+      await this.legal.recordAnalysisConsent(analysis.id);
+    return analysis;
   }
 
   @Get()

@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CloudUpload } from "lucide-react";
 import type { MembershipType } from "@piel360/shared";
 import {
   combinePhoneParts,
@@ -13,318 +12,120 @@ import {
   isValidE164Digits,
   PhoneSplitInputs,
 } from "@/components/auth/auth-form-primitives";
-import {
-  LocationPickerSection,
-  useLocationPicker,
-} from "@/components/auth/location-picker-section";
-import {
-  establishSessionAction,
-  type AuthActionState,
-} from "@/lib/actions/auth";
+import { LocationPickerSection, useLocationPicker } from "@/components/auth/location-picker-section";
+import { establishSessionAction, type AuthActionState } from "@/lib/actions/auth";
 import { sendPhoneOtpAction, verifyPhoneOtpAction } from "@/lib/actions/phone-otp";
-import { CatalogCombobox } from "@/components/auth/catalog-combobox";
 import { homeForUser } from "@/lib/auth-redirect";
 import { ApiError } from "@/lib/api-error";
-import { apiClientFetch } from "@/lib/api-client";
-import { AlliedPayoutBankFields } from "@/components/auth/allied-payout-bank-fields";
 import { registerEmpresaWithDocuments } from "@/lib/empresa-register-client";
+import { PhoneField } from "@/components/ui/phone-field";
+import {
+  LegalAcceptanceChecks,
+  NO_LEGAL_CHECKS,
+  legalChecksComplete,
+  type LegalChecks,
+} from "@/components/legal/legal-acceptance-checks";
+import { AlliedReferralNotice } from "./register/allied-referral-notice";
+import { DocUploadCard } from "./register/doc-upload-card";
+import { companyError, EMPTY_COMPANY, EmpresaCompanyFields, type CompanyValues } from "./register/empresa-company-fields";
+import { OtpVerifyControls } from "./register/otp-verify-controls";
+import { useAlliedReferral } from "./register/use-allied-referral";
+import { useOtpVerification } from "./register/use-otp-verification";
 
-const EMPLOYEE_RANGES = ["1-10", "11-50", "51-200", "201-500", "501+"] as const;
-const DOC_TYPES = ["CC", "CE", "NIT", "PA"] as const;
+type EmpresaMembership = Extract<MembershipType, "empresa" | "empresa_aliada">;
 
-const MEMBERSHIP_OPTIONS: {
-  value: Extract<MembershipType, "empresa" | "empresa_aliada">;
-  label: string;
-  hint: string;
-}[] = [
-  {
-    value: "empresa",
-    label: "Membresía empresa",
-    hint: "Equipos según plan de espacios.",
-  },
-  {
-    value: "empresa_aliada",
-    label: "Empresa aliada",
-    hint: "Equipos con programa de referidos.",
-  },
+const MEMBERSHIP_OPTIONS: { value: EmpresaMembership; label: string; hint: string }[] = [
+  { value: "empresa", label: "Membresía empresa", hint: "Equipos según plan de espacios." },
+  { value: "empresa_aliada", label: "Empresa aliada", hint: "Equipos con programa de referidos." },
 ];
 
-function DocUploadCard({
-  title,
-  file,
-  onChange,
-}: {
-  title: string;
-  file: File | null;
-  onChange: (file: File | null) => void;
-}) {
-  return (
-    <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-3 py-5 text-center transition hover:border-sky-400">
-      <CloudUpload className="size-7 text-sky-500" />
-      <span className="text-sm font-semibold text-zinc-900">{title}</span>
-      <span className="text-xs text-zinc-500">
-        {file ? file.name : "PDF, JPG o PNG · opcional"}
-      </span>
-      <input
-        type="file"
-        accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-        className="sr-only"
-        onChange={(e: ChangeEvent<HTMLInputElement>) => {
-          onChange(e.target.files?.[0] ?? null);
-        }}
-      />
-    </label>
-  );
-}
-
-export function EmpresaRegisterForm({
-  referralCode: initialReferralCode,
-}: {
-  referralCode?: string;
-} = {}) {
+export function EmpresaRegisterForm({ referralCode: initialReferralCode }: { referralCode?: string } = {}) {
   const router = useRouter();
   const locationPicker = useLocationPicker();
+  const allied = useAlliedReferral(initialReferralCode);
   const [state, setState] = useState<AuthActionState>({});
   const [isPending, setIsPending] = useState(false);
-  const [alliedReferral, setAlliedReferral] = useState<{
-    code: string;
-    organizationName: string;
-  } | null>(null);
-  const [referralLoading, setReferralLoading] = useState(
-    Boolean(initialReferralCode?.trim()),
-  );
-  const [referralError, setReferralError] = useState<string | null>(null);
+  const [membershipType, setMembershipType] = useState<EmpresaMembership>("empresa");
 
-  useEffect(() => {
-    const code = initialReferralCode?.trim();
-    if (!code) {
-      setReferralLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    setReferralLoading(true);
-    setReferralError(null);
-
-    void apiClientFetch<{
-      code: string;
-      organizationName: string;
-    }>(`/auth/referral/${encodeURIComponent(code)}`)
-      .then((data) => {
-        if (cancelled) return;
-        setAlliedReferral({
-          code: data.code,
-          organizationName: data.organizationName,
-        });
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setReferralError(
-          err instanceof ApiError
-            ? err.message
-            : "Código de empresa aliada no válido.",
-        );
-      })
-      .finally(() => {
-        if (!cancelled) setReferralLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [initialReferralCode]);
-
-  const [membershipType, setMembershipType] =
-    useState<Extract<MembershipType, "empresa" | "empresa_aliada">>("empresa");
-
-  const professionalRegisterHref = alliedReferral
-    ? `/doctor/register?ref=${encodeURIComponent(alliedReferral.code)}`
-    : initialReferralCode?.trim()
-      ? `/doctor/register?ref=${encodeURIComponent(initialReferralCode.trim())}`
-      : "/doctor/register";
+  const professionalRegisterHref = allied.code
+    ? `/doctor/register?ref=${encodeURIComponent(allied.code)}`
+    : "/doctor/register";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phonePrefix, setPhonePrefix] = useState("57");
   const [phoneNational, setPhoneNational] = useState("");
-  const [organizationName, setOrganizationName] = useState("");
-  const [ciiuCode, setCiiuCode] = useState("");
-  const [ciiuLabel, setCiiuLabel] = useState("");
-  const [businessEmail, setBusinessEmail] = useState("");
-  const [businessPhone, setBusinessPhone] = useState("");
-  const [website, setWebsite] = useState("");
-  const [employeeCountRange, setEmployeeCountRange] = useState("");
-  const [legalRepName, setLegalRepName] = useState("");
-  const [legalRepDocType, setLegalRepDocType] = useState<string>(DOC_TYPES[0]);
-  const [legalRepDocNumber, setLegalRepDocNumber] = useState("");
-  const [bankName, setBankName] = useState("");
-  const [bankId, setBankId] = useState("");
-  const [bankAccountType, setBankAccountType] = useState("AHORROS");
-  const [bankAccountNumber, setBankAccountNumber] = useState("");
-  const [payoutBeneficiaryName, setPayoutBeneficiaryName] = useState("");
-  const [payoutBeneficiaryEmail, setPayoutBeneficiaryEmail] = useState("");
-  const [payoutLegalIdType, setPayoutLegalIdType] = useState("NIT");
-  const [payoutLegalId, setPayoutLegalId] = useState("");
-
+  const [company, setCompany] = useState<CompanyValues>(EMPTY_COMPANY);
   const [legalRepCedula, setLegalRepCedula] = useState<File | null>(null);
   const [rut, setRut] = useState<File | null>(null);
   const [existenceCert, setExistenceCert] = useState<File | null>(null);
+  const [legal, setLegal] = useState<LegalChecks>(NO_LEGAL_CHECKS);
 
   const phone = combinePhoneParts(phonePrefix, phoneNational);
   const phoneValid =
-    digitsOnly(phonePrefix).length >= 1 &&
-    digitsOnly(phoneNational).length >= 7 &&
-    isValidE164Digits(phone);
+    digitsOnly(phonePrefix).length >= 1 && digitsOnly(phoneNational).length >= 7 && isValidE164Digits(phone);
+  const phoneOtp = useOtpVerification(phone, sendPhoneOtpAction, verifyPhoneOtpAction);
+  const isAllied = membershipType === "empresa_aliada";
+  // El API guarda el teléfono empresarial solo con dígitos (indicativo incluido).
+  const businessPhoneDigits = digitsOnly(company.businessPhone);
 
-  const [otpCode, setOtpCode] = useState("");
-  const [phoneTicket, setPhoneTicket] = useState<string | null>(null);
-  const [verifiedPhone, setVerifiedPhone] = useState<string | null>(null);
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpError, setOtpError] = useState<string | null>(null);
-  const [isSendingOtp, setIsSendingOtp] = useState(false);
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
-
-  function resetPhoneVerification() {
-    setOtpSent(false);
-    setOtpCode("");
-    setPhoneTicket(null);
-    setVerifiedPhone(null);
-    setOtpError(null);
-  }
-
-  async function handleSendOtp() {
-    setOtpError(null);
-    setIsSendingOtp(true);
-    const result = await sendPhoneOtpAction(phone);
-    setIsSendingOtp(false);
-    if (!result.ok) {
-      setOtpError(result.error ?? "No se pudo enviar el código.");
-      return;
+  function validationError(): string | null {
+    if (!phoneValid) return "Celular inválido — revisa el prefijo (ej. 57) y el número (10 a 15 dígitos en total).";
+    if (!phoneOtp.ticket) return "Verifica tu celular antes de continuar.";
+    const companyProblem = companyError(company, isAllied);
+    if (companyProblem) return companyProblem;
+    if (!locationPicker.location) return "Marca la ubicación de la empresa en el mapa.";
+    if (businessPhoneDigits && !/^\d{10,15}$/.test(businessPhoneDigits)) {
+      return "Teléfono empresarial inválido — revisa el número.";
     }
-    setOtpSent(true);
-  }
-
-  async function handleVerifyOtp() {
-    setOtpError(null);
-    setIsVerifyingOtp(true);
-    const result = await verifyPhoneOtpAction(phone, otpCode);
-    setIsVerifyingOtp(false);
-    if (!result.ok || !result.ticket) {
-      setOtpError(result.error ?? "No se pudo verificar el código.");
-      return;
-    }
-    setPhoneTicket(result.ticket);
-    setVerifiedPhone(phone);
+    if (!legalChecksComplete(legal)) return "Debes aceptar los Términos y Condiciones y la Política de Tratamiento de Datos.";
+    return null;
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setState({});
+    const problem = validationError();
+    setState(problem ? { error: problem } : {});
+    if (problem || !locationPicker.location) return;
 
-    if (!phoneValid) {
-      setState({
-        error:
-          "Celular inválido — revisa el prefijo (ej. 57) y el número (10 a 15 dígitos en total).",
-      });
-      return;
-    }
-    if (!phoneTicket) {
-      setState({ error: "Verifica tu celular antes de continuar." });
-      return;
-    }
-    if (!organizationName.trim()) {
-      setState({ error: "El nombre de la empresa es obligatorio." });
-      return;
-    }
-    if (!legalRepName.trim()) {
-      setState({ error: "Indica el nombre del representante legal." });
-      return;
-    }
-    if (!legalRepDocNumber.trim()) {
-      setState({ error: "Indica el documento del representante legal." });
-      return;
-    }
-    if (!locationPicker.location) {
-      setState({ error: "Marca la ubicación de la empresa en el mapa." });
-      return;
-    }
-
-    if (membershipType === "empresa_aliada") {
-      if (!payoutBeneficiaryName.trim()) {
-        setState({
-          error: "Indica el nombre del beneficiario de la cuenta de pago.",
-        });
-        return;
-      }
-      if (!payoutBeneficiaryEmail.trim()) {
-        setState({
-          error: "Indica el email del beneficiario de la cuenta de pago.",
-        });
-        return;
-      }
-      if (!payoutLegalId.trim()) {
-        setState({
-          error: "Indica el documento del beneficiario (CC/NIT) para dispersión.",
-        });
-        return;
-      }
-      if (!bankAccountNumber.trim()) {
-        setState({ error: "Indica el número de cuenta para dispersión." });
-        return;
-      }
-      if (!bankId.trim() && !bankName.trim()) {
-        setState({ error: "Indica el banco para dispersión." });
-        return;
-      }
-    }
-
-    const businessPhoneDigits = digitsOnly(businessPhone);
-    if (businessPhoneDigits && !/^\d{10,15}$/.test(businessPhoneDigits)) {
-      setState({
-        error:
-          "Teléfono empresarial inválido — usa solo dígitos (10 a 15).",
-      });
-      return;
-    }
-
-    const phoneForRegister = verifiedPhone ?? phone;
-
+    const c = company;
     setIsPending(true);
     try {
       const { result, docUploadError } = await registerEmpresaWithDocuments(
         {
           email: email.trim(),
           password,
-          phone: phoneForRegister,
-          phoneTicket: phoneTicket ?? undefined,
+          phone: phoneOtp.verifiedValue ?? phone,
+          phoneTicket: phoneOtp.ticket ?? undefined,
           membershipType,
-          organizationName: organizationName.trim(),
-          ciiuCode: ciiuCode.trim() || undefined,
-          businessEmail: businessEmail.trim() || undefined,
+          organizationName: c.organizationName.trim(),
+          ciiuCode: c.ciiuCode.trim() || undefined,
+          businessEmail: c.businessEmail.trim() || undefined,
           businessPhone: businessPhoneDigits || undefined,
-          website: website.trim() || undefined,
-          employeeCountRange: employeeCountRange || undefined,
-          legalRepName: legalRepName.trim(),
-          legalRepDocType: legalRepDocType || undefined,
-          legalRepDocNumber: legalRepDocNumber.trim(),
+          website: c.website.trim() || undefined,
+          employeeCountRange: c.employeeCountRange || undefined,
+          legalRepName: c.legalRepName.trim(),
+          legalRepDocType: c.legalRepDocType || undefined,
+          legalRepDocNumber: c.legalRepDocNumber.trim(),
           address: locationPicker.address || locationPicker.addressQuery,
           country: locationPicker.country.trim() || undefined,
           lat: locationPicker.location.lat,
           lng: locationPicker.location.lng,
-          ...(membershipType === "empresa_aliada"
+          ...(isAllied
             ? {
-                bankName: bankName.trim() || undefined,
-                bankId: bankId.trim() || undefined,
-                bankAccountType: bankAccountType || undefined,
-                bankAccountNumber: bankAccountNumber.trim() || undefined,
-                payoutBeneficiaryName: payoutBeneficiaryName.trim() || undefined,
-                payoutBeneficiaryEmail:
-                  payoutBeneficiaryEmail.trim() || undefined,
-                payoutLegalIdType: payoutLegalIdType || undefined,
-                payoutLegalId: payoutLegalId.trim() || undefined,
+                bankName: c.bankName.trim() || undefined,
+                bankId: c.bankId.trim() || undefined,
+                bankAccountType: c.bankAccountType || undefined,
+                bankAccountNumber: c.bankAccountNumber.trim() || undefined,
+                payoutBeneficiaryName: c.payoutBeneficiaryName.trim() || undefined,
+                payoutBeneficiaryEmail: c.payoutBeneficiaryEmail.trim() || undefined,
+                payoutLegalIdType: c.payoutLegalIdType || undefined,
+                payoutLegalId: c.payoutLegalId.trim() || undefined,
               }
             : {}),
-          referralCode: alliedReferral?.code || initialReferralCode?.trim() || undefined,
+          referralCode: allied.code,
+          acceptTerms: true,
+          acceptPrivacy: true,
         },
         { legalRepCedula, rut, existenceCert },
       );
@@ -338,11 +139,7 @@ export function EmpresaRegisterForm({
       router.push(homeForUser(result.user));
     } catch (err) {
       setIsPending(false);
-      if (err instanceof ApiError) {
-        setState({ error: err.message });
-        return;
-      }
-      setState({ error: "No se pudo crear la cuenta empresarial." });
+      setState({ error: err instanceof ApiError ? err.message : "No se pudo crear la cuenta empresarial." });
     }
   }
 
@@ -354,46 +151,16 @@ export function EmpresaRegisterForm({
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Registro de Empresa</h1>
         <p className="text-sm text-zinc-500">
-          Crea la cuenta de tu clínica o centro. Incluye datos comerciales y
-          ubicación. ¿Eres profesional individual? Usa el{" "}
-          <Link
-            href={professionalRegisterHref}
-            className="text-sky-600 underline"
-          >
+          Crea la cuenta de tu clínica o centro. Incluye datos comerciales y ubicación. ¿Eres profesional
+          individual? Usa el{" "}
+          <Link href={professionalRegisterHref} className="text-sky-600 underline">
             registro de Profesionales
           </Link>
           .
         </p>
       </div>
 
-      {referralLoading ? (
-        <p className="text-center text-sm text-zinc-500">
-          Validando código de empresa aliada…
-        </p>
-      ) : null}
-
-      {referralError ? (
-        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
-          {referralError}
-        </p>
-      ) : null}
-
-      {alliedReferral ? (
-        <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-4 text-center">
-          <p className="text-xs font-medium uppercase tracking-wide text-sky-700">
-            Registro con empresa aliada
-          </p>
-          <p className="mt-1 text-sm text-sky-800">
-            {alliedReferral.organizationName}
-          </p>
-          <p className="mt-2 font-mono text-xl font-semibold tracking-wider text-sky-950">
-            {alliedReferral.code}
-          </p>
-          <p className="mt-1 text-xs text-sky-700">
-            Código de referido (no editable)
-          </p>
-        </div>
-      ) : null}
+      <AlliedReferralNotice loading={allied.loading} error={allied.error} referral={allied.referral} />
 
       <fieldset className="space-y-3">
         <legend className="text-sm font-semibold text-zinc-900">
@@ -406,9 +173,7 @@ export function EmpresaRegisterForm({
               <label
                 key={opt.value}
                 className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition ${
-                  selected
-                    ? "border-sky-500 bg-sky-50"
-                    : "border-zinc-200 bg-white hover:border-zinc-300"
+                  selected ? "border-sky-500 bg-sky-50" : "border-zinc-200 bg-white hover:border-zinc-300"
                 }`}
               >
                 <input
@@ -459,195 +224,38 @@ export function EmpresaRegisterForm({
             <PhoneSplitInputs
               prefix={phonePrefix}
               nationalNumber={phoneNational}
-              disabled={phoneTicket != null}
+              disabled={phoneOtp.ticket != null}
               onPrefixChange={(value) => {
                 setPhonePrefix(value);
-                if (otpSent) resetPhoneVerification();
+                if (phoneOtp.sent) phoneOtp.reset();
               }}
               onNationalChange={(value) => {
                 setPhoneNational(value);
-                if (otpSent) resetPhoneVerification();
+                if (phoneOtp.sent) phoneOtp.reset();
               }}
             />
-            {phoneTicket ? (
-              <p className="text-xs text-emerald-600">Celular verificado.</p>
-            ) : (
-              <div className="flex flex-wrap items-center gap-2">
-                {!otpSent ? (
-                  <button
-                    type="button"
-                    disabled={!phoneValid || isSendingOtp}
-                    onClick={handleSendOtp}
-                    className="rounded-lg bg-sky-500 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40"
-                  >
-                    {isSendingOtp ? "Enviando…" : "Enviar código"}
-                  </button>
-                ) : (
-                  <>
-                    <p className="w-full text-xs text-zinc-500">
-                      Código enviado a +{phone}
-                    </p>
-                    <input
-                      className={`${inputClass} max-w-32`}
-                      placeholder="Código"
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      disabled={otpCode.length < 4 || isVerifyingOtp}
-                      onClick={handleVerifyOtp}
-                      className="rounded-lg bg-sky-500 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40"
-                    >
-                      {isVerifyingOtp ? "Verificando…" : "Verificar"}
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-            {otpError ? <p className="text-xs text-red-600">{otpError}</p> : null}
+            <OtpVerifyControls
+              otp={phoneOtp}
+              canSend={phoneValid}
+              sentTo={`por SMS a +${phone}`}
+              verifiedLabel="Celular verificado."
+            />
           </div>
         </Field>
       </section>
 
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Información de la empresa</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Nombre de la empresa" required>
-            <input
-              className={inputClass}
-              value={organizationName}
-              onChange={(e) => setOrganizationName(e.target.value)}
-              required
-            />
-          </Field>
-          <Field label="Código CIIU principal" required>
-            <CatalogCombobox
-              typeSlug="ciiu_code"
-              className={inputClass}
-              placeholder="Busca la actividad económica"
-              value={ciiuLabel}
-              onSelect={(p) => {
-                setCiiuLabel(p.label);
-                setCiiuCode(p.code ?? "");
-              }}
-              required
-            />
-          </Field>
-          <Field label="Correo electrónico empresarial" required>
-            <input
-              className={inputClass}
-              type="email"
-              value={businessEmail}
-              onChange={(e) => setBusinessEmail(e.target.value)}
-              required
-            />
-          </Field>
-          <Field label="Teléfono de contacto" required>
-            <input
-              className={inputClass}
-              type="tel"
-              value={businessPhone}
-              onChange={(e) => setBusinessPhone(e.target.value)}
-              required
-            />
-          </Field>
-          <Field label="Sitio web" required>
-            <input
-              className={inputClass}
-              type="url"
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-              placeholder="https://"
-              required
-            />
-          </Field>
-          <Field label="Número de empleados (aprox.)" required>
-            <select
-              className={inputClass}
-              value={employeeCountRange}
-              onChange={(e) => setEmployeeCountRange(e.target.value)}
-              required
-            >
-              <option value="">Seleccionar</option>
-              {EMPLOYEE_RANGES.map((range) => (
-                <option key={range} value={range}>
-                  {range}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-
-        <div>
-          <h3 className="mb-3 text-sm font-semibold">Representante legal</h3>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Nombre completo" required>
-              <input
-                className={inputClass}
-                value={legalRepName}
-                onChange={(e) => setLegalRepName(e.target.value)}
-                required
-              />
-            </Field>
-            <Field label="Tipo de documento" required>
-              <select
-                className={inputClass}
-                value={legalRepDocType}
-                onChange={(e) => setLegalRepDocType(e.target.value)}
-                required
-              >
-                {DOC_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Número de documento" required>
-              <input
-                className={inputClass}
-                value={legalRepDocNumber}
-                onChange={(e) => setLegalRepDocNumber(e.target.value)}
-                required
-              />
-            </Field>
-          </div>
-        </div>
-
-        {membershipType === "empresa_aliada" ? (
-          <AlliedPayoutBankFields
-            banksSource="public"
-            inputClassName={inputClass}
-            value={{
-              bankId,
-              bankName,
-              bankAccountType,
-              bankAccountNumber,
-              payoutBeneficiaryName,
-              payoutBeneficiaryEmail,
-              payoutLegalIdType,
-              payoutLegalId,
-            }}
-            onChange={(patch) => {
-              if (patch.bankId !== undefined) setBankId(patch.bankId);
-              if (patch.bankName !== undefined) setBankName(patch.bankName);
-              if (patch.bankAccountType !== undefined)
-                setBankAccountType(patch.bankAccountType);
-              if (patch.bankAccountNumber !== undefined)
-                setBankAccountNumber(patch.bankAccountNumber);
-              if (patch.payoutBeneficiaryName !== undefined)
-                setPayoutBeneficiaryName(patch.payoutBeneficiaryName);
-              if (patch.payoutBeneficiaryEmail !== undefined)
-                setPayoutBeneficiaryEmail(patch.payoutBeneficiaryEmail);
-              if (patch.payoutLegalIdType !== undefined)
-                setPayoutLegalIdType(patch.payoutLegalIdType);
-              if (patch.payoutLegalId !== undefined)
-                setPayoutLegalId(patch.payoutLegalId);
-            }}
+      <EmpresaCompanyFields
+        value={company}
+        onChange={setCompany}
+        allied={isAllied}
+        phoneField={
+          <PhoneField
+            value={company.businessPhone}
+            onChange={(value) => setCompany({ ...company, businessPhone: value })}
+            required
           />
-        ) : null}
-      </section>
+        }
+      />
 
       <LocationPickerSection
         picker={locationPicker}
@@ -659,30 +267,24 @@ export function EmpresaRegisterForm({
         <div>
           <h2 className="text-sm font-semibold">Documentos requeridos</h2>
           <p className="text-xs text-zinc-500">
-            Cédula del representante, RUT y certificado de existencia. Opcional en
-            este paso; puedes subirlos después en Configuración.
+            Cédula del representante, RUT y certificado de existencia. Opcional en este paso; puedes subirlos
+            después en Configuración.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
-          <DocUploadCard
-            title="Cédula del representante"
-            file={legalRepCedula}
-            onChange={setLegalRepCedula}
-          />
+          <DocUploadCard title="Cédula del representante" file={legalRepCedula} onChange={setLegalRepCedula} />
           <DocUploadCard title="RUT de la empresa" file={rut} onChange={setRut} />
-          <DocUploadCard
-            title="Certificado de existencia"
-            file={existenceCert}
-            onChange={setExistenceCert}
-          />
+          <DocUploadCard title="Certificado de existencia" file={existenceCert} onChange={setExistenceCert} />
         </div>
       </section>
+
+      <LegalAcceptanceChecks value={legal} onChange={setLegal} disabled={isPending} />
 
       {state.error && <p className="text-sm text-red-600">{state.error}</p>}
 
       <button
         type="submit"
-        disabled={isPending || phoneTicket == null}
+        disabled={isPending || phoneOtp.ticket == null || !legalChecksComplete(legal)}
         className="h-12 w-full rounded-xl bg-sky-500 text-sm font-semibold text-white hover:bg-sky-400 disabled:opacity-40 sm:w-auto sm:px-10"
       >
         {isPending ? "Creando cuenta…" : "Crear cuenta empresarial"}
@@ -695,10 +297,7 @@ export function EmpresaRegisterForm({
         </Link>
         {" · "}
         ¿Eres profesional individual?{" "}
-        <Link
-          href={professionalRegisterHref}
-          className="font-medium text-sky-600 underline"
-        >
+        <Link href={professionalRegisterHref} className="font-medium text-sky-600 underline">
           Registro profesional
         </Link>
       </p>

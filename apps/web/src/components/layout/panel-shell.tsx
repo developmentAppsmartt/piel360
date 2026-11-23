@@ -10,7 +10,6 @@ export function PanelShell({
   children,
   sidebarUser,
   profileHref = null,
-  hideHeaderLogout = false,
 }: {
   nav: NavItem[];
   user: {
@@ -33,7 +32,6 @@ export function PanelShell({
   };
   /** A dónde lleva el chip del perfil en la cabecera; `null` = no enlaza. */
   profileHref?: string | null;
-  hideHeaderLogout?: boolean;
 }) {
   const visibleNav = filterNavByFeatures(nav, {
     role: user.role,
@@ -105,7 +103,6 @@ export function PanelShell({
             }
           : undefined
       }
-      hideHeaderLogout={hideHeaderLogout}
     >
       {children}
     </PanelLayoutClient>

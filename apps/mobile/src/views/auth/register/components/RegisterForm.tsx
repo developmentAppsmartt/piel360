@@ -239,6 +239,9 @@ export function RegisterForm({ onGoLogin, onStepChange }: RegisterFormProps) {
         skinType: surveyAnswers.skin_type || undefined,
         fitzpatrickType: surveyAnswers.fitzpatrick_type || undefined,
         mascotType: surveyAnswers.mascot_type || undefined,
+        // La casilla del registro cubre términos y política de datos.
+        acceptTerms: terms,
+        acceptPrivacy: terms,
       });
 
       const patient = await patientsService.getMyPatient();

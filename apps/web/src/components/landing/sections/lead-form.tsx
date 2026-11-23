@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { CheckCircle2, X } from "lucide-react";
 import type { LeadIntent, LeadInterest } from "@piel360/shared";
+import { PhoneField } from "@/components/ui/phone-field";
 import { cn } from "@/lib/utils";
 import type { LandingContent } from "../content/types";
 import { LEAD_FORM_ID, LEAD_PRESET_EVENT, type LeadPreset } from "../lead-cta";
@@ -38,6 +39,7 @@ export function LeadForm({
   const [interest, setInterest] = useState<LeadInterest>("both");
   const [plan, setPlan] = useState<{ id: string; name: string } | null>(null);
   const [customPlan, setCustomPlan] = useState(false);
+  const [phone, setPhone] = useState("");
   const [status, setStatus] = useState<Status>("idle");
 
   useEffect(() => {
@@ -80,6 +82,7 @@ export function LeadForm({
       if (!res.ok) throw new Error(String(res.status));
       setStatus("sent");
       form.reset();
+      setPhone("");
       window.gtag?.("event", "generate_lead", { lead_interest: interest, lead_intent: intent });
     } catch {
       setStatus("error");
@@ -110,7 +113,8 @@ export function LeadForm({
             </label>
             <label className="text-sm font-semibold text-(--landing-navy)">
               {content.fields.phone}
-              <input name="phone" type="tel" required minLength={7} maxLength={30} autoComplete="tel" className={inputClass} />
+              <input type="hidden" name="phone" value={phone} />
+              <PhoneField value={phone} onChange={setPhone} required className="mt-1.5 h-11 bg-white" />
             </label>
           </div>
 

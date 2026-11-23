@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsDateString,
   IsEmail,
   IsNumber,
@@ -100,4 +101,15 @@ export class RegisterPatientDto {
   @IsOptional()
   @IsString()
   mascotType?: string;
+
+  /** Casillas de términos y política de datos. Opcionales: las apps
+   * instaladas antes del cambio no las mandan (verán la pantalla de
+   * aceptación al entrar). */
+  @IsOptional()
+  @IsBoolean()
+  acceptTerms?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  acceptPrivacy?: boolean;
 }

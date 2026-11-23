@@ -2,6 +2,8 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
+import { AESTHETIC_ANALYSIS_CONSENT } from "@piel360/shared";
+import { AnalysisConsentStep } from "@/components/analyses/analysis-consent-step";
 import { AnalysisResultsView } from "@/components/analyses/analysis-results-view";
 import { BodySelector } from "@/components/analyses/body-selector";
 import { AnalisisPiel360Capture } from "@/components/analyses/youcam-capture";
@@ -42,6 +44,7 @@ export default function NuevoAnalisisAnalisisPiel360Page() {
         patientId,
         image: photo,
         ...bodySelection,
+        consentAccepted: consented,
       });
       setAnalysisId(created.analysisId);
       goTo("resultados");
@@ -55,24 +58,12 @@ export default function NuevoAnalisisAnalisisPiel360Page() {
       <h1>{ANALYSIS_PROVIDER_STATIC_LABELS.analisispiel360}</h1>
 
       {step === "consentimiento" && (
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Este análisis captura una selfie del paciente para evaluar 16 métricas de piel
-            (arrugas, poros, manchas, etc.) mediante inteligencia artificial. La imagen se
-            procesa de forma segura y solo es visible para el equipo médico.
-          </p>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={consented}
-              onChange={(e) => setConsented(e.target.checked)}
-            />
-            El paciente acepta la captura y el análisis de su imagen facial.
-          </label>
-          <Button type="button" disabled={!consented} onClick={() => goTo("captura")}>
-            Continuar
-          </Button>
-        </div>
+        <AnalysisConsentStep
+          text={AESTHETIC_ANALYSIS_CONSENT}
+          accepted={consented}
+          onAcceptedChange={setConsented}
+          onContinue={() => goTo("captura")}
+        />
       )}
 
       {step === "captura" && (

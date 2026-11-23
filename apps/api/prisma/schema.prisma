@@ -39,6 +39,10 @@ model User {
   /** Miniatura de 160 px de la foto (listas de pacientes): la original pesa
    * 1,5–3 MB y una página de la tabla pintaba decenas. */
   avatarThumbKey     String?   @map("avatar_thumb_key")
+  /** Aceptación de términos y política de datos (`LEGAL_VERSION` de shared). */
+  termsAcceptedAt    DateTime? @map("terms_accepted_at")
+  privacyAcceptedAt  DateTime? @map("privacy_accepted_at")
+  legalVersion       String?   @map("legal_version")
   /**
    * Cuenta deshabilitada por un administrador (profesional o empresa). Puede
    * iniciar sesión, pero solo ve la pantalla con `disabledReason`. Si es el
@@ -582,6 +586,8 @@ model Analysis {
   reportToken  String? @unique @map("report_token")
   /** Key en storage del PDF ya generado — se genera una sola vez por análisis. */
   reportPdfKey String? @map("report_pdf_key")
+  /** Consentimiento previo al análisis (dermatológico o estético). */
+  consentAcceptedAt DateTime? @map("consent_accepted_at")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
