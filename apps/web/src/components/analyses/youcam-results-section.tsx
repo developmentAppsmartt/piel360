@@ -3,8 +3,11 @@
 import { useMemo, useState } from "react";
 import { Droplet, Sun } from "lucide-react";
 import {
+  ANALISIS_PIEL360_OVERALL_TYPE,
   configuredAnalisisPiel360Advice,
   configuredAnalisisPiel360ScoreBand,
+  configuredFitzpatrickText,
+  configuredSkinTypeText,
 } from "@piel360/shared";
 import { ModuleCard } from "@/components/ui/module-card";
 import { RecommendationsPanel } from "@/components/analyses/recommendations-panel";
@@ -90,6 +93,7 @@ export function AnalisisPiel360ResultsSection({
   const isOverview = selected?.type === "overview";
   const isSkinAge = selected?.type === SKIN_AGE_TYPE;
   const isFitzpatrick = selected?.type === FITZPATRICK_TYPE;
+  const isSkinType = selected?.type === "hd_skin_type";
   // "Edad de la piel" y "Puntaje de la piel" se apoyan en las reglas por edad
   // de piel (el panel las usa cuando no hay métrica); el fototipo tiene su
   // propio motor. Mismo criterio que la app móvil.
@@ -123,8 +127,8 @@ export function AnalisisPiel360ResultsSection({
           : ""
       }.${ageDiff != null ? ` Diferencia ${formatSignedYears(ageDiff)}.` : ""}`
     : isFitzpatrick
-      ? fitzpatrickDetail
-        ? `Fototipo ${fitzpatrickDetail}. Describe cómo reacciona tu piel al sol (escala de Fitzpatrick).`
+      ? fitzpatrickScale && fitzpatrickDetail
+        ? `Fototipo ${fitzpatrickDetail}. ${configuredFitzpatrickText(scoreConfig, fitzpatrickScale)}`
         : "El fototipo describe cómo reacciona tu piel al sol según la escala de Fitzpatrick. Este paciente aún no tiene un fototipo registrado."
       : analisisPiel360MetricCopy(isOverview ? "all" : selected?.type);
 
@@ -136,15 +140,35 @@ export function AnalisisPiel360ResultsSection({
   // y textos; lo que no defina lo toma de la métrica.
   const subRegion =
     activeRegion && activeRegion.region !== DEFAULT_REGION ? activeRegion.region : null;
-  const adviceText =
-    selected && !isOverview && !isSkinAge && !isFitzpatrick && activeScore != null
-      ? `${subRegion ? `${activeRegion?.label}: ` : ""}${configuredAnalisisPiel360Advice(
-          selected.type,
-          configuredAnalisisPiel360ScoreBand(activeScore, selected.type, scoreConfig, subRegion),
-          scoreConfig,
-          subRegion,
-        )}`
-      : null;
+  const zonePrefix = subRegion ? `${activeRegion?.label}: ` : "";
+  const adviceText = isOverview
+    ? overallAdvice()
+    : isSkinType
+      ? skinTypeAdvice()
+      : selected && !isSkinAge && !isFitzpatrick && activeScore != null
+        ? `${zonePrefix}${configuredAnalisisPiel360Advice(
+            selected.type,
+            configuredAnalisisPiel360ScoreBand(activeScore, selected.type, scoreConfig, subRegion),
+            scoreConfig,
+            subRegion,
+          )}`
+        : null;
+
+  // El texto del Puntaje general de Rangos de puntuación (la clave "all").
+  function overallAdvice() {
+    if (overall == null) return null;
+    const band = configuredAnalisisPiel360ScoreBand(overall, ANALISIS_PIEL360_OVERALL_TYPE, scoreConfig);
+    return configuredAnalisisPiel360Advice(ANALISIS_PIEL360_OVERALL_TYPE, band, scoreConfig);
+  }
+
+  // El biotipo no tiene puntaje: el texto es el de su zona y su biotipo. Si
+  // la zona no trae biotipo no hay texto (el cliente pidió no inventar uno).
+  function skinTypeAdvice() {
+    const zone = activeRegion?.region ?? DEFAULT_REGION;
+    const value = activeRegion ? activeRegion.skinType : skinType;
+    const text = configuredSkinTypeText(scoreConfig, zone, value);
+    return text ? `${zonePrefix}${text}` : null;
+  }
 
   return (
     <div className="space-y-4">

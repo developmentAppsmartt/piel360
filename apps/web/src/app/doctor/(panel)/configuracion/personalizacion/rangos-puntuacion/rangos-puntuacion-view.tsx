@@ -13,11 +13,23 @@ import {
   type AnalisisPiel360MetricScoreConfig,
   type AnalisisPiel360ScoreBand,
   type AnalisisPiel360ScoreConfig,
+  type FitzpatrickScale,
+  type SkinTypeTextZone,
+  type SkinTypeValue,
 } from "@piel360/shared";
 import { cn } from "@/lib/utils";
 import { useMyScoreConfig, useUpdateScoreConfig } from "@/lib/queries/score-config";
-import { CARD_CLASS, isCustomized, metricLabel, scoreConfigKeyLabel } from "./score-config-labels";
+import { FitzpatrickTextsEditor } from "./fitzpatrick-texts-editor";
+import {
+  CARD_CLASS,
+  FITZPATRICK_KEY,
+  SKIN_TYPE_KEY,
+  isCustomized,
+  metricLabel,
+  scoreConfigKeyLabel,
+} from "./score-config-labels";
 import { ScoreMetricNav } from "./score-metric-nav";
+import { SkinTypeTextsEditor } from "./skin-type-texts-editor";
 import { ScoreRangesEditor } from "./score-ranges-editor";
 import { ScoreTextsEditor } from "./score-texts-editor";
 
@@ -97,6 +109,22 @@ export function RangosPuntuacionView() {
       return { ...prev, metrics };
     });
 
+  const setSkinTypeText = (zone: SkinTypeTextZone, skinType: SkinTypeValue, value: string | null) =>
+    editDraft((prev) => {
+      const zoneTexts = { ...(prev.skinTypeTexts?.[zone] ?? {}) };
+      if (value == null) delete zoneTexts[skinType];
+      else zoneTexts[skinType] = value;
+      return { ...prev, skinTypeTexts: { ...prev.skinTypeTexts, [zone]: zoneTexts } };
+    });
+
+  const setFitzpatrickText = (scale: FitzpatrickScale, value: string | null) =>
+    editDraft((prev) => {
+      const fitzpatrickTexts = { ...prev.fitzpatrickTexts };
+      if (value == null) delete fitzpatrickTexts[scale];
+      else fitzpatrickTexts[scale] = value;
+      return { ...prev, fitzpatrickTexts };
+    });
+
   const discard = () => {
     setMessage(null);
     setDraft(null);
@@ -135,6 +163,7 @@ export function RangosPuntuacionView() {
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             Por cada métrica del análisis estético define los rangos de cada nivel y el
             texto que verá el paciente. Arrugas y Poros se pueden ajustar también por zona.
+            Biotipo y Fototipo no tienen puntaje: solo el texto de cada tipo.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -174,46 +203,56 @@ export function RangosPuntuacionView() {
       <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
         <ScoreMetricNav config={draft} selected={selected} onSelect={setSelected} />
 
-        <div className="min-w-0 space-y-5">
-          <section className={CARD_CLASS}>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">{scoreConfigKeyLabel(selected)}</h3>
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  {region
-                    ? `Lo que no cambies usa lo de ${metricLabel(type)}.`
-                    : "Lo que no cambies usa los valores por defecto de PIEL 360."}
-                </p>
+        {selected === SKIN_TYPE_KEY ? (
+          <div className="min-w-0">
+            <SkinTypeTextsEditor texts={draft.skinTypeTexts} onChange={setSkinTypeText} />
+          </div>
+        ) : selected === FITZPATRICK_KEY ? (
+          <div className="min-w-0">
+            <FitzpatrickTextsEditor texts={draft.fitzpatrickTexts} onChange={setFitzpatrickText} />
+          </div>
+        ) : (
+          <div className="min-w-0 space-y-5">
+            <section className={CARD_CLASS}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground">{scoreConfigKeyLabel(selected)}</h3>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {region
+                      ? `Lo que no cambies usa lo de ${metricLabel(type)}.`
+                      : "Lo que no cambies usa los valores por defecto de PIEL 360."}
+                  </p>
+                </div>
+                {isCustomized(draft.metrics[selected]) ? (
+                  <button
+                    type="button"
+                    onClick={resetMetric}
+                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                  >
+                    <RotateCcw className="size-3.5" aria-hidden />
+                    {region ? "Restaurar zona" : "Restaurar métrica"}
+                  </button>
+                ) : null}
               </div>
-              {isCustomized(draft.metrics[selected]) ? (
-                <button
-                  type="button"
-                  onClick={resetMetric}
-                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                >
-                  <RotateCcw className="size-3.5" aria-hidden />
-                  {region ? "Restaurar zona" : "Restaurar métrica"}
-                </button>
+
+              <ScoreRangesEditor key={selected} ranges={ranges} onPatch={patchMetric} />
+
+              {normalized.error ? (
+                <p className="mt-4 rounded-lg bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
+                  {normalized.error}
+                </p>
               ) : null}
-            </div>
+            </section>
 
-            <ScoreRangesEditor key={selected} ranges={ranges} onPatch={patchMetric} />
-
-            {normalized.error ? (
-              <p className="mt-4 rounded-lg bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
-                {normalized.error}
-              </p>
-            ) : null}
-          </section>
-
-          <ScoreTextsEditor
-            texts={metric.texts}
-            inheritedText={inheritedText}
-            inheritedFrom={inheritedFrom}
-            ranges={ranges}
-            onChange={setText}
-          />
-        </div>
+            <ScoreTextsEditor
+              texts={metric.texts}
+              inheritedText={inheritedText}
+              inheritedFrom={inheritedFrom}
+              ranges={ranges}
+              onChange={setText}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -21,7 +21,10 @@ export class ScoreConfigService {
     return this.read(BigInt(user.sub));
   }
 
-  async update(user: JwtPayload, body: unknown): Promise<AnalisisPiel360ScoreConfig> {
+  async update(
+    user: JwtPayload,
+    body: unknown,
+  ): Promise<AnalisisPiel360ScoreConfig> {
     await this.branding.assertCanManage(user);
     let config: AnalisisPiel360ScoreConfig;
     try {
@@ -32,7 +35,11 @@ export class ScoreConfigService {
       );
     }
     const userId = BigInt(user.sub);
-    const data = { metrics: config.metrics as Prisma.InputJsonValue };
+    const { metrics, ...descriptiveTexts } = config;
+    const data = {
+      metrics: metrics as Prisma.InputJsonValue,
+      descriptiveTexts: descriptiveTexts as Prisma.InputJsonValue,
+    };
     await this.prisma.accountScoreConfig.upsert({
       where: { userId },
       create: { userId, ...data },
@@ -54,7 +61,10 @@ export class ScoreConfigService {
     });
     if (!row) return DEFAULT_ANALISIS_PIEL360_SCORE_CONFIG;
     try {
-      return sanitizeAnalisisPiel360ScoreConfig({ metrics: row.metrics });
+      return sanitizeAnalisisPiel360ScoreConfig({
+        ...(row.descriptiveTexts as object),
+        metrics: row.metrics,
+      });
     } catch {
       return DEFAULT_ANALISIS_PIEL360_SCORE_CONFIG;
     }

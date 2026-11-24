@@ -5,6 +5,10 @@
  * Regular / Promedio / Buena y reemplazar el texto de cada nivel.
  * Lo que no se configura usa los valores de este archivo.
  */
+import {
+  sanitizeDescriptiveTexts,
+  type AnalisisPiel360DescriptiveTexts,
+} from "./analisis-piel360-descriptive-texts.js";
 import { reportableCategoryKey } from "./skin-report.js";
 import {
   ANALISIS_PIEL360_MAIN_METRIC_TYPES,
@@ -75,7 +79,8 @@ export type AnalisisPiel360MetricScoreConfig = {
   texts?: AnalisisPiel360BandTexts;
 };
 
-export type AnalisisPiel360ScoreConfig = {
+/** Rangos y textos por métrica, más los textos de biotipo y fototipo. */
+export type AnalisisPiel360ScoreConfig = AnalisisPiel360DescriptiveTexts & {
   metrics: Record<string, AnalisisPiel360MetricScoreConfig>;
 };
 
@@ -309,5 +314,5 @@ export function sanitizeAnalisisPiel360ScoreConfig(input: unknown): AnalisisPiel
     if (Object.keys(texts).length) entry.texts = texts;
     if (Object.keys(entry).length) metrics[key] = entry;
   }
-  return { metrics };
+  return { metrics, ...sanitizeDescriptiveTexts(raw) };
 }

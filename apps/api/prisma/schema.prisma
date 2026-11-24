@@ -124,6 +124,8 @@ model AccountScoreConfig {
   userId      BigInt   @unique @map("user_id")
   /// Por métrica: ajuste, rangos y textos (ver YoucamScoreConfig en @piel360/shared).
   metrics     Json     @default("{}")
+  /// Textos de biotipo por zona y de fototipo (skinTypeTexts, fitzpatrickTexts).
+  descriptiveTexts Json @default("{}") @map("descriptive_texts")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 

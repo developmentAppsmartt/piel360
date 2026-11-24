@@ -8,7 +8,14 @@ import {
 } from "@piel360/shared";
 import { cn } from "@/lib/utils";
 import { analisisPiel360RegionLabel } from "@/lib/youcam-metric-labels";
-import { CARD_CLASS, isCustomized, metricLabel } from "./score-config-labels";
+import {
+  CARD_CLASS,
+  FITZPATRICK_KEY,
+  SKIN_TYPE_KEY,
+  hasDescriptiveTexts,
+  isCustomized,
+  metricLabel,
+} from "./score-config-labels";
 
 function NavItem({
   label,
@@ -41,7 +48,8 @@ function NavItem({
   );
 }
 
-/** Métricas del análisis estético; Arrugas y Poros con sus subcategorías debajo. */
+/** Métricas del análisis estético; Arrugas y Poros con sus subcategorías
+ * debajo. Al final, Biotipo y Fototipo, que solo tienen textos. */
 export function ScoreMetricNav({
   config,
   selected,
@@ -85,6 +93,27 @@ export function ScoreMetricNav({
             ) : null}
           </li>
         ))}
+      </ul>
+      <p className="px-3 pt-4 pb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        Sin puntaje
+      </p>
+      <ul className="space-y-0.5">
+        <li>
+          <NavItem
+            label="Biotipo"
+            active={selected === SKIN_TYPE_KEY}
+            customized={hasDescriptiveTexts(config.skinTypeTexts)}
+            onClick={() => onSelect(SKIN_TYPE_KEY)}
+          />
+        </li>
+        <li>
+          <NavItem
+            label="Fototipo"
+            active={selected === FITZPATRICK_KEY}
+            customized={hasDescriptiveTexts(config.fitzpatrickTexts)}
+            onClick={() => onSelect(FITZPATRICK_KEY)}
+          />
+        </li>
       </ul>
     </nav>
   );
