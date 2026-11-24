@@ -3,6 +3,7 @@ import {
   ANALISIS_PIEL360_OVERALL_TYPE,
   parseScoreConfigKey,
   type AnalisisPiel360MetricScoreConfig,
+  type SkinTypeTextZone,
 } from "@piel360/shared";
 import { analisisPiel360RegionLabel } from "@/lib/youcam-metric-labels";
 
@@ -22,4 +23,21 @@ export function scoreConfigKeyLabel(key: string) {
 
 export function isCustomized(metric: AnalisisPiel360MetricScoreConfig | undefined) {
   return !!metric && Object.keys(metric).length > 0;
+}
+
+/** Claves de la navegación que no son métricas: textos sin puntaje. */
+export const SKIN_TYPE_KEY = "biotipo";
+export const FITZPATRICK_KEY = "fototipo";
+
+export const SKIN_TYPE_ZONE_LABELS: Record<SkinTypeTextZone, string> = {
+  whole: "Cara completa",
+  t_zone: "Zona T",
+  u_zone: "Zona U",
+};
+
+/** Algún texto de biotipo o de fototipo cambiado. */
+export function hasDescriptiveTexts(texts: object | undefined): boolean {
+  return !!texts && Object.values(texts).some((value): boolean =>
+    value && typeof value === "object" ? hasDescriptiveTexts(value) : typeof value === "string",
+  );
 }

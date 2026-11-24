@@ -32,6 +32,7 @@ export * from "./plan-coverage.js";
 export * from "./account-status.js";
 export * from "./account-branding.js";
 export * from "./youcam-score-config.js";
+export * from "./analisis-piel360-descriptive-texts.js";
 export * from "./profile-photo.js";
 export * from "./patient-clinical-history.js";
 export * from "./leads.js";
