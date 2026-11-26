@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Copy } from "lucide-react";
+import { ReferralReport } from "@/components/referrals/referral-report";
 import { apiClientFetch } from "@/lib/api-client";
 
 type OrgMine = {
@@ -140,43 +141,48 @@ export function DoctorReferidosView() {
         ) : null}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-left">
-            <tr>
-              <th className="px-4 py-3 font-medium">Código</th>
-              <th className="px-4 py-3 font-medium">Profesional referido</th>
-              <th className="px-4 py-3 font-medium">Fecha</th>
-            </tr>
-          </thead>
-          <tbody>
-            {professionalReferrals.length === 0 ? (
+      {/* La aliada ve su reporte con comisiones; las demás no cobran comisión. */}
+      {isAllied ? (
+        <ReferralReport endpoint="/organizations/me/referrals" />
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 text-left">
               <tr>
-                <td
-                  colSpan={3}
-                  className="px-4 py-6 text-center text-muted-foreground"
-                >
-                  Aún no hay profesionales registrados con tu código.
-                </td>
+                <th className="px-4 py-3 font-medium">Código</th>
+                <th className="px-4 py-3 font-medium">Profesional referido</th>
+                <th className="px-4 py-3 font-medium">Fecha</th>
               </tr>
-            ) : (
-              professionalReferrals.map((r) => (
-                <tr key={r.id} className="border-t border-border">
-                  <td className="px-4 py-3 font-mono">{r.code}</td>
-                  <td className="px-4 py-3">
-                    {r.referredUser
-                      ? `${r.referredUser.name} (${r.referredUser.email})`
-                      : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {new Date(r.createdAt).toLocaleDateString("es-CO")}
+            </thead>
+            <tbody>
+              {professionalReferrals.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={3}
+                    className="px-4 py-6 text-center text-muted-foreground"
+                  >
+                    Aún no hay profesionales registrados con tu código.
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : (
+                professionalReferrals.map((r) => (
+                  <tr key={r.id} className="border-t border-border">
+                    <td className="px-4 py-3 font-mono">{r.code}</td>
+                    <td className="px-4 py-3">
+                      {r.referredUser
+                        ? `${r.referredUser.name} (${r.referredUser.email})`
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {new Date(r.createdAt).toLocaleDateString("es-CO")}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

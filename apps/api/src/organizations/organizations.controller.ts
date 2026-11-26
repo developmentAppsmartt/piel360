@@ -97,10 +97,7 @@ export class OrganizationsController {
   @Post('organizations/me/members')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ClinicalPanelRoles()
-  addDoctor(
-    @CurrentUser() user: JwtPayload,
-    @Body() dto: AddTeamDoctorDto,
-  ) {
+  addDoctor(@CurrentUser() user: JwtPayload, @Body() dto: AddTeamDoctorDto) {
     return this.organizations.addDoctor(user.sub, dto);
   }
 
@@ -173,10 +170,7 @@ export class OrganizationsController {
   @Post('admin/organizations/:id/allied/disperse')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermission('admin.settings.allied_companies')
-  disperseAllied(
-    @Param('id') id: string,
-    @CurrentUser() user: JwtPayload,
-  ) {
+  disperseAllied(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.billing.disperseAlliedCommissions(id, user.sub, 'manual');
   }
 
@@ -196,12 +190,5 @@ export class OrganizationsController {
     @Body() dto: UpdateAccountStatusDto,
   ) {
     return this.doctors.setAccountDisabled(doctorId, dto.disabled, dto.reason);
-  }
-
-  @Get('admin/referrals')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermission('admin.settings.referrals')
-  listReferrals() {
-    return this.organizations.listReferralsForAdmin();
   }
 }
