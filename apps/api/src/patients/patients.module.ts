@@ -10,6 +10,7 @@ import { StorageModule } from '../storage/storage.module';
 import { ComparisonReportService } from './comparison-report/comparison-report.service';
 import { PatientAnalysisRequestsService } from './patient-analysis-requests.service';
 import { PatientInviteService } from './patient-invite.service';
+import { PatientLoginEmailBackfill } from './patient-login-email-backfill';
 import { PatientWriteService } from './patient-write.service';
 import { PatientsService } from './patients.service';
 import { PatientsController } from './patients.controller';
@@ -31,6 +32,7 @@ import { PatientsController } from './patients.controller';
     AnalysisImageUrlsService,
     PatientInviteService,
     ComparisonReportService,
+    PatientLoginEmailBackfill,
   ],
   controllers: [PatientsController],
   exports: [PatientsService],

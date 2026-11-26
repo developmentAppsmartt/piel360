@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { GoogleMap, MarkerF, useJsApiLoader } from "@react-google-maps/api";
+import { googleMapsLoaderOptions } from "./google-maps-loader";
 import type { LatLng } from "./types";
 
 const DEFAULT_CENTER: LatLng = { lat: 4.711, lng: -74.0721 }; // Bogotá
@@ -25,11 +26,7 @@ export function GoogleLocationPickerMap({
   className?: string;
   fallback: ReactNode;
 }) {
-  // Mismo id y opciones que el mapa de «Mapas»: el cargador es uno solo.
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: "piel360-google-maps",
-    googleMapsApiKey: apiKey,
-  });
+  const { isLoaded, loadError } = useJsApiLoader(googleMapsLoaderOptions(apiKey));
   const [authFailure, setAuthFailure] = useState(false);
 
   useEffect(() => {

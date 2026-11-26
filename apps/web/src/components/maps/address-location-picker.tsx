@@ -1,10 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { LocateFixed, Search } from "lucide-react";
-import { countryCodeFromNominatim } from "@/lib/nominatim-address";
+import { reverseGeocode, type AddressOption, type ResolvedAddress } from "@/lib/geocoding";
+import { AddressAdminFields } from "./address-admin-fields";
 import type { LatLng } from "./types";
+import { useAddressSearch } from "./use-address-search";
 
 const LocationPickerMap = dynamic(
   () => import("./map-views").then((m) => m.LocationPickerMap),
@@ -18,28 +20,12 @@ const LocationPickerMap = dynamic(
   },
 );
 
-type GeocodeResult = {
-  display_name: string;
-  lat: string;
-  lon: string;
-  address?: {
-    city?: string;
-    town?: string;
-    village?: string;
-    municipality?: string;
-    state?: string;
-    country?: string;
-    country_code?: string;
-    postcode?: string;
-  };
-};
-
 export type AddressLocationValue = {
   address: string;
   lat: number | null;
   lng: number | null;
   city?: string;
-  /** Departamento / estado (Nominatim `state`). */
+  /** Departamento / estado. */
   department?: string;
   country?: string;
   zip?: string;
@@ -55,93 +41,12 @@ type AddressLocationPickerProps = {
   mapClassName?: string;
 };
 
-function isBadCityLabel(value: string): boolean {
-  return (
-    /per[ií]metro/i.test(value) ||
-    /^comuna\b/i.test(value) ||
-    /^barrio\b/i.test(value)
-  );
-}
+const inputClass =
+  "h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-sky-500 disabled:bg-muted";
 
-function cityFromNominatim(
-  a: GeocodeResult["address"],
-  displayName?: string,
-): string | undefined {
-  const prefer = [a?.city, a?.town, a?.village];
-  for (const c of prefer) {
-    const t = c?.trim();
-    if (t && !isBadCityLabel(t)) return t;
-  }
-
-  const muni = a?.municipality?.trim();
-  if (muni) {
-    const peri = muni.match(/per[ií]metro\s+urbano\s+(.+)/i);
-    if (peri?.[1]?.trim()) return peri[1].trim();
-    if (!isBadCityLabel(muni)) return muni;
-  }
-
-  if (displayName) {
-    const parts = displayName.split(",").map((p) => p.trim());
-    const periIdx = parts.findIndex((p) => /per[ií]metro\s+urbano/i.test(p));
-    if (periIdx >= 0) {
-      const fromLabel = parts[periIdx].match(/per[ií]metro\s+urbano\s+(.+)/i);
-      if (fromLabel?.[1]?.trim()) return fromLabel[1].trim();
-      const next = parts[periIdx + 1];
-      if (next && !isBadCityLabel(next) && !/^\d+$/.test(next)) return next;
-    }
-  }
-
-  return a?.state?.trim() || undefined;
-}
-
-function zipFromNominatim(
-  a: GeocodeResult["address"],
-  displayName?: string,
-): string | undefined {
-  if (a?.postcode?.trim()) return a.postcode.trim();
-  const m = displayName?.match(/\b(\d{4,6})\b/);
-  return m?.[1];
-}
-
-/** Departamento / estado (Colombia: Valle del Cauca, Antioquia, …). */
-function departmentFromNominatim(
-  a: GeocodeResult["address"],
-  displayName?: string,
-): string | undefined {
-  const state = a?.state?.trim();
-  if (state && !/^colombia$/i.test(state) && !/^rap\b/i.test(state)) {
-    return state;
-  }
-
-  if (displayName) {
-    const parts = displayName
-      .split(",")
-      .map((p) => p.trim())
-      .filter(Boolean);
-    // …, municipio, departamento, región?, CP?, país
-    const withoutCountry = parts.filter(
-      (p) => !/^colombia$/i.test(p) && !/^\d{4,6}$/.test(p) && !/^rap\b/i.test(p),
-    );
-    // Prefer a known-looking department token near the end
-    for (let i = withoutCountry.length - 1; i >= 0; i--) {
-      const p = withoutCountry[i];
-      if (
-        /^(valle del cauca|antioquia|cundinamarca|atl[aá]ntico|bol[ií]var|boyac[aá]|caldas|caquet[aá]|casanare|cauca|cesar|choc[oó]|c[oó]rdoba|guain[ií]a|guaviare|huila|la guajira|magdalena|meta|nari[nñ]o|norte de santander|putumayo|quind[ií]o|risaralda|san andr[eé]s|santander|sucre|tolima|arauca|amazonas|vichada)$/i.test(
-          p,
-        )
-      ) {
-        return p;
-      }
-    }
-    // Fallback: penúltimo útil (antes del municipio a veces hay "Norte")
-    if (withoutCountry.length >= 2) {
-      return withoutCountry[withoutCountry.length - 1];
-    }
-  }
-
-  return undefined;
-}
-
+/** Dirección con búsqueda, mapa y «Usar mi ubicación» (paciente, perfil del
+ * profesional, admin). La búsqueda es la de `lib/geocoding`: Google con
+ * respaldo de OpenStreetMap. */
 export function AddressLocationPicker({
   value,
   onChange,
@@ -150,135 +55,45 @@ export function AddressLocationPicker({
   className,
   mapClassName,
 }: AddressLocationPickerProps) {
-  const [addressQuery, setAddressQuery] = useState(value.address);
-  /** Solo se actualiza al escribir en el input — evita buscar al pinchar el mapa. */
+  /** Solo lo tecleado: elegir una sugerencia o marcar el mapa no busca. */
   const [typedQuery, setTypedQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<GeocodeResult[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
-  const searchAbort = useRef<AbortController | null>(null);
+  const { options: suggestions, loading: searchLoading } = useAddressSearch(typedQuery);
 
   const location: LatLng | null =
-    value.lat != null &&
-    value.lng != null &&
-    Number.isFinite(value.lat) &&
-    Number.isFinite(value.lng)
+    value.lat != null && value.lng != null && Number.isFinite(value.lat) && Number.isFinite(value.lng)
       ? { lat: value.lat, lng: value.lng }
       : null;
 
-  useEffect(() => {
-    if (value.address !== addressQuery && !searchOpen) {
-      setAddressQuery(value.address);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync externo
-  }, [value.address]);
-
-  useEffect(() => {
-    const q = typedQuery.trim();
-    if (q.length < 3) {
-      setSuggestions([]);
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      searchAbort.current?.abort();
-      const controller = new AbortController();
-      searchAbort.current = controller;
-      setSearchLoading(true);
-      try {
-        const url = new URL("https://nominatim.openstreetmap.org/search");
-        url.searchParams.set("q", q);
-        url.searchParams.set("format", "json");
-        url.searchParams.set("addressdetails", "1");
-        url.searchParams.set("limit", "5");
-        // Sin countrycodes: el profesional puede estar en CO, EC, etc.
-        const res = await fetch(url.toString(), {
-          signal: controller.signal,
-          headers: { Accept: "application/json" },
-        });
-        if (!res.ok) throw new Error("geocode");
-        const data = (await res.json()) as GeocodeResult[];
-        setSuggestions(data);
-        setSearchOpen(true);
-      } catch (err) {
-        if ((err as Error).name !== "AbortError") {
-          setSuggestions([]);
-        }
-      } finally {
-        setSearchLoading(false);
-      }
-    }, 400);
-
-    return () => {
-      clearTimeout(timer);
-      searchAbort.current?.abort();
-    };
-  }, [typedQuery]);
-
-  async function reverseGeocode(lat: number, lng: number) {
-    try {
-      const url = new URL("https://nominatim.openstreetmap.org/reverse");
-      url.searchParams.set("lat", String(lat));
-      url.searchParams.set("lon", String(lng));
-      url.searchParams.set("format", "json");
-      url.searchParams.set("addressdetails", "1");
-      const res = await fetch(url.toString(), {
-        headers: { Accept: "application/json" },
-      });
-      if (!res.ok) return;
-      const data = (await res.json()) as GeocodeResult & {
-        display_name?: string;
-      };
-      if (!data.display_name) return;
-      setAddressQuery(data.display_name);
-      setTypedQuery("");
-      setSuggestions([]);
-      setSearchOpen(false);
-      onChange({
-        address: data.display_name,
-        lat,
-        lng,
-        city: cityFromNominatim(data.address, data.display_name) ?? "",
-        department:
-          departmentFromNominatim(data.address, data.display_name) ??
-          value.department ??
-          "",
-        country: countryCodeFromNominatim(
-          data.address,
-          data.display_name,
-          value.country,
-        ),
-        zip: zipFromNominatim(data.address, data.display_name) ?? "",
-      });
-    } catch {
-      /* el pin basta */
-    }
-  }
-
-  function selectSuggestion(item: GeocodeResult) {
-    const lat = Number(item.lat);
-    const lng = Number(item.lon);
-    setAddressQuery(item.display_name);
+  function applyResolved(resolved: ResolvedAddress) {
     setTypedQuery("");
-    setSuggestions([]);
     setSearchOpen(false);
     setGeoError(null);
     onChange({
-      address: item.display_name,
-      lat,
-      lng,
-      city: cityFromNominatim(item.address, item.display_name) ?? "",
-      department:
-        departmentFromNominatim(item.address, item.display_name) ?? "",
-      country: countryCodeFromNominatim(
-        item.address,
-        item.display_name,
-        value.country,
-      ),
-      zip: zipFromNominatim(item.address, item.display_name) ?? "",
+      address: resolved.address,
+      lat: resolved.lat,
+      lng: resolved.lng,
+      city: resolved.city,
+      department: resolved.department || value.department || "",
+      country: resolved.country || value.country || "",
+      zip: resolved.zip,
     });
+  }
+
+  async function fillFromPin(lat: number, lng: number) {
+    const resolved = await reverseGeocode(lat, lng);
+    // Sin dirección el pin basta: se guarda la coordenada.
+    if (resolved) applyResolved(resolved);
+    else onChange({ ...value, lat, lng });
+  }
+
+  async function selectSuggestion(item: AddressOption) {
+    setSearchOpen(false);
+    const resolved = await item.resolve().catch(() => null);
+    if (resolved) applyResolved(resolved);
+    else setGeoError("No se pudo ubicar esa dirección. Prueba con otra o marca el mapa.");
   }
 
   function useCurrentLocation() {
@@ -290,23 +105,16 @@ export function AddressLocationPicker({
     setGeoLoading(true);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
         setGeoLoading(false);
-        await reverseGeocode(lat, lng);
+        await fillFromPin(pos.coords.latitude, pos.coords.longitude);
       },
       () => {
-        setGeoError(
-          "No se pudo obtener tu ubicación. Busca la dirección o marca el mapa.",
-        );
+        setGeoError("No se pudo obtener tu ubicación. Busca la dirección o marca el mapa.");
         setGeoLoading(false);
       },
       { enableHighAccuracy: true, timeout: 15000 },
     );
   }
-
-  const inputClass =
-    "h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-sky-500 disabled:bg-muted";
 
   return (
     <section className={className ?? "space-y-3"}>
@@ -341,35 +149,33 @@ export function AddressLocationPicker({
             <input
               className={`${inputClass} pl-9`}
               placeholder="Ej. Calle 100 #19-54, Bogotá"
-              value={addressQuery}
+              value={value.address}
               onChange={(e) => {
-                const next = e.target.value;
-                setAddressQuery(next);
-                setTypedQuery(next);
-                onChange({ ...value, address: next });
+                setTypedQuery(e.target.value);
+                setSearchOpen(true);
+                onChange({ ...value, address: e.target.value });
               }}
               onFocus={() => suggestions.length > 0 && setSearchOpen(true)}
               onBlur={() => {
                 window.setTimeout(() => setSearchOpen(false), 150);
               }}
+              onKeyDown={(e) => e.key === "Escape" && setSearchOpen(false)}
               autoComplete="street-address"
             />
           </div>
         </label>
-        {searchLoading ? (
-          <p className="mt-1 text-xs text-muted-foreground">Buscando…</p>
-        ) : null}
+        {searchLoading ? <p className="mt-1 text-xs text-muted-foreground">Buscando…</p> : null}
         {searchOpen && suggestions.length > 0 ? (
           <ul className="absolute top-full right-0 left-0 z-[1200] mt-1 max-h-52 overflow-auto rounded-xl border border-border bg-background py-1 shadow-xl">
             {suggestions.map((item) => (
-              <li key={`${item.lat}-${item.lon}-${item.display_name}`}>
+              <li key={item.id}>
                 <button
                   type="button"
                   className="w-full px-3 py-2 text-left text-sm hover:bg-sky-50"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => selectSuggestion(item)}
+                  onClick={() => void selectSuggestion(item)}
                 >
-                  {item.display_name}
+                  {item.label}
                 </button>
               </li>
             ))}
@@ -382,7 +188,7 @@ export function AddressLocationPicker({
           value={location}
           onChange={(pos) => {
             setGeoError(null);
-            void reverseGeocode(pos.lat, pos.lng);
+            void fillFromPin(pos.lat, pos.lng);
           }}
           className={mapClassName ?? "h-64 w-full"}
         />
@@ -390,49 +196,14 @@ export function AddressLocationPicker({
 
       {location ? (
         <p className="text-xs text-muted-foreground">
-          {value.address || "Ubicación marcada"} · Lat {location.lat.toFixed(5)}
-          , Lng {location.lng.toFixed(5)}
+          {value.address || "Ubicación marcada"} · Lat {location.lat.toFixed(5)}, Lng{" "}
+          {location.lng.toFixed(5)}
         </p>
       ) : null}
       {geoError ? <p className="text-sm text-destructive">{geoError}</p> : null}
 
       {showAdminFields ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium">Municipio / ciudad</span>
-            <input
-              className={inputClass}
-              value={value.city ?? ""}
-              onChange={(e) => onChange({ ...value, city: e.target.value })}
-            />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium">Departamento</span>
-            <input
-              className={inputClass}
-              value={value.department ?? ""}
-              onChange={(e) =>
-                onChange({ ...value, department: e.target.value })
-              }
-            />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium">País</span>
-            <input
-              className={inputClass}
-              value={value.country ?? ""}
-              onChange={(e) => onChange({ ...value, country: e.target.value })}
-            />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm">
-            <span className="font-medium">Código postal</span>
-            <input
-              className={inputClass}
-              value={value.zip ?? ""}
-              onChange={(e) => onChange({ ...value, zip: e.target.value })}
-            />
-          </label>
-        </div>
+        <AddressAdminFields value={value} onChange={onChange} inputClass={inputClass} />
       ) : null}
     </section>
   );

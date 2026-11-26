@@ -18,7 +18,6 @@ const ARCHIVOS_LARGOS_HEREDADOS = [
   "src/components/agenda/patient-agenda-workspace.tsx",
   "src/components/analyses/analysis-consumption-view.tsx",
   "src/components/doctor/doctor-billing-hub.tsx",
-  "src/components/maps/address-location-picker.tsx",
   "src/lib/mocks/admin-bolsa.ts",
 ];
 
