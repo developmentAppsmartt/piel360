@@ -86,14 +86,14 @@ export function LocationPickerSection({
         {searchOpen && suggestions.length > 0 && (
           <ul className="absolute top-full right-0 left-0 z-[1200] mt-1 max-h-52 overflow-auto rounded-xl border border-zinc-200 bg-white py-1 shadow-xl">
             {suggestions.map((item) => (
-              <li key={`${item.lat}-${item.lon}-${item.display_name}`}>
+              <li key={item.id}>
                 <button
                   type="button"
                   className="w-full px-3 py-2 text-left text-sm text-zinc-800 hover:bg-sky-50"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => selectSuggestion(item)}
+                  onClick={() => void selectSuggestion(item)}
                 >
-                  {item.display_name}
+                  {item.label}
                 </button>
               </li>
             ))}

@@ -158,7 +158,7 @@ export function DoctorRegisterForm({ referralCode: initialReferralCode }: { refe
         <p className="text-sm text-zinc-500">
           Para especialistas médicos y técnicos laborales. Si representas una empresa, usa el{" "}
           <Link href={empresaRegisterHref} className="text-sky-600 underline">
-            registro empresarial
+            Registro Empresarial
           </Link>
           .
         </p>

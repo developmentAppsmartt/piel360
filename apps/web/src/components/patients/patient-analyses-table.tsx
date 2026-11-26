@@ -1,8 +1,11 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { createColumnHelper } from "@tanstack/react-table";
+import { AnalysisDateFilterButton } from "@/components/analyses/analysis-date-filter";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
+import { matchesAnalysisDate, type AnalysisDateFilter } from "@/lib/analysis-date-filter";
 import { analysisProviderLabel } from "@/lib/analysis-provider-label";
 import { bodyRegionLabel } from "@/lib/body-regions";
 import { formatAnalysisDate } from "@/lib/patient-comparison";
@@ -74,14 +77,25 @@ export function PatientAnalysesTable({
   analyses: Analysis[];
   getRowHref?: (row: Analysis) => string | null;
 }) {
+  const [dateFilter, setDateFilter] = useState<AnalysisDateFilter | null>(null);
+  const visible = useMemo(
+    () => analyses.filter((a) => matchesAnalysisDate(a.createdAt, dateFilter)),
+    [analyses, dateFilter],
+  );
+
   return (
     <DataTable
       columns={columns}
-      data={analyses}
+      data={visible}
+      searchAside={<AnalysisDateFilterButton value={dateFilter} onChange={setDateFilter} />}
       title="Historial de análisis"
       variant="modern"
       searchPlaceholder="Buscar por diagnóstico o región..."
-      emptyMessage="Este paciente aún no tiene análisis."
+      emptyMessage={
+        dateFilter && analyses.length > 0
+          ? "No hay análisis en esas fechas."
+          : "Este paciente aún no tiene análisis."
+      }
       getRowHref={getRowHref}
       // Lo más reciente primero; el encabezado permite invertirlo.
       initialSorting={[{ id: "createdAt", desc: true }]}

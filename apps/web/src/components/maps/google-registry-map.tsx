@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { GoogleMap, InfoWindowF, useJsApiLoader } from "@react-google-maps/api";
 import { MarkerClusterer } from "@googlemaps/markerclusterer";
+import { googleMapsLoaderOptions } from "./google-maps-loader";
 import type { MapMarker } from "./types";
 
 const DEFAULT_CENTER = { lat: 4.711, lng: -74.0721 }; // Bogotá
@@ -75,10 +76,7 @@ function RegistryMapLoaded({
   className?: string;
 }) {
   const [authFailure, setAuthFailure] = useState(false);
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: "piel360-google-maps",
-    googleMapsApiKey: apiKey,
-  });
+  const { isLoaded, loadError } = useJsApiLoader(googleMapsLoaderOptions(apiKey));
 
   useEffect(() => {
     const win = window as Window & { gm_authFailure?: () => void };

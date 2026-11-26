@@ -19,6 +19,7 @@ import type { CreatePatientDto } from './dto/create-patient.dto';
 import type { UpdatePatientDto } from './dto/update-patient.dto';
 import { isDoctorPanelRole, isPlatformAdmin } from './patient-access';
 import { PatientInviteService } from './patient-invite.service';
+import { resolvePatientEmailChange } from './patient-login-email';
 import { PATIENT_RELATIONS, serializePatient } from './patient-serializer';
 import { PatientsService } from './patients.service';
 
@@ -190,7 +191,20 @@ export class PatientWriteService {
 
   async update(id: string, dto: UpdatePatientDto, currentUser: JwtPayload) {
     const patient = await this.patients.findOne(id, currentUser);
-    const { birthDate, phone, areaCode, phoneTicket, doctor_id, ...rest } = dto;
+    const {
+      birthDate,
+      phone,
+      areaCode,
+      phoneTicket,
+      doctor_id,
+      email,
+      ...rest
+    } = dto;
+    const { patientEmail, loginEmail } = await resolvePatientEmailChange(
+      this.prisma,
+      patient,
+      email,
+    );
     if (dto.docNumber !== undefined) {
       await assertDocumentNumberAvailable(this.prisma, dto.docNumber, {
         patientId: patient.id,
@@ -258,32 +272,35 @@ export class PatientWriteService {
       }
     }
 
-    const updated = await this.prisma.patient.update({
-      where: { id: BigInt(id) },
-      data: {
-        ...rest,
-        ...(phone !== undefined ? { phone } : {}),
-        ...(areaCode !== undefined ? { areaCode } : {}),
-        ...(birthDate !== undefined
-          ? { birthDate: birthDate ? new Date(birthDate) : null }
-          : {}),
-        ...(nextDoctorId !== undefined ? { doctorId: nextDoctorId } : {}),
-      },
-      include: PATIENT_RELATIONS,
-    });
+    const syncPhone = phoneVerifiedAt || (phoneFieldsTouched && normalized);
+    const userData = {
+      ...(syncPhone && normalized ? { phone: normalized } : {}),
+      ...(phoneVerifiedAt ? { phoneVerifiedAt } : {}),
+      ...(loginEmail ? { email: loginEmail } : {}),
+    };
 
-    if (
-      patient.userId &&
-      (phoneVerifiedAt || (phoneFieldsTouched && normalized))
-    ) {
-      await this.prisma.user.update({
-        where: { id: patient.userId },
+    // Ficha y cuenta en la misma transacción: si una falla, no quedan
+    // desfasadas (el correo de la ficha distinto del de inicio de sesión).
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const saved = await tx.patient.update({
+        where: { id: BigInt(id) },
         data: {
-          ...(normalized ? { phone: normalized } : {}),
-          ...(phoneVerifiedAt ? { phoneVerifiedAt } : {}),
+          ...rest,
+          ...(patientEmail !== undefined ? { email: patientEmail } : {}),
+          ...(phone !== undefined ? { phone } : {}),
+          ...(areaCode !== undefined ? { areaCode } : {}),
+          ...(birthDate !== undefined
+            ? { birthDate: birthDate ? new Date(birthDate) : null }
+            : {}),
+          ...(nextDoctorId !== undefined ? { doctorId: nextDoctorId } : {}),
         },
+        include: PATIENT_RELATIONS,
       });
-    }
+      if (patient.userId && Object.keys(userData).length > 0) {
+        await tx.user.update({ where: { id: patient.userId }, data: userData });
+      }
+      return saved;
+    });
 
     return serializePatient(
       this.storage,
